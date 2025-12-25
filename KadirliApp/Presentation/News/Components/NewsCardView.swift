@@ -1,31 +1,23 @@
 import SwiftUI
+import Kingfisher
 
 struct NewsCardView: View {
     let news: News
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 1. Görsel Alanı
-            AsyncImage(url: URL(string: news.imageUrls?.first ?? "")) { phase in
-                switch phase {
-                case .empty:
+            // 1. Görsel Alanı (DÜZELTİLEN KISIM)
+            KFImage(URL(string: news.imageUrls?.first ?? ""))
+                .placeholder {
                     Rectangle()
                         .fill(Color.gray.opacity(0.2))
                         .overlay(ProgressView())
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure:
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.1))
-                        .overlay(Image(systemName: "photo").foregroundColor(.gray))
-                @unknown default:
-                    EmptyView()
                 }
-            }
-            .frame(height: 200)
-            .clipped()
+                .onFailureImage(UIImage(systemName: "photo"))
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(height: 200)
+                .clipped()
             
             // 2. İçerik Alanı
             VStack(alignment: .leading, spacing: 10) {
@@ -105,6 +97,6 @@ struct NewsCardSkeleton: View {
         }
         .background(Color.white)
         .cornerRadius(16)
-        .shimmer() // Shimmer efekti burada uygulanır
+        .shimmer()
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 struct PlacesView: View {
     @StateObject private var viewModel = PlacesViewModel()
@@ -79,13 +80,14 @@ struct PlaceCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // Görsel
             if let url = place.imageUrls?.first {
-                AsyncImage(url: URL(string: url)) { img in
-                    img.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color.gray.opacity(0.2)
-                }
-                .frame(height: 200)
-                .clipped()
+                KFImage(URL(string: url))
+                    .placeholder {
+                        Color.gray.opacity(0.2)
+                    }
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: 200)
+                    .clipped()
             }
             
             HStack {

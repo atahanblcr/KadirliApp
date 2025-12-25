@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 struct DeathCardView: View {
     let death: DeathNotice
@@ -8,14 +9,15 @@ struct DeathCardView: View {
         HStack(alignment: .top, spacing: 16) {
             // 1. Fotoğraf Alanı
             if let imageUrl = death.imageUrl, !imageUrl.isEmpty {
-                AsyncImage(url: URL(string: imageUrl)) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color.gray.opacity(0.3)
-                }
-                .frame(width: 80, height: 100)
-                .cornerRadius(8)
-                .clipped()
+                KFImage(URL(string: imageUrl))
+                    .placeholder { // Yüklenirken gri kutu göster
+                        Color.gray.opacity(0.3)
+                    }
+                    .resizable() // Boyutlandırılabilir yap
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 80, height: 100)
+                    .cornerRadius(8)
+                    .clipped()
             } else {
                 // Fotoğraf yoksa ikon göster
                 ZStack {

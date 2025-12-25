@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 struct EventCardView: View {
     let event: Event
@@ -44,15 +45,17 @@ struct EventCardView: View {
             Spacer()
             
             // Küçük Görsel (Varsa)
+            // Küçük Görsel (Varsa)
             if let imageUrl = event.imageUrl {
-                AsyncImage(url: URL(string: imageUrl)) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color.gray.opacity(0.2)
-                }
-                .frame(width: 60, height: 60)
-                .cornerRadius(8)
-                .clipped()
+                KFImage(URL(string: imageUrl))
+                    .placeholder {
+                        Color.gray.opacity(0.2)
+                    }
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 60, height: 60)
+                    .cornerRadius(8)
+                    .clipped()
             }
         }
         .padding()

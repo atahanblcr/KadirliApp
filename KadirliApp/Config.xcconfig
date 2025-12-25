@@ -1,9 +1,3 @@
-//
-//  Config.xcconfig
-//  KadirliApp
-//
-//  Created by MUSTAFA ATAHAN on 25.12.2025.
-//
-
-// Configuration settings file format documentation can be found at:
+SUPABASE_URL = https://dtfjgbjegkphlgqzlplw.supabase.co/rest/v1
+SUPABASE_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0ZmpnYmplZ2twaGxncXpscGx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMzk1NjQsImV4cCI6MjA4MDcxNTU2NH0.xF750JrWbg0ktUSbgbltw4sMoDtLXw5Xy2EfOyH00Mw
 // https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project

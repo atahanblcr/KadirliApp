@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 struct AdCardView: View {
     let ad: Ad
@@ -42,16 +43,18 @@ struct AdCardView: View {
             
             // Görsel (Varsa)
             if let imageUrl = ad.imageUrls?.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
-                    image.resizable()
-                        .aspectRatio(4/3, contentMode: .fill) // Düzeltilen Kısım
-                } placeholder: {
-                    Color.gray.opacity(0.1)
-                }
-                .frame(height: 200) // Yüksekliği artırdık
-                .cornerRadius(8)
-                .clipped() // Taşan kısımları kes
-                .padding(.top, 4)
+                KFImage(URL(string: imageUrl))
+                    .placeholder { // Yüklenirken gösterilecek olan
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.1))
+                            .overlay(ProgressView())
+                    }
+                    .resizable() // Resim boyutlandırılabilir olsun
+                    .aspectRatio(4/3, contentMode: .fill)
+                    .frame(height: 200)
+                    .cornerRadius(8)
+                    .clipped()
+                    .padding(.top, 4)
             }
         }
         .padding()

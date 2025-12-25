@@ -1,7 +1,6 @@
 import Foundation
 
 /// API isteklerini yapılandırmak için kullanılan protokol.
-/// Her yeni API isteği bu protokolü uygulayan bir Enum case'i olmalıdır.
 protocol Endpoint {
     var path: String { get }
     var method: HTTPMethod { get }
@@ -18,15 +17,18 @@ enum HTTPMethod: String {
 }
 
 extension Endpoint {
-    // Varsayılan değerler
+    // Varsayılan değerler (Burayı güncelledik)
     var headers: [String: String]? {
-        return ["Content-Type": "application/json", "ApiKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0ZmpnYmplZ2twaGxncXpscGx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMzk1NjQsImV4cCI6MjA4MDcxNTU2NH0.xF750JrWbg0ktUSbgbltw4sMoDtLXw5Xy2EfOyH00Mw"]
-        // Not: Gerçek projede Key'ler AppConfig'den gelmelidir.
+        return [
+            "Content-Type": "application/json",
+            "ApiKey": AppConfig.supabaseKey, // Config dosyasından okuyor
+            "Authorization": "Bearer \(AppConfig.supabaseKey)" // Supabase için gerekli
+        ]
     }
     
+    // İŞTE EKSİK OLAN KISIM BURASIYDI:
+    // Çoğu istekte body (veri gövdesi) boş olacağı için varsayılan olarak nil döndürüyoruz.
     var body: Data? {
         return nil
     }
 }
-
-
