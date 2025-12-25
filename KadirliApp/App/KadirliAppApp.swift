@@ -25,8 +25,8 @@ struct KadirliAppApp: App {
                     OnboardingView()
                     
                 case .unauthenticated:
-                    // Giriş Yapılmamışsa -> Login Ekranı
-                    LoginView(sessionManager: sessionManager)
+                    // LoginView(sessionManager: sessionManager) // ESKİSİ
+                    PhoneLoginView(sessionManager: sessionManager) // YENİSİ
                     
                 case .authenticated:
                     // Giriş Yapılmışsa -> Ana Ekran
