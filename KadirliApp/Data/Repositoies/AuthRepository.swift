@@ -28,7 +28,7 @@ final class AuthRepository: AuthRepositoryProtocol {
     // Profil Bilgilerini Güncelle
     func updateProfile(userId: String, fullName: String, neighborhood: String) async throws {
         let endpoint = AuthEndpoint.updateProfile(userId: userId, fullName: fullName, neighborhood: neighborhood)
-        let _: String? = try? await networkManager.request(endpoint: endpoint)
+        let _: String? = try await networkManager.request(endpoint: endpoint)
     }
     
     // Çıkış Yap

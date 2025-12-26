@@ -10,8 +10,7 @@ final class NetworkManager {
     private let decoder: JSONDecoder
     
     // ⚠️ DİKKAT: Buraya kendi Supabase proje URL'ini yapıştırdığından emin ol!
-    // Örnek: "https://abcdefghijklm.supabase.co/rest/v1"
-    private let baseURL = "https://dtfjgbjegkphlgqzlplw.supabase.co/rest/v1"
+    let baseURL = "https://dtfjgbjegkphlgqzlplw.supabase.co/rest/v1"
     
     private init() {
         let config = URLSessionConfiguration.default
@@ -26,8 +25,8 @@ final class NetworkManager {
     /// Generic API İstek Fonksiyonu
     func request<T: Decodable>(endpoint: Endpoint) async throws -> T {
         
-        // 🛠️ DÜZELTME: Eğer istek Authentication (Giriş/Kayıt) ile ilgiliyse
-        // URL'den "/rest/v1" kısmını çıkarıyoruz.
+        // 1. URL Hazırlığı
+        // Eğer istek Authentication (Giriş/Kayıt) ile ilgiliyse URL'den "/rest/v1" kısmını çıkarıyoruz.
         var effectiveBaseURL = baseURL
         if endpoint.path.hasPrefix("/auth") {
             effectiveBaseURL = baseURL.replacingOccurrences(of: "/rest/v1", with: "")
@@ -39,10 +38,23 @@ final class NetworkManager {
         
         var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
-        request.allHTTPHeaderFields = endpoint.headers
+        
+        // 2. HEADER AYARLAMALARI (İŞTE EKSİK OLAN KISIM BURASIYDI 🛠️)
+        var headers = endpoint.headers ?? [:]
+        
+        // Eğer Keychain'de kayıtlı bir kullanıcı Token'ı varsa,
+        // "Authorization" başlığını bu Token ile değiştir.
+        // Böylece sunucu "Heh, bu işlemi yapan Ahmet'miş" diyebilecek.
+        if let data = KeychainHelper.standard.read(service: "com.atahanblcr.KadirliApp.token", account: "auth_token"),
+           let token = String(data: data, encoding: .utf8), !token.isEmpty {
+            headers["Authorization"] = "Bearer \(token)"
+            print("🔑 İstek Kullanıcı Token'ı ile imzalandı.")
+        }
+        
+        request.allHTTPHeaderFields = headers
         request.httpBody = endpoint.body
         
-        // Debug için yazdır (Hata alırsak konsoldan URL'i kontrol edebilirsin)
+        // Debug için yazdır
         print("🌍 İstek Yapılıyor: \(url.absoluteString)")
         
         do {
@@ -54,7 +66,6 @@ final class NetworkManager {
             
             // Başarılı durum kodları (200-299)
             guard (200...299).contains(httpResponse.statusCode) else {
-                // Supabase bazen hata detayını JSON döner, onu okuyabiliriz
                 if let errorString = String(data: data, encoding: .utf8) {
                     print("❌ Sunucu Hatası: \(errorString)")
                 }
@@ -65,10 +76,14 @@ final class NetworkManager {
                 throw AppError.serverError(statusCode: httpResponse.statusCode)
             }
             
-            // Bazı Auth işlemleri (Örn: Update) boş veri dönebilir, hata vermesin
+            // ✅ DÜZELTME: Eğer veri boşsa ama işlem başarılıysa (Örn: 204 No Content)
             if data.isEmpty {
-                // Eğer T tipi Void veya benzeri bir şeyse handle edilebilir ama
-                // şimdilik boş data hatası fırlatıyoruz (Login/Register dolu döner)
+                if (200...299).contains(httpResponse.statusCode) {
+                    // JSONDecoder'a "null" veriyoruz.
+                    // Bu sayede String? veya UserDTO? gibi Optional tipler otomatik olarak 'nil' olur ve hata vermez.
+                    let emptyData = "null".data(using: .utf8)!
+                    return try decoder.decode(T.self, from: emptyData)
+                }
                 throw AppError.noData
             }
             

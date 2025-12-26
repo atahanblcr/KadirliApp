@@ -80,15 +80,21 @@ struct PhoneLoginView: View {
                 Spacer()
             }
             .padding()
-            // Yönlendirmeler
-            .navigationDestination(isPresented: $viewModel.navigateToOTP) {
-                OTPVerificationView(viewModel: viewModel)
-            }
-            .alert("Hata", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { _ in viewModel.errorMessage = nil })) {
-                Button("Tamam", role: .cancel) { }
-            } message: {
-                Text(viewModel.errorMessage ?? "")
-            }
+                        // 1. OTP Ekranına Yönlendirme (Zaten vardı)
+                        .navigationDestination(isPresented: $viewModel.navigateToOTP) {
+                            OTPVerificationView(viewModel: viewModel)
+                        }
+                        // 👇👇👇 2. BU KISMI EKLE: Profil Ekranına Yönlendirme 👇👇👇
+                        .navigationDestination(isPresented: $viewModel.navigateToProfile) {
+                            ProfileCreationView(viewModel: viewModel)
+                        }
+                        // 👆👆👆 BURAYA KADAR 👆👆👆
+                        
+                        .alert("Hata", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { _ in viewModel.errorMessage = nil })) {
+                            Button("Tamam", role: .cancel) { }
+                        } message: {
+                            Text(viewModel.errorMessage ?? "")
+                        }
         }
     }
 }

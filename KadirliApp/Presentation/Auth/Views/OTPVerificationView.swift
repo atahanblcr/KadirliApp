@@ -45,6 +45,17 @@ struct OTPVerificationView: View {
         // Profil sayfasına yönlendirme (Eğer yeni kullanıcıysa)
         .navigationDestination(isPresented: $viewModel.navigateToProfile) {
             ProfileCreationView(viewModel: viewModel)
+            if viewModel.isLoading {
+                            ProgressView("Doğrulanıyor...")
+                        }
+                        
+                        Spacer()
+                    }
+                    .onAppear { isFocused = true }
+                    .alert("Hata", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { _ in viewModel.errorMessage = nil })) {
+                        Button("Tamam", role: .cancel) { }
+                    } message: {
+                        Text(viewModel.errorMessage ?? "Bilinmeyen bir hata oluştu.")
         }
     }
 }

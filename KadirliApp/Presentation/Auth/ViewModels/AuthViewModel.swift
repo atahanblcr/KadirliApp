@@ -15,13 +15,17 @@ final class AuthViewModel: ObservableObject {
     // Veriler
     @Published var phoneNumber = ""
     @Published var otpCode = ""
-    @Published var fullName = ""
+    @Published var username = "" // İsim yerine Kullanıcı Adı
     @Published var selectedLocationType = 0 // 0: Mahalle, 1: Köy
     @Published var selectedLocation = ""
     
     // İzinler
-    @Published var isTermsAccepted = false // Kullanım Koşulları
-    @Published var isMarketingAccepted = false // Ticari İleti (İsteğe bağlı)
+    @Published var isTermsAccepted = false
+    @Published var isMarketingAccepted = false
+    
+    // Geçici Hafıza
+    private var tempUser: UserDTO?
+    private var tempToken: String?
     
     private let authRepository: AuthRepositoryProtocol
     private let sessionManager: SessionManager
@@ -39,11 +43,10 @@ final class AuthViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            // +90 formatı ekle (eğer kullanıcı girmediyse)
-            let formattedPhone = phoneNumber.starts(with: "+90") ? phoneNumber : "+90\(phoneNumber)"
+            // Başında artı olmadan, sadece 90 ve numara
+            let formattedPhone = phoneNumber.starts(with: "90") ? phoneNumber : "90\(phoneNumber)"
             try await authRepository.sendOTP(phone: formattedPhone)
             
-            // Başarılıysa OTP ekranına geç
             self.navigateToOTP = true
         } catch {
             self.errorMessage = "Kod gönderilemedi: \(error.localizedDescription)"
@@ -62,23 +65,28 @@ final class AuthViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let formattedPhone = phoneNumber.starts(with: "+90") ? phoneNumber : "+90\(phoneNumber)"
+            let formattedPhone = phoneNumber.starts(with: "90") ? phoneNumber : "90\(phoneNumber)"
+            print("📡 Doğrulama: \(formattedPhone) - Kod: \(otpCode)")
+            
             let response = try await authRepository.verifyOTP(phone: formattedPhone, token: otpCode)
+            print("✅ Doğrulama Başarılı!")
             
-            // Token'ı kaydet (Oturum açıldı)
-            sessionManager.loginSuccess(user: response.user, token: response.accessToken)
-            
-            // Kontrol: Kullanıcı yeni mi eski mi?
-            // (Burada isim doluysa eski kullanıcıdır diyebiliriz)
+            // Eski kullanıcı mı kontrol et
             if let name = response.user.userMetadata?["full_name"]?.value as? String, !name.isEmpty {
-                // Eski kullanıcı -> Ana Sayfaya
+                print("👤 Eski kullanıcı -> Ana Sayfa")
+                // Eski kullanıcıysa direkt oturumu aç
+                sessionManager.loginSuccess(user: response.user, token: response.accessToken)
                 self.isSuccess = true
             } else {
-                // Yeni kullanıcı -> Profil Tamamlamaya
+                print("🆕 Yeni kullanıcı -> Profil Oluşturma")
+                // Yeni kullanıcıysa token'ı sakla ama oturum açma
+                self.tempUser = response.user
+                self.tempToken = response.accessToken
                 self.navigateToProfile = true
             }
             
         } catch {
+            print("❌ Hata: \(error)")
             self.errorMessage = "Kod hatalı veya süresi dolmuş."
         }
         isLoading = false
@@ -86,7 +94,7 @@ final class AuthViewModel: ObservableObject {
     
     // 3. Profili Kaydet
     func completeProfile() async {
-        guard !fullName.isEmpty, !selectedLocation.isEmpty else {
+        guard !username.isEmpty, !selectedLocation.isEmpty else {
             errorMessage = "Lütfen tüm alanları doldurun."
             return
         }
@@ -98,26 +106,45 @@ final class AuthViewModel: ObservableObject {
         isLoading = true
         
         do {
-            // Mevcut kullanıcı ID'sini al
-            guard let userId = sessionManager.currentUser?.id.uuidString else { return }
+            let userId = tempUser?.id.uuidString ?? sessionManager.currentUser?.id.uuidString
             
+            guard let uid = userId else {
+                errorMessage = "Kullanıcı bilgisi bulunamadı."
+                isLoading = false
+                return
+            }
+            
+            // ⚡️ KRİTİK ADIM: Token'ı geçici olarak kaydet (NetworkManager kullanabilsin diye)
+            if let token = tempToken, let data = token.data(using: .utf8) {
+                KeychainHelper.standard.save(data, service: "com.atahanblcr.KadirliApp.token", account: "auth_token")
+                print("⚡️ Token güncelleme için kaydedildi.")
+            }
+            
+            // Şimdi güncelleme isteği at
             try await authRepository.updateProfile(
-                userId: userId,
-                fullName: fullName,
+                userId: uid,
+                fullName: username,
                 neighborhood: selectedLocation
             )
             
-            // Her şey bitti -> Ana Sayfaya
+            // İşlem bitince resmi oturum açılışını yap
+            if let user = tempUser, let token = tempToken {
+                sessionManager.loginSuccess(user: user, token: token)
+            }
+            
             self.isSuccess = true
             
         } catch {
-            self.errorMessage = "Profil kaydedilemedi."
+            print("❌ Profil Hatası: \(error)")
+            // Hata olursa token'ı temizle
+            KeychainHelper.standard.delete(service: "com.atahanblcr.KadirliApp.token", account: "auth_token")
+            self.errorMessage = "Profil kaydedilemedi: \(error.localizedDescription)"
         }
         isLoading = false
     }
     
+    // Yardımcı: Telefon doğrulama
     private func validatePhone() -> Bool {
-        // Basit kontrol (5XX...)
         if phoneNumber.count < 10 {
             errorMessage = "Lütfen geçerli bir numara girin."
             return false
@@ -125,4 +152,3 @@ final class AuthViewModel: ObservableObject {
         return true
     }
 }
-

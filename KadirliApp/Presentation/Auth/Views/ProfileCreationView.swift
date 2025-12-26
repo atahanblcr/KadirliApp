@@ -1,7 +1,9 @@
 import SwiftUI
 
+// 1. ANA EKRAN (Adım 2.2'deki kısım)
 struct ProfileCreationView: View {
     @ObservedObject var viewModel: AuthViewModel
+    @State private var showTerms = false // Sözleşme ekranını açmak için
     
     var body: some View {
         ScrollView {
@@ -12,14 +14,16 @@ struct ProfileCreationView: View {
                     .fontWeight(.bold)
                     .padding(.top, 40)
                 
-                // 1. İsim Soyisim
+                // 1. KULLANICI ADI (Ad Soyad yerine bunu istiyoruz)
                 VStack(alignment: .leading) {
-                    Text("Adınız Soyadınız")
+                    Text("Kullanıcı Adı")
                         .font(.caption).foregroundColor(.gray)
-                    TextField("Örn: Ali Yılmaz", text: $viewModel.fullName)
+                    
+                    TextField("Örn: ÇılgınKadirli80", text: $viewModel.username)
                         .padding()
                         .background(Color(.systemGray6))
                         .cornerRadius(10)
+                        .autocapitalization(.none) // Otomatik baş harf büyütmeyi kapat
                 }
                 
                 Divider()
@@ -35,7 +39,7 @@ struct ProfileCreationView: View {
                     }
                     .pickerStyle(.segmented)
                     .onChange(of: viewModel.selectedLocationType) { _ in
-                        viewModel.selectedLocation = "" // Tip değişince seçimi sıfırla
+                        viewModel.selectedLocation = ""
                     }
                 }
                 
@@ -58,7 +62,7 @@ struct ProfileCreationView: View {
                             }
                         }
                     }
-                    .pickerStyle(.navigationLink) // Yeni sayfa açarak seçim yaptırır (Temiz görünür)
+                    .pickerStyle(.navigationLink)
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(.systemGray6))
@@ -67,13 +71,28 @@ struct ProfileCreationView: View {
                 
                 Divider()
                 
-                // 4. İzinler (KVKK & Pazarlama)
+                // 4. İzinler (Sözleşme linki eklendi)
                 VStack(alignment: .leading, spacing: 16) {
-                    Toggle(isOn: $viewModel.isTermsAccepted) {
-                        Text("Kullanım Koşulları ve Aydınlatma Metni'ni okudum, onaylıyorum.")
-                            .font(.caption)
+                    HStack(alignment: .top) {
+                        // Kutu (Checkbox)
+                        Image(systemName: viewModel.isTermsAccepted ? "checkmark.square.fill" : "square")
+                            .foregroundColor(viewModel.isTermsAccepted ? .red : .gray)
+                            .font(.system(size: 24))
+                            .onTapGesture { viewModel.isTermsAccepted.toggle() }
+                        
+                        // Tıklanabilir Yazı
+                        VStack(alignment: .leading) {
+                            Text("Kullanım Koşulları ve Aydınlatma Metni")
+                                .foregroundColor(.blue) // Link olduğu belli olsun diye mavi
+                                .underline() // Altı çizili
+                                .onTapGesture {
+                                    showTerms = true // Tıklayınca pencereyi aç
+                                }
+                            Text("'ni okudum, onaylıyorum.")
+                                .foregroundColor(.primary)
+                        }
+                        .font(.caption)
                     }
-                    .toggleStyle(CheckboxToggleStyle()) // Aşağıda tanımladık
                     
                     Toggle(isOn: $viewModel.isMarketingAccepted) {
                         Text("Kampanya ve duyurulardan haberdar olmak istiyorum (Ticari İleti İzni).")
@@ -104,11 +123,56 @@ struct ProfileCreationView: View {
             }
             .padding()
         }
-        .navigationBarBackButtonHidden(true) // Geri dönülmesin, kayıt zorunlu
+        .navigationBarBackButtonHidden(true) // Geri butonu gizli
+        // 👇 SÖZLEŞME PENCERESİ BURAYA BAĞLANDI
+        .sheet(isPresented: $showTerms) {
+            TermsView()
+        }
     }
 }
 
-// Özel Checkbox Stili
+// 2. YARDIMCI PENCERE (Adım 2.1'deki kısım - Dosyanın altına ekledik)
+struct TermsView: View {
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Kullanıcı Sözleşmesi ve Gizlilik Politikası")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Text("""
+                    1. Taraflar
+                    Bu sözleşme, Kadirli Cepte uygulaması ile kullanıcı arasında düzenlenmiştir.
+                    
+                    2. Veri Gizliliği (KVKK)
+                    Kişisel verileriniz (Telefon numarası, mahalle bilgisi vb.) sadece uygulama içi deneyimi iyileştirmek amacıyla işlenmektedir. Üçüncü şahıslarla paylaşılmamaktadır.
+                    
+                    3. Kullanıcı Sorumlulukları
+                    Kullanıcı, belirlediği kullanıcı adının genel ahlak kurallarına uygun olmasından sorumludur.
+                    
+                    (Buraya ileride daha detaylı hukuki metinler eklenebilir.)
+                    """)
+                    .font(.body)
+                }
+                .padding()
+            }
+            .navigationTitle("Sözleşme")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Kapat") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 3. YARDIMCI STİL (Checkbox Görünümü)
 struct CheckboxToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(alignment: .top) {
