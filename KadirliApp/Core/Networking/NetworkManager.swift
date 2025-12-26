@@ -1,16 +1,18 @@
 import Foundation
 
 /// Uygulamanın ağ trafiğini yöneten Singleton sınıf.
-/// Generic yapısı sayesinde her türlü Decodable veriyi işleyebilir.
 final class NetworkManager {
     
     static let shared = NetworkManager()
     
+    // 👇 İŞTE SİLİNEN PARÇALAR BUNLARDI, GERİ EKLİYORUZ 👇
     private let session: URLSession
     private let decoder: JSONDecoder
     
-    // ⚠️ DİKKAT: Buraya kendi Supabase proje URL'ini yapıştırdığından emin ol!
-    let baseURL = "https://dtfjgbjegkphlgqzlplw.supabase.co/rest/v1"
+    // Config dosyasından URL'i çeken kısım
+    private var baseURL: String {
+        return AppConfig.supabaseUrl
+    }
     
     private init() {
         let config = URLSessionConfiguration.default
@@ -18,7 +20,7 @@ final class NetworkManager {
         self.session = URLSession(configuration: config)
         
         self.decoder = JSONDecoder()
-        // Supabase tarih formatı (ISO8601) için strateji
+        // Supabase tarih formatı (ISO8601) için ayar
         self.decoder.dateDecodingStrategy = .iso8601
     }
     
@@ -26,35 +28,32 @@ final class NetworkManager {
     func request<T: Decodable>(endpoint: Endpoint) async throws -> T {
         
         // 1. URL Hazırlığı
-        // Eğer istek Authentication (Giriş/Kayıt) ile ilgiliyse URL'den "/rest/v1" kısmını çıkarıyoruz.
-        var effectiveBaseURL = baseURL
+        var fullPath = baseURL + endpoint.path
+        
+        // Auth istekleri için "/rest/v1" kısmını çıkar
         if endpoint.path.hasPrefix("/auth") {
-            effectiveBaseURL = baseURL.replacingOccurrences(of: "/rest/v1", with: "")
+            fullPath = fullPath.replacingOccurrences(of: "/rest/v1", with: "")
         }
         
-        guard let url = URL(string: effectiveBaseURL + endpoint.path) else {
+        guard let url = URL(string: fullPath) else {
             throw AppError.invalidURL
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         
-        // 2. HEADER AYARLAMALARI (İŞTE EKSİK OLAN KISIM BURASIYDI 🛠️)
+        // 2. Header Ayarları ve Token
         var headers = endpoint.headers ?? [:]
         
-        // Eğer Keychain'de kayıtlı bir kullanıcı Token'ı varsa,
-        // "Authorization" başlığını bu Token ile değiştir.
-        // Böylece sunucu "Heh, bu işlemi yapan Ahmet'miş" diyebilecek.
         if let data = KeychainHelper.standard.read(service: "com.atahanblcr.KadirliApp.token", account: "auth_token"),
            let token = String(data: data, encoding: .utf8), !token.isEmpty {
             headers["Authorization"] = "Bearer \(token)"
-            print("🔑 İstek Kullanıcı Token'ı ile imzalandı.")
         }
         
         request.allHTTPHeaderFields = headers
         request.httpBody = endpoint.body
         
-        // Debug için yazdır
+        // Debug için konsola URL yazdırıyoruz (Hatanın sebebini görmek için önemli)
         print("🌍 İstek Yapılıyor: \(url.absoluteString)")
         
         do {
@@ -64,7 +63,7 @@ final class NetworkManager {
                 throw AppError.serverError(statusCode: 0)
             }
             
-            // Başarılı durum kodları (200-299)
+            // Başarısız İstek Kontrolü
             guard (200...299).contains(httpResponse.statusCode) else {
                 if let errorString = String(data: data, encoding: .utf8) {
                     print("❌ Sunucu Hatası: \(errorString)")
@@ -76,18 +75,16 @@ final class NetworkManager {
                 throw AppError.serverError(statusCode: httpResponse.statusCode)
             }
             
-            // ✅ DÜZELTME: Eğer veri boşsa ama işlem başarılıysa (Örn: 204 No Content)
+            // Veri boşsa (Örn: 204 No Content)
             if data.isEmpty {
                 if (200...299).contains(httpResponse.statusCode) {
-                    // JSONDecoder'a "null" veriyoruz.
-                    // Bu sayede String? veya UserDTO? gibi Optional tipler otomatik olarak 'nil' olur ve hata vermez.
                     let emptyData = "null".data(using: .utf8)!
                     return try decoder.decode(T.self, from: emptyData)
                 }
                 throw AppError.noData
             }
             
-            // Decoding işlemi
+            // Decoding
             do {
                 let decodedData = try decoder.decode(T.self, from: data)
                 return decodedData

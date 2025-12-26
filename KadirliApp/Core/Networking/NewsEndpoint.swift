@@ -1,14 +1,15 @@
 import Foundation
 
 enum NewsEndpoint: Endpoint {
-    case getLatestNews
+    // Limit (kaç tane) ve Offset (kaçıncıdan başlasın) parametreleri eklendi
+    case getLatestNews(limit: Int, offset: Int)
     case getNewsDetail(id: String)
     
     var path: String {
         switch self {
-        case .getLatestNews:
-            // Supabase'de 'news' tablosundan, yayınlanmış olanları, tarihe göre azalan sırada çek
-            return "/news?is_published=eq.true&order=published_at.desc"
+        case .getLatestNews(let limit, let offset):
+            // Supabase sorgusuna limit ve offset ekliyoruz
+            return "/news?is_published=eq.true&order=published_at.desc&limit=\(limit)&offset=\(offset)"
         case .getNewsDetail(let id):
             return "/news?id=eq.\(id)"
         }

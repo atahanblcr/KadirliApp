@@ -1,3 +1,10 @@
-SUPABASE_URL = https://dtfjgbjegkphlgqzlplw.supabase.co/rest/v1
-SUPABASE_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0ZmpnYmplZ2twaGxncXpscGx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMzk1NjQsImV4cCI6MjA4MDcxNTU2NH0.xF750JrWbg0ktUSbgbltw4sMoDtLXw5Xy2EfOyH00Mw
+// Config.xcconfig
+
+// 1. Secrets dosyasını dahil et (Başındaki # işareti önemlidir)
+#include? "Secrets.xcconfig"
+
+// 2. Değerleri Secrets dosyasından miras al (inherited)
+// Eğer Secrets dosyası yoksa veya boşsa, uygulama patlamasın diye varsayılan boş değer atanır.
+SUPABASE_URL = $(inherited)
+SUPABASE_KEY = $(inherited)
 // https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
