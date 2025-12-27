@@ -2,31 +2,33 @@ import Foundation
 import SwiftUI
 
 enum AdType: String, Codable, CaseIterable {
-    case job, service, tender, realEstate = "real_estate"
-    case vehicle, secondHand = "second_hand", animals, spareParts = "spare_parts"
+    // Çıkarılanlar: job (İş), animals (Hayvanlar)
+    // Kalanlar ve Yeni İsimler:
+    case secondHand = "second_hand"
+    case zeroProduct = "zero_product" // Yeni: Sıfır Ürün (Eski 'service' yerine veya ek olarak)
+    case realEstate = "real_estate"
+    case vehicle = "vehicle"
+    case service = "service" // Hizmet (Boyacı, Nakliye vb.)
+    case spareParts = "spare_parts"
     
     var displayName: String {
         switch self {
-        case .job: return "İş İlanı"
-        case .service: return "Hizmet"
-        case .tender: return "İhale"
+        case .secondHand: return "2. El Eşya"
+        case .zeroProduct: return "Sıfır Ürün"
         case .realEstate: return "Emlak"
         case .vehicle: return "Vasıta"
-        case .secondHand: return "İkinci El"
-        case .animals: return "Hayvanlar"
+        case .service: return "Hizmet & Kiralama"
         case .spareParts: return "Yedek Parça"
         }
     }
     
     var color: Color {
         switch self {
-        case .job: return .blue
-        case .service: return .orange
-        case .tender: return .purple
+        case .secondHand: return .brown
+        case .zeroProduct: return .blue
         case .realEstate: return .green
         case .vehicle: return .red
-        case .secondHand: return .brown
-        case .animals: return .pink
+        case .service: return .orange
         case .spareParts: return .gray
         }
     }

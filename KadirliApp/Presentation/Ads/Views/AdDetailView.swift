@@ -6,6 +6,22 @@ struct AdDetailView: View {
     
     var body: some View {
         ScrollView {
+            HStack {
+                // İlan No (ID'nin son 6 hanesi)
+                Text("İlan No: #\(ad.id.uuidString.prefix(6).uppercased())")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.gray.opacity(0.1))
+                    .foregroundColor(.secondary)
+                    .cornerRadius(4)
+                
+                Spacer()
+                
+                // Tarih (Varsa)
+                // Text(formatDate(ad.createdAt)) ...
+            }
             VStack(alignment: .leading, spacing: 16) {
                 
                 // Görseller (Carousel)

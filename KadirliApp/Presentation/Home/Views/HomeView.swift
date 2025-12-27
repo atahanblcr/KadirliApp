@@ -76,8 +76,8 @@ struct HomeView: View {
             // MARK: - Navigation Destinations (YÖNLENDİRMELER)
             .navigationDestination(for: HomeMenuOption.self) { option in
                 switch option {
-                case .news:
-                    NewsFeedView()
+                case .guide:
+                    GuideCategoriesView()
                 case .deaths:
                     DeathNoticesView()
                 case .pharmacy:
