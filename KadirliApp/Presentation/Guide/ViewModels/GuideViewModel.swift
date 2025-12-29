@@ -21,15 +21,20 @@ final class GuideViewModel: ObservableObject {
     }
     
     // Kategorileri Yükle
-    func loadCategories() async {
-        state = .loading
-        do {
-            categories = try await repository.fetchCategories()
-            state = .loaded
-        } catch {
-            state = .error(error.localizedDescription)
+        func loadCategories() async {
+            state = .loading
+            do {
+                let allCategories = try await repository.fetchCategories()
+                
+                // 🛠️ DEĞİŞİKLİK: "Taksiler" kategorisini listeden çıkarıyoruz.
+                // Çünkü artık o ana ekranda kendi modülü var.
+                self.categories = allCategories.filter { !$0.title.contains("Taksi") }
+                
+                state = .loaded
+            } catch {
+                state = .error(error.localizedDescription)
+            }
         }
-    }
     
     // Kategori İçeriğini Yükle
     func loadItems(for category: GuideCategory) async {

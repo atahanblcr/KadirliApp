@@ -26,18 +26,19 @@ final class NetworkManager {
     
     /// Generic API İstek Fonksiyonu
     func request<T: Decodable>(endpoint: Endpoint) async throws -> T {
-        
-        // 1. URL Hazırlığı
-        var fullPath = baseURL + endpoint.path
-        
-        // Auth istekleri için "/rest/v1" kısmını çıkar
-        if endpoint.path.hasPrefix("/auth") {
-            fullPath = fullPath.replacingOccurrences(of: "/rest/v1", with: "")
-        }
-        
-        guard let url = URL(string: fullPath) else {
-            throw AppError.invalidURL
-        }
+            
+            // 1. URL Hazırlığı
+            var fullPath = baseURL + endpoint.path
+            
+            // Auth ve Storage istekleri "/rest/v1" altında değildir, ana dizindedir.
+            // Bu yüzden URL'in sonundaki "/rest/v1" kısmını temizliyoruz.
+            if endpoint.path.hasPrefix("/auth") || endpoint.path.hasPrefix("/storage") {
+                fullPath = fullPath.replacingOccurrences(of: "/rest/v1", with: "")
+            }
+            
+            guard let url = URL(string: fullPath) else {
+                throw AppError.invalidURL
+            }
         
         var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue

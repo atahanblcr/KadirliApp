@@ -2,15 +2,17 @@ import SwiftUI
 
 struct AdsView: View {
     @StateObject private var viewModel = AdsViewModel()
+    @State private var showAddAdSheet = false // Yeni: Formu açmak için state
     
     var body: some View {
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
             
+            // MEVCUT LİSTE YAPISI
             ScrollView {
                 LazyVStack(spacing: 16) {
                     
-                    // Seçili Kategori Bilgilendirmesi (Opsiyonel: Kullanıcı neyi seçtiğini görsün)
+                    // Kategori Filtresi Bilgisi
                     if let category = viewModel.selectedCategory {
                         HStack {
                             Text("Filtre:")
@@ -18,10 +20,7 @@ struct AdsView: View {
                             Text(category.displayName)
                                 .fontWeight(.bold)
                                 .foregroundColor(category.color)
-                            
                             Spacer()
-                            
-                            // Filtreyi Temizle Butonu (Küçük X)
                             Button(action: { viewModel.selectCategory(nil) }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(.gray)
@@ -67,30 +66,47 @@ struct AdsView: View {
                             .padding()
                     }
                 }
-                .padding(.bottom, 20)
+                .padding(.bottom, 80) // FAB altında kalmasın diye boşluk
+            }
+            
+            // YENİ EKLENEN FAB (FLOATING ACTION BUTTON)
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: { showAddAdSheet = true }) {
+                        HStack {
+                            Image(systemName: "plus")
+                                .font(.title2)
+                            Text("İlan Ver")
+                                .fontWeight(.bold)
+                        }
+                        .padding()
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .cornerRadius(30)
+                        .shadow(color: Color.black.opacity(0.3), radius: 4, x: 0, y: 4)
+                    }
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 20)
+                }
             }
         }
-        .navigationTitle("Seri İlanlar") // Standart Başlık (Geri butonu için şart)
+        .navigationTitle("Seri İlanlar")
         .navigationBarTitleDisplayMode(.inline)
-        // SAĞ ÜST KÖŞEYE FİLTRE MENÜSÜ EKLİYORUZ
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    // "Tümü" Seçeneği
                     Button(action: { viewModel.selectCategory(nil) }) {
                         Label("Tümü", systemImage: "square.grid.2x2")
                     }
-                    
                     Divider()
-                    
-                    // Diğer Kategoriler
                     ForEach(AdType.allCases, id: \.self) { type in
                         Button(action: { viewModel.selectCategory(type) }) {
                             Label(type.displayName, systemImage: "circle.fill")
                         }
                     }
                 } label: {
-                    // Butonun Görünümü
                     HStack(spacing: 4) {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                         Text("Filtrele")
@@ -99,6 +115,9 @@ struct AdsView: View {
                     .fontWeight(.medium)
                 }
             }
+        }
+        .sheet(isPresented: $showAddAdSheet) {
+            AddAdView(viewModel: viewModel)
         }
         .task { await viewModel.loadAds() }
     }

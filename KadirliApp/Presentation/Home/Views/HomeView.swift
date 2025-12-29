@@ -59,7 +59,7 @@ struct HomeView: View {
                                 .font(.system(size: 20, weight: .bold, design: .serif))
                                 .foregroundColor(.white)
                         }
-                        Text("Kadirli Cepte") // İsim değiştiyse burayı güncelleyebilirsin
+                        Text("Kadirli Cepte")
                             .font(.title3)
                             .fontWeight(.bold)
                     }
@@ -76,6 +76,8 @@ struct HomeView: View {
             // MARK: - Navigation Destinations (YÖNLENDİRMELER)
             .navigationDestination(for: HomeMenuOption.self) { option in
                 switch option {
+                case .taxi:
+                    TaxiView()
                 case .guide:
                     GuideCategoriesView()
                 case .deaths:
@@ -85,9 +87,9 @@ struct HomeView: View {
                 case .events:
                     EventCalendarView()
                 case .campaigns:
-                    CampaignsView() // V2: Kampanyalar
+                    CampaignsView()
                 case .places:
-                    PlacesView() // V3: GEZİLECEK YERLER EKLENDİ
+                    PlacesView()
                 case .ads:
                     AdsView()
                 }
@@ -100,9 +102,16 @@ struct HomeView: View {
                     Text("Kullanıcı bilgisi bulunamadı.")
                 }
             }
+            // 🚨 DÜZELTME BURADA YAPILDI: 🚨
+            // .task bloğunu .sheet'in dışına çıkardık. Artık NavigationStack'e bağlı.
+            // Ana ekran açılınca taksici mi diye kontrol et
+            .task {
+                await sessionManager.checkDriverStatus()
+            }
         }
     }
 }
+
 // MARK: - Subviews
 struct MenuCardView: View {
     let option: HomeMenuOption

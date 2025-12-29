@@ -2,26 +2,25 @@ import Foundation
 
 enum AdsEndpoint: Endpoint {
     case getActiveAds
-    // İleride silme işlemi için bu case'i kullanacağız
     case softDeleteAd(id: String)
+    case createAd(adData: [String: Any]) // YENİ
     
     var path: String {
         switch self {
         case .getActiveAds:
-            // DEĞİŞİKLİK BURADA:
-            // is_active=eq.true YANINA &is_deleted=eq.false ekledik.
-            // Böylece silinmiş olarak işaretlenenler asla gelmeyecek.
             return "/ads?is_active=eq.true&is_deleted=eq.false&order=created_at.desc"
-            
         case .softDeleteAd(let id):
             return "/ads?id=eq.\(id)"
+        case .createAd: // YENİ
+            return "/ads"
         }
     }
     
     var method: HTTPMethod {
         switch self {
         case .getActiveAds: return .GET
-        case .softDeleteAd: return .PATCH // Güncelleme işlemi
+        case .softDeleteAd: return .PATCH
+        case .createAd: return .POST // YENİ
         }
     }
     
@@ -30,9 +29,10 @@ enum AdsEndpoint: Endpoint {
         case .getActiveAds:
             return nil
         case .softDeleteAd:
-            // Sadece is_deleted alanını true yapıyoruz
             let params = ["is_deleted": true]
             return try? JSONSerialization.data(withJSONObject: params)
+        case .createAd(let adData): // YENİ
+            return try? JSONSerialization.data(withJSONObject: adData)
         }
     }
 }

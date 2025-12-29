@@ -3,10 +3,10 @@ import SwiftUI
 import Combine
 
 enum AppState {
-    case loading        // Uygulama açılıyor, kontrol yapılıyor
+    case loading        // Uygulama açılıyor
     case onboarding     // İlk kez açılıyor
     case unauthenticated // Giriş yapılmamış
-    case authenticated  // Giriş yapılmış, ana ekran
+    case authenticated  // Giriş yapılmış
 }
 
 final class SessionManager: ObservableObject {
@@ -14,10 +14,11 @@ final class SessionManager: ObservableObject {
     @Published var currentState: AppState = .loading
     @Published var currentUser: UserDTO?
     
+    // YENİ: Eğer doluysa bu kişi taksicidir
+    @Published var driverTaxiId: String?
+    
     private let userDefaults = UserDefaults.standard
     private let kIsFirstLaunch = "kIsFirstLaunch"
-    
-    // YENİ: Token servisi için bir isim (Keychain'de karışıklık olmasın diye)
     private let kAuthTokenService = "com.atahanblcr.KadirliApp.token"
     
     init() {
@@ -25,21 +26,36 @@ final class SessionManager: ObservableObject {
     }
     
     func checkSession() {
-        // 1. İlk açılış kontrolü (Burası hala UserDefaults, çünkü güvenlik riski yok)
         if userDefaults.object(forKey: kIsFirstLaunch) == nil {
             currentState = .onboarding
             return
         }
         
-        // 2. Token kontrolü (ARTIK KEYCHAIN'DEN OKUYORUZ)
         if let data = KeychainHelper.standard.read(service: kAuthTokenService, account: "auth_token"),
            let token = String(data: data, encoding: .utf8), !token.isEmpty {
             
-            // İstersen burada token'ı konsola yazdırıp test edebilirsin (Release'de silersin)
-            print("🔐 Token Keychain'den okundu.")
+            print("🔐 Token doğrulandı.")
+            
+            // Kullanıcı bilgilerini çözümleyip currentUser'a atama işlemi normalde burada yapılır.
+            // Şimdilik sadece state'i güncelliyoruz.
             currentState = .authenticated
         } else {
             currentState = .unauthenticated
+        }
+    }
+    
+    // YENİ: Taksici mi diye kontrol eden asenkron fonksiyon
+    @MainActor
+    func checkDriverStatus() async {
+        guard let userId = currentUser?.id.uuidString else { return }
+        
+        let repo = GuideRepository()
+        self.driverTaxiId = await repo.getDriverTaxiId(userId: userId)
+        
+        if let taxiId = self.driverTaxiId {
+            print("🚖 SÜRÜCÜ MODU AKTİF! Taksi ID: \(taxiId)")
+        } else {
+            print("👤 Standart Kullanıcı Modu")
         }
     }
     
@@ -49,10 +65,8 @@ final class SessionManager: ObservableObject {
     }
     
     func loginSuccess(user: UserDTO, token: String) {
-        // YENİ: Token'ı güvenli kasaya (Keychain) kaydediyoruz
         if let data = token.data(using: .utf8) {
             KeychainHelper.standard.save(data, service: kAuthTokenService, account: "auth_token")
-            print("💾 Token Keychain'e kaydedildi.")
         }
         
         self.currentUser = user
@@ -65,9 +79,9 @@ final class SessionManager: ObservableObject {
     }
     
     func logout() {
-        // YENİ: Çıkış yapınca kasadan siliyoruz
         KeychainHelper.standard.delete(service: kAuthTokenService, account: "auth_token")
         currentUser = nil
+        driverTaxiId = nil // Çıkış yapınca taksici yetkisini de sil
         currentState = .unauthenticated
     }
 }

@@ -15,6 +15,25 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let taxiId = sessionManager.driverTaxiId {
+                                    Section {
+                                        NavigationLink(destination: DriverDashboardView(taxiId: taxiId)) {
+                                            HStack {
+                                                Image(systemName: "car.fill")
+                                                    .foregroundColor(.white)
+                                                    .padding(8)
+                                                    .background(Color.blue)
+                                                    .clipShape(Circle())
+                                                
+                                                Text("Sürücü Paneli")
+                                                    .fontWeight(.bold)
+                                                    .foregroundColor(.blue)
+                                            }
+                                        }
+                                    } header: {
+                                        Text("Sürücü İşlemleri")
+                                    }
+                                }
                 Section(header: Text("Bildirim Tercihleri"), footer: Text("Hangi konularda anlık bildirim almak istediğinizi seçin.")) {
                     
                     if viewModel.isLoading {

@@ -2,13 +2,11 @@ import Foundation
 import SwiftUI
 
 enum AdType: String, Codable, CaseIterable {
-    // Çıkarılanlar: job (İş), animals (Hayvanlar)
-    // Kalanlar ve Yeni İsimler:
     case secondHand = "second_hand"
-    case zeroProduct = "zero_product" // Yeni: Sıfır Ürün (Eski 'service' yerine veya ek olarak)
+    case zeroProduct = "zero_product"
     case realEstate = "real_estate"
     case vehicle = "vehicle"
-    case service = "service" // Hizmet (Boyacı, Nakliye vb.)
+    case service = "service"
     case spareParts = "spare_parts"
     
     var displayName: String {
@@ -45,11 +43,19 @@ struct Ad: Identifiable, Codable {
     let expiresAt: Date?
     let isActive: Bool
     
+    // YENİ EKLENEN ALANLAR (Faz 1 Gereksinimleri)
+    let sellerName: String?
+    let latitude: Double?
+    let longitude: Double?
+    
     enum CodingKeys: String, CodingKey {
         case id, title, description, type, price
         case contactInfo = "contact_info"
         case imageUrls = "image_urls"
         case expiresAt = "expires_at"
         case isActive = "is_active"
+        // Yeni alanlar
+        case sellerName = "seller_name"
+        case latitude, longitude
     }
 }
