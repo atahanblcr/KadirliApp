@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 struct CampaignDetailView: View {
     let campaign: Campaign
@@ -10,9 +11,10 @@ struct CampaignDetailView: View {
                 if let images = campaign.imageUrls, !images.isEmpty {
                     TabView {
                         ForEach(images, id: \.self) { url in
-                            AsyncImage(url: URL(string: url)) { img in
-                                img.resizable().aspectRatio(contentMode: .fill)
-                            } placeholder: { ProgressView() }
+                            KFImage(URL(string: url))
+                                .resizable()
+                                .placeholder { Color.gray.opacity(0.2) }
+                                .aspectRatio(contentMode: .fill)
                         }
                     }
                     .frame(height: 300)

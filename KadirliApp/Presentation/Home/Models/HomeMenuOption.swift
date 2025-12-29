@@ -2,7 +2,7 @@ import SwiftUI
 
 enum HomeMenuOption: String, CaseIterable, Identifiable {
     case taxi // 🚖 YENİ: En başa veya uygun bir yere ekle
-    case guide, deaths, pharmacy, events, campaigns, places, ads
+    case guide, deaths, pharmacy, events, campaigns, places, ads, transport
     
     var id: String { self.rawValue }
     
@@ -16,6 +16,7 @@ enum HomeMenuOption: String, CaseIterable, Identifiable {
         case .campaigns: return "Kampanyalar"
         case .places: return "Gezilecek Yerler"
         case .ads: return "Sıfır & 2.El Pazarı"
+        case .transport: return "Ulaşım"
         }
     }
     
@@ -29,6 +30,7 @@ enum HomeMenuOption: String, CaseIterable, Identifiable {
         case .campaigns: return "tag.fill"
         case .places: return "map.fill"
         case .ads: return "megaphone.fill"
+        case .transport: return "bus.fill"
         }
     }
     
@@ -42,6 +44,7 @@ enum HomeMenuOption: String, CaseIterable, Identifiable {
         case .campaigns: return Color.blue
         case .places: return Color.cyan
         case .ads: return Color.orange
+        case .transport: return Color.indigo
         }
     }
     

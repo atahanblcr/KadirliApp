@@ -5,8 +5,10 @@ enum GuideEndpoint: Endpoint {
     case getItems(categoryId: String)
     case getDriverTaxi(userId: String)
     case requestTaxi(taxiId: String, phone: String, lat: Double, long: Double)
-    // YENİ: Taksiciye gelen istekleri çeken adres
     case getTaxiRequests(taxiId: String)
+    
+
+    case updateTaxiRequestStatus(requestId: String, status: String)
     
     var path: String {
         switch self {
@@ -19,13 +21,20 @@ enum GuideEndpoint: Endpoint {
         case .requestTaxi:
             return "/taxi_requests"
         case .getTaxiRequests(let taxiId):
-            return "/taxi_requests?taxi_id=eq.\(taxiId)&status=eq.pending&order=created_at.desc"
+            // Sadece bekleyenleri değil, kabul edilenleri de çekelim ki şoför işlem yapabilsin
+            return "/taxi_requests?taxi_id=eq.\(taxiId)&status=in.(pending,accepted)&order=created_at.desc"
+            
+        
+        case .updateTaxiRequestStatus(let requestId, _):
+            return "/taxi_requests?id=eq.\(requestId)"
         }
     }
     
     var method: HTTPMethod {
         switch self {
         case .requestTaxi: return .POST
+        // 👇 YENİ: Güncelleme için PATCH kullanılır
+        case .updateTaxiRequestStatus: return .PATCH
         default: return .GET
         }
     }
@@ -41,6 +50,12 @@ enum GuideEndpoint: Endpoint {
                 "status": "pending"
             ]
             return try? JSONSerialization.data(withJSONObject: params)
+            
+        // 👇 YENİ: Sadece status bilgisini gönderiyoruz
+        case .updateTaxiRequestStatus(_, let status):
+            let params = ["status": status]
+            return try? JSONSerialization.data(withJSONObject: params)
+            
         default: return nil
         }
     }

@@ -23,7 +23,21 @@ final class SessionManager: ObservableObject {
     
     init() {
         checkSession()
+        setupObservers()
     }
+    
+    private func setupObservers() {
+            NotificationCenter.default.addObserver(self, selector: #selector(handleForceLogout), name: NSNotification.Name("ForceLogout"), object: nil)
+        }
+        
+        // 🚨 YENİ FONKSİYON: Tetiklendiğinde Çıkış Yap
+        @objc private func handleForceLogout() {
+            logout()
+        }
+        
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
     
     func checkSession() {
         if userDefaults.object(forKey: kIsFirstLaunch) == nil {

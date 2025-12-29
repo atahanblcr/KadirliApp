@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 struct CampaignsView: View {
     @StateObject private var viewModel = CampaignsViewModel()
@@ -48,9 +49,10 @@ struct CampaignCard: View {
                 if images.count > 1 {
                     TabView {
                         ForEach(images, id: \.self) { url in
-                            AsyncImage(url: URL(string: url)) { img in
-                                img.resizable().aspectRatio(contentMode: .fill)
-                            } placeholder: { Color.gray.opacity(0.2) }
+                            KFImage(URL(string: url))
+                                .resizable()
+                                .placeholder { Color.gray.opacity(0.2) }
+                                .aspectRatio(contentMode: .fill)
                         }
                     }
                     .frame(height: 200)

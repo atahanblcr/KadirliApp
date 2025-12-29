@@ -70,19 +70,19 @@ final class NetworkManager {
                     print("❌ Sunucu Hatası: \(errorString)")
                 }
                 
-                if httpResponse.statusCode == 401 {
+                // 🚨 EĞER OTURUM SÜRESİ DOLMUŞSA (401 veya JWT Expired)
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                    print("⚠️ Oturum süresi doldu, çıkış yapılıyor...")
+                    
+                    // Tüm uygulamaya haber ver: "Çıkış Yap!"
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: NSNotification.Name("ForceLogout"), object: nil)
+                    }
+                    
                     throw AppError.unauthorized
                 }
+                
                 throw AppError.serverError(statusCode: httpResponse.statusCode)
-            }
-            
-            // Veri boşsa (Örn: 204 No Content)
-            if data.isEmpty {
-                if (200...299).contains(httpResponse.statusCode) {
-                    let emptyData = "null".data(using: .utf8)!
-                    return try decoder.decode(T.self, from: emptyData)
-                }
-                throw AppError.noData
             }
             
             // Decoding
