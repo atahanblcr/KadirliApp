@@ -5,7 +5,6 @@ final class NetworkManager {
     
     static let shared = NetworkManager()
     
-    // 👇 İŞTE SİLİNEN PARÇALAR BUNLARDI, GERİ EKLİYORUZ 👇
     private let session: URLSession
     private let decoder: JSONDecoder
     
@@ -54,7 +53,7 @@ final class NetworkManager {
         request.allHTTPHeaderFields = headers
         request.httpBody = endpoint.body
         
-        // Debug için konsola URL yazdırıyoruz (Hatanın sebebini görmek için önemli)
+        // Debug için konsola URL yazdırıyoruz
         print("🌍 İstek Yapılıyor: \(url.absoluteString)")
         
         do {
@@ -87,10 +86,18 @@ final class NetworkManager {
             
             // Decoding
             do {
-                let decodedData = try decoder.decode(T.self, from: data)
+                // 👇👇👇 DÜZELTME BURADA 👇👇👇
+                // Eğer sunucudan gelen veri boşsa (örn: Update işlemi sonrası 204 dönerse),
+                // Decoder'a "null" string'ini veriyoruz. Böylece T tipi Optional ise (String?) nil döner, hata vermez.
+                let dataToDecode = data.isEmpty ? "null".data(using: .utf8)! : data
+                
+                let decodedData = try decoder.decode(T.self, from: dataToDecode)
                 return decodedData
             } catch let decodingError as DecodingError {
                 print("⚠️ Decoding Hatası: \(decodingError)")
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("Gelen Hatalı Veri: \(jsonString)")
+                }
                 throw AppError.decodingError(decodingError.localizedDescription)
             }
             
