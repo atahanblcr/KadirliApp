@@ -35,62 +35,78 @@ final class AuthViewModel: ObservableObject {
         self.sessionManager = sessionManager
     }
     
-    // 1. SMS Gönder
-    func sendSMS() async {
-        guard validatePhone() else { return }
-        
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            // Başında artı olmadan, sadece 90 ve numara
-            let formattedPhone = phoneNumber.starts(with: "90") ? phoneNumber : "90\(phoneNumber)"
-            try await authRepository.sendOTP(phone: formattedPhone)
+    // 1. SMS Gönder Kısmı
+        func sendSMS() async {
+            guard validatePhone() else { return }
             
-            self.navigateToOTP = true
-        } catch {
-            self.errorMessage = "Kod gönderilemedi: \(error.localizedDescription)"
-        }
-        isLoading = false
-    }
-    
-    // 2. Kodu Doğrula
-    func verifyCode() async {
-        guard otpCode.count == 6 else {
-            errorMessage = "Lütfen 6 haneli kodu eksiksiz girin."
-            return
-        }
-        
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let formattedPhone = phoneNumber.starts(with: "90") ? phoneNumber : "90\(phoneNumber)"
-            print("📡 Doğrulama: \(formattedPhone) - Kod: \(otpCode)")
+            isLoading = true
+            errorMessage = nil
             
-            let response = try await authRepository.verifyOTP(phone: formattedPhone, token: otpCode)
-            print("✅ Doğrulama Başarılı!")
-            
-            // Eski kullanıcı mı kontrol et
-            if let name = response.user.userMetadata?["full_name"]?.value as? String, !name.isEmpty {
-                print("👤 Eski kullanıcı -> Ana Sayfa")
-                // Eski kullanıcıysa direkt oturumu aç
-                sessionManager.loginSuccess(user: response.user, token: response.accessToken)
-                self.isSuccess = true
-            } else {
-                print("🆕 Yeni kullanıcı -> Profil Oluşturma")
-                // Yeni kullanıcıysa token'ı sakla ama oturum açma
-                self.tempUser = response.user
-                self.tempToken = response.accessToken
-                self.navigateToProfile = true
+            do {
+                // Temizlik: Boşlukları sil
+                var cleanPhone = phoneNumber.replacingOccurrences(of: " ", with: "")
+                
+                // Başındaki 0'ı sil (Örn: 0555 -> 555)
+                if cleanPhone.hasPrefix("0") {
+                    cleanPhone = String(cleanPhone.dropFirst())
+                }
+                
+                // Formatlama:
+                // 1. Önce numaranın başına eksikse 90 ekle
+                let phoneWithCountryCode = cleanPhone.hasPrefix("90") ? cleanPhone : "90\(cleanPhone)"
+                
+                // 2. SONRA MUTLAKA BAŞINA "+" EKLE (Supabase API'si için şart)
+                let finalPhoneToSend = "+\(phoneWithCountryCode)"
+                
+                // LOG: Konsolda başında + olduğunu teyit edelim
+                print("📡 SMS İsteği Gönderiliyor (Formatlı): \(finalPhoneToSend)")
+                
+                try await authRepository.sendOTP(phone: finalPhoneToSend)
+                
+                self.navigateToOTP = true
+            } catch {
+                print("❌ SMS Hatası: \(error)")
+                self.errorMessage = "Kod gönderilemedi: \(error.localizedDescription)"
             }
-            
-        } catch {
-            print("❌ Hata: \(error)")
-            self.errorMessage = "Kod hatalı veya süresi dolmuş."
+            isLoading = false
         }
-        isLoading = false
-    }
+
+        // 2. Doğrulama Kısmı (Aynı mantık)
+        func verifyCode() async {
+            guard otpCode.count == 6 else { return }
+            isLoading = true
+            
+            do {
+                // Aynı temizlik işlemleri
+                var cleanPhone = phoneNumber.replacingOccurrences(of: " ", with: "")
+                if cleanPhone.hasPrefix("0") { cleanPhone = String(cleanPhone.dropFirst()) }
+                
+                let phoneWithCountryCode = cleanPhone.hasPrefix("90") ? cleanPhone : "90\(cleanPhone)"
+                
+                // BURADA DA MUTLAKA "+" EKLİYORUZ
+                let finalPhoneToSend = "+\(phoneWithCountryCode)"
+                
+                print("📡 Doğrulama Yapılıyor: \(finalPhoneToSend) - Kod: \(otpCode)")
+                
+                let response = try await authRepository.verifyOTP(phone: finalPhoneToSend, token: otpCode)
+                print("✅ Doğrulama Başarılı!")
+                
+                // ... (Giriş başarılı işlemleri aynen kalacak) ...
+                 if let name = response.user.userMetadata?["full_name"]?.value as? String, !name.isEmpty {
+                    sessionManager.loginSuccess(user: response.user, token: response.accessToken)
+                    self.isSuccess = true
+                } else {
+                    self.tempUser = response.user
+                    self.tempToken = response.accessToken
+                    self.navigateToProfile = true
+                }
+
+            } catch {
+                print("❌ Doğrulama Hatası: \(error)")
+                self.errorMessage = "Kod hatalı veya süresi dolmuş."
+            }
+            isLoading = false
+        }
     
     // 3. Profili Kaydet
     func completeProfile() async {

@@ -76,6 +76,8 @@ struct HomeView: View {
             // MARK: - Navigation Destinations (YÖNLENDİRMELER)
             .navigationDestination(for: HomeMenuOption.self) { option in
                 switch option {
+                case .announcements:
+                    AnnouncementsView()
                 case .transport:
                     TransportView()
                 case .taxi:
