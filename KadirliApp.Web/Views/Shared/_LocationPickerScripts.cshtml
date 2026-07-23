@@ -1,0 +1,47 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Haritaya tıklayarak konum seçtiren yardımcı. lat/lng inputlarını doldurur.
+    function initLocationPicker(mapId, latInputId, lngInputId, clearBtnId) {
+        var defaultCenter = [37.3708, 36.0961]; // Kadirli merkez
+        var map = L.map(mapId).setView(defaultCenter, 14);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        var latInput = document.getElementById(latInputId);
+        var lngInput = document.getElementById(lngInputId);
+        var marker = null;
+
+        function setMarker(latlng) {
+            if (marker) marker.setLatLng(latlng);
+            else marker = L.marker(latlng).addTo(map);
+            latInput.value = latlng.lat.toFixed(7);
+            lngInput.value = latlng.lng.toFixed(7);
+        }
+
+        var lat = parseFloat((latInput.value || '').replace(',', '.'));
+        var lng = parseFloat((lngInput.value || '').replace(',', '.'));
+        if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
+            var initial = L.latLng(lat, lng);
+            setMarker(initial);
+            map.setView(initial, 15);
+        }
+
+        map.on('click', function (e) { setMarker(e.latlng); });
+
+        if (clearBtnId) {
+            var clearBtn = document.getElementById(clearBtnId);
+            if (clearBtn) clearBtn.addEventListener('click', function () {
+                if (marker) { map.removeLayer(marker); marker = null; }
+                latInput.value = '';
+                lngInput.value = '';
+            });
+        }
+
+        // Gizli sekme/collapse içinde açıldığında boyut hatasını önle
+        setTimeout(function () { map.invalidateSize(); }, 250);
+        return map;
+    }
+</script>

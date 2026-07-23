@@ -1,0 +1,179 @@
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Businesses.Dtos.BusinessResponseDto>
+@{
+    ViewData["Title"] = "İşletme Yönetimi";
+    var categories = (IReadOnlyList<KadirliApp.Application.Features.Businesses.Dtos.BusinessCategoryDto>)ViewBag.Categories;
+}
+
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">İşletme Yönetimi</h2>
+        <p class="text-sm text-gray-500 mt-1">Kampanya veren işletmeleri buradan yönetin; doğrulanmış işletmeler rozetle gösterilir.</p>
+    </div>
+    <div>
+        <a asp-action="Create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+            <i class="fas fa-plus mr-2"></i> Yeni İşletme
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 shadow-sm" role="alert">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">@TempData["Error"]</div>
+}
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div class="p-4 border-b border-gray-200">
+        <form method="get" class="flex flex-col md:flex-row md:items-center gap-3">
+            <div class="relative w-full md:w-64">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input type="text" name="search" placeholder="İşletme adı ile ara..." value="@ViewBag.Search"
+                       class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <select name="categoryId" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onchange="this.form.submit()">
+                <option value="">Tüm Kategoriler</option>
+                @foreach (var c in categories)
+                {
+                    <option value="@c.Id" selected="@(ViewBag.CategoryId == c.Id ? "selected" : null)">@c.Name</option>
+                }
+            </select>
+            <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Filtrele</button>
+        </form>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                    <th scope="col" class="px-6 py-3 font-medium">İşletme</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Kategori</th>
+                    <th scope="col" class="px-6 py-3 font-medium">İletişim</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Kampanya</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Durum</th>
+                    <th scope="col" class="px-6 py-3 text-right font-medium">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Items.Any())
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    @if (!string.IsNullOrEmpty(item.LogoUrl))
+                                    {
+                                        <img src="@item.LogoUrl" alt="Logo" class="w-10 h-10 rounded-lg object-cover border border-gray-200" />
+                                    }
+                                    else
+                                    {
+                                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
+                                            @item.BusinessName.Substring(0, 1).ToUpper()
+                                        </div>
+                                    }
+                                    <div>
+                                        <div class="font-medium text-gray-900">@item.BusinessName</div>
+                                        @if (!string.IsNullOrEmpty(item.InstagramHandle))
+                                        {
+                                            <div class="text-xs text-gray-400"><i class="fab fa-instagram mr-0.5"></i>@@@item.InstagramHandle</div>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">@item.CategoryName</td>
+                            <td class="px-6 py-4">
+                                @item.Phone
+                                @if (!string.IsNullOrEmpty(item.Email))
+                                {
+                                    <div class="text-xs text-gray-400">@item.Email</div>
+                                }
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-0.5 rounded">@item.CampaignCount</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                @if (item.IsVerified)
+                                {
+                                    <span class="bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded" title="Doğrulanma: @item.VerifiedAt?.ToString("dd.MM.yyyy")">
+                                        <i class="fas fa-check-circle mr-1"></i>Doğrulanmış
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="bg-amber-100 text-amber-800 text-xs font-medium px-2.5 py-0.5 rounded">Doğrulanmamış</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex justify-end gap-3 items-center">
+                                    @if (!item.IsVerified)
+                                    {
+                                        <form asp-action="Verify" asp-route-id="@item.Id" method="post" class="inline">
+                                            <button type="submit" class="text-emerald-600 hover:text-emerald-800" title="Doğrula">
+                                                <i class="fas fa-check-circle"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <form asp-action="Unverify" asp-route-id="@item.Id" method="post" class="inline"
+                                              onsubmit="return confirm('Bu işletmenin doğrulamasını kaldırmak istediğinize emin misiniz?');">
+                                            <button type="submit" class="text-amber-500 hover:text-amber-700" title="Doğrulamayı Kaldır">
+                                                <i class="fas fa-undo"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    <a asp-action="Edit" asp-route-id="@item.Id" class="text-indigo-600 hover:text-indigo-900" title="Düzenle">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="inline"
+                                          onsubmit="return confirm('Bu işletmeyi silmek istediğinize emin misiniz? Kampanyası olan işletme silinemez.');">
+                                        <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-store text-4xl text-gray-300 mb-3"></i>
+                                <p>Kayıtlı işletme bulunamadı.</p>
+                                <a asp-action="Create" class="text-indigo-600 hover:underline text-sm mt-2">İlk işletmeyi ekleyin</a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model != null && Model.TotalPages > 1)
+    {
+        <div class="flex items-center justify-between px-6 py-3 border-t border-gray-200 text-sm text-gray-500">
+            <span>Toplam @Model.TotalCount işletme — sayfa @Model.CurrentPage/@Model.TotalPages</span>
+            <div class="flex gap-2">
+                @if (Model.CurrentPage > 1)
+                {
+                    <a asp-action="Index" asp-route-page="@(Model.CurrentPage - 1)" asp-route-search="@ViewBag.Search" asp-route-categoryId="@ViewBag.CategoryId"
+                       class="px-3 py-1 border border-gray-300 rounded-lg bg-white hover:bg-gray-50">Önceki</a>
+                }
+                @if (Model.CurrentPage < Model.TotalPages)
+                {
+                    <a asp-action="Index" asp-route-page="@(Model.CurrentPage + 1)" asp-route-search="@ViewBag.Search" asp-route-categoryId="@ViewBag.CategoryId"
+                       class="px-3 py-1 border border-gray-300 rounded-lg bg-white hover:bg-gray-50">Sonraki</a>
+                }
+            </div>
+        </div>
+    }
+</div>

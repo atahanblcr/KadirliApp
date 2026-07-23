@@ -1,0 +1,105 @@
+<aside class="flex flex-col w-64 h-screen px-4 py-8 overflow-y-auto bg-gray-900 border-r hidden lg:flex shrink-0">
+    <h2 class="text-3xl font-semibold text-white">KadirliApp</h2>
+
+    <div class="flex flex-col justify-between flex-1 mt-6">
+        <nav>
+            <a class="flex items-center px-4 py-2 text-gray-100 bg-gray-800 rounded-lg" asp-controller="Dashboard" asp-action="Index">
+                <i class="fas fa-home w-5 h-5"></i>
+                <span class="mx-4 font-medium">Dashboard</span>
+            </a>
+
+            <hr class="my-6 border-gray-700" />
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="AdsAdmin" asp-action="Index">
+                <i class="fas fa-bullhorn w-5 h-5"></i>
+                <span class="mx-4 font-medium">İlanlar</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="AnnouncementsAdmin" asp-action="Index">
+                <i class="fas fa-bell w-5 h-5"></i>
+                <span class="mx-4 font-medium">Duyurular</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="EventsAdmin" asp-action="Index">
+                <i class="fas fa-calendar-alt w-5 h-5"></i>
+                <span class="mx-4 font-medium">Etkinlikler</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="CampaignsAdmin" asp-action="Index">
+                <i class="fas fa-percent w-5 h-5"></i>
+                <span class="mx-4 font-medium">Kampanyalar</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="BusinessesAdmin" asp-action="Index">
+                <i class="fas fa-store w-5 h-5"></i>
+                <span class="mx-4 font-medium">İşletmeler</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="UsersAdmin" asp-action="Index">
+                <i class="fas fa-users w-5 h-5"></i>
+                <span class="mx-4 font-medium">Kullanıcılar</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="DeathsAdmin" asp-action="Index">
+                <i class="fas fa-book-dead w-5 h-5"></i>
+                <span class="mx-4 font-medium">Vefat İlanları</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="PharmaciesAdmin" asp-action="Index">
+                <i class="fas fa-pills w-5 h-5"></i>
+                <span class="mx-4 font-medium">Nöbetçi Eczaneler</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="PowerOutagesAdmin" asp-action="Index">
+                <i class="fas fa-bolt w-5 h-5"></i>
+                <span class="mx-4 font-medium">Elektrik Kesintileri</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="TransportAdmin" asp-action="Index">
+                <i class="fas fa-bus w-5 h-5"></i>
+                <span class="mx-4 font-medium">Ulaşım</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="TaxiAdmin" asp-action="Index">
+                <i class="fas fa-taxi w-5 h-5"></i>
+                <span class="mx-4 font-medium">Taksiciler</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="PlacesAdmin" asp-action="Index">
+                <i class="fas fa-map-marker-alt w-5 h-5"></i>
+                <span class="mx-4 font-medium">Mekanlar</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="GuideAdmin" asp-action="Index">
+                <i class="fas fa-map-marked-alt w-5 h-5"></i>
+                <span class="mx-4 font-medium">Şehir Rehberi</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="ComplaintsAdmin" asp-action="Index">
+                <i class="fas fa-flag w-5 h-5"></i>
+                <span class="mx-4 font-medium">Şikayetler</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="LookupsAdmin" asp-action="Index">
+                <i class="fas fa-tags w-5 h-5"></i>
+                <span class="mx-4 font-medium">Tanımlar</span>
+            </a>
+
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="StaffAdmin" asp-action="Index">
+                <i class="fas fa-user-shield w-5 h-5"></i>
+                <span class="mx-4 font-medium">Personel</span>
+            </a>
+        </nav>
+
+        <div class="mt-auto">
+            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="Account" asp-action="ChangePassword">
+                <i class="fas fa-key w-5 h-5"></i>
+                <span class="mx-4 font-medium">Şifremi Değiştir</span>
+            </a>
+            <a class="flex items-center px-4 py-2 mt-2 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="Account" asp-action="Logout">
+                <i class="fas fa-sign-out-alt w-5 h-5"></i>
+                <span class="mx-4 font-medium">Çıkış Yap</span>
+            </a>
+        </div>
+    </div>
+</aside>

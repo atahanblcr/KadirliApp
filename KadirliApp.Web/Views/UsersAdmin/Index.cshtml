@@ -1,0 +1,175 @@
+@model IEnumerable<KadirliApp.Domain.Entities.User>
+
+@{
+    ViewData["Title"] = "Kullanıcı Yönetimi";
+}
+
+<div class="container mx-auto px-4 sm:px-8 max-w-7xl">
+    <div class="py-8">
+        <div class="flex flex-row mb-1 sm:mb-0 justify-between w-full">
+            <h2 class="text-2xl font-bold leading-tight text-gray-800 dark:text-white">
+                Kullanıcı Yönetimi
+            </h2>
+            <div class="text-end flex items-center justify-end gap-4">
+                <form class="flex flex-col md:flex-row w-full md:w-full max-w-sm md:space-x-3 space-y-3 md:space-y-0 justify-center">
+                    <div class="relative">
+                        <input type="text" id="form-subscribe-Search" class="rounded-lg border-transparent flex-1 appearance-none border border-gray-300 w-full py-2 px-4 bg-white text-gray-700 placeholder-gray-400 shadow-sm text-base focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent" placeholder="Kullanıcı ara..."/>
+                    </div>
+                    <button class="flex-shrink-0 px-4 py-2 text-base font-semibold text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-blue-200" type="submit">
+                        Ara
+                    </button>
+                </form>
+                <a asp-action="Create" class="flex-shrink-0 px-4 py-2 text-base font-semibold text-white bg-indigo-600 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-indigo-200">
+                    Yeni Ekle
+                </a>
+            </div>
+        </div>
+        <div class="-mx-4 sm:-mx-8 px-4 sm:px-8 py-4 overflow-x-auto">
+            <div class="inline-block min-w-full shadow rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                <table class="min-w-full leading-normal">
+                    <thead>
+                        <tr>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700">
+                                Kullanıcı
+                            </th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700">
+                                Rol
+                            </th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700">
+                                Kayıt Tarihi
+                            </th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700">
+                                Durum
+                            </th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700">
+                                İşlemler
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model)
+                        {
+                            <tr>
+                                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm dark:bg-gray-900 dark:border-gray-700">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 w-10 h-10">
+                                            @if (!string.IsNullOrEmpty(user.ProfilePhotoUrl))
+                                            {
+                                                <img class="w-full h-full rounded-full object-cover" src="@user.ProfilePhotoUrl" alt="Profil Fotoğrafı" />
+                                            }
+                                            else
+                                            {
+                                                <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
+                                                    @(string.IsNullOrEmpty(user.Username) ? "U" : user.Username.Substring(0, 1).ToUpper())
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="ml-3">
+                                            <p class="text-gray-900 whitespace-no-wrap font-semibold dark:text-white">
+                                                @(string.IsNullOrEmpty(user.Username) ? "Bilinmeyen Kullanıcı" : user.Username)
+                                            </p>
+                                            <p class="text-gray-500 whitespace-no-wrap dark:text-gray-400">
+                                                @user.Phone
+                                                @if (!string.IsNullOrEmpty(user.Email))
+                                                {
+                                                    <br/><span class="text-xs">@user.Email</span>
+                                                }
+                                            </p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm dark:bg-gray-900 dark:border-gray-700">
+                                    <span class="relative inline-block px-3 py-1 font-semibold text-blue-900 leading-tight">
+                                        <span aria-hidden class="absolute inset-0 bg-blue-200 opacity-50 rounded-full"></span>
+                                        <span class="relative">@user.Role</span>
+                                    </span>
+                                </td>
+                                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm dark:bg-gray-900 dark:border-gray-700">
+                                    <p class="text-gray-900 whitespace-no-wrap dark:text-gray-300">
+                                        @user.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+                                    </p>
+                                </td>
+                                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm dark:bg-gray-900 dark:border-gray-700">
+                                    @if (user.IsBanned)
+                                    {
+                                        <span class="relative inline-block px-3 py-1 font-semibold text-red-900 leading-tight"
+                                              title="@(string.IsNullOrEmpty(user.BanReason) ? "Sebep belirtilmemiş" : $"Sebep: {user.BanReason}")@(user.BannedAt != null ? $" — {user.BannedAt:dd.MM.yyyy HH:mm}" : "")">
+                                            <span aria-hidden class="absolute inset-0 bg-red-200 opacity-50 rounded-full"></span>
+                                            <span class="relative">Yasaklı</span>
+                                        </span>
+                                        @if (!string.IsNullOrEmpty(user.BanReason))
+                                        {
+                                            <p class="text-xs text-red-500 mt-1 max-w-48 truncate" title="@user.BanReason">@user.BanReason</p>
+                                        }
+                                    }
+                                    else if (user.IsActive)
+                                    {
+                                        <span class="relative inline-block px-3 py-1 font-semibold text-green-900 leading-tight">
+                                            <span aria-hidden class="absolute inset-0 bg-green-200 opacity-50 rounded-full"></span>
+                                            <span class="relative">Aktif</span>
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="relative inline-block px-3 py-1 font-semibold text-gray-900 leading-tight">
+                                            <span aria-hidden class="absolute inset-0 bg-gray-200 opacity-50 rounded-full"></span>
+                                            <span class="relative">Pasif</span>
+                                        </span>
+                                    }
+                                </td>
+                                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-right dark:bg-gray-900 dark:border-gray-700">
+                                    <div class="flex justify-end gap-2 items-center">
+                                        <a asp-action="Edit" asp-route-id="@user.Id" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300" title="Düzenle">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            </svg>
+                                        </a>
+                                        @if (!user.IsBanned)
+                                        {
+                                            <!-- Faz 10.9(h): ban artık sebep sorarak SetUserBanCommand'e gider (JS'siz details popover) -->
+                                            <details class="relative">
+                                                <summary class="list-none cursor-pointer text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300" title="Banla">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                                    </svg>
+                                                </summary>
+                                                <div class="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-lg text-left">
+                                                    <form asp-action="Ban" method="post">
+                                                        <input type="hidden" name="id" value="@user.Id" />
+                                                        <label class="block text-xs font-medium text-gray-600 mb-1">Ban sebebi <span class="text-gray-400">(opsiyonel)</span></label>
+                                                        <input type="text" name="reason" maxlength="500" placeholder="Örn: Uygunsuz içerik paylaşımı"
+                                                               class="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-red-500" />
+                                                        <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-1.5 rounded-md">
+                                                            Kullanıcıyı Banla
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </details>
+                                        }
+                                        else
+                                        {
+                                            <form asp-action="Unban" method="post" onsubmit="return confirm('Kullanıcının banını kaldırmak istediğinize emin misiniz?');">
+                                                <input type="hidden" name="id" value="@user.Id" />
+                                                <button type="submit" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300" title="Banı Kaldır">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                @if (!Model.Any())
+                {
+                    <div class="px-5 py-5 bg-white text-center text-sm dark:bg-gray-900 dark:text-gray-400">
+                        Henüz hiç kullanıcı bulunmamaktadır.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,209 @@
+@model KadirliApp.Application.Features.Ads.Commands.UpdateAd.UpdateAdCommand
+
+@{
+    ViewData["Title"] = "İlan Düzenle";
+}
+
+<div class="p-6 max-w-3xl mx-auto space-y-6">
+    <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-bold tracking-tight text-gray-900">İlan Düzenle</h1>
+        <a asp-action="Index" class="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Geri Dön
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        <div class="p-8">
+            <form asp-action="Edit" method="post" enctype="multipart/form-data" class="space-y-6">
+                <input type="hidden" asp-for="Id" />
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Title -->
+                    <div class="col-span-2">
+                        <label asp-for="Title" class="block text-sm font-semibold text-gray-700 mb-1">İlan Başlığı</label>
+                        <input asp-for="Title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border transition-colors" />
+                        <span asp-validation-for="Title" class="text-red-500 text-xs mt-1 block"></span>
+                    </div>
+
+                    <!-- CategoryId -->
+                    <div class="col-span-2 md:col-span-1">
+                        <label asp-for="CategoryId" class="block text-sm font-semibold text-gray-700 mb-1">Kategori</label>
+                        <select asp-for="CategoryId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border transition-colors" required>
+                            <option value="">-- Kategori Seçiniz --</option>
+                            @if (ViewBag.Categories != null)
+                            {
+                                foreach (var category in ViewBag.Categories)
+                                {
+                                    <option value="@category.Id">@category.Name</option>
+                                }
+                            }
+                        </select>
+                        <span asp-validation-for="CategoryId" class="text-red-500 text-xs mt-1 block"></span>
+                    </div>
+
+                    <!-- Price -->
+                    <div class="col-span-2 md:col-span-1">
+                        <label asp-for="Price" class="block text-sm font-semibold text-gray-700 mb-1">Fiyat (₺)</label>
+                        <input asp-for="Price" type="number" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border transition-colors" />
+                        <span asp-validation-for="Price" class="text-red-500 text-xs mt-1 block"></span>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="col-span-2">
+                        <label asp-for="Description" class="block text-sm font-semibold text-gray-700 mb-1">Açıklama</label>
+                        <textarea asp-for="Description" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border transition-colors"></textarea>
+                        <span asp-validation-for="Description" class="text-red-500 text-xs mt-1 block"></span>
+                    </div>
+
+                    <!-- Seller Name -->
+                    <div class="col-span-2 md:col-span-1">
+                        <label asp-for="SellerName" class="block text-sm font-semibold text-gray-700 mb-1">Satıcı Adı</label>
+                        <input asp-for="SellerName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border transition-colors" />
+                        <span asp-validation-for="SellerName" class="text-red-500 text-xs mt-1 block"></span>
+                    </div>
+
+                    <!-- Contact Phone -->
+                    <div class="col-span-2 md:col-span-1">
+                        <label asp-for="ContactPhone" class="block text-sm font-semibold text-gray-700 mb-1">İletişim Telefonu</label>
+                        <input asp-for="ContactPhone" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border transition-colors" />
+                        <span asp-validation-for="ContactPhone" class="text-red-500 text-xs mt-1 block"></span>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="col-span-2 md:col-span-1">
+                        <label asp-for="Status" class="block text-sm font-semibold text-gray-700 mb-1">Durum</label>
+                        <select asp-for="Status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border transition-colors">
+                            <option value="pending">Bekliyor (Pending)</option>
+                            <option value="approved">Onaylandı (Approved)</option>
+                            <option value="rejected">Reddedildi (Rejected)</option>
+                        </select>
+                        <span asp-validation-for="Status" class="text-red-500 text-xs mt-1 block"></span>
+                    </div>
+
+                    <!-- Images -->
+                    <div class="col-span-2 border-t border-gray-200 pt-6">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">İlan Görselleri <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+                        @if (ViewBag.Images != null && ((List<KadirliApp.Application.Features.Ads.Dtos.AdImageDto>)ViewBag.Images).Count > 0)
+                        {
+                            <div class="flex gap-3 flex-wrap mb-4">
+                                @foreach (var image in (List<KadirliApp.Application.Features.Ads.Dtos.AdImageDto>)ViewBag.Images)
+                                {
+                                    <div class="relative">
+                                        <img src="@image.Url" class="h-24 w-36 rounded-lg border border-gray-200 object-cover" alt="İlan görseli">
+                                        @if (image.IsCover)
+                                        {
+                                            <span class="absolute top-1 left-1 bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded">Kapak</span>
+                                        }
+                                        <label class="flex items-center gap-1.5 text-xs text-gray-700 mt-1.5">
+                                            <input type="checkbox" name="RemoveImageIds" value="@image.Id" class="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                                            <span>Kaldır</span>
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        <div class="flex items-start gap-4 flex-wrap">
+                            <label for="imagesInput" class="flex flex-col items-center justify-center w-36 h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                <i class="fas fa-images text-gray-400 text-lg mb-1"></i>
+                                <span class="text-xs text-gray-500">Görsel Ekle</span>
+                                <input id="imagesInput" name="Images" type="file" accept="image/*" multiple class="hidden" onchange="previewImages(this)">
+                            </label>
+                            <div id="imagesPreviewWrap" class="flex gap-3 flex-wrap"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex justify-end">
+                    <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-6 text-sm font-medium text-white shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all">
+                        Güncelle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Faz 10.9(g): kategoriye özel alan değerleri — moderatör "Yakıt Tipi/Model Yılı"nı görmeden onay vermesin -->
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        <div class="p-8">
+            <h3 class="text-sm font-semibold text-gray-700 mb-1"><i class="fas fa-list-ul mr-2 text-indigo-500"></i>Kategori Özellikleri <span class="text-gray-400 font-normal">(salt-okunur)</span></h3>
+            <p class="text-xs text-gray-400 mb-4">Kullanıcının ilan verirken doldurduğu kategoriye özel alanlar. Düzenleme yalnız mobil taraftan yapılır — her kullanıcı düzenlemesi ilanı yeniden moderasyona düşürür.</p>
+            @{
+                var propertyValues = ViewBag.PropertyValues as IReadOnlyList<KadirliApp.Application.Features.Ads.Queries.AdPropertyValueDisplayDto>;
+            }
+            @if (propertyValues != null && propertyValues.Count > 0)
+            {
+                <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+                    @foreach (var pv in propertyValues)
+                    {
+                        <div class="flex justify-between gap-4 border-b border-gray-100 pb-2">
+                            <dt class="text-sm text-gray-500">@pv.PropertyName</dt>
+                            <dd class="text-sm font-medium text-gray-900 text-right">
+                                @if (pv.PropertyType == "Boolean")
+                                {
+                                    @(pv.Value is "true" or "True" or "1" ? "Evet" : "Hayır")
+                                }
+                                else
+                                {
+                                    @pv.Value
+                                }
+                            </dd>
+                        </div>
+                    }
+                </dl>
+            }
+            else
+            {
+                <p class="text-sm text-gray-400">Bu ilanda kategoriye özel alan değeri yok.</p>
+            }
+        </div>
+    </div>
+
+    <!-- Faz 10.10-A: mobil etkileşim sayaçları — "ilanım tutmuyor" şikayetinde adminin bakacağı yer -->
+    @{
+        var engagement = ViewBag.Engagement as KadirliApp.Application.Features.Ads.Queries.AdAdminStatsDto;
+    }
+    @if (engagement != null)
+    {
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+            <div class="p-8">
+                <h3 class="text-sm font-semibold text-gray-700 mb-1"><i class="fas fa-chart-bar mr-2 text-indigo-500"></i>Etkileşim <span class="text-gray-400 font-normal">(salt-okunur)</span></h3>
+                <p class="text-xs text-gray-400 mb-4">Mobil kullanıcı etkileşimleri. Favori yalnız sayı olarak gösterilir; kimlerin favorilediği gizlilik gereği listelenmez.</p>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div class="border border-gray-100 rounded-lg py-3">
+                        <p class="text-xl text-gray-800 font-semibold">@engagement.ViewCount.ToString("N0")</p>
+                        <p class="text-xs text-gray-500"><i class="fas fa-eye mr-1 text-gray-400"></i>Görüntülenme</p>
+                    </div>
+                    <div class="border border-gray-100 rounded-lg py-3">
+                        <p class="text-xl text-gray-800 font-semibold">@engagement.PhoneClickCount.ToString("N0")</p>
+                        <p class="text-xs text-gray-500"><i class="fas fa-phone mr-1 text-gray-400"></i>Telefon Tıklama</p>
+                    </div>
+                    <div class="border border-gray-100 rounded-lg py-3">
+                        <p class="text-xl text-gray-800 font-semibold">@engagement.WhatsappClickCount.ToString("N0")</p>
+                        <p class="text-xs text-gray-500"><i class="fab fa-whatsapp mr-1 text-gray-400"></i>WhatsApp Tıklama</p>
+                    </div>
+                    <div class="border border-gray-100 rounded-lg py-3">
+                        <p class="text-xl text-gray-800 font-semibold">@engagement.FavoriteCount.ToString("N0")</p>
+                        <p class="text-xs text-gray-500"><i class="fas fa-heart mr-1 text-gray-400"></i>Favori</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function previewImages(input) {
+            var wrap = document.getElementById('imagesPreviewWrap');
+            wrap.innerHTML = '';
+            if (!input.files) return;
+            Array.from(input.files).forEach(function (file) {
+                var img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.className = 'h-24 w-36 rounded-lg border border-gray-200 object-cover';
+                wrap.appendChild(img);
+            });
+        }
+    </script>
+}

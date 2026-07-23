@@ -1,0 +1,152 @@
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Guide.Dtos.GuideItemResponseDto>
+@{
+    ViewData["Title"] = "Şehir Rehberi";
+    Guid? selectedCategoryId = ViewBag.SelectedCategoryId as Guid?;
+}
+
+<div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Şehir Rehberi</h2>
+        <p class="text-sm text-gray-500 mt-1">Kadirli'nin önemli yerlerinin telefon ve adres rehberi.</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a asp-action="Categories" class="text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+            <i class="fas fa-tags mr-2"></i> Kategoriler
+        </a>
+        <a asp-action="Create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow">
+            <i class="fas fa-plus mr-2"></i> Yeni Kayıt
+        </a>
+    </div>
+</div>
+
+<!-- Modül açıklaması -->
+<div class="mb-6 bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex gap-3">
+    <i class="fas fa-info-circle text-indigo-500 mt-0.5"></i>
+    <div class="text-sm text-indigo-900">
+        <p class="font-semibold mb-1">Bu modül ne işe yarar?</p>
+        <p>
+            Şehir Rehberi, vatandaşın mobil uygulamadan tek dokunuşla ulaşacağı <strong>önemli yerlerin telefon/adres defteridir</strong>:
+            hastane, belediye, kaymakamlık, itfaiye, elektrik arıza, cemevi, noter gibi. Her kayıt bir <strong>kategoriye</strong> bağlıdır
+            (Sağlık, Resmi Kurumlar, Acil Numaralar…). Mobil uygulamada kullanıcı kategoriye girer, kaydı görür, telefon numarasına dokunup arar.
+        </p>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center gap-3">
+        <!-- Search -->
+        <form method="get" class="flex flex-col md:flex-row gap-3 w-full">
+            <div class="relative w-full md:w-64">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input type="text" name="Search" placeholder="İsim, telefon veya adres ara..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value="@ViewBag.Search">
+            </div>
+            <select name="CategoryId" class="border border-gray-300 rounded-lg text-sm py-2 px-3 w-full md:w-56" onchange="this.form.submit()">
+                <option value="">Tüm Kategoriler</option>
+                @if (ViewBag.Categories != null)
+                {
+                    foreach (var c in ViewBag.Categories)
+                    {
+                        <option value="@c.Id" selected="@(selectedCategoryId == (Guid)c.Id)">@c.Name</option>
+                    }
+                }
+            </select>
+            <button type="submit" class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200">Ara</button>
+        </form>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                    <th scope="col" class="px-6 py-3 font-medium">Kayıt</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Kategori</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Telefon</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Adres</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Durum</th>
+                    <th scope="col" class="px-6 py-3 text-right font-medium">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Items.Any())
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 font-medium text-gray-900">
+                                <div class="flex items-center gap-2">
+                                    @item.Name
+                                    @if (item.HasLocation)
+                                    {
+                                        <i class="fas fa-map-marker-alt text-indigo-400" title="Konum ekli"></i>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrEmpty(item.WorkingHours))
+                                {
+                                    <div class="text-xs text-gray-400 mt-0.5"><i class="far fa-clock mr-1"></i>@item.WorkingHours</div>
+                                }
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-xs font-medium px-2.5 py-0.5 rounded"
+                                      style="background-color: @(item.CategoryColor ?? "#eef2ff")20; color: @(item.CategoryColor ?? "#4338ca");">
+                                    @if (!string.IsNullOrEmpty(item.CategoryIcon))
+                                    {
+                                        <i class="@item.CategoryIcon mr-1"></i>
+                                    }
+                                    @item.CategoryName
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                @if (!string.IsNullOrEmpty(item.Phone))
+                                {
+                                    <a href="tel:@item.Phone" class="text-indigo-600 hover:underline">@item.Phone</a>
+                                }
+                                else
+                                {
+                                    <span class="text-gray-300">-</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 truncate max-w-xs">@(item.Address ?? "-")</td>
+                            <td class="px-6 py-4">
+                                @if (item.IsActive)
+                                {
+                                    <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Aktif</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-0.5 rounded">Pasif</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex justify-end gap-2">
+                                    <a asp-action="Edit" asp-route-id="@item.Id" class="text-indigo-600 hover:text-indigo-900" title="Düzenle">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form asp-action="Delete" method="post" class="inline" onsubmit="return confirm('Rehber kaydını silmek istediğinize emin misiniz?');">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-address-book text-4xl text-gray-300 mb-3"></i>
+                                <p class="font-medium">Henüz rehber kaydı yok.</p>
+                                <p class="text-xs text-gray-400 mt-1">"Yeni Kayıt" ile hastane, belediye, itfaiye gibi önemli yerleri ekleyin.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

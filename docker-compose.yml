@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: kadirliapp_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kadirliapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:7
+    container_name: kadirliapp_redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  # Merkezi log sunucusu (Faz 9.3) — UI: http://localhost:8081, ingestion: http://localhost:5341
+  seq:
+    image: datalust/seq:latest
+    container_name: kadirliapp_seq
+    environment:
+      ACCEPT_EULA: "Y"
+      # Yerel geliştirme: kimlik doğrulamasız. Production'da SEQ_FIRSTRUN_ADMINPASSWORD + API key kullanılmalı.
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
+    ports:
+      - "5341:5341"
+      - "8081:80"
+    volumes:
+      - seqdata:/data
+    restart: always
+
+volumes:
+  pgdata:
+  seqdata:

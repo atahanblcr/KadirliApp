@@ -1,0 +1,135 @@
+<script>
+    // ================= Mekan formu ortak scriptleri =================
+    // Konum
+    initLocationPicker('locationMap', 'latInput', 'lngInput', null);
+
+    // ---- Açılış/Kapanış saatleri: gizli OpeningHours <-> time inputları ----
+    (function initHours() {
+        var raw = document.getElementById('openingHours').value || '';
+        if (/7\s*\/\s*24|24 saat|her zaman/i.test(raw)) {
+            document.getElementById('alwaysOpen').checked = true;
+            toggleAlwaysOpen();
+            return;
+        }
+        var m = raw.match(/(\d{1,2})[:.](\d{2})\s*[-–—]\s*(\d{1,2})[:.](\d{2})/);
+        if (m) {
+            document.getElementById('openTime').value = m[1].padStart(2, '0') + ':' + m[2];
+            document.getElementById('closeTime').value = m[3].padStart(2, '0') + ':' + m[4];
+        }
+    })();
+
+    function toggleAlwaysOpen() {
+        var always = document.getElementById('alwaysOpen').checked;
+        document.getElementById('openTime').disabled = always;
+        document.getElementById('closeTime').disabled = always;
+    }
+
+    // ---- Olanaklar (amenities) ----
+    var defaultAmenities = ['WC', 'Wi-Fi', 'Klima', 'Otopark', 'Engelli Erişimi', 'Çocuk Oyun Alanı'];
+    // state: { "WC": true/false } — belirtilmeyenler objede yer almaz
+    var amenityState = {};
+    (function initAmenities() {
+        var raw = document.getElementById('amenitiesJson').value;
+        if (raw) {
+            try { amenityState = JSON.parse(raw) || {}; } catch (e) { amenityState = {}; }
+        }
+        var names = defaultAmenities.slice();
+        Object.keys(amenityState).forEach(function (k) {
+            if (names.indexOf(k) === -1) names.push(k);
+        });
+        names.forEach(renderAmenityRow);
+    })();
+
+    function renderAmenityRow(name) {
+        var list = document.getElementById('amenityList');
+        var row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2';
+        row.dataset.amenity = name;
+
+        var label = document.createElement('span');
+        label.className = 'text-sm text-gray-700 truncate';
+        label.textContent = name;
+
+        var btns = document.createElement('div');
+        btns.className = 'flex gap-1 shrink-0';
+
+        ['Var', 'Yok'].forEach(function (opt) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = opt;
+            b.className = 'amenity-btn text-xs px-2.5 py-1 rounded-md border transition-colors';
+            b.dataset.value = (opt === 'Var');
+            b.addEventListener('click', function () {
+                var val = (opt === 'Var');
+                if (amenityState[name] === val) delete amenityState[name]; // tekrar tıklayınca "belirtilmedi"
+                else amenityState[name] = val;
+                refreshAmenityRow(row, name);
+            });
+            btns.appendChild(b);
+        });
+
+        row.appendChild(label);
+        row.appendChild(btns);
+        list.appendChild(row);
+        refreshAmenityRow(row, name);
+    }
+
+    function refreshAmenityRow(row, name) {
+        row.querySelectorAll('.amenity-btn').forEach(function (b) {
+            var isVar = b.dataset.value === 'true';
+            var active = amenityState.hasOwnProperty(name) && amenityState[name] === isVar;
+            if (active && isVar) b.className = 'amenity-btn text-xs px-2.5 py-1 rounded-md border transition-colors bg-green-600 text-white border-green-600';
+            else if (active && !isVar) b.className = 'amenity-btn text-xs px-2.5 py-1 rounded-md border transition-colors bg-red-500 text-white border-red-500';
+            else b.className = 'amenity-btn text-xs px-2.5 py-1 rounded-md border transition-colors bg-white text-gray-500 border-gray-300 hover:border-gray-400';
+        });
+    }
+
+    function addAmenity() {
+        var input = document.getElementById('newAmenityName');
+        var name = input.value.trim();
+        if (!name) return;
+        var exists = document.querySelector('#amenityList [data-amenity="' + CSS.escape(name) + '"]');
+        if (!exists) {
+            renderAmenityRow(name);
+            amenityState[name] = true; // yeni eklenen özellik varsayılan "Var"
+            refreshAmenityRow(document.querySelector('#amenityList [data-amenity="' + CSS.escape(name) + '"]'), name);
+        }
+        input.value = '';
+    }
+
+    // ---- Fotoğraf önizleme ----
+    function previewImage(input) {
+        var wrap = document.getElementById('imagePreviewWrap');
+        var img = document.getElementById('imagePreview');
+        if (input.files && input.files[0]) {
+            img.src = URL.createObjectURL(input.files[0]);
+            wrap.classList.remove('hidden');
+        }
+    }
+    function clearImage() {
+        document.getElementById('coverInput').value = '';
+        document.getElementById('imagePreviewWrap').classList.add('hidden');
+    }
+
+    // ---- Submit: gizli alanları doldur ----
+    function preparePlaceForm() {
+        var lat = document.getElementById('latInput').value;
+        var lng = document.getElementById('lngInput').value;
+        if (!lat || !lng) {
+            alert('Lütfen haritaya tıklayarak mekanın konumunu işaretleyin.');
+            return false;
+        }
+
+        if (document.getElementById('alwaysOpen').checked) {
+            document.getElementById('openingHours').value = '7/24 Açık';
+        } else {
+            var open = document.getElementById('openTime').value;
+            var close = document.getElementById('closeTime').value;
+            document.getElementById('openingHours').value = (open && close) ? (open + ' - ' + close) : '';
+        }
+
+        document.getElementById('amenitiesJson').value =
+            Object.keys(amenityState).length ? JSON.stringify(amenityState) : '';
+        return true;
+    }
+</script>

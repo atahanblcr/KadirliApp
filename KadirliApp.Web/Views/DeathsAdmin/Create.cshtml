@@ -1,0 +1,161 @@
+@model KadirliApp.Application.Features.Deaths.Dtos.CreateDeathNoticeDto
+@{
+    ViewData["Title"] = "Yeni Vefat İlanı Ekle";
+}
+
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Yeni Vefat İlanı Ekle</h2>
+            <p class="text-sm text-gray-500 mt-1">Sisteme yeni bir vefat ilanı ekleyin. Ad, tarih ve saat dışındaki tüm alanlar opsiyoneldir.</p>
+        </div>
+        <div>
+            <a asp-action="Index" class="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-300 bg-white shadow-sm">
+                <i class="fas fa-arrow-left mr-2"></i> Geri Dön
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-md p-6 sm:p-8">
+        <form asp-action="Create" method="post" enctype="multipart/form-data" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Name -->
+                <div class="col-span-1 md:col-span-2">
+                    <label asp-for="DeceasedName" class="block text-sm font-semibold text-gray-700 mb-2">Merhum/Merhume Adı <span class="text-red-500">*</span></label>
+                    <input asp-for="DeceasedName" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" placeholder="Ad Soyad giriniz..." required />
+                    <span asp-validation-for="DeceasedName" class="text-red-500 text-xs mt-1"></span>
+                </div>
+
+                <!-- Funeral Date -->
+                <div>
+                    <label asp-for="FuneralDate" class="block text-sm font-semibold text-gray-700 mb-2">Cenaze Tarihi <span class="text-red-500">*</span></label>
+                    <input asp-for="FuneralDate" type="date" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" required />
+                    <span asp-validation-for="FuneralDate" class="text-red-500 text-xs mt-1"></span>
+                </div>
+
+                <!-- Funeral Time -->
+                <div>
+                    <label asp-for="FuneralTime" class="block text-sm font-semibold text-gray-700 mb-2">Cenaze Saati <span class="text-red-500">*</span></label>
+                    <input asp-for="FuneralTime" type="time" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" required />
+                    <span asp-validation-for="FuneralTime" class="text-red-500 text-xs mt-1"></span>
+                </div>
+
+                <!-- Cemetery -->
+                <div>
+                    <label asp-for="CemeteryId" class="block text-sm font-semibold text-gray-700 mb-2">Mezarlık <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+                    <select asp-for="CemeteryId" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm">
+                        <option value="">-- Belirtilmedi --</option>
+                        @if (ViewBag.Cemeteries != null)
+                        {
+                            foreach (var cemetery in ViewBag.Cemeteries)
+                            {
+                                <option value="@cemetery.Id">@cemetery.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <!-- Mosque -->
+                <div>
+                    <label asp-for="MosqueId" class="block text-sm font-semibold text-gray-700 mb-2">Cenaze Namazının Kılınacağı Cami <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+                    <select asp-for="MosqueId" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm">
+                        <option value="">-- Belirtilmedi --</option>
+                        @if (ViewBag.Mosques != null)
+                        {
+                            foreach (var mosque in ViewBag.Mosques)
+                            {
+                                <option value="@mosque.Id">@mosque.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <!-- Neighborhood -->
+                <div>
+                    <label asp-for="NeighborhoodId" class="block text-sm font-semibold text-gray-700 mb-2">Mahalle <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+                    <select asp-for="NeighborhoodId" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm">
+                        <option value="">-- Belirtilmedi --</option>
+                        @if (ViewBag.Neighborhoods != null)
+                        {
+                            foreach (var neighborhood in ViewBag.Neighborhoods)
+                            {
+                                <option value="@neighborhood.Id">@neighborhood.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <!-- Photo -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Fotoğraf <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+                    <div class="flex items-start gap-4">
+                        <label for="photoInput" class="flex flex-col items-center justify-center w-36 h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                            <i class="fas fa-camera text-gray-400 text-lg mb-1"></i>
+                            <span class="text-xs text-gray-500">Fotoğraf Seç</span>
+                            <input id="photoInput" name="Photo" type="file" accept="image/*" class="hidden" onchange="previewImage(this)">
+                        </label>
+                        <div id="imagePreviewWrap" class="hidden relative">
+                            <img id="imagePreview" class="h-24 rounded-lg border border-gray-200 object-cover" alt="Önizleme">
+                            <button type="button" onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Kaldır">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Address -->
+                <div class="col-span-1 md:col-span-2">
+                    <label asp-for="CondolenceAddress" class="block text-sm font-semibold text-gray-700 mb-2">Taziye Adresi <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+                    <textarea asp-for="CondolenceAddress" rows="2" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" placeholder="Taziye adresi veya detayları..."></textarea>
+                    <span asp-validation-for="CondolenceAddress" class="text-red-500 text-xs mt-1"></span>
+                </div>
+
+                <!-- Condolence Location -->
+                <div class="col-span-1 md:col-span-2 border-t border-gray-200 pt-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Taziye Yeri Konumu <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+                            <p class="text-xs text-gray-500 mt-1">Konum seçerseniz mobil uygulamada taziye yeri için "Konuma Git" butonu görünür. Haritaya tıklayarak işaretleyin.</p>
+                        </div>
+                        <button type="button" id="clearLocationBtn" class="text-sm text-red-600 hover:underline"><i class="fas fa-times mr-1"></i>Temizle</button>
+                    </div>
+                    <div id="locationMap" class="w-full rounded-lg border border-gray-300" style="height: 300px;"></div>
+                    <div class="grid grid-cols-2 gap-4 mt-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500">Enlem</label>
+                            <input asp-for="CondolenceLatitude" id="latInput" type="text" readonly class="mt-1 bg-gray-50 w-full text-sm border-gray-300 rounded-md py-2 px-3 border text-gray-500" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500">Boylam</label>
+                            <input asp-for="CondolenceLongitude" id="lngInput" type="text" readonly class="mt-1 bg-gray-50 w-full text-sm border-gray-300 rounded-md py-2 px-3 border text-gray-500" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-6 border-t border-gray-200 mt-6 flex justify-end">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-lg shadow-md transition-all flex items-center">
+                    <i class="fas fa-save mr-2"></i> Kaydet
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<partial name="_LocationPickerScripts" />
+<script>
+    initLocationPicker('locationMap', 'latInput', 'lngInput', 'clearLocationBtn');
+
+    function previewImage(input) {
+        var wrap = document.getElementById('imagePreviewWrap');
+        var img = document.getElementById('imagePreview');
+        if (input.files && input.files[0]) {
+            img.src = URL.createObjectURL(input.files[0]);
+            wrap.classList.remove('hidden');
+        }
+    }
+    function clearImage() {
+        document.getElementById('photoInput').value = '';
+        document.getElementById('imagePreviewWrap').classList.add('hidden');
+    }
+</script>

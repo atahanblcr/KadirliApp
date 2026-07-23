@@ -1,0 +1,128 @@
+@model KadirliApp.Web.Models.DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="mb-4 flex justify-between items-center">
+    <h2 class="text-2xl font-bold text-gray-800">Sistem Durumu</h2>
+    <a href="/Dashboard/Seed" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors">
+        <i class="fas fa-database mr-2"></i> Paneli Test Verileriyle Doldur
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 font-medium">
+        @TempData["Success"]
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 font-medium">
+        @TempData["Error"]
+    </div>
+}
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <!-- Stat Cards -->
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-blue-100 text-blue-500">
+                <i class="fas fa-users text-2xl"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm text-gray-500 font-medium">Toplam Kullanıcı</p>
+                <p class="text-2xl text-gray-800 font-semibold">@Model.TotalUsers.ToString("N0")</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-green-100 text-green-500">
+                <i class="fas fa-bullhorn text-2xl"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm text-gray-500 font-medium">Aktif İlanlar</p>
+                <p class="text-2xl text-gray-800 font-semibold">@Model.ActiveAds.ToString("N0")</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-yellow-100 text-yellow-500">
+                <i class="fas fa-exclamation-triangle text-2xl"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm text-gray-500 font-medium">Bekleyen Onaylar</p>
+                <p class="text-2xl text-gray-800 font-semibold">@Model.PendingApprovals.ToString("N0")</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-purple-100 text-purple-500">
+                <i class="fas fa-bell text-2xl"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm text-gray-500 font-medium">Toplam Duyuru</p>
+                <p class="text-2xl text-gray-800 font-semibold">@Model.TotalAnnouncements.ToString("N0")</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Faz 10.10-A: Etkileşim satırı — üç 7-günlük nabız + duyuru erişim toplamı (mobil yayınla dolmaya başlar) -->
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6">
+    <p class="text-xs text-gray-400 uppercase font-medium mb-3"><i class="fas fa-chart-line mr-1"></i>Etkileşim</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+        <div>
+            <p class="text-xl text-gray-800 font-semibold">@Model.NewUsersLast7Days.ToString("N0")</p>
+            <p class="text-xs text-gray-500">Yeni Kayıt <span class="text-gray-400">(7 gün)</span></p>
+        </div>
+        <div>
+            <p class="text-xl text-gray-800 font-semibold">@Model.TaxiCallsLast7Days.ToString("N0")</p>
+            <p class="text-xs text-gray-500">Taksi Çağrısı <span class="text-gray-400">(7 gün)</span></p>
+        </div>
+        <div>
+            <p class="text-xl text-gray-800 font-semibold">@Model.NewAdsLast7Days.ToString("N0")</p>
+            <p class="text-xs text-gray-500">Yeni İlan <span class="text-gray-400">(7 gün)</span></p>
+        </div>
+        <div>
+            <p class="text-xl text-gray-800 font-semibold">@Model.TotalAnnouncementViews.ToString("N0")</p>
+            <p class="text-xs text-gray-500">Duyuru Görüntüleme <span class="text-gray-400">(toplam)</span></p>
+        </div>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div class="p-6 border-b border-gray-200">
+        <h3 class="text-lg font-medium text-gray-800">Son Aktiviteler</h3>
+    </div>
+    <div class="p-6">
+        @if (Model.RecentActivities.Count == 0)
+        {
+            <p class="text-gray-500">Henüz aktivite bulunmuyor. "Paneli Test Verileriyle Doldur" butonuyla örnek veri ekleyebilirsiniz.</p>
+        }
+        else
+        {
+            <ul class="divide-y divide-gray-100">
+                @foreach (var activity in Model.RecentActivities)
+                {
+                    <li class="py-3 flex items-center gap-4">
+                        <span class="p-2 rounded-full bg-gray-100 text-gray-500 w-10 h-10 flex items-center justify-center shrink-0">
+                            <i class="fas @activity.Icon"></i>
+                        </span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-800 truncate">@activity.Title</p>
+                            <p class="text-xs text-gray-500">@activity.Type</p>
+                        </div>
+                        <span class="text-xs text-gray-400 whitespace-nowrap">@activity.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>

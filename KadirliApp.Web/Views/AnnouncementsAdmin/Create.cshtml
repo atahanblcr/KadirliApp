@@ -1,0 +1,364 @@
+@model KadirliApp.Application.Features.Announcements.DTOs.CreateAnnouncementDto
+@{
+    ViewData["Title"] = "Yeni Duyuru Ekle";
+    var selectedNeighborhoods = Model?.TargetNeighborhoodIds ?? new List<Guid>();
+}
+
+<div class="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div class="md:flex md:items-center md:justify-between mb-6">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">Yeni Duyuru Oluştur</h2>
+            <p class="mt-1 text-sm text-gray-500">Kadirli halkı için yeni bir duyuru, uyarı veya haber yayınlayın.</p>
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4">
+            <a asp-action="Index" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                Geri Dön
+            </a>
+        </div>
+    </div>
+
+    <form asp-action="Create" method="post" enctype="multipart/form-data" class="space-y-8 divide-y divide-gray-200 bg-white shadow-xl rounded-2xl p-8 border border-gray-100">
+        <div class="space-y-8 divide-y divide-gray-200">
+
+            <!-- Temel Bilgiler -->
+            <div>
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Duyuru İçeriği</h3>
+                    <p class="mt-1 text-sm text-gray-500">Duyurunun başlığı, türü ve detaylı metni.</p>
+                </div>
+                <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-4">
+                        <label asp-for="Title" class="block text-sm font-medium text-gray-700">Duyuru Başlığı <span class="text-red-500">*</span></label>
+                        <div class="mt-1">
+                            <input asp-for="Title" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border" placeholder="Örn: Su Kesintisi Hakkında" required>
+                            <span asp-validation-for="Title" class="text-red-500 text-xs mt-1"></span>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label asp-for="TypeId" class="block text-sm font-medium text-gray-700">Tür <span class="text-red-500">*</span></label>
+                        <div class="mt-1 flex gap-2">
+                            <select asp-for="TypeId" id="typeSelect" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border" required>
+                                <option value="">-- Tür Seçiniz --</option>
+                                @if (ViewBag.Types != null)
+                                {
+                                    foreach (var type in ViewBag.Types)
+                                    {
+                                        <option value="@type.Id">@type.Name</option>
+                                    }
+                                }
+                            </select>
+                            <button type="button" onclick="toggleNewTypePanel()" title="Yeni duyuru türü ekle"
+                                    class="shrink-0 inline-flex items-center px-3 py-2 border border-indigo-300 rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100 text-sm font-medium transition-colors">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="TypeId" class="text-red-500 text-xs mt-1"></span>
+
+                        <!-- Yeni tür ekleme paneli -->
+                        <div id="newTypePanel" class="hidden mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                            <label class="block text-xs font-medium text-indigo-700 mb-1">Yeni Tür Adı</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="newTypeName" class="block w-full text-sm border-gray-300 rounded-md py-1.5 px-2 border" placeholder="Örn: Afet Uyarısı">
+                                <button type="button" onclick="createType()" class="shrink-0 px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">Ekle</button>
+                            </div>
+                            <p id="newTypeError" class="hidden text-red-500 text-xs mt-1"></p>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-6">
+                        <label asp-for="Body" class="block text-sm font-medium text-gray-700">İçerik <span class="text-red-500">*</span></label>
+                        <div class="mt-1">
+                            <textarea asp-for="Body" rows="6" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border" placeholder="Duyuru detaylarını buraya giriniz..." required></textarea>
+                            <span asp-validation-for="Body" class="text-red-500 text-xs mt-1"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zamanlama & Hedef -->
+            <div class="pt-8">
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Zamanlama ve Hedef Kitle</h3>
+                    <p class="mt-1 text-sm text-gray-500">Duyurunun ne zaman, kime gösterileceği.</p>
+                </div>
+                <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+
+                    <div class="sm:col-span-2">
+                        <label asp-for="Priority" class="block text-sm font-medium text-gray-700">Öncelik</label>
+                        <div class="mt-1">
+                            <select asp-for="Priority" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border">
+                                <option value="0">Normal</option>
+                                <option value="1">Yüksek</option>
+                                <option value="2">Acil</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label asp-for="ScheduledFor" class="block text-sm font-medium text-gray-700">Planlanan Yayın Zamanı</label>
+                        <div class="mt-1">
+                            <input asp-for="ScheduledFor" id="scheduledFor" type="datetime-local" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border">
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label asp-for="VisibleUntil" class="block text-sm font-medium text-gray-700">Şu Tarihe Kadar Görünür</label>
+                        <div class="mt-1">
+                            <input asp-for="VisibleUntil" type="datetime-local" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border">
+                        </div>
+                    </div>
+
+                    <!-- Yayın zamanı bilgi kutusu -->
+                    <div class="sm:col-span-6">
+                        <div id="scheduleInfo" class="rounded-lg px-4 py-3 text-sm flex items-start gap-2 bg-green-50 text-green-800 border border-green-200">
+                            <i class="fas fa-bolt mt-0.5"></i>
+                            <span id="scheduleInfoText">Yayın zamanı boş bırakıldı: duyuru <strong>kaydedilir kaydedilmez yayınlanır</strong>.</span>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label asp-for="TargetType" class="block text-sm font-medium text-gray-700">Hedef Kitle Tipi</label>
+                        <div class="mt-1">
+                            <select asp-for="TargetType" id="targetTypeSelect" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border">
+                                <option value="all">Herkes</option>
+                                <option value="neighborhood">Belirli Mahalleler</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3 flex items-center mt-6">
+                        <div class="flex items-center h-5">
+                            <input asp-for="SendPushNotification" type="checkbox" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label asp-for="SendPushNotification" class="font-medium text-gray-700">Bildirim (Push) Gönder</label>
+                            <p class="text-gray-500">Kullanıcılara telefon bildirimi gider.</p>
+                        </div>
+                    </div>
+
+                    <!-- Mahalle seçimi (Belirli Mahalleler seçilince açılır) -->
+                    <div id="neighborhoodPanel" class="sm:col-span-6 hidden">
+                        <div class="border border-indigo-200 bg-indigo-50/50 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <label class="block text-sm font-medium text-gray-700">Hedef Mahalleler <span class="text-red-500">*</span></label>
+                                <div class="text-xs space-x-3">
+                                    <button type="button" onclick="setAllNeighborhoods(true)" class="text-indigo-600 hover:underline">Tümünü Seç</button>
+                                    <button type="button" onclick="setAllNeighborhoods(false)" class="text-gray-500 hover:underline">Temizle</button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-2">
+                                @if (ViewBag.Neighborhoods != null)
+                                {
+                                    foreach (var n in ViewBag.Neighborhoods)
+                                    {
+                                        var isChecked = selectedNeighborhoods.Contains((Guid)n.Id);
+                                        <label class="flex items-center gap-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-md px-2.5 py-1.5 hover:border-indigo-400 cursor-pointer">
+                                            <input type="checkbox" name="TargetNeighborhoodIds" value="@n.Id" checked="@isChecked"
+                                                   class="nbh-check h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                                            <span class="truncate">@n.Name</span>
+                                        </label>
+                                    }
+                                }
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">Duyuru yalnızca seçtiğiniz mahallelerdeki kullanıcılara gösterilir.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fotoğraf -->
+            <div class="pt-8">
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Fotoğraf <span class="text-sm font-normal text-gray-400">(opsiyonel)</span></h3>
+                    <p class="mt-1 text-sm text-gray-500">Duyuruya bir görsel ekleyebilirsiniz; mobil uygulamada duyuru kartında görünür.</p>
+                </div>
+                <div class="mt-4 flex items-start gap-4">
+                    <label for="imageInput" class="flex flex-col items-center justify-center w-40 h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-camera text-gray-400 text-xl mb-1"></i>
+                        <span class="text-xs text-gray-500">Fotoğraf Seç</span>
+                        <input id="imageInput" name="Image" type="file" accept="image/*" class="hidden" onchange="previewImage(this)">
+                    </label>
+                    <div id="imagePreviewWrap" class="hidden relative">
+                        <img id="imagePreview" class="h-28 rounded-lg border border-gray-200 object-cover" alt="Önizleme">
+                        <button type="button" onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Kaldır">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Konum -->
+            <div class="pt-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Konum <span class="text-sm font-normal text-gray-400">(opsiyonel)</span></h3>
+                        <p class="mt-1 text-sm text-gray-500">Konum eklerseniz mobil uygulamada duyuruda "Konuma Git" butonu görünür. Haritaya tıklayarak seçin.</p>
+                    </div>
+                    <button type="button" id="clearLocationBtn" class="text-sm text-red-600 hover:underline"><i class="fas fa-times mr-1"></i>Konumu Temizle</button>
+                </div>
+                <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div class="sm:col-span-3">
+                        <label asp-for="LocationName" class="block text-sm font-medium text-gray-700">Konum Adı</label>
+                        <input asp-for="LocationName" class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border" placeholder="Örn: Cumhuriyet Meydanı">
+                    </div>
+                    <div class="sm:col-span-3">
+                        <div id="locationMap" class="w-full rounded-lg border border-gray-300" style="height: 300px;"></div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500">Enlem</label>
+                        <input asp-for="Latitude" id="latInput" type="text" readonly class="mt-1 bg-gray-50 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border text-gray-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500">Boylam</label>
+                        <input asp-for="Longitude" id="lngInput" type="text" readonly class="mt-1 bg-gray-50 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border text-gray-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medya & Linkler -->
+            <div class="pt-8">
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Kaynak ve Linkler</h3>
+                    <p class="mt-1 text-sm text-gray-500">Dış linkler veya haber kaynağı.</p>
+                </div>
+                <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-3">
+                        <label asp-for="Source" class="block text-sm font-medium text-gray-700">Haber Kaynağı (Örn: Kadirli Belediyesi)</label>
+                        <div class="mt-1">
+                            <input asp-for="Source" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border">
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label asp-for="SourceUrl" class="block text-sm font-medium text-gray-700">Kaynak URL</label>
+                        <div class="mt-1">
+                            <input asp-for="SourceUrl" type="url" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border" placeholder="https://...">
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-6 flex items-center space-x-6">
+                        <div class="flex items-center">
+                            <div class="flex items-center h-5">
+                                <input asp-for="HasLink" type="checkbox" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                            </div>
+                            <div class="ml-3 text-sm">
+                                <label asp-for="HasLink" class="font-medium text-gray-700">Dış Link İçerir</label>
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <input asp-for="ExternalLink" type="url" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border" placeholder="https://...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-5 border-t border-gray-200 mt-8 flex justify-end">
+            <button type="button" onclick="window.history.back();" class="bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                İptal
+            </button>
+            <button type="submit" class="ml-3 inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+                <i class="fas fa-bullhorn mr-2 mt-1"></i> <span id="submitLabel">Duyuruyu Yayınla</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<partial name="_LocationPickerScripts" />
+
+<script>
+    // ---- Konum haritası ----
+    initLocationPicker('locationMap', 'latInput', 'lngInput', 'clearLocationBtn');
+
+    // ---- Yayın zamanı bilgi mesajı ----
+    var scheduledInput = document.getElementById('scheduledFor');
+    var infoBox = document.getElementById('scheduleInfo');
+    var infoText = document.getElementById('scheduleInfoText');
+    var submitLabel = document.getElementById('submitLabel');
+
+    function refreshScheduleInfo() {
+        var val = scheduledInput.value;
+        infoBox.className = 'rounded-lg px-4 py-3 text-sm flex items-start gap-2 border ';
+        if (!val) {
+            infoBox.className += 'bg-green-50 text-green-800 border-green-200';
+            infoText.innerHTML = 'Yayın zamanı boş bırakıldı: duyuru <strong>kaydedilir kaydedilmez yayınlanır</strong>.';
+            submitLabel.textContent = 'Duyuruyu Yayınla';
+            return;
+        }
+        var when = new Date(val);
+        if (when > new Date()) {
+            infoBox.className += 'bg-amber-50 text-amber-800 border-amber-200';
+            infoText.innerHTML = 'Duyuru şimdi yayınlanmayacak; <strong>' + when.toLocaleString('tr-TR') + '</strong> tarihinde otomatik olarak yayınlanacak.';
+            submitLabel.textContent = 'Duyuruyu Zamanla';
+        } else {
+            infoBox.className += 'bg-green-50 text-green-800 border-green-200';
+            infoText.innerHTML = 'Seçilen zaman geçmişte: duyuru <strong>hemen yayınlanır</strong>.';
+            submitLabel.textContent = 'Duyuruyu Yayınla';
+        }
+    }
+    scheduledInput.addEventListener('input', refreshScheduleInfo);
+    refreshScheduleInfo();
+
+    // ---- Hedef kitle: mahalle paneli ----
+    var targetSelect = document.getElementById('targetTypeSelect');
+    var nbhPanel = document.getElementById('neighborhoodPanel');
+    function refreshTargetPanel() {
+        nbhPanel.classList.toggle('hidden', targetSelect.value !== 'neighborhood');
+    }
+    targetSelect.addEventListener('change', refreshTargetPanel);
+    refreshTargetPanel();
+
+    function setAllNeighborhoods(state) {
+        document.querySelectorAll('.nbh-check').forEach(function (c) { c.checked = state; });
+    }
+
+    // ---- Yeni tür ekleme ----
+    function toggleNewTypePanel() {
+        document.getElementById('newTypePanel').classList.toggle('hidden');
+    }
+    async function createType() {
+        var nameInput = document.getElementById('newTypeName');
+        var errorEl = document.getElementById('newTypeError');
+        errorEl.classList.add('hidden');
+        var name = nameInput.value.trim();
+        if (!name) { errorEl.textContent = 'Tür adı boş olamaz.'; errorEl.classList.remove('hidden'); return; }
+
+        var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        var body = new URLSearchParams({ name: name });
+        var resp = await fetch('@Url.Action("CreateType")', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token },
+            body: body
+        });
+        if (!resp.ok) {
+            var err = await resp.json().catch(function () { return { message: 'Tür eklenemedi.' }; });
+            errorEl.textContent = err.message || 'Tür eklenemedi.';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+        var data = await resp.json();
+        var select = document.getElementById('typeSelect');
+        var opt = document.createElement('option');
+        opt.value = data.id;
+        opt.textContent = data.name;
+        opt.selected = true;
+        select.appendChild(opt);
+        nameInput.value = '';
+        toggleNewTypePanel();
+    }
+
+    // ---- Fotoğraf önizleme ----
+    function previewImage(input) {
+        var wrap = document.getElementById('imagePreviewWrap');
+        var img = document.getElementById('imagePreview');
+        if (input.files && input.files[0]) {
+            img.src = URL.createObjectURL(input.files[0]);
+            wrap.classList.remove('hidden');
+        }
+    }
+    function clearImage() {
+        document.getElementById('imageInput').value = '';
+        document.getElementById('imagePreviewWrap').classList.add('hidden');
+    }
+</script>

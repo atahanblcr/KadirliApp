@@ -1,0 +1,166 @@
+@model List<KadirliApp.Application.Features.Announcements.DTOs.AnnouncementDto>
+@using KadirliApp.Application.Features.Announcements.Queries.GetAnnouncementAdminStats
+@{
+    ViewData["Title"] = "Duyuru Yönetimi";
+    // Faz 10.10-A: duyuru başına görüntülenme/tıklama/tekil-erişim (mobil view/click uçlarından beslenir)
+    var stats = ViewBag.Stats as Dictionary<Guid, AnnouncementAdminStatsDto>
+                ?? new Dictionary<Guid, AnnouncementAdminStatsDto>();
+}
+
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Duyuru Yönetimi</h2>
+        <p class="text-sm text-gray-500 mt-1">Sistemdeki tüm duyuruları görüntüleyin ve yönetin.</p>
+    </div>
+    <div>
+        <a asp-action="Create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow">
+            <i class="fas fa-plus mr-2"></i> Yeni Ekle
+        </a>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                    <th scope="col" class="px-6 py-3 font-medium">Duyuru</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Tür</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Hedef</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Yayın</th>
+                    <th scope="col" class="px-6 py-3 font-medium" title="Toplam görüntülenme (parantez içi: kaç farklı kullanıcı)">Görüntülenme</th>
+                    <th scope="col" class="px-6 py-3 font-medium" title="Dış bağlantı tıklaması">Tıklama</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Durum</th>
+                    <th scope="col" class="px-6 py-3 text-right font-medium">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Any())
+                {
+                    foreach (var item in Model)
+                    {
+                        <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                    {
+                                        <img src="@item.ImageUrl" class="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0" alt="">
+                                    }
+                                    <div class="min-w-0">
+                                        <div class="font-medium text-gray-900 truncate max-w-xs">
+                                            @if (item.Priority == 2)
+                                            {
+                                                <i class="fas fa-exclamation-circle text-red-500 mr-1" title="Acil"></i>
+                                            }
+                                            else if (item.Priority == 1)
+                                            {
+                                                <i class="fas fa-arrow-up text-amber-500 mr-1" title="Yüksek öncelik"></i>
+                                            }
+                                            @item.Title
+                                        </div>
+                                        <div class="text-xs text-gray-400 truncate max-w-xs flex items-center gap-2">
+                                            <span class="truncate">@item.Body</span>
+                                            @if (item.HasLocation)
+                                            {
+                                                <i class="fas fa-map-marker-alt text-indigo-400" title="Konum ekli"></i>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-0.5 rounded">@(item.TypeName ?? "-")</span>
+                            </td>
+                            <td class="px-6 py-4 text-xs">
+                                @if (item.TargetType == "neighborhood")
+                                {
+                                    <span class="text-gray-700"><i class="fas fa-map-signs mr-1 text-gray-400"></i>Belirli Mahalleler</span>
+                                }
+                                else
+                                {
+                                    <span class="text-gray-700"><i class="fas fa-users mr-1 text-gray-400"></i>Herkes</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col text-xs">
+                                    @if (item.Status == "scheduled" && item.ScheduledFor.HasValue)
+                                    {
+                                        <span class="text-amber-600 font-medium">@item.ScheduledFor.Value.ToString("dd.MM.yyyy HH:mm")</span>
+                                        <span class="text-gray-400">planlandı</span>
+                                    }
+                                    else if (item.SentAt.HasValue)
+                                    {
+                                        <span>@item.SentAt.Value.ToString("dd.MM.yyyy HH:mm")</span>
+                                        <span class="text-gray-400">yayınlandı</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@item.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
+                                        <span class="text-gray-400">oluşturuldu</span>
+                                    }
+                                </div>
+                            </td>
+                            @{ var stat = stats.TryGetValue(item.Id, out var s) ? s : new AnnouncementAdminStatsDto(0, 0, 0); }
+                            <td class="px-6 py-4">
+                                <span class="font-medium text-gray-900">@stat.ViewCount.ToString("N0")</span>
+                                <span class="text-xs text-gray-400" title="Kaç farklı kullanıcı gördü">(@stat.UniqueViewers.ToString("N0") tekil)</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                @if (item.HasLink)
+                                {
+                                    <span class="font-medium text-gray-900">@stat.ClickCount.ToString("N0")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-gray-400" title="Duyuruda dış bağlantı yok">—</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4">
+                                @if (item.Status == "active")
+                                {
+                                    <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Yayında</span>
+                                }
+                                else if (item.Status == "scheduled")
+                                {
+                                    <span class="bg-amber-100 text-amber-800 text-xs font-medium px-2.5 py-0.5 rounded"><i class="fas fa-clock mr-1"></i>Zamanlandı</span>
+                                }
+                                else if (item.Status == "draft")
+                                {
+                                    <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">Taslak</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">@item.Status</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex justify-end gap-2">
+                                    <a asp-action="Edit" asp-route-id="@item.Id" class="text-indigo-600 hover:text-indigo-900" title="Düzenle">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form asp-action="Delete" method="post" class="inline" onsubmit="return confirm('Duyuruyu silmek istediğinize emin misiniz?');">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+                                <p>Kayıt bulunamadı.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

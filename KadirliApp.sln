@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KadirliApp.Api", "KadirliApp.Api\KadirliApp.Api.csproj", "{654E2B0C-9273-4B39-8B54-492421020AE5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KadirliApp.Application", "KadirliApp.Application\KadirliApp.Application.csproj", "{D8E48F15-E16F-44D8-BF71-D172031419C2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KadirliApp.Domain", "KadirliApp.Domain\KadirliApp.Domain.csproj", "{0A9FD59F-7999-4594-886F-8613DAED833A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KadirliApp.Infrastructure", "KadirliApp.Infrastructure\KadirliApp.Infrastructure.csproj", "{C08BDB4E-851D-4DE1-B81E-1F1C8399D8E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KadirliApp.Web", "KadirliApp.Web\KadirliApp.Web.csproj", "{A314F2E8-1B27-42DC-AA1F-5CE7C0D1ECA8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KadirliApp.Tests", "KadirliApp.Tests\KadirliApp.Tests.csproj", "{B832F5EC-2355-4A66-A0CD-10069144E11C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{654E2B0C-9273-4B39-8B54-492421020AE5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{654E2B0C-9273-4B39-8B54-492421020AE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{654E2B0C-9273-4B39-8B54-492421020AE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{654E2B0C-9273-4B39-8B54-492421020AE5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D8E48F15-E16F-44D8-BF71-D172031419C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D8E48F15-E16F-44D8-BF71-D172031419C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8E48F15-E16F-44D8-BF71-D172031419C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D8E48F15-E16F-44D8-BF71-D172031419C2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0A9FD59F-7999-4594-886F-8613DAED833A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0A9FD59F-7999-4594-886F-8613DAED833A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0A9FD59F-7999-4594-886F-8613DAED833A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0A9FD59F-7999-4594-886F-8613DAED833A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C08BDB4E-851D-4DE1-B81E-1F1C8399D8E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C08BDB4E-851D-4DE1-B81E-1F1C8399D8E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C08BDB4E-851D-4DE1-B81E-1F1C8399D8E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C08BDB4E-851D-4DE1-B81E-1F1C8399D8E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A314F2E8-1B27-42DC-AA1F-5CE7C0D1ECA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A314F2E8-1B27-42DC-AA1F-5CE7C0D1ECA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A314F2E8-1B27-42DC-AA1F-5CE7C0D1ECA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A314F2E8-1B27-42DC-AA1F-5CE7C0D1ECA8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B832F5EC-2355-4A66-A0CD-10069144E11C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B832F5EC-2355-4A66-A0CD-10069144E11C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B832F5EC-2355-4A66-A0CD-10069144E11C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B832F5EC-2355-4A66-A0CD-10069144E11C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,61 @@
+@model KadirliApp.Application.Features.Staff.Commands.CreateStaffCommand
+@{
+    ViewData["Title"] = "Yeni Personel";
+}
+
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Yeni Personel</h2>
+        <p class="text-sm text-gray-500 mt-1">Moderatör panele giriş yapabilir ama yalnız izin matrisinde işaretli modüllerin Admin API'sine erişir.</p>
+    </div>
+    <a asp-action="Index" class="text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+        <i class="fas fa-arrow-left mr-2"></i> Personel Listesi
+    </a>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">@TempData["Error"]</div>
+}
+
+<form asp-action="Create" method="post" class="space-y-4">
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Telefon <span class="text-red-500">*</span></label>
+            <input name="phone" required maxlength="20" placeholder="+905XXXXXXXXX" value="@Model?.Phone"
+                   class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm py-2 px-3 border" />
+        </div>
+        <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Kullanıcı Adı</label>
+            <input name="username" maxlength="30" value="@Model?.Username" class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm py-2 px-3 border" />
+        </div>
+        <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">E-posta</label>
+            <input name="email" type="email" maxlength="100" value="@Model?.Email" class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm py-2 px-3 border" />
+        </div>
+        <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Şifre <span class="text-red-500">*</span> <span class="text-gray-400 font-normal">(en az 6 karakter)</span></label>
+            <input name="password" type="password" required minlength="6" class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm py-2 px-3 border" />
+        </div>
+        <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Rol <span class="text-red-500">*</span></label>
+            <select name="role" class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm py-2 px-3 border">
+                <option value="moderator" selected="@(Model == null || Model.Role != "admin" ? "selected" : null)">Moderatör (izin matrisine tabi)</option>
+                <option value="admin" selected="@(Model?.Role == "admin" ? "selected" : null)">Admin (tüm modüllere erişir)</option>
+            </select>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-gray-700 mt-6">
+            <input type="checkbox" name="isActive" value="true" checked="@(Model == null || Model.IsActive ? "checked" : null)" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" />
+            <span>Hesap aktif</span>
+        </label>
+    </div>
+
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+        <h3 class="text-sm font-semibold text-gray-700 mb-4"><i class="fas fa-shield-alt mr-2 text-indigo-500"></i>İzin Matrisi</h3>
+        <partial name="_PermissionMatrix" model="@((IReadOnlyList<KadirliApp.Application.Features.Staff.DTOs.StaffPermissionDto>)(Model?.Permissions ?? new List<KadirliApp.Application.Features.Staff.DTOs.StaffPermissionDto>()))" />
+    </div>
+
+    <div class="flex justify-end">
+        <button type="submit" class="rounded-md bg-indigo-600 py-2 px-8 text-sm font-medium text-white shadow hover:bg-indigo-700">Personeli Oluştur</button>
+    </div>
+</form>

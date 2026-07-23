@@ -1,0 +1,16 @@
+using KadirliApp.Application.Features.Lookups;
+
+namespace KadirliApp.Web.Models;
+
+/// <summary>Faz 10.9(d-panel): Tanımlar sayfasının 5 lookup listesini tek modelde taşır.</summary>
+public class LookupsIndexViewModel
+{
+    public IReadOnlyList<NeighborhoodAdminDto> Neighborhoods { get; set; } = [];
+    public IReadOnlyList<NamedLookupDto> Cemeteries { get; set; } = [];
+    public IReadOnlyList<NamedLookupDto> Mosques { get; set; } = [];
+    public IReadOnlyList<SluggedLookupDto> EventCategories { get; set; } = [];
+    public IReadOnlyList<PlaceCategoryAdminDto> PlaceCategories { get; set; } = [];
+
+    /// <summary>POST-redirect sonrası açık kalacak akordiyon bölümü.</summary>
+    public string? OpenSection { get; set; }
+}

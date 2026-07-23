@@ -1,0 +1,110 @@
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Pharmacies.Dtos.PharmacyResponseDto>
+@{
+    ViewData["Title"] = "Eczane Yönetimi";
+}
+
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Eczane Yönetimi</h2>
+        <p class="text-sm text-gray-500 mt-1">Nöbetçi eczaneleri ve tüm eczaneleri buradan yönetebilirsiniz.</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a asp-action="Schedule" class="text-gray-700 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white shadow-sm">
+            <i class="fas fa-calendar-day mr-2 text-emerald-600"></i> Nöbet Takvimi
+        </a>
+        <a asp-action="Create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+            <i class="fas fa-plus mr-2"></i> Yeni Ekle
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null || TempData["SuccessMessage"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 shadow-sm" role="alert">
+        @(TempData["Success"] ?? TempData["SuccessMessage"])
+    </div>
+}
+@if (TempData["Error"] != null || TempData["ErrorMessage"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">
+        @(TempData["Error"] ?? TempData["ErrorMessage"])
+    </div>
+}
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <!-- Search -->
+        <div class="relative w-full md:w-64">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-search text-gray-400"></i>
+            </div>
+            <form action="" method="get">
+                <input type="text" name="search" placeholder="Eczane adı ile ara..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="@ViewBag.Search">
+            </form>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                    <th scope="col" class="px-6 py-3 font-medium">Eczane Adı</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Eczacı</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Telefon</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Durum</th>
+                    <th scope="col" class="px-6 py-3 text-right font-medium">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Items != null && Model.Items.Any())
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 font-medium text-gray-900">
+                                @item.Name
+                            </td>
+                            <td class="px-6 py-4">
+                                @item.PharmacistName
+                            </td>
+                            <td class="px-6 py-4">
+                                @item.Phone
+                            </td>
+                            <td class="px-6 py-4">
+                                @if (item.IsActive)
+                                {
+                                    <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Aktif</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">Pasif</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <a asp-action="Edit" asp-route-id="@item.Id" class="text-indigo-600 hover:text-indigo-900 mr-3" title="Düzenle">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="inline" onsubmit="return confirm('Bu eczaneyi silmek istediğinize emin misiniz?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+                                <p>Kayıt bulunamadı.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

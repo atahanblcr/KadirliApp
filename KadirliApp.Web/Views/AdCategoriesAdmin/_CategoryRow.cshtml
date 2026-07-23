@@ -1,0 +1,58 @@
+@model (KadirliApp.Application.Features.Ads.Queries.AdCategoryAdminDto Category, bool IsChild)
+@{
+    var c = Model.Category;
+}
+<tr class="bg-white border-b hover:bg-gray-50 transition-colors @(Model.IsChild ? "" : "font-medium")">
+    <td class="px-6 py-3 text-gray-900">
+        <div class="flex items-center gap-2 @(Model.IsChild ? "pl-8" : "")">
+            @if (Model.IsChild)
+            {
+                <i class="fas fa-level-up-alt fa-rotate-90 text-gray-300"></i>
+            }
+            <span class="w-8 h-8 flex items-center justify-center rounded-lg @(Model.IsChild ? "bg-gray-100 text-gray-500" : "bg-indigo-100 text-indigo-600")">
+                <i class="@(string.IsNullOrEmpty(c.Icon) ? "fas fa-folder" : c.Icon)"></i>
+            </span>
+            <div>
+                <div>@c.Name</div>
+                <div class="text-xs text-gray-400 font-normal">@c.Slug</div>
+            </div>
+        </div>
+    </td>
+    <td class="px-6 py-3">@c.DisplayOrder</td>
+    <td class="px-6 py-3">
+        @if (c.IsActive)
+        {
+            <span class="bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded">Aktif</span>
+        }
+        else
+        {
+            <span class="bg-gray-200 text-gray-600 text-xs font-medium px-2.5 py-0.5 rounded" title="Pasif kategoriler mobilde görünmez">Pasif</span>
+        }
+    </td>
+    <td class="px-6 py-3">
+        <a asp-action="Properties" asp-route-id="@c.Id" class="text-indigo-600 hover:underline">@c.PropertyCount özellik</a>
+    </td>
+    <td class="px-6 py-3">@c.AdCount</td>
+    <td class="px-6 py-3 text-right">
+        <div class="flex justify-end gap-3 items-center">
+            @if (!Model.IsChild)
+            {
+                <a asp-action="Create" asp-route-parentId="@c.Id" class="text-emerald-600 hover:text-emerald-800" title="Alt kategori ekle">
+                    <i class="fas fa-plus-circle"></i>
+                </a>
+            }
+            <a asp-action="Properties" asp-route-id="@c.Id" class="text-gray-500 hover:text-gray-700" title="Özellikler">
+                <i class="fas fa-list-ul"></i>
+            </a>
+            <a asp-action="Edit" asp-route-id="@c.Id" class="text-indigo-600 hover:text-indigo-900" title="Düzenle">
+                <i class="fas fa-edit"></i>
+            </a>
+            <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="inline"
+                  onsubmit="return confirm('Bu kategoriyi silmek istediğinize emin misiniz? İlanı, alt kategorisi veya özelliği olan kategori silinemez.');">
+                <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </form>
+        </div>
+    </td>
+</tr>

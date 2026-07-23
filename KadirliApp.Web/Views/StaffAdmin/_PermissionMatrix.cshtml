@@ -1,0 +1,44 @@
+@model IReadOnlyList<KadirliApp.Application.Features.Staff.DTOs.StaffPermissionDto>
+@{
+    // Modül listesi Admin API'deki [RequirePermission] adlarıyla birebir (StaffAdminController.Modules).
+    var modules = KadirliApp.Web.Controllers.StaffAdminController.Modules;
+    var existing = Model.ToDictionary(p => p.Module, StringComparer.OrdinalIgnoreCase);
+}
+
+<div class="overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-xs text-gray-500 uppercase">
+                <th class="py-2 pr-4 text-left">Modül</th>
+                <th class="py-2 px-2 text-center">Okuma</th>
+                <th class="py-2 px-2 text-center">Ekleme</th>
+                <th class="py-2 px-2 text-center">Güncelleme</th>
+                <th class="py-2 px-2 text-center">Silme</th>
+                <th class="py-2 px-2 text-center">Onay</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            @for (var i = 0; i < modules.Count; i++)
+            {
+                var m = modules[i];
+                existing.TryGetValue(m.Key, out var p);
+                <tr class="hover:bg-gray-50">
+                    <td class="py-2 pr-4">
+                        <input type="hidden" name="permissions[@i].Module" value="@m.Key" />
+                        <span class="font-medium text-gray-800">@m.Label</span>
+                        <span class="text-xs text-gray-400 ml-1">@m.Key</span>
+                    </td>
+                    <td class="py-2 px-2 text-center"><input type="checkbox" name="permissions[@i].CanRead" value="true" checked="@(p?.CanRead == true ? "checked" : null)" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" /></td>
+                    <td class="py-2 px-2 text-center"><input type="checkbox" name="permissions[@i].CanCreate" value="true" checked="@(p?.CanCreate == true ? "checked" : null)" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" /></td>
+                    <td class="py-2 px-2 text-center"><input type="checkbox" name="permissions[@i].CanUpdate" value="true" checked="@(p?.CanUpdate == true ? "checked" : null)" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" /></td>
+                    <td class="py-2 px-2 text-center"><input type="checkbox" name="permissions[@i].CanDelete" value="true" checked="@(p?.CanDelete == true ? "checked" : null)" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" /></td>
+                    <td class="py-2 px-2 text-center"><input type="checkbox" name="permissions[@i].CanApprove" value="true" checked="@(p?.CanApprove == true ? "checked" : null)" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" /></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+<p class="text-xs text-gray-400 mt-3">
+    İzinler yalnız <strong>moderatör</strong> rolü için uygulanır — admin ve super_admin tüm modüllere otomatik erişir.
+    Hiçbir kutusu işaretli olmayan modüller kaydedilmez.
+</p>

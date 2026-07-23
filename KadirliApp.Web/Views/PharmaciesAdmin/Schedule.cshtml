@@ -1,0 +1,215 @@
+@model IReadOnlyList<KadirliApp.Application.Features.Pharmacies.Dtos.PharmacyScheduleEntryDto>
+@{
+    int year = (int)ViewBag.Year;
+    int month = (int)ViewBag.Month;
+    var monthStart = new DateTime(year, month, 1);
+    var monthNames = new[] { "", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık" };
+    ViewData["Title"] = $"Nöbet Takvimi — {monthNames[month]} {year}";
+
+    // Pazartesi başlangıçlı grid (EventsAdmin/Calendar deseni)
+    int leadingBlanks = ((int)monthStart.DayOfWeek + 6) % 7;
+    int daysInMonth = DateTime.DaysInMonth(year, month);
+    var entriesByDay = Model
+        .GroupBy(e => e.DutyDate.Day)
+        .ToDictionary(g => g.Key, g => g.ToList());
+
+    var pharmacies = (IReadOnlyList<KadirliApp.Application.Features.Pharmacies.Dtos.PharmacyResponseDto>)ViewBag.Pharmacies;
+    var onDutyToday = (IReadOnlyList<KadirliApp.Application.Features.Pharmacies.Dtos.OnDutyPharmacyDto>)ViewBag.OnDutyToday;
+
+    var prev = monthStart.AddMonths(-1);
+    var next = monthStart.AddMonths(1);
+    var today = DateTime.Today;
+    DateTime? selectedDate = ViewBag.SelectedDate as DateTime?;
+    var formDate = selectedDate ?? (monthStart.Year == today.Year && monthStart.Month == today.Month ? today : monthStart);
+}
+
+<div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Nöbetçi Eczane Takvimi</h2>
+        <p class="text-sm text-gray-500 mt-1">Hangi gün hangi eczanenin nöbetçi olduğunu görün; bir güne eczane atayın veya kaydı silin. Aynı güne birden fazla eczane atanabilir.</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a asp-action="Index" class="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white shadow-sm">
+            <i class="fas fa-list mr-2"></i>Eczane Listesi
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 shadow-sm" role="alert">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">@TempData["Error"]</div>
+}
+
+<!-- Bugünün nöbetçisi (mobil on-duty ucunun panelden görünümü) -->
+<div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 flex items-start gap-3">
+    <div class="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+        <i class="fas fa-briefcase-medical"></i>
+    </div>
+    <div>
+        <div class="text-sm font-semibold text-emerald-900">Bugün nöbetçi (@today.ToString("dd.MM.yyyy"))</div>
+        @if (onDutyToday.Any())
+        {
+            <div class="text-sm text-emerald-800 mt-0.5">
+                @string.Join(" · ", onDutyToday.Select(p => $"{p.Name} ({p.StartTime}–{p.EndTime})"))
+            </div>
+        }
+        else
+        {
+            <div class="text-sm text-red-700 mt-0.5 font-medium">
+                <i class="fas fa-exclamation-triangle mr-1"></i>Bugün için nöbetçi eczane atanmamış — mobil uygulamada nöbetçi görünmeyecek!
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Nöbet atama formu -->
+<div class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4">
+    <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-plus-circle text-indigo-600 mr-1"></i>Nöbet Ata</h3>
+    <form asp-action="ScheduleCreate" method="post" class="flex flex-col md:flex-row md:items-end gap-3">
+        <div class="flex-1 min-w-40">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Eczane</label>
+            <select name="pharmacyId" id="schedule-pharmacy" required
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">— Eczane seçin —</option>
+                @foreach (var p in pharmacies)
+                {
+                    <option value="@p.Id">@p.Name</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Nöbet Günü</label>
+            <input type="date" name="dutyDate" id="schedule-date" required value="@formDate.ToString("yyyy-MM-dd")"
+                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Başlangıç <span class="text-gray-400">(boşsa 19:00)</span></label>
+            <input type="time" name="startTime" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Bitiş <span class="text-gray-400">(boşsa 09:00)</span></label>
+            <input type="time" name="endTime" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+            <i class="fas fa-check mr-1"></i>Ata
+        </button>
+    </form>
+    @if (!pharmacies.Any())
+    {
+        <p class="text-xs text-amber-700 mt-2"><i class="fas fa-info-circle mr-1"></i>Aktif eczane yok — önce <a asp-action="Create" class="underline">eczane ekleyin</a>.</p>
+    }
+</div>
+
+<div class="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
+    <!-- Ay navigasyonu -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <a asp-action="Schedule" asp-route-year="@prev.Year" asp-route-month="@prev.Month"
+           class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-100" title="Önceki ay">
+            <i class="fas fa-chevron-left"></i>
+        </a>
+        <div class="flex items-center gap-3">
+            <h3 class="text-lg font-semibold text-gray-800">@monthNames[month] @year</h3>
+            <a asp-action="Schedule" class="text-xs text-indigo-600 hover:underline">Bugüne dön</a>
+        </div>
+        <a asp-action="Schedule" asp-route-year="@next.Year" asp-route-month="@next.Month"
+           class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-100" title="Sonraki ay">
+            <i class="fas fa-chevron-right"></i>
+        </a>
+    </div>
+
+    <!-- Gün başlıkları -->
+    <div class="grid grid-cols-7 border-b border-gray-200 bg-gray-50 text-xs font-medium text-gray-500 uppercase">
+        @foreach (var dayName in new[] { "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz" })
+        {
+            <div class="px-2 py-2 text-center">@dayName</div>
+        }
+    </div>
+
+    <!-- Takvim ızgarası -->
+    <div class="grid grid-cols-7">
+        @for (int i = 0; i < leadingBlanks; i++)
+        {
+            <div class="min-h-28 border-b border-r border-gray-100 bg-gray-50/50"></div>
+        }
+        @for (int day = 1; day <= daysInMonth; day++)
+        {
+            var date = new DateTime(year, month, day);
+            var isToday = date == today;
+            var hasEntries = entriesByDay.TryGetValue(day, out var list);
+            var isPastEmpty = !hasEntries && date < today;
+            var isFutureEmpty = !hasEntries && date >= today;
+
+            <div class="relative min-h-28 border-b border-r border-gray-100 p-1.5 group transition-colors @(isFutureEmpty ? "bg-amber-50/60 hover:bg-amber-50" : "hover:bg-indigo-50/40")">
+                <div class="flex items-center justify-between">
+                    <span class="@(isToday ? "w-6 h-6 flex items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-bold" : "text-xs font-medium text-gray-500 px-1")">@day</span>
+                    <a asp-action="Schedule" asp-route-year="@year" asp-route-month="@month" asp-route-date="@date.ToString("yyyy-MM-dd")"
+                       class="schedule-day-add opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 flex items-center justify-center rounded bg-indigo-600 text-white text-[10px] hover:bg-indigo-700"
+                       data-date="@date.ToString("yyyy-MM-dd")"
+                       title="@date.ToString("dd.MM.yyyy") gününe nöbet ata">
+                        <i class="fas fa-plus"></i>
+                    </a>
+                </div>
+                <div class="mt-1 space-y-1">
+                    @if (hasEntries)
+                    {
+                        foreach (var entry in list!)
+                        {
+                            <div class="flex items-center gap-1 text-[11px] leading-tight px-1.5 py-1 rounded border bg-emerald-100 text-emerald-800 border-emerald-200"
+                                 title="@entry.PharmacyName — @entry.StartTime–@entry.EndTime@(entry.Source != null ? $" (kaynak: {entry.Source})" : "")">
+                                <span class="truncate flex-1"><i class="fas fa-pills mr-0.5"></i>@entry.PharmacyName</span>
+                                <form asp-action="ScheduleDelete" asp-route-id="@entry.Id" asp-route-year="@year" asp-route-month="@month" method="post" class="inline shrink-0"
+                                      onsubmit="return confirm('@entry.PharmacyName — @date.ToString("dd.MM.yyyy") nöbet kaydını silmek istediğinize emin misiniz?');">
+                                    <button type="submit" class="text-emerald-700/60 hover:text-red-600" title="Nöbeti sil">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    }
+                    else if (isPastEmpty)
+                    {
+                        <div class="text-[10px] text-gray-300 px-1">—</div>
+                    }
+                    else
+                    {
+                        <div class="text-[10px] text-amber-600/70 px-1">Nöbetçi yok</div>
+                    }
+                </div>
+            </div>
+        }
+        @{
+            int totalCells = leadingBlanks + daysInMonth;
+            int trailing = (7 - totalCells % 7) % 7;
+        }
+        @for (int i = 0; i < trailing; i++)
+        {
+            <div class="min-h-28 border-b border-r border-gray-100 bg-gray-50/50"></div>
+        }
+    </div>
+
+    <!-- Lejant -->
+    <div class="flex flex-wrap items-center gap-4 px-6 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-200"></span> Nöbetçi atanmış</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-50 border border-amber-200"></span> Nöbetçi atanmamış (bugün ve sonrası)</span>
+        <span class="ml-auto text-gray-400"><i class="fas fa-info-circle mr-1"></i>Bir günün üzerine gelip <b>+</b> ile o güne atama yapın, <b>×</b> ile kaydı silin.</span>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // "+" tıklaması sayfayı yenilemeden üstteki formun tarihini doldurur (JS kapalıysa link server-side ön-dolumla çalışır)
+        document.querySelectorAll('.schedule-day-add').forEach(function (el) {
+            el.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.getElementById('schedule-date').value = el.dataset.date;
+                var select = document.getElementById('schedule-pharmacy');
+                select.focus();
+                select.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        });
+    </script>
+}

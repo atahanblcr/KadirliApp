@@ -1,0 +1,145 @@
+@model KadirliApp.Application.Features.Campaigns.Commands.UpdateCampaignCommand
+@{
+    ViewData["Title"] = "Kampanya Düzenle";
+}
+
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Kampanya Düzenle</h2>
+            <p class="text-sm text-gray-500 mt-1">Kampanya bilgilerini güncelleyebilirsiniz.</p>
+        </div>
+        <div>
+            <a asp-action="Index" class="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-300 bg-white shadow-sm">
+                <i class="fas fa-arrow-left mr-2"></i> Geri Dön
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-md p-6 sm:p-8">
+        <form asp-action="Edit" method="post" enctype="multipart/form-data" class="space-y-6">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="CoverImageId" />
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Business -->
+                <div>
+                    <label asp-for="BusinessId" class="block text-sm font-semibold text-gray-700 mb-2">İşletme <span class="text-red-500">*</span></label>
+                    <select asp-for="BusinessId" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" required>
+                        <option value="">-- İşletme Seçiniz --</option>
+                        @if (ViewBag.Businesses != null)
+                        {
+                            foreach (var business in ViewBag.Businesses)
+                            {
+                                <option value="@business.Id">@business.BusinessName</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <!-- Status -->
+                <div>
+                    <label asp-for="Status" class="block text-sm font-semibold text-gray-700 mb-2">Durum</label>
+                    <select asp-for="Status" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm">
+                        <option value="pending">Bekliyor</option>
+                        <option value="approved">Onaylı</option>
+                        <option value="rejected">Reddedildi</option>
+                        <option value="expired">Süresi Doldu</option>
+                    </select>
+                </div>
+
+                <!-- Title -->
+                <div class="col-span-1 md:col-span-2">
+                    <label asp-for="Title" class="block text-sm font-semibold text-gray-700 mb-2">Kampanya Başlığı <span class="text-red-500">*</span></label>
+                    <input asp-for="Title" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" required />
+                </div>
+
+                <!-- Discount -->
+                <div>
+                    <label asp-for="DiscountPercentage" class="block text-sm font-semibold text-gray-700 mb-2">İndirim Oranı (%)</label>
+                    <input asp-for="DiscountPercentage" type="number" step="0.1" min="0" max="100" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" />
+                </div>
+
+                <!-- Code -->
+                <div>
+                    <label asp-for="DiscountCode" class="block text-sm font-semibold text-gray-700 mb-2">İndirim Kodu</label>
+                    <input asp-for="DiscountCode" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" />
+                </div>
+
+                <!-- Start Date -->
+                <div>
+                    <label asp-for="StartDate" class="block text-sm font-semibold text-gray-700 mb-2">Başlangıç Tarihi <span class="text-red-500">*</span></label>
+                    <input asp-for="StartDate" type="date" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" required />
+                </div>
+
+                <!-- End Date -->
+                <div>
+                    <label asp-for="EndDate" class="block text-sm font-semibold text-gray-700 mb-2">Bitiş Tarihi <span class="text-red-500">*</span></label>
+                    <input asp-for="EndDate" type="date" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" required />
+                </div>
+
+                <!-- Description -->
+                <div class="col-span-1 md:col-span-2">
+                    <label asp-for="Description" class="block text-sm font-semibold text-gray-700 mb-2">Açıklama <span class="text-red-500">*</span></label>
+                    <textarea asp-for="Description" rows="3" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" required></textarea>
+                </div>
+
+                <!-- Terms -->
+                <div class="col-span-1 md:col-span-2">
+                    <label asp-for="Terms" class="block text-sm font-semibold text-gray-700 mb-2">Kampanya Koşulları</label>
+                    <textarea asp-for="Terms" rows="2" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm"></textarea>
+                </div>
+
+                <!-- Cover Image -->
+                <div class="col-span-1 md:col-span-2 border-t border-gray-200 pt-6">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Kampanya Fotoğrafı <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+                    <div class="flex items-start gap-4 flex-wrap">
+                        @if (ViewBag.CoverImageUrl != null)
+                        {
+                            <div>
+                                <img src="@ViewBag.CoverImageUrl" class="h-28 rounded-lg border border-gray-200 object-cover" alt="Mevcut fotoğraf">
+                                <label class="flex items-center gap-2 text-xs text-gray-700 mt-2">
+                                    <input asp-for="RemoveCoverImage" type="checkbox" class="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                                    <span>Fotoğrafı kaldır</span>
+                                </label>
+                            </div>
+                        }
+                        <label for="coverInput" class="flex flex-col items-center justify-center w-44 h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                            <i class="fas fa-camera text-gray-400 text-xl mb-1"></i>
+                            <span class="text-xs text-gray-500">@(ViewBag.CoverImageUrl != null ? "Değiştir" : "Fotoğraf Seç")</span>
+                            <input id="coverInput" name="CoverImage" type="file" accept="image/*" class="hidden" onchange="previewImage(this)">
+                        </label>
+                        <div id="imagePreviewWrap" class="hidden relative">
+                            <img id="imagePreview" class="h-28 rounded-lg border border-gray-200 object-cover" alt="Önizleme">
+                            <button type="button" onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Kaldır">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-6 border-t border-gray-200 mt-6 flex justify-end">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-lg shadow-md transition-all flex items-center">
+                    <i class="fas fa-save mr-2"></i> Güncelle
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function previewImage(input) {
+        var wrap = document.getElementById('imagePreviewWrap');
+        var img = document.getElementById('imagePreview');
+        if (input.files && input.files[0]) {
+            img.src = URL.createObjectURL(input.files[0]);
+            wrap.classList.remove('hidden');
+        }
+    }
+    function clearImage() {
+        document.getElementById('coverInput').value = '';
+        document.getElementById('imagePreviewWrap').classList.add('hidden');
+    }
+</script>

@@ -1,0 +1,29 @@
+# ---- .NET / build çıktıları ----
+bin/
+obj/
+out/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+project.lock.json
+TestResults/
+[Cc]overage*/
+
+# ---- IDE ----
+.vs/
+.vscode/
+.idea/
+*.swp
+
+# ---- macOS ----
+.DS_Store
+
+# ---- Uygulama tarafından üretilenler ----
+logs/
+cookies.txt
+# not: uploads/ bilerek takip ediliyor — panel incelemesi için örnek görseller repoda
+
+# ---- Yerel sırlar (isteğe bağlı: gerçek sırlar buraya konursa) ----
+appsettings.*.Local.json
+*.local.json

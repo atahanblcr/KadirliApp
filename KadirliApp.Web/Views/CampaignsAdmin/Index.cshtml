@@ -1,0 +1,144 @@
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Campaigns.Dtos.CampaignResponseDto>
+@{
+    ViewData["Title"] = "Kampanya Yönetimi";
+}
+
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Kampanya Yönetimi</h2>
+        <p class="text-sm text-gray-500 mt-1">İşletme kampanyalarını görüntüleyin, onaylayın ve yönetin.</p>
+    </div>
+    <div>
+        <a asp-action="Create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow">
+            <i class="fas fa-plus mr-2"></i> Yeni Ekle
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 font-medium">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 font-medium">@TempData["Error"]</div>
+}
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div class="p-4 border-b border-gray-200">
+        <form action="" method="get" class="relative w-full md:w-64">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-search text-gray-400"></i>
+            </div>
+            <input type="text" name="Search" placeholder="Başlık ile ara..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" value="@Context.Request.Query["Search"]">
+        </form>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                    <th scope="col" class="px-6 py-3 font-medium">Kampanya</th>
+                    <th scope="col" class="px-6 py-3 font-medium">İşletme</th>
+                    <th scope="col" class="px-6 py-3 font-medium">İndirim</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Tarih Aralığı</th>
+                    <th scope="col" class="px-6 py-3 font-medium" title="Kodu kaç farklı kullanıcı görüntüledi">Kod Gör.</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Durum</th>
+                    <th scope="col" class="px-6 py-3 text-right font-medium">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Items.Any())
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 font-medium text-gray-900">@item.Title</td>
+                            <td class="px-6 py-4">@(item.BusinessName ?? "—")</td>
+                            <td class="px-6 py-4">
+                                @if (item.DiscountPercentage.HasValue)
+                                {
+                                    <span class="text-green-600 font-semibold">%@item.DiscountPercentage.Value.ToString("0.#")</span>
+                                }
+                                else
+                                {
+                                    <span>—</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col">
+                                    <span>@item.StartDate.ToString("dd.MM.yyyy")</span>
+                                    <span class="text-xs text-gray-400">→ @item.EndDate.ToString("dd.MM.yyyy")</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                @* Faz 10.10-A: kullanıcı başına tek kayıt tutulduğundan "kaç farklı kullanıcı" demektir *@
+                                <span class="font-medium text-gray-900">@item.CodeViewCount.ToString("N0")</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                @if (item.Status == "approved")
+                                {
+                                    <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Onaylı</span>
+                                }
+                                else if (item.Status == "pending")
+                                {
+                                    <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">Bekliyor</span>
+                                }
+                                else if (item.Status == "rejected")
+                                {
+                                    <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded">Reddedildi</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">@item.Status</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex justify-end gap-2 items-center">
+                                    @if (item.Status != "approved")
+                                    {
+                                        <form asp-action="Approve" method="post" class="inline">
+                                            <input type="hidden" name="id" value="@item.Id" />
+                                            <button type="submit" class="text-green-600 hover:text-green-900" title="Onayla">
+                                                <i class="fas fa-check-circle"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    @if (item.Status != "rejected")
+                                    {
+                                        <form asp-action="Reject" method="post" class="inline">
+                                            <input type="hidden" name="id" value="@item.Id" />
+                                            <button type="submit" class="text-yellow-600 hover:text-yellow-900" title="Reddet">
+                                                <i class="fas fa-ban"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    <a asp-action="Edit" asp-route-id="@item.Id" class="text-indigo-600 hover:text-indigo-900" title="Düzenle">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form asp-action="Delete" method="post" class="inline" onsubmit="return confirm('Kampanyayı silmek istediğinize emin misiniz?');">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-percent text-4xl text-gray-300 mb-3"></i>
+                                <p>Kayıt bulunamadı.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

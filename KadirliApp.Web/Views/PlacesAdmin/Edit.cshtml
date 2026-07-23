@@ -1,0 +1,184 @@
+@model KadirliApp.Application.Features.Places.Commands.UpdatePlaceCommand
+@{
+    ViewData["Title"] = "Mekan Düzenle";
+}
+
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Mekan Düzenle</h2>
+            <p class="text-sm text-gray-500 mt-1">Mekan bilgilerini güncelleyebilirsiniz.</p>
+        </div>
+        <div>
+            <a asp-action="Index" class="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-300 bg-white shadow-sm">
+                <i class="fas fa-arrow-left mr-2"></i> Geri Dön
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-md p-6 sm:p-8">
+        <form asp-action="Edit" method="post" enctype="multipart/form-data" class="space-y-6" onsubmit="return preparePlaceForm()">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="CoverImageId" />
+            <input type="hidden" asp-for="OpeningHours" id="openingHours" />
+            <input type="hidden" asp-for="Amenities" id="amenitiesJson" />
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Name -->
+                <div>
+                    <label asp-for="Name" class="block text-sm font-semibold text-gray-700 mb-2">Mekan Adı <span class="text-red-500">*</span></label>
+                    <input asp-for="Name" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" required />
+                </div>
+
+                <!-- Category -->
+                <div>
+                    <label asp-for="CategoryId" class="block text-sm font-semibold text-gray-700 mb-2">Kategori <span class="text-red-500">*</span></label>
+                    <select asp-for="CategoryId" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" required>
+                        <option value="">-- Kategori Seçiniz --</option>
+                        @if (ViewBag.Categories != null)
+                        {
+                            foreach (var category in ViewBag.Categories)
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <!-- Address -->
+                <div class="col-span-1 md:col-span-2">
+                    <label asp-for="Address" class="block text-sm font-semibold text-gray-700 mb-2">Adres</label>
+                    <input asp-for="Address" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" />
+                </div>
+
+                <!-- Location (map) -->
+                <div class="col-span-1 md:col-span-2">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Konum <span class="text-red-500">*</span></label>
+                    <p class="text-xs text-gray-500 mb-2">Konumu değiştirmek için haritaya tıklayın.</p>
+                    <div id="locationMap" class="w-full rounded-lg border border-gray-300" style="height: 300px;"></div>
+                    <div class="grid grid-cols-2 gap-4 mt-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500">Enlem</label>
+                            <input asp-for="Latitude" id="latInput" type="text" readonly class="mt-1 bg-gray-50 w-full text-sm border-gray-300 rounded-md py-2 px-3 border text-gray-500" required />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500">Boylam</label>
+                            <input asp-for="Longitude" id="lngInput" type="text" readonly class="mt-1 bg-gray-50 w-full text-sm border-gray-300 rounded-md py-2 px-3 border text-gray-500" required />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- IsFree + EntranceFee -->
+                <div>
+                    <label class="flex items-center gap-3 mb-3">
+                        <input asp-for="IsFree" type="checkbox" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <span class="text-sm font-semibold text-gray-700">Giriş Ücretsiz</span>
+                    </label>
+                    <input asp-for="EntranceFee" type="number" step="0.01" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" placeholder="Giriş Ücreti (₺)" />
+                </div>
+
+                <!-- Distance + Active -->
+                <div>
+                    <label asp-for="DistanceFromCenter" class="block text-sm font-semibold text-gray-700 mb-2">Merkeze Uzaklık (km)</label>
+                    <input asp-for="DistanceFromCenter" type="number" step="0.1" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" />
+                    <label class="flex items-center gap-3 mt-3">
+                        <input asp-for="IsActive" type="checkbox" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <span class="text-sm font-semibold text-gray-700">Aktif (mobilde görünsün)</span>
+                    </label>
+                </div>
+
+                <!-- Opening Hours (time pickers) -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Açılış - Kapanış Saati</label>
+                    <div class="flex items-center gap-2">
+                        <input type="time" id="openTime" class="flex-1 px-3 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm" />
+                        <span class="text-gray-400">—</span>
+                        <input type="time" id="closeTime" class="flex-1 px-3 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm" />
+                    </div>
+                    <label class="flex items-center gap-2 mt-2 text-xs text-gray-600">
+                        <input type="checkbox" id="alwaysOpen" class="h-4 w-4 rounded border-gray-300 text-indigo-600" onchange="toggleAlwaysOpen()">
+                        <span>Her zaman açık (7/24)</span>
+                    </label>
+                </div>
+
+                <!-- Best Season -->
+                <div>
+                    <label asp-for="BestSeason" class="block text-sm font-semibold text-gray-700 mb-2">En İyi Sezon</label>
+                    <select asp-for="BestSeason" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm">
+                        <option value="">-- Belirtilmedi --</option>
+                        <option>Her Mevsim</option>
+                        <option>İlkbahar</option>
+                        <option>Yaz</option>
+                        <option>Sonbahar</option>
+                        <option>Kış</option>
+                        <option>İlkbahar-Yaz</option>
+                        <option>Sonbahar-Kış</option>
+                    </select>
+                </div>
+
+                <!-- Amenities -->
+                <div class="col-span-1 md:col-span-2 border-t border-gray-200 pt-6">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Olanaklar <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+                    <p class="text-xs text-gray-500 mb-3">Her özellik için Var/Yok seçin; seçmezseniz "belirtilmedi" sayılır. Listede olmayan bir özelliği alttan ekleyebilirsiniz.</p>
+                    <div id="amenityList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
+                    <div class="flex gap-2 mt-3 max-w-sm">
+                        <input type="text" id="newAmenityName" placeholder="Yeni özellik (örn: Mescit)" class="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 shadow-sm">
+                        <button type="button" onclick="addAmenity()" class="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-sm font-medium hover:bg-indigo-100">
+                            <i class="fas fa-plus mr-1"></i>Ekle
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Photo -->
+                <div class="col-span-1 md:col-span-2 border-t border-gray-200 pt-6">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Mekan Fotoğrafı <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+                    <div class="flex items-start gap-4 flex-wrap">
+                        @if (ViewBag.CoverImageUrl != null)
+                        {
+                            <div>
+                                <img src="@ViewBag.CoverImageUrl" class="h-28 rounded-lg border border-gray-200 object-cover" alt="Mevcut fotoğraf">
+                                <label class="flex items-center gap-2 text-xs text-gray-700 mt-2">
+                                    <input asp-for="RemoveCoverImage" type="checkbox" class="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                                    <span>Fotoğrafı kaldır</span>
+                                </label>
+                            </div>
+                        }
+                        <label for="coverInput" class="flex flex-col items-center justify-center w-44 h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                            <i class="fas fa-camera text-gray-400 text-xl mb-1"></i>
+                            <span class="text-xs text-gray-500">@(ViewBag.CoverImageUrl != null ? "Değiştir" : "Fotoğraf Seç")</span>
+                            <input id="coverInput" name="CoverImage" type="file" accept="image/*" class="hidden" onchange="previewImage(this)">
+                        </label>
+                        <div id="imagePreviewWrap" class="hidden relative">
+                            <img id="imagePreview" class="h-28 rounded-lg border border-gray-200 object-cover" alt="Önizleme">
+                            <button type="button" onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Kaldır">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- How To Get There -->
+                <div class="col-span-1 md:col-span-2">
+                    <label asp-for="HowToGetThere" class="block text-sm font-semibold text-gray-700 mb-2">Nasıl Gidilir?</label>
+                    <textarea asp-for="HowToGetThere" rows="2" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm"></textarea>
+                </div>
+
+                <!-- Description -->
+                <div class="col-span-1 md:col-span-2">
+                    <label asp-for="Description" class="block text-sm font-semibold text-gray-700 mb-2">Açıklama</label>
+                    <textarea asp-for="Description" rows="4" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm"></textarea>
+                </div>
+            </div>
+
+            <div class="pt-6 border-t border-gray-200 mt-6 flex justify-end">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-lg shadow-md transition-all flex items-center">
+                    <i class="fas fa-save mr-2"></i> Güncelle
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<partial name="_LocationPickerScripts" />
+<partial name="_PlaceFormScripts" />

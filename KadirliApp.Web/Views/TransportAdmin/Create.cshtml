@@ -1,0 +1,83 @@
+@model KadirliApp.Application.Features.Transport.Commands.CreateIntracityRouteCommand
+@{
+    ViewData["Title"] = "Yeni Güzergah Ekle";
+}
+
+<div class="max-w-3xl mx-auto">
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Yeni Güzergah Ekle</h2>
+            <p class="text-sm text-gray-500 mt-1">Sisteme yeni bir şehir içi ulaşım hattı ekleyin.</p>
+        </div>
+        <a asp-action="Index" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium transition-colors">
+            <i class="fas fa-arrow-left mr-1"></i> Listeye Dön
+        </a>
+    </div>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="p-4 mb-6 text-sm text-red-800 rounded-xl bg-red-50 border border-red-200" role="alert">
+            <i class="fas fa-exclamation-circle mr-2"></i> @TempData["Error"]
+        </div>
+    }
+
+    <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <form asp-action="Create" method="post" class="p-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Hat No -->
+                <div>
+                    <label asp-for="RouteNumber" class="block text-sm font-semibold text-gray-700 mb-2">Hat No</label>
+                    <input asp-for="RouteNumber" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm outline-none" placeholder="Örn: 1A" required />
+                    <span asp-validation-for="RouteNumber" class="text-red-500 text-xs mt-1 block"></span>
+                </div>
+
+                <!-- Hat Adı -->
+                <div>
+                    <label asp-for="RouteName" class="block text-sm font-semibold text-gray-700 mb-2">Hat Adı</label>
+                    <input asp-for="RouteName" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm outline-none" placeholder="Örn: Merkez - Hastane" required />
+                    <span asp-validation-for="RouteName" class="text-red-500 text-xs mt-1 block"></span>
+                </div>
+
+                <!-- İlk Sefer -->
+                <div>
+                    <label asp-for="FirstDeparture" class="block text-sm font-semibold text-gray-700 mb-2">İlk Sefer Saati</label>
+                    <input asp-for="FirstDeparture" type="time" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm outline-none" />
+                    <span asp-validation-for="FirstDeparture" class="text-red-500 text-xs mt-1 block"></span>
+                </div>
+
+                <!-- Son Sefer -->
+                <div>
+                    <label asp-for="LastDeparture" class="block text-sm font-semibold text-gray-700 mb-2">Son Sefer Saati</label>
+                    <input asp-for="LastDeparture" type="time" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm outline-none" />
+                    <span asp-validation-for="LastDeparture" class="text-red-500 text-xs mt-1 block"></span>
+                </div>
+
+                <!-- Sefer Sıklığı -->
+                <div>
+                    <label asp-for="FrequencyMinutes" class="block text-sm font-semibold text-gray-700 mb-2">Sefer Sıklığı (Dakika)</label>
+                    <input asp-for="FrequencyMinutes" type="number" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm outline-none" placeholder="Örn: 15" />
+                    <span asp-validation-for="FrequencyMinutes" class="text-red-500 text-xs mt-1 block"></span>
+                </div>
+
+                <!-- Aktif mi -->
+                <div class="flex items-center mt-8">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input asp-for="IsActive" type="checkbox" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        <span class="ml-3 text-sm font-medium text-gray-700">Aktif olarak işaretle</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5">
+                    <i class="fas fa-save mr-2"></i> Kaydet
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

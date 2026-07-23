@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - KadirliApp Yönetim</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans antialiased">
+    <div class="flex h-screen overflow-hidden">
+        <partial name="_Sidebar" />
+        
+        <div class="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+            <header class="sticky top-0 bg-white border-b border-gray-200 z-30">
+                <div class="px-4 sm:px-6 lg:px-8">
+                    <div class="flex items-center justify-between h-16 -mb-px">
+                        <div class="flex">
+                            <button class="text-gray-500 hover:text-gray-600 lg:hidden">
+                                <span class="sr-only">Open sidebar</span>
+                                <i class="fas fa-bars"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            @if (User.Identity?.IsAuthenticated == true)
+                            {
+                                <span class="text-sm text-gray-500"><i class="fas fa-user-circle mr-1.5"></i>@User.Identity.Name</span>
+                                <span class="text-gray-300">|</span>
+                            }
+                            <span class="text-sm font-medium text-gray-700">Admin Panel</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="flex-grow w-full max-w-9xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                @if (TempData["ok"] is string ok) { 
+                    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50" role="alert">
+                        @ok
+                    </div>
+                }
+                @if (TempData["error"] is string error) { 
+                    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
+                        @error
+                    </div>
+                }
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+    
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

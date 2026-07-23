@@ -1,0 +1,139 @@
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Complaints.Dtos.ComplaintResponseDto>
+@{
+    ViewData["Title"] = "Şikayet Yönetimi";
+    var currentStatus = ViewBag.CurrentStatus as string;
+}
+
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Şikayet &amp; Öneri Yönetimi</h2>
+        <p class="text-sm text-gray-500 mt-1">Kullanıcılardan gelen şikayet ve önerileri inceleyin ve sonuçlandırın.</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 font-medium">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 font-medium">@TempData["Error"]</div>
+}
+
+<!-- Durum sekmeleri -->
+<div class="mb-4 flex gap-2 flex-wrap">
+    <a asp-action="Index" class="px-4 py-2 rounded-lg text-sm font-medium border @(string.IsNullOrEmpty(currentStatus) ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50")">Tümü</a>
+    <a asp-action="Index" asp-route-status="pending" class="px-4 py-2 rounded-lg text-sm font-medium border @(currentStatus == "pending" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50")">Bekleyen</a>
+    <a asp-action="Index" asp-route-status="in_progress" class="px-4 py-2 rounded-lg text-sm font-medium border @(currentStatus == "in_progress" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50")">İşlemde</a>
+    <a asp-action="Index" asp-route-status="resolved" class="px-4 py-2 rounded-lg text-sm font-medium border @(currentStatus == "resolved" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50")">Çözüldü</a>
+    <a asp-action="Index" asp-route-status="rejected" class="px-4 py-2 rounded-lg text-sm font-medium border @(currentStatus == "rejected" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50")">Reddedildi</a>
+</div>
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                    <th scope="col" class="px-6 py-3 font-medium">Konu</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Mesaj</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Gönderen</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Tarih</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Durum</th>
+                    <th scope="col" class="px-6 py-3 text-right font-medium">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Items.Any())
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr class="bg-white border-b hover:bg-gray-50 transition-colors align-top">
+                            <td class="px-6 py-4 font-medium text-gray-900">
+                                @item.Subject
+                                @if (!string.IsNullOrEmpty(item.RelatedModule))
+                                {
+                                    <div class="text-xs text-gray-400 mt-1">Modül: @item.RelatedModule</div>
+                                }
+                            </td>
+                            <td class="px-6 py-4 max-w-sm">
+                                <p class="truncate" title="@item.Message">@item.Message</p>
+                                @if (!string.IsNullOrEmpty(item.AdminNotes))
+                                {
+                                    <p class="text-xs text-indigo-500 mt-1">Not: @item.AdminNotes</p>
+                                }
+                            </td>
+                            <td class="px-6 py-4">@(item.UserName ?? "Anonim")</td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col">
+                                    <span>@item.CreatedAt.ToString("dd.MM.yyyy")</span>
+                                    <span class="text-xs text-gray-400">@item.CreatedAt.ToString(@"HH\:mm")</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                @if (item.Status == "pending")
+                                {
+                                    <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">Bekliyor</span>
+                                }
+                                else if (item.Status == "in_progress")
+                                {
+                                    <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">İşlemde</span>
+                                }
+                                else if (item.Status == "resolved")
+                                {
+                                    <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Çözüldü</span>
+                                }
+                                else if (item.Status == "rejected")
+                                {
+                                    <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded">Reddedildi</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">@item.Status</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                @if (item.Status is "pending" or "in_progress")
+                                {
+                                    <form asp-action="UpdateStatus" method="post" class="flex flex-col items-end gap-2">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <input type="hidden" name="returnStatus" value="@currentStatus" />
+                                        <input type="text" name="adminNotes" placeholder="Yönetici notu (opsiyonel)" class="w-48 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                        <div class="flex gap-2">
+                                            @if (item.Status == "pending")
+                                            {
+                                                <button type="submit" name="status" value="in_progress" class="text-blue-600 hover:text-blue-900 text-xs font-medium" title="İşleme Al">
+                                                    <i class="fas fa-play-circle mr-1"></i>İşleme Al
+                                                </button>
+                                            }
+                                            <button type="submit" name="status" value="resolved" class="text-green-600 hover:text-green-900 text-xs font-medium" title="Çözüldü">
+                                                <i class="fas fa-check-circle mr-1"></i>Çözüldü
+                                            </button>
+                                            <button type="submit" name="status" value="rejected" class="text-red-600 hover:text-red-900 text-xs font-medium" title="Reddet">
+                                                <i class="fas fa-times-circle mr-1"></i>Reddet
+                                            </button>
+                                        </div>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="text-xs text-gray-400">Sonuçlandı</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+                                <p>Kayıt bulunamadı.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

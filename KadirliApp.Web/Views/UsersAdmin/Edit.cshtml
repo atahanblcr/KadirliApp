@@ -1,0 +1,133 @@
+@model KadirliApp.Application.Features.Users.DTOs.UpdateUserDto
+@{
+    ViewData["Title"] = "Kullanıcıyı Düzenle";
+    var neighborhoods = ViewBag.Neighborhoods as List<KadirliApp.Domain.Entities.Neighborhood>;
+}
+
+<div class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div class="md:flex md:items-center md:justify-between mb-6">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">Kullanıcıyı Düzenle</h2>
+            <p class="mt-1 text-sm text-gray-500">Kullanıcı profilini ve yetki detaylarını güncelliyorsunuz.</p>
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4">
+            <a asp-action="Index" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                Vazgeç
+            </a>
+        </div>
+    </div>
+
+    <form asp-action="Edit" asp-route-id="@ViewBag.Id" method="post" class="space-y-8 divide-y divide-gray-200 bg-white shadow-xl rounded-2xl p-8 border border-gray-100">
+        <div class="space-y-8 divide-y divide-gray-200">
+            
+            <!-- Profil Bilgileri -->
+            <div>
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Profil Bilgileri</h3>
+                    <p class="mt-1 text-sm text-gray-500">Kullanıcının temel kimlik ve iletişim bilgileri.</p>
+                </div>
+                <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-3">
+                        <label asp-for="Username" class="block text-sm font-medium text-gray-700">Kullanıcı Adı</label>
+                        <div class="mt-1">
+                            <input asp-for="Username" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border" placeholder="johndoe">
+                            <span asp-validation-for="Username" class="text-red-500 text-xs mt-1"></span>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label asp-for="Phone" class="block text-sm font-medium text-gray-700">Telefon <span class="text-red-500">*</span></label>
+                        <div class="mt-1">
+                            <input asp-for="Phone" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border" placeholder="05551234567" required>
+                            <span asp-validation-for="Phone" class="text-red-500 text-xs mt-1"></span>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label asp-for="Email" class="block text-sm font-medium text-gray-700">E-Posta</label>
+                        <div class="mt-1">
+                            <input asp-for="Email" type="email" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border" placeholder="ornek@mail.com">
+                            <span asp-validation-for="Email" class="text-red-500 text-xs mt-1"></span>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label asp-for="Age" class="block text-sm font-medium text-gray-700">Yaş</label>
+                        <div class="mt-1">
+                            <input asp-for="Age" type="number" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border" placeholder="30">
+                            <span asp-validation-for="Age" class="text-red-500 text-xs mt-1"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sistem Ayarları -->
+            <div class="pt-8">
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Sistem ve Konum</h3>
+                    <p class="mt-1 text-sm text-gray-500">Kullanıcının sistemdeki yetkileri ve lokasyon verileri.</p>
+                </div>
+                <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    
+                    <div class="sm:col-span-3">
+                        <label asp-for="Role" class="block text-sm font-medium text-gray-700">Rol <span class="text-red-500">*</span></label>
+                        <div class="mt-1">
+                            <select asp-for="Role" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border">
+                                <option value="0">Standart Kullanıcı</option>
+                                <option value="1">Moderatör</option>
+                                <option value="2">Admin</option>
+                                <option value="3">Süper Admin</option>
+                            </select>
+                            <span asp-validation-for="Role" class="text-red-500 text-xs mt-1"></span>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label asp-for="PrimaryNeighborhoodId" class="block text-sm font-medium text-gray-700">Mahalle</label>
+                        <div class="mt-1">
+                            <select asp-for="PrimaryNeighborhoodId" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border">
+                                <option value="">-- Seçiniz --</option>
+                                @if(neighborhoods != null)
+                                {
+                                    foreach(var n in neighborhoods)
+                                    {
+                                        <option value="@n.Id">@n.Name</option>
+                                    }
+                                }
+                            </select>
+                            <span asp-validation-for="PrimaryNeighborhoodId" class="text-red-500 text-xs mt-1"></span>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label asp-for="LocationType" class="block text-sm font-medium text-gray-700">Konum Tipi (Örn: Merkez)</label>
+                        <div class="mt-1">
+                            <input asp-for="LocationType" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border">
+                            <span asp-validation-for="LocationType" class="text-red-500 text-xs mt-1"></span>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3 flex items-center mt-6">
+                        <div class="flex items-center h-5">
+                            <input asp-for="IsActive" type="checkbox" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label asp-for="IsActive" class="font-medium text-gray-700">Aktif Kullanıcı</label>
+                            <p class="text-gray-500">Kullanıcı sisteme giriş yapabilir.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-5 border-t border-gray-200 mt-8 flex justify-end">
+            <button type="button" onclick="window.history.back();" class="bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                İptal
+            </button>
+            <button type="submit" class="ml-3 inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                <i class="fas fa-save mr-2 mt-1"></i> Değişiklikleri Kaydet
+            </button>
+        </div>
+    </form>
+</div>

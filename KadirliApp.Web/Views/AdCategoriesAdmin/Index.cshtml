@@ -1,0 +1,77 @@
+@model IReadOnlyList<KadirliApp.Application.Features.Ads.Queries.AdCategoryAdminDto>
+@{
+    ViewData["Title"] = "İlan Kategorileri";
+    var roots = Model.Where(c => c.ParentId == null).ToList();
+    var children = Model.Where(c => c.ParentId != null).ToLookup(c => c.ParentId!.Value);
+}
+
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">İlan Kategorileri</h2>
+        <p class="text-sm text-gray-500 mt-1">Mobil ilan verme ekranındaki kategori ağacı ve kategoriye özel form alanları buradan yönetilir.</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a asp-controller="AdsAdmin" asp-action="Index" class="text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+            <i class="fas fa-bullhorn mr-2"></i> İlanlar
+        </a>
+        <a asp-action="Create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+            <i class="fas fa-plus mr-2"></i> Yeni Kategori
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 shadow-sm" role="alert">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">@TempData["Error"]</div>
+}
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                    <th scope="col" class="px-6 py-3 font-medium">Kategori</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Sıra</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Durum</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Özellik</th>
+                    <th scope="col" class="px-6 py-3 font-medium">İlan</th>
+                    <th scope="col" class="px-6 py-3 text-right font-medium">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (roots.Any())
+                {
+                    foreach (var root in roots)
+                    {
+                        @await Html.PartialAsync("_CategoryRow", (root, false))
+                        foreach (var child in children[root.Id])
+                        {
+                            @await Html.PartialAsync("_CategoryRow", (child, true))
+                        }
+                    }
+                    @* Üstü listede olmayan (yetim) kayıt kalmasın *@
+                    foreach (var orphan in Model.Where(c => c.ParentId != null && !roots.Any(r => r.Id == c.ParentId)))
+                    {
+                        @await Html.PartialAsync("_CategoryRow", (orphan, true))
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-sitemap text-4xl text-gray-300 mb-3"></i>
+                                <p>Henüz kategori yok.</p>
+                                <a asp-action="Create" class="text-indigo-600 hover:underline text-sm mt-2">İlk kategoriyi ekleyin</a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
