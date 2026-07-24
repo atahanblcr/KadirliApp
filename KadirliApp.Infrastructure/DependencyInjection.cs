@@ -71,6 +71,23 @@ public static class DependencyInjection
                 throw new InvalidOperationException(
                     $"Bilinmeyen e-posta sağlayıcısı: '{emailProvider}'. IEmailService implementasyonu ekleyip Infrastructure/DependencyInjection.cs'e kaydedin.");
         }
+        // Faz 10.11: FCM push sağlayıcı seçimi (SMS/e-posta deseninin aynısı). Varsayılan "None" → NoOpPushService:
+        // Firebase'siz ortamda sistem çalışmaya devam eder, SendPushNotificationsJob IsConfigured=false görünce
+        // hiç göndermez. Gerçek gönderim: Fcm:Provider=Firebase + Fcm:ServiceAccountKeyPath — başka kod değişmez.
+        var fcmProvider = cfg["Fcm:Provider"] ?? "None";
+        switch (fcmProvider.ToLowerInvariant())
+        {
+            case "none":
+                services.AddSingleton<IPushService, Notifications.NoOpPushService>();
+                break;
+            case "firebase":
+                services.AddSingleton<IPushService, Notifications.FcmPushService>();
+                break;
+            default:
+                throw new InvalidOperationException(
+                    $"Bilinmeyen FCM sağlayıcısı: '{fcmProvider}'. Geçerli değerler: None | Firebase.");
+        }
+
         // Faz 9.4: distributed cache (CachingBehavior/CacheInvalidationBehavior bunu kullanır)
         services.AddSingleton<ICacheService, Caching.RedisCacheService>();
 
@@ -98,5 +115,7 @@ public static class DependencyInjection
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.ExpireAdsJob>("expire-ads", j => j.RunAsync(), Cron.Hourly);
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.ArchiveDeathsJob>("archive-deaths", j => j.RunAsync(), Cron.Daily);
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.PublishScheduledAnnouncementsJob>("publish-scheduled-announcements", j => j.RunAsync(), Cron.Minutely);
+        // Faz 10.11: fcm_sent=false bildirimleri gönderir. Fcm:Provider=None iken IsConfigured=false → no-op (boş koşar).
+        RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.SendPushNotificationsJob>("send-push-notifications", j => j.RunAsync(), Cron.Minutely);
     }
 }
