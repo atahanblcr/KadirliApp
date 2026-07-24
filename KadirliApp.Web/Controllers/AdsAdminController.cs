@@ -144,7 +144,7 @@ public class AdsAdminController : Controller
         return RedirectToAction(nameof(Index));
     }
     [HttpPost]
-    public async Task<IActionResult> Reject(Guid id)
+    public async Task<IActionResult> Reject(Guid id, string? reason)
     {
         var adminIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(adminIdStr, out var adminId))
@@ -152,7 +152,7 @@ public class AdsAdminController : Controller
             return Unauthorized();
         }
 
-        var success = await _sender.Send(new KadirliApp.Application.Features.Ads.Commands.RejectAd.RejectAdCommand(id, adminId));
+        var success = await _sender.Send(new KadirliApp.Application.Features.Ads.Commands.RejectAd.RejectAdCommand(id, adminId, reason));
 
         if (!success)
         {

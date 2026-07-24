@@ -109,12 +109,23 @@
                                     }
                                     @if (ad.Status.ToLower() != "rejected")
                                     {
-                                        <form asp-action="Reject" method="post" class="inline">
-                                            <input type="hidden" name="id" value="@ad.Id" />
-                                            <button type="submit" class="text-white bg-yellow-600 hover:bg-yellow-700 font-medium rounded-lg text-sm px-4 py-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors mr-2">
+                                        <!-- Faz 10.14(1): red artık sebep sorarak RejectAdCommand'e gider (JS'siz details popover; ban-sebep deseni) -->
+                                        <details class="relative inline-block align-middle mr-2">
+                                            <summary class="list-none cursor-pointer text-white bg-yellow-600 hover:bg-yellow-700 font-medium rounded-lg text-sm px-4 py-2 inline-block transition-colors">
                                                 Reddet
-                                            </button>
-                                        </form>
+                                            </summary>
+                                            <div class="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-lg text-left">
+                                                <form asp-action="Reject" method="post">
+                                                    <input type="hidden" name="id" value="@ad.Id" />
+                                                    <label class="block text-xs font-medium text-gray-600 mb-1">Red sebebi <span class="text-gray-400">(opsiyonel — kullanıcı görür)</span></label>
+                                                    <input type="text" name="reason" maxlength="500" placeholder="Örn: İletişim bilgisi eksik"
+                                                           class="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-500" />
+                                                    <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium py-1.5 rounded-md">
+                                                        İlanı Reddet
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </details>
                                     }
                                     <a asp-action="Edit" asp-route-id="@ad.Id" class="inline-flex items-center justify-center text-white bg-indigo-600 hover:bg-indigo-700 font-medium rounded-lg text-sm px-4 py-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors mr-2">
                                         Düzenle

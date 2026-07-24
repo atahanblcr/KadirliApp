@@ -358,6 +358,63 @@ public class AdsMobilePart2Tests : IClassFixture<CustomWebApplicationFactory>
     }
 
     /// <summary>
+    /// Faz 10.14(1) regresyonu: ilan reddi red gerekçesini RejectedReason'a yazmalı (ApprovedBy'ı EZMEMELİ);
+    /// sahibi bu gerekçeyi MyAdDto'da görmeli. Reddedilen ilan sonradan onaylanırsa bayat gerekçe temizlenir.
+    /// </summary>
+    [Fact]
+    public async Task Reject_StoresReason_ClearsApprovalTrail_And_VisibleInMyAds()
+    {
+        var ownerToken = await GetUserTokenAsync("+905055560012", "claudetest_p2reject");
+        var adminToken = await GetAdminTokenAsync();
+        var adId = await CreateAdAsync(ownerToken, "CLAUDE-TEST P2 Red Sebebi", approve: true);
+
+        // Onaylı ilan → önce ApprovedBy/At dolu
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var ad = await db.Ads.AsNoTracking().FirstAsync(a => a.Id == adId);
+            ad.ApprovedBy.Should().NotBeNull();
+        }
+
+        // Admin sebep girerek reddeder
+        const string reason = "İletişim bilgisi hatalı.";
+        (await _client.SendAsync(Authorized(HttpMethod.Post, $"/v1/admin/ads/{adId}/reject?reason={Uri.EscapeDataString(reason)}", adminToken)))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // DB: RejectedReason/RejectedAt dolu, ApprovedBy/At temizlenmiş
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var ad = await db.Ads.AsNoTracking().FirstAsync(a => a.Id == adId);
+            ad.Status.Should().Be("rejected");
+            ad.RejectedReason.Should().Be(reason);
+            ad.RejectedAt.Should().NotBeNull();
+            ad.ApprovedBy.Should().BeNull("red, onay izini ezmemeli — kim reddetti audit_logs'ta");
+            ad.ApprovedAt.Should().BeNull();
+        }
+
+        // Sahibi red gerekçesini MyAds'te görür
+        var myAds = await _client.SendAsync(Authorized(HttpMethod.Get, "/v1/users/me/ads?status=rejected", ownerToken));
+        using (var doc = JsonDocument.Parse(await myAds.Content.ReadAsStringAsync()))
+            doc.RootElement.GetProperty("data").GetProperty("items").EnumerateArray()
+                .Single(i => i.GetProperty("id").GetGuid() == adId)
+                .GetProperty("rejectedReason").GetString().Should().Be(reason);
+
+        // Yeniden onay → bayat red gerekçesi temizlenir (bağlantılı yan düzeltme)
+        (await _client.SendAsync(Authorized(HttpMethod.Post, $"/v1/admin/ads/{adId}/approve", adminToken)))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var ad = await db.Ads.AsNoTracking().FirstAsync(a => a.Id == adId);
+            ad.Status.Should().Be("approved");
+            ad.RejectedReason.Should().BeNull();
+            ad.RejectedAt.Should().BeNull();
+            ad.ApprovedBy.Should().NotBeNull();
+        }
+    }
+
+    /// <summary>
     /// Süresi geçmiş ama ExpireAdsJob'un henüz expired'a çevirmediği (status hâlâ approved) ilan,
     /// listeyle aynı kuralla detay/track/favorite'ta da gizlenmeli — job saatlik koştuğundan bu
     /// pencerede ilan detaydan sızıyordu.

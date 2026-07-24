@@ -23,9 +23,12 @@ public class ApproveAdCommandHandler : IRequestHandler<ApproveAdCommand, bool>
 
         if (ad == null) return false;
 
+        // Faz 10.14(1) yan düzeltmesi: reddedilmiş bir ilan sonradan onaylanırsa bayat red gerekçesi kalmasın.
         ad.Status = "approved";
         ad.ApprovedBy = request.AdminId;
         ad.ApprovedAt = DateTime.UtcNow;
+        ad.RejectedReason = null;
+        ad.RejectedAt = null;
 
         repo.Update(ad);
         await _uow.SaveChangesAsync(cancellationToken);

@@ -60,9 +60,9 @@ public class AdsAdminController : AdminApiControllerBase
 
     [HttpPost("{id}/reject")]
     [RequirePermission("ads", "approve")]
-    public async Task<IActionResult> Reject(Guid id)
+    public async Task<IActionResult> Reject(Guid id, [FromQuery] string? reason = null)
     {
-        return Success(await Sender.Send(new RejectAdCommand(id, CurrentAdminId)));
+        return Success(await Sender.Send(new RejectAdCommand(id, CurrentAdminId, reason)));
     }
 
     [HttpDelete("{id}")]
