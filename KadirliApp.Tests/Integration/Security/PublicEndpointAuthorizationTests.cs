@@ -114,7 +114,7 @@ public class PublicEndpointAuthorizationTests : IClassFixture<CustomWebApplicati
             "/v1/announcements", "/v1/pharmacies", "/v1/events", "/v1/places",
             "/v1/taxis/drivers", "/v1/guide/categories",
             "/v1/transport/intercity-routes", "/v1/transport/intracity-routes",
-            "/v1/powerOutages"
+            "/v1/power-outages"
         })
         {
             var response = await _client.PostAsJsonAsync(url, new { });

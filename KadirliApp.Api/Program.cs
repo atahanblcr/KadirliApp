@@ -36,7 +36,12 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<KadirliApp.Application.Common.Auditing.IAuditContext, HttpAuditContext>();
 // Flutter kontratı: tüm yanıtlar {success, data, meta} zarfıyla döner
-builder.Services.AddControllers(o => o.Filters.Add<ApiResponseWrapperFilter>());
+builder.Services.AddControllers(o =>
+{
+    o.Filters.Add<ApiResponseWrapperFilter>();
+    // Faz 10.13: `[controller]` token'lı route'ları kebab-case yap (public path tutarlılığı — Flutter kontratı)
+    o.Conventions.Add(new Microsoft.AspNetCore.Mvc.ApplicationModels.RouteTokenTransformerConvention(new KadirliApp.Api.SlugifyParameterTransformer()));
+});
 
 var jwtConfig = builder.Configuration.GetSection("Jwt");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -68,7 +73,29 @@ builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationP
 builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, KadirliApp.Api.Authorization.PermissionHandler>();
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// Faz 10.13: Swagger'a JWT Bearer tanımı — Authorize butonu + openapi.json'da güvenlik şeması.
+// (Microsoft.OpenApi 2.x: tipler artık `Microsoft.OpenApi` namespace'inde, eski `.Models` düzleştirildi.)
+builder.Services.AddSwaggerGen(o =>
+{
+    o.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.ParameterLocation.Header,
+        Description = "JWT access token — sadece token'ı yapıştırın ('Bearer' öneki otomatik)."
+    });
+});
+
+// Faz 10.13: CORS. Mobil native istemci CORS KULLANMAZ; bu policy yalnız Flutter WEB / tarayıcı-tabanlı
+// istemciler içindir. Origin listesi Cors:Origins'ten okunur (boşsa hiçbir origin'e izin verilmez = etkisiz).
+var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? Array.Empty<string>();
+builder.Services.AddCors(o => o.AddPolicy("Default", p =>
+{
+    if (corsOrigins.Length > 0)
+        p.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod();
+}));
 
 // Faz 9.2: .NET 8 yerleşik rate limiting — Brute-Force/DDoS koruması. Limitler appsettings
 // "RateLimiting" bölümünden. IP bazlı fixed-window; reverse proxy arkasında çalıştırılacaksa
@@ -168,6 +195,9 @@ app.UseStaticFiles(new StaticFileOptions
 
 // Faz 9.2: statik dosyalardan SONRA — /uploads görselleri limite dahil edilmez
 app.UseRateLimiter();
+
+// Faz 10.13: CORS auth'tan önce (config'te origin yoksa etkisiz)
+app.UseCors("Default");
 
 app.UseAuthentication();
 app.UseAuthorization();

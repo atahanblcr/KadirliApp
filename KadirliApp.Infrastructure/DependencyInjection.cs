@@ -1,7 +1,6 @@
 using KadirliApp.Infrastructure.Persistence;
 using KadirliApp.Application.Common.Interfaces;
 using KadirliApp.Infrastructure.Identity;
-using KadirliApp.Infrastructure.Persistence.Dapper;
 using KadirliApp.Infrastructure.Persistence.Repositories;
 using KadirliApp.Infrastructure.Files;
 using Microsoft.EntityFrameworkCore;
@@ -91,7 +90,6 @@ public static class DependencyInjection
         // Faz 9.4: distributed cache (CachingBehavior/CacheInvalidationBehavior bunu kullanır)
         services.AddSingleton<ICacheService, Caching.RedisCacheService>();
 
-        services.AddScoped<IDapperContext, DapperContext>();
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         
