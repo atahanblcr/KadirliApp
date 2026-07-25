@@ -603,3 +603,138 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
   - **Doğrulama:** Görsel yükle → `docker compose down && up -d` → görsel hâlâ erişilebilir.
 
 > **Önerilen sıra (25 Tem güncellendi):** ~~10.1 → 10.9~~ (TAMAM) → ~~10.10 (bildirim)~~ → ~~10.12 (sayaçlar)~~ → ~~10.14/(1) Ads reject düzeltmesi~~ (✅ TAMAM 25 Tem) → ~~10.11 (FCM)~~ (✅ TAMAM 25 Tem, no-op default) → **10.13 (kontrat temizliği — en sonda çünkü envanter tüm uçlar bittikten sonra anlamlı)**. Kalan production/deploy: 10.14/(2) hangfire dashboard auth, 10.14/(3) uploads volume; ayrıca gerçek SMS sağlayıcısı + Firebase service-account bağlama (mobil yayın anı). **10.14/(2) ve (3) production/deploy fazına ait** — mobil geliştirmeyi bloklamaz ama YAYINDAN önce zorunlu. Faz 9.2 altyapısı tamam (16 Tem); mobil YAYINDAN önce ayrıca gerekli: gerçek SMS sağlayıcısının bağlanması (~~hesap silme ucu~~ 10.8'de tamamlandı).
+
+---
+
+# 📱 FAZ 11 — MOBİL UYGULAMA (Flutter) — YENİ BÜYÜK FAZ (25 Temmuz 2026'da planlandı)
+
+> **Durum:** Backend + Admin panel bitti (Faz 0-10). Public API Flutter'a hazır. Bu faz, mobil uygulamayı **sıfırdan yayına** kadar götürür. Her alt-faz **bir oturumda tam bitirilebilecek** boyuta bölündü — yarıda kalma yok: her alt-faz sonunda uygulama DERLENİR, ÇALIŞIR (gerçek API'ye bağlı smoke) ve Memory Bank güncellenip commit atılır.
+
+## 📌 Referanslar (her mobil oturumda önce bunlar okunur)
+- **`Memory_Bank/API_CONTRACT.md`** — zarf `{success,data,meta}`, hata kodları sözlüğü, auth akışı (OTP→verify→register/refresh→logout), sayfalama (`PagedResult{items,totalCount,pageSize,currentPage,totalPages}`), tarih (UTC ISO-8601), görsel URL kuralı (göreli `/uploads/…` → istemci origin ekler), 60 public uç envanteri, görünürlük kuralları.
+- **`Memory_Bank/MOBILE_UX_PLAN.md`** — tasarım sistemi (renk/tip/ikon/hareket), navigasyon (alt sekme + Ana Sayfa hub + sağ üst Ayarlar), modül ekran deseni, ortak durumlar, backend'e göre davranış.
+- **`docs/openapi.json`** — makine-okur şema (kod üretimi/doğrulama için).
+- **`docs/mobile-mockup.html`** — 6 ekranın görsel mockup'ı + "buton → uç" haritası (yayın: claude.ai artifact).
+- **`Memory_Bank/Active_Context.md`** — son oturum durumu.
+
+## 🎨 Tasarım token'ları (kod için — MOBILE_UX_PLAN'dan)
+- **Açık:** primary `#2C7A57`, primary-deep `#215B41`, primary-tint `#E8F3EC`, accent `#E08A3C`, bg `#FAF9F6`, surface `#FFFFFF`, border `#E7E4DD`, ink `#1E2A24`, muted `#5C6B63`. Semantik: success `#2E8B57`, info `#2F6FB0`, warning `#E0A32E`, danger `#D64545`.
+- **Koyu:** bg `#121815`, surface `#1B2420`, border `#2A352F`, primary `#46B083`, ink `#ECF1EE`, muted `#9DB0A6`.
+- **Tip:** yuvarlak-sıcak sans (hedef **Nunito**, pubspec'e font ekle); ölçek Display 28 / H1 22 / H2 18 / Body 16 / sm 14 / caption 13 / label 12; satır ~1.4. **Hareket:** az & anlamlı — geçiş 220ms, skeleton loader, pull-to-refresh, buton scale .98.
+
+## ⚙️ Teknoloji kararları (11.1'de kurulur, sonra sabit)
+- **Flutter** (stable, Dart 3) · **State:** Riverpod (`flutter_riverpod` + `riverpod_annotation`) — bu ölçek için sade, test edilebilir · **Routing:** `go_router` (push deep-link dostu) · **HTTP:** `dio` (interceptor'lar) · **Model/JSON:** `freezed` + `json_serializable` · **Güvenli depo:** `flutter_secure_storage` (token'lar) · **Tercih/tema:** `shared_preferences` · **Görsel:** `cached_network_image` + `image_picker` (yükleme) · **Tarih/Türkçe:** `intl` · **Dış link:** `url_launcher` (telefon/WhatsApp) · **Push:** `firebase_core` + `firebase_messaging` (11.13'te, Firebase config kullanıcıdan) · **Sayfalama:** manuel veya `infinite_scroll_pagination`.
+- **Mimari:** feature-first klasör (`lib/features/<modül>/{data,domain,presentation}` + `lib/core/{network,theme,router,widgets,utils}`). Her modül: repository (dio çağrısı) → provider (state) → ekran(lar).
+- **KARAR:** Her `[A]` uç Bearer ister; 401'de otomatik refresh (interceptor), refresh de olmazsa login'e yönlendir. Görsel URL'e origin ekleme tek helper'da. Hata `error.code` → kullanıcı mesajı tek sözlükte.
+
+## 🧭 Çalışma kuralları (her mobil oturum)
+1. Oturum başında referansları oku (özellikle API_CONTRACT + MOBILE_UX_PLAN + Active_Context).
+2. **Yalnız o oturumun alt-fazını** bitir (kapsam kayması yok). Alt-faz "bitti" = ekran(lar) çalışır + gerçek API'ye bağlı manuel smoke geçer + boş/yükleniyor/hata durumları var.
+3. Backend'e DOKUNULMAZ (kontrat dondu). Eksik/uç gerekirse Progress'e not düş, o oturumda backend'e geçme.
+4. Oturum sonunda: `flutter analyze` temiz, uygulama derlenir/çalışır, Progress + Active_Context güncellenir, commit atılır.
+5. ⚠️ **11.13 (FCM) oturumunda Firebase yapılandırması (google-services.json / GoogleService-Info.plist) kullanıcıdan istenir.**
+
+---
+
+### 11.1 — Proje iskeleti + tasarım sistemi (tema) — [ ] (1 oturum)
+- [ ] `flutter create` (org/paket adı: `app.kadirli`), gereksiz platform kodları sadeleştir (Android+iOS öncelik; web opsiyonel).
+- [ ] `pubspec.yaml`: yukarıdaki paketler + Nunito font dosyaları (`assets/fonts/`) + `flutter_gen`/asset yolları.
+- [ ] Klasör yapısı: `lib/core/{theme,network,router,widgets,utils,config}` + `lib/features/`. Boş iskelet + `main.dart` (ProviderScope + MaterialApp.router).
+- [ ] **Tema:** `core/theme/app_theme.dart` — açık+koyu `ThemeData`, `ColorScheme` (yukarıdaki hex'ler), `TextTheme` (Nunito, ölçek), shape (radius 14-16), `AppSpacing` sabitleri, `AppColors` token sınıfı. Tema modu `shared_preferences`'tan (Açık/Koyu/Sistem).
+- [ ] **Config:** `core/config/env.dart` — `baseUrl` (dev `http://10.0.2.2:5005` Android emülatör / `http://localhost:5005` iOS sim / prod URL), flavor kavramı (dev/prod). ⚠️ Android emülatör localhost = `10.0.2.2`.
+- [ ] **Ortak bileşen iskeleti** (`core/widgets`): `AppButton` (primary/ghost/danger), `AppCard`, `AppScaffold`, durum widget'ları placeholder (`LoadingView` skeleton, `EmptyView`, `ErrorView`, `OfflineBanner`).
+- **Bitti kriteri:** Uygulama açılır, boş bir "Merhaba" ekranı doğru renk/font/temayla görünür; açık↔koyu tema değişir. `flutter analyze` temiz.
+
+### 11.2 — Ağ katmanı + kontrat modelleri — [ ] (1 oturum)
+- [ ] **Dio kurulumu** (`core/network/dio_client.dart`): baseUrl, timeout, `LogInterceptor` (dev). 
+- [ ] **Zarf açma:** response interceptor → `{success,data,meta}` sarısını açar, `data`'yı döndürür; `success:false` veya HTTP≥400 → `ApiException(code,message,traceId,status)` fırlatır. ⚠️ Announcements NOT_FOUND (HTTP 200+success:false) özel durumu da yakalanır.
+- [ ] **Hata sözlüğü** (`core/network/api_exception.dart` + `error_messages.dart`): `code` → Türkçe kullanıcı mesajı (VALIDATION_ERROR/UNAUTHORIZED/FORBIDDEN/NOT_FOUND/CONFLICT/RATE_LIMITED/INVALID_OTP/USERNAME_CHANGE_LIMIT/NEIGHBORHOOD_CHANGE_LIMIT/SELF_DELETE_FORBIDDEN…). Bilinmeyen kod → genel mesaj + traceId.
+- [ ] **Auth interceptor:** access token'ı header'a ekler (`Authorization: Bearer`); 401 `UNAUTHORIZED` → `POST /v1/auth/refresh` (jti rotasyonu, yeni refresh sakla) → isteği tekrar dener; refresh de başarısız → oturumu temizle + login'e yönlendir. Eşzamanlı 401'lerde tek refresh (kilit).
+- [ ] **Token deposu** (`core/network/token_store.dart`): `flutter_secure_storage` — access/refresh yaz/oku/sil.
+- [ ] **Ortak modeller** (`core/network/models`): `PagedResult<T>`, `Meta`; generic parse helper'ları (freezed). 
+- [ ] **Yardımcılar** (`core/utils`): `imageUrl(String rel)` (göreli `/uploads/…` → `baseUrl` ekler; mutlaksa dokunma), `formatDate` (UTC→Europe/Istanbul, "2 saat önce"/tam tarih), `phone/whatsapp launcher`.
+- **Bitti kriteri:** Bir örnek public uç (`GET /v1/neighborhoods`) dio ile çağrılıp zarf açılarak parse edilir; hatalı uç `ApiException`'a düşer (dev'de logla). Birim test: zarf-açma + hata eşleme.
+
+### 11.3 — Kimlik doğrulama akışı (uçtan uca) — [ ] (1 oturum)
+- [ ] **Bootstrap/Splash:** açılışta token var mı → refresh/geçerlilik → Ana Sayfa; yoksa Giriş.
+- [ ] **Giriş ekranı:** telefon girişi (maske +90) → `POST /v1/auth/login` → OTP ekranı (6 hane, `retryAfterSeconds` sayaçlı "tekrar gönder"; DevMode'da `devOtp` otomatik doldurulabilir). 
+- [ ] **Doğrulama:** `POST /v1/auth/verify-otp` → `isNewUser:false` → token'ları sakla, Ana Sayfa; `isNewUser:true` → Kayıt ekranı (`tempToken` ile).
+- [ ] **Kayıt:** kullanıcı adı + mahalle seçimi (`GET /v1/neighborhoods` dropdown) + opsiyonel yaş → `POST /v1/auth/register` → token sakla → Ana Sayfa. Validasyon hataları (VALIDATION_ERROR / kullanıcı adı çakışması 409) alan altında.
+- [ ] **Auth state** (Riverpod `authProvider`): oturum durumu (anonim/giriş yapılmış/yeni-kullanıcı), `logout()` (`POST /v1/auth/logout` + token temizle). `go_router` redirect ile korumalı rotalar (anonim → korumalı ekrana basınca nazik "Giriş yap").
+- [ ] Giriş sonrası FCM token kaydı için **stub** (`POST /v1/notifications/fcm-token` çağrısı 11.13'te gerçek token'la; şimdilik no-op/placeholder).
+- **Bitti kriteri:** Gerçek API ile: yeni telefon → OTP (dev 123456) → kayıt → giriş; var olan `admin`/kayıtlı kullanıcı → direkt giriş; çıkış → login'e döner; uygulama yeniden açılınca oturum korunur.
+
+### 11.4 — Uygulama kabuğu + Ana Sayfa (Hub) — [ ] (1 oturum)
+- [ ] **Alt sekme kabuğu** (`go_router` `StatefulShellRoute`): 4 sekme — Ana Sayfa / İlanlar / Bildirimler(rozet) / Profil. Sekme durumları korunur.
+- [ ] **Ana Sayfa (Hub):** selamlama (`GET /v1/users/me` → ad) + sağ üst ⚙️ (→ Ayarlar). **Acil şerit:** bugün nöbetçi eczane (`GET /v1/pharmacies/on-duty`) + aktif kesinti (`GET /v1/power-outages`, varsa uyarı). **Modül ızgarası:** 8+ modül kartı (ikon+etiket) → ilgili modül ekranı. **Öne çıkan:** son duyuru(lar) (`GET /v1/announcements?limit=3`).
+- [ ] Boş/yükleniyor(skeleton)/hata durumları; pull-to-refresh.
+- **Bitti kriteri:** Ana Sayfa gerçek verilerle dolu; nöbetçi eczane ve kesinti şeridi doğru; modül kartlarına dokununca ilgili (henüz boş olabilir) ekrana gider; sekmeler çalışır.
+
+### 11.5 — Ayarlar/Kontrol + Profil (users/me) — [ ] (1 oturum)  ★ kullanıcının özel isteği
+- [ ] **Profil sekmesi + Ayarlar ekranı** (sağ üst ⚙️'den de gelir).
+- [ ] **Profil:** `GET /v1/users/me` göster; düzenle → `PATCH /v1/users/me` (kullanıcı adı/mahalle/yaş/profil foto). ⚠️ Kullanıcı adı & mahalle **30 günde bir** (USERNAME_CHANGE_LIMIT/NEIGHBORHOOD_CHANGE_LIMIT hata mesajı). Profil foto: `image_picker` → `POST /v1/files/upload` → dönen id → PATCH.
+- [ ] **Bildirim tercihleri:** 6 toggle (duyuru/vefat/eczane/etkinlik/ilan/kampanya) → `PATCH /v1/users/me/notifications` (kısmi güncelleme).
+- [ ] **Tema:** Açık/Koyu/Sistem segmenti → `shared_preferences` (istemci).
+- [ ] **Hesap:** Çıkış (`POST /v1/auth/logout`) · Hesabı Sil (`DELETE /v1/users/me`, onay diyaloğu, yalnız normal kullanıcı — SELF_DELETE_FORBIDDEN'ı yakala) · Hakkında (sürüm) + Şikayet/İstek kısayolu (11.12).
+- **Bitti kriteri:** Profil düzenlenir ve kalıcı; bildirim toggle'ları API'ye yazılır; tema değişir ve app yeniden açılınca korunur; çıkış ve (test hesabıyla) hesap silme çalışır.
+
+### 11.6 — Duyurular + Elektrik Kesintileri — [ ] (1 oturum)
+- [ ] **Duyurular listesi:** `GET /v1/announcements?page=&limit=&typeId=` (sayfalı, tür filtresi chip'leri `GET /v1/announcements/types`); sonsuz kaydırma; kart (başlık/tür/tarih/görsel).
+- [ ] **Duyuru detayı:** `GET /v1/announcements/{id}` (⚠️ 200+success:false NOT_FOUND'u yakala); açılınca `POST …/{id}/view`; içindeki linke tıklanınca `POST …/{id}/click`. Konum/harita varsa göster.
+- [ ] **Elektrik kesintileri:** `GET /v1/power-outages` liste + detay `{id}` (mahalle/tarih/saat).
+- **Bitti kriteri:** İki modül de gerçek veriyle; sayfalama + tür filtresi çalışır; view/click sayaçları tetiklenir (backend'de arttığı doğrulanır).
+
+### 11.7 — Nöbetçi Eczane + Şehir Rehberi — [ ] (1 oturum)
+- [ ] **Nöbetçi eczane:** "Bugün" (`GET /v1/pharmacies/on-duty` — Türkiye saati) öne çıkan kart (telefon/harita/adres); takvim (`GET /v1/pharmacies/schedule?year=&month=`) ay görünümü; eczane detay (`GET /v1/pharmacies/{id}`), ara (`url_launcher`).
+- [ ] **Şehir rehberi:** kategoriler (`GET /v1/guide/categories`) → item listesi (`GET /v1/guide/items`) → item detay (`GET /v1/guide/items/{id}`). İletişim/konum aksiyonları.
+- **Bitti kriteri:** Bugünkü nöbetçi doğru; takvimde günler; rehber kategorileri gezilebilir; telefon/harita linkleri açılır.
+
+### 11.8 — İlanlar Bölüm 1: liste + detay — [ ] (1 oturum)
+- [ ] **Liste:** `GET /v1/ads?sort=&search=&categoryId=&page=` — sıralama chip'leri (newest/oldest/price_asc/price_desc), arama, kategori filtresi (`GET /v1/ads/categories`), sonsuz kaydırma, kart (görsel/başlık/fiyat/mahalle).
+- [ ] **Detay:** `GET /v1/ads/{id}` (galeri, açıklama, fiyat, kategori özellikleri, view_count). Aksiyonlar: **Favori** (`POST/DELETE /v1/ads/{id}/favorite` `[A]`, idempotent, anonimse giriş yönlendir), **Ara** (`POST …/track-phone` → telefonu aç), **WhatsApp** (`POST …/track-whatsapp` → wa linki). Görseller `cached_network_image` + `imageUrl()` helper.
+- **Bitti kriteri:** Liste sıralama/arama/kategori + sonsuz kaydırma çalışır; detayda favori/ara/whatsapp uçları tetiklenir; anonim kullanıcı favoriye basınca giriş akışı.
+
+### 11.9 — İlanlar Bölüm 2: ilan verme + benim ilanlarım — [ ] (1 oturum)
+- [ ] **İlan ver** (`POST /v1/ads` `[A]`): kategori seçimi (alt kategoriler `?parentId=`), **kategoriye özel dinamik alanlar** (`GET /v1/ads/categories/{id}/properties` → text/number/select/boolean form üretimi; zorunlular), başlık/açıklama/fiyat/iletişim tel (regex), **çoklu görsel** (`image_picker` → `POST /v1/files/upload` ×N → id'ler) + kapak seçimi. Validasyon hataları alan altında.
+- [ ] **Benim ilanlarım:** `GET /v1/users/me/ads?status=` (her statü; **rejected → `rejectedReason` kırmızı kart**). Düzenle (`PUT /v1/ads/{id}` — ⚠️ yeniden moderasyona düşürür, kullanıcı uyarılır), Sil (`DELETE`), Uzat (`POST …/extend`, hak 3, 409 CONFLICT mesajı).
+- [ ] **Favorilerim:** `GET /v1/users/me/favorites` (silinen/yayından düşen ilan işaretli).
+- **Bitti kriteri:** Görselli, kategori-özellikli ilan oluşturulup panelde pending görünür; benim ilanlarım statülere göre; red gerekçesi görünür; düzenle/sil/uzat çalışır.
+
+### 11.10 — Etkinlikler + Kampanyalar — [ ] (1 oturum)
+- [ ] **Etkinlikler:** liste (`GET /v1/events`, kategori `GET /v1/events/categories`, arama), takvim görünümü (`GET /v1/events/calendar`), detay (`GET /v1/events/{id}` — tarih/saat/mekan/konum/bilet/organizatör, haritada göster).
+- [ ] **Kampanyalar:** liste (`GET /v1/campaigns`, işletme adı), detay (`GET /v1/campaigns/{id}`), **Kodu Gör** (`POST /v1/campaigns/{id}/view-code` `[A]` → kod modal; kodsuz kampanya 400 mesajı; giriş gerekir).
+- **Bitti kriteri:** Etkinlik takvim+liste+detay; kampanya listesi+detay; kod görüntüleme uç tetiklenir ve modalda gösterilir.
+
+### 11.11 — Vefat + Taksi + Mekanlar — [ ] (1 oturum)
+- [ ] **Vefat:** liste (`GET /v1/deaths`, yalnız approved) + detay (`{id}`, cami/mezarlık/taziye konumu, saygılı sade tasarım). **Vefat bildir** (`POST /v1/deaths` `[A]`, pending'e düşer; mezarlık `GET /v1/deaths/cemeteries` + cami `GET /v1/deaths/mosques` dropdown, opsiyonel foto).
+- [ ] **Taksiciler:** liste (`GET /v1/taxis/drivers`, yalnız doğrulanmış) + detay (`{id}`), **Ara** (`POST /v1/taxis/drivers/{id}/call` `[A]` → dönen telefonu aç; giriş gerekir).
+- [ ] **Mekanlar:** liste (`GET /v1/places`) + detay (`{id}` — özellikler WC/Wifi/Klima, saatler, konum/foto).
+- **Bitti kriteri:** Üç modül gezilebilir; vefat bildirimi panelde pending; taksi çağrısı telefonu açar + backend'de taxi_calls artar.
+
+### 11.12 — Ulaşım + Şikayet/İstek — [ ] (1 oturum)
+- [ ] **Ulaşım:** şehirlerarası (`GET /v1/transport/intercity-routes` → kalkış saatleri `schedules`) + şehir içi (`GET /v1/transport/intracity-routes` → duraklar `stops`) listeleri + rota detayları (saat/durak listesi).
+- [ ] **Şikayet/İstek:** oluşturma formu (`POST /v1/complaints` — tip/konu/mesaj; anonim serbest ama giriş yapıldıysa kullanıcıya bağlanır) + benim şikayetlerim (`GET /v1/complaints/my` `[A]`, durum takibi). Ayarlar'daki "Şikayet/İstek" kısayolu buraya.
+- **Bitti kriteri:** Ulaşım saat/durak görünür; şikayet gönderilir ve "benim şikayetlerim"de durumuyla listelenir.
+
+### 11.13 — Bildirimler tamamlama + FCM Push — [ ] (1 oturum) ⚠️ Firebase config kullanıcıdan
+- [ ] **Bildirim merkezi:** `GET /v1/notifications?page=` (okunmamış rozet `data.unreadCount`), okundu (`PATCH …/{id}/read`), tümü okundu (`POST …/read-all`), boş/yükleniyor durumları.
+- [ ] **FCM:** ⚠️ **oturum başında Firebase yapılandırması istenir** (`google-services.json` Android + `GoogleService-Info.plist` iOS + APNs). `firebase_core`+`firebase_messaging` kur; izin iste; token al → giriş sonrası `POST /v1/notifications/fcm-token` (11.3 stub'ı gerçekle). Ön plan/arka plan/terminated handler'ları.
+- [ ] **Deep-link:** push `data.notificationId/relatedType/relatedId` → `go_router` ile ilgili ekrana (ilan/duyuru/etkinlik…) git + `PATCH …/read`.
+- **Bitti kriteri:** Bildirim listesi + okundu/tümü-okundu; gerçek cihazda push alınır (backend'de `Fcm:Provider=Firebase` + service-account ile — 10.11) ve dokununca deep-link çalışır. (Backend tarafı hazır; yalnız service-account bağlanır.)
+
+### 11.14 — Cilalama, durumlar ve erişilebilirlik — [ ] (1 oturum)
+- [ ] Tüm ekranlarda tutarlı **boş / yükleniyor (skeleton) / hata (tekrar dene) / offline** durumları; her listede pull-to-refresh + sonsuz kaydırma sonu.
+- [ ] Hareket cilası (geçişler, buton scale, sayaç pop), `reduced motion` saygısı.
+- [ ] **Erişilebilirlik:** kontrast AA, font ölçeklenebilirlik, min 48dp dokunma, ikon+etiket birlikte, ekran okuyucu semantik etiketler.
+- [ ] Türkçe metin/gözden geçirme (net, jargonsuz), hata mesajları sözlüğü tamam.
+- [ ] Genel gezinme testi: her buton bir uca bağlı mı (mockup haritasıyla karşılaştır), kırık/ölü buton yok.
+- **Bitti kriteri:** Uygulama uçtan uca akıcı; hiçbir ekran boş beyaz/patlamıyor; erişilebilirlik geçişi yapıldı.
+
+### 11.15 — Yayına hazırlık (release) — [ ] (1 oturum)
+- [ ] App ikonu (yeşil 🌿 marka), splash, mağaza görselleri/açıklama; sürümleme; **flavor** dev/prod (base URL prod'a).
+- [ ] İzinler (bildirim, kamera/galeri) + gizlilik açıklamaları; **hesap silme mağaza zorunluluğu** karşılandı (`DELETE /v1/users/me` — Ayarlar'da görünür).
+- [ ] Android imzalama + Play internal test; iOS TestFlight; gizlilik politikası linki.
+- [ ] **Backend prod bağımlılıkları kontrol listesi (mobil yayın engelleri):** gerçek SMS sağlayıcısı (`Sms:Provider` + `Otp:DevMode=false`) · Firebase service-account (`Fcm:Provider=Firebase`) · Hangfire dashboard auth (10.14/2) · uploads kalıcı volume (10.14/3) · `FileStorage:BaseUrl` prod domain · CORS (yalnız web hedeflenirse).
+- **Bitti kriteri:** İmzalı prod build; internal test kanalında çalışan uygulama; yayın engeli listesi işaretli.
+
+> **Sıra:** 11.1 → 11.2 → … → 11.15 (sıralı; her biri öncekine dayanır). Büyük modül olan İlanlar bilerek 2'ye bölündü (11.8-11.9). FCM (11.13) Firebase config gerektirir — o oturuma girmeden kullanıcıdan istenir. İlk 5 alt-faz temel/iskelet, 11.6-11.13 modül dikey kesitleri, 11.14-11.15 cila+yayın.

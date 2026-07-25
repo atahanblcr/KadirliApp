@@ -1,0 +1,497 @@
+<title>KadirliApp — Mobil Ekran Planı & Tasarım Sistemi</title>
+<style>
+  :root{
+    --bg:#FAF9F6; --surface:#FFFFFF; --surface-2:#F3F1EA; --border:#E7E4DD;
+    --ink:#1E2A24; --muted:#5C6B63;
+    --primary:#2C7A57; --primary-deep:#215B41; --primary-tint:#E8F3EC;
+    --accent:#E08A3C; --accent-tint:#FBEEDD;
+    --success:#2E8B57; --info:#2F6FB0; --warning:#E0A32E; --danger:#D64545;
+    --bezel:#0E1512; --shadow:0 12px 32px -12px rgba(20,40,30,.30);
+    --font-display:'SF Pro Rounded',ui-rounded,'Segoe UI',system-ui,sans-serif;
+    --font-body:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --font-mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --r:16px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#121815; --surface:#1B2420; --surface-2:#212C27; --border:#2A352F;
+      --ink:#ECF1EE; --muted:#9DB0A6;
+      --primary:#46B083; --primary-deep:#5FC098; --primary-tint:#1E3A2C;
+      --accent:#E8A45B; --accent-tint:#33291C;
+      --success:#4FB07D; --info:#5C9BD8; --warning:#E8B84C; --danger:#E56B6B;
+      --shadow:0 14px 34px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#FAF9F6; --surface:#FFFFFF; --surface-2:#F3F1EA; --border:#E7E4DD;
+    --ink:#1E2A24; --muted:#5C6B63; --primary:#2C7A57; --primary-deep:#215B41;
+    --primary-tint:#E8F3EC; --accent:#E08A3C; --accent-tint:#FBEEDD;
+    --success:#2E8B57; --info:#2F6FB0; --warning:#E0A32E; --danger:#D64545;
+    --shadow:0 12px 32px -12px rgba(20,40,30,.30);
+  }
+  :root[data-theme="dark"]{
+    --bg:#121815; --surface:#1B2420; --surface-2:#212C27; --border:#2A352F;
+    --ink:#ECF1EE; --muted:#9DB0A6; --primary:#46B083; --primary-deep:#5FC098;
+    --primary-tint:#1E3A2C; --accent:#E8A45B; --accent-tint:#33291C;
+    --success:#4FB07D; --info:#5C9BD8; --warning:#E8B84C; --danger:#E56B6B;
+    --shadow:0 14px 34px -14px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);
+    line-height:1.5;-webkit-font-smoothing:antialiased;padding:0 0 64px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+  a{color:var(--primary);text-decoration:none}
+
+  /* header */
+  header.top{padding:40px 0 26px;border-bottom:1px solid var(--border);margin-bottom:34px}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);
+    font-weight:700;display:flex;align-items:center;gap:8px}
+  .eyebrow::before{content:"";width:22px;height:2px;background:var(--primary);border-radius:2px}
+  h1{font-family:var(--font-display);font-weight:700;font-size:clamp(26px,4.4vw,40px);
+    margin:14px 0 10px;letter-spacing:-.02em;text-wrap:balance;max-width:16ch}
+  .lede{color:var(--muted);font-size:17px;max-width:60ch;margin:0}
+  .toggle{position:fixed;top:16px;right:16px;z-index:20;border:1px solid var(--border);
+    background:var(--surface);color:var(--ink);border-radius:999px;padding:8px 14px;
+    font:inherit;font-size:13px;font-weight:600;cursor:pointer;box-shadow:var(--shadow)}
+  .toggle:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+  h2.sec{font-family:var(--font-display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);font-weight:700;margin:46px 0 18px;display:flex;align-items:center;gap:12px}
+  h2.sec::after{content:"";flex:1;height:1px;background:var(--border)}
+
+  /* tokens: palette */
+  .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .sw{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface)}
+  .sw .chip{height:60px}
+  .sw .meta{padding:9px 11px}
+  .sw .role{font-size:13px;font-weight:600}
+  .sw .hex{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-transform:uppercase}
+
+  /* type + motion cards */
+  .duo{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+  @media (max-width:760px){.duo{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+  .panel h3{margin:0 0 14px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .t-d{font-family:var(--font-display);font-weight:700;font-size:30px;letter-spacing:-.02em}
+  .t-h{font-family:var(--font-display);font-weight:600;font-size:20px;margin-top:6px}
+  .t-b{font-size:16px;margin-top:6px;max-width:48ch;color:var(--ink)}
+  .t-c{font-size:12.5px;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:.06em}
+  .mrow{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border);font-size:14px}
+  .mrow:last-child{border-bottom:0}
+  .mrow b{font-weight:600}.mrow span{color:var(--muted);font-family:var(--font-mono);font-size:12px}
+
+  /* phones grid */
+  .screens{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:30px}
+  .block{display:flex;flex-direction:column;gap:14px}
+  .cap{font-family:var(--font-display);font-weight:700;font-size:16px;display:flex;align-items:center;gap:9px}
+  .cap .n{width:24px;height:24px;border-radius:8px;background:var(--primary);color:#fff;
+    display:grid;place-items:center;font-size:12px;flex:none}
+  .cap small{font-weight:500;color:var(--muted);font-size:12.5px}
+
+  .phone{width:100%;max-width:300px;margin:0 auto;background:var(--bezel);border-radius:36px;
+    padding:9px;box-shadow:var(--shadow)}
+  .screen{background:var(--bg);border-radius:28px;overflow:hidden;height:552px;display:flex;flex-direction:column;position:relative}
+  .sbar{display:flex;justify-content:space-between;align-items:center;padding:9px 16px 3px;font-size:11px;color:var(--muted);font-weight:600}
+  .sbar .dots{display:flex;gap:3px;align-items:center}
+  .sbar .dots i{width:4px;height:4px;border-radius:50%;background:var(--muted);display:block}
+  .appbar{display:flex;align-items:center;justify-content:space-between;padding:6px 15px 12px;gap:8px}
+  .appbar .ttl{font-family:var(--font-display);font-weight:700;font-size:18px}
+  .content{flex:1;overflow:hidden;padding:0 13px;display:flex;flex-direction:column;gap:10px}
+  .tabbar{display:flex;border-top:1px solid var(--border);background:var(--surface)}
+  .tabbar .tb{flex:1;text-align:center;padding:8px 0 10px;font-size:10px;color:var(--muted);font-weight:600}
+  .tabbar .tb .ic{font-size:17px;display:block;line-height:1.5}
+  .tabbar .tb.on{color:var(--primary)}
+  .tabbar .tb .badge{position:relative}
+  .tabbar .tb .badge::after{content:"3";position:absolute;top:-4px;right:-10px;background:var(--danger);
+    color:#fff;font-size:8px;font-weight:700;width:13px;height:13px;border-radius:50%;display:grid;place-items:center}
+
+  /* in-screen atoms */
+  .icobtn{width:34px;height:34px;border-radius:11px;background:var(--surface-2);display:grid;place-items:center;font-size:16px;flex:none}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:11px 12px}
+  .acil{background:var(--primary-tint);border:1px solid color-mix(in srgb,var(--primary) 22%,transparent);
+    border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:7px}
+  .acil .r{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600}
+  .acil .r .lab{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .tile{background:var(--surface);border:1px solid var(--border);border-radius:13px;
+    padding:9px 4px;text-align:center;font-size:9.5px;font-weight:600;color:var(--muted)}
+  .tile .ic{font-size:19px;display:block;margin-bottom:3px}
+  .lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:2px 0 -2px}
+  .adcard{display:flex;gap:10px;align-items:center}
+  .adcard .th{width:52px;height:52px;border-radius:10px;background:
+    linear-gradient(135deg,var(--primary-tint),var(--surface-2));flex:none;display:grid;place-items:center;font-size:20px}
+  .adcard .b{flex:1;min-width:0}
+  .adcard .b .t{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .adcard .b .p{font-size:14px;font-weight:700;color:var(--primary)}
+  .adcard .b .m{font-size:11px;color:var(--muted)}
+  .chiprow{display:flex;gap:6px;flex-wrap:wrap}
+  .chip2{font-size:11px;font-weight:600;padding:5px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);border:1px solid var(--border)}
+  .chip2.on{background:var(--primary);color:#fff;border-color:transparent}
+  .searchbar{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);
+    border-radius:11px;padding:8px 11px;font-size:12px;color:var(--muted)}
+  .fab{position:absolute;right:16px;bottom:70px;background:var(--primary);color:#fff;border-radius:14px;
+    padding:11px 15px;font-size:13px;font-weight:700;box-shadow:var(--shadow);display:flex;align-items:center;gap:6px}
+  .hero-img{height:118px;border-radius:14px;background:linear-gradient(135deg,var(--primary),var(--primary-deep));
+    display:grid;place-items:center;color:#fff;font-size:30px}
+  .actbar{display:flex;gap:8px}
+  .btn{flex:1;border-radius:12px;padding:10px 0;text-align:center;font-size:12.5px;font-weight:700;border:1px solid var(--border);background:var(--surface);color:var(--ink)}
+  .btn.pri{background:var(--primary);color:#fff;border-color:transparent}
+  .btn.gho{background:var(--surface-2);color:var(--ink)}
+  .row-set{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+  .row-set:last-child{border-bottom:0}
+  .row-set .l{font-size:13px;font-weight:600}
+  .row-set .s{font-size:11px;color:var(--muted)}
+  .sw-toggle{width:38px;height:22px;border-radius:999px;background:var(--primary);position:relative;flex:none}
+  .sw-toggle.off{background:var(--border)}
+  .sw-toggle::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}
+  .sw-toggle.off::after{left:18px}
+  .seg{display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px}
+  .seg span{flex:1;text-align:center;font-size:11px;font-weight:600;padding:5px 0;border-radius:7px;color:var(--muted)}
+  .seg span.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .notif{display:flex;gap:9px;align-items:flex-start;padding:10px 2px;border-bottom:1px solid var(--border)}
+  .notif .dot{width:8px;height:8px;border-radius:50%;background:var(--primary);margin-top:5px;flex:none}
+  .notif.read .dot{background:transparent;border:1px solid var(--border)}
+  .notif .b .t{font-size:12.5px;font-weight:600}
+  .notif .b .x{font-size:11px;color:var(--muted)}
+  .notif .b .tm{font-size:10px;color:var(--muted);margin-top:2px}
+  .field{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:11px 12px;font-size:13px;color:var(--muted)}
+  .otp{display:flex;gap:7px;justify-content:center}
+  .otp b{width:32px;height:40px;border:1px solid var(--border);border-radius:9px;display:grid;place-items:center;font-size:18px;font-weight:700;background:var(--surface)}
+  .otp b.f{border-color:var(--primary);color:var(--primary)}
+  .logo-mark{width:56px;height:56px;border-radius:16px;background:var(--primary);color:#fff;display:grid;place-items:center;font-size:28px;margin:6px auto 2px}
+
+  /* marker */
+  .mk{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;
+    background:var(--accent);color:#fff;font-size:9.5px;font-weight:700;vertical-align:middle;margin-left:4px;flex:none}
+  .mk.d{background:var(--danger)}
+
+  /* backend map */
+  .bmap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 15px}
+  .bmap .h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+  .brow{display:grid;grid-template-columns:20px 1fr;gap:9px;padding:8px 0;border-bottom:1px dashed var(--border)}
+  .brow:last-child{border-bottom:0}
+  .brow .num{width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center}
+  .brow .num.d{background:var(--danger)}
+  .brow .what{font-size:13px}
+  .brow .ep{font-family:var(--font-mono);font-size:11.5px;color:var(--primary-deep);
+    background:var(--primary-tint);border-radius:6px;padding:1px 6px;display:inline-block;margin-top:3px;word-break:break-word}
+  .brow .cli{background:var(--surface-2);color:var(--muted)}
+  .auth{font-family:var(--font-mono);font-size:9px;font-weight:700;color:#fff;background:var(--info);border-radius:4px;padding:1px 4px;margin-left:5px;vertical-align:middle}
+  .note{color:var(--muted);font-size:12px;margin-top:9px;padding-top:9px;border-top:1px solid var(--border)}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:6px 0 26px;align-items:center}
+  .legend .k{display:inline-flex;align-items:center;gap:6px}
+  .kd{width:14px;height:14px;border-radius:50%;background:var(--accent)}
+  .kd.dg{background:var(--danger)}
+
+  .extend{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:14px;padding:18px 20px;margin-top:12px}
+  .extend h3{margin:0 0 8px;font-family:var(--font-display);font-size:17px}
+  .extend p{margin:0 0 12px;color:var(--muted);font-size:14px;max-width:70ch}
+  .eps{display:flex;gap:7px;flex-wrap:wrap}
+  .eps code{font-family:var(--font-mono);font-size:11.5px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;color:var(--ink)}
+  footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:12.5px}
+  @media (prefers-reduced-motion:no-preference){
+    .block{animation:rise .5s ease both}
+    @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  }
+</style>
+
+<button class="toggle" id="tg" aria-label="Temayı değiştir">◐ Tema</button>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Mobil UI/UX · Flutter · v1 taslak</div>
+    <h1>KadirliApp — Ekran Planı &amp; Tasarım Sistemi</h1>
+    <p class="lede">Sıcak, topluluk odaklı, doğa yeşili bir arayüz. Her ekranın altında <b>“buton → backend ucu”</b> haritası var — işlevsiz tek düğme yok. Sağ üstteki düğmeyle açık/koyu temayı (ikisi de tasarlandı) deneyebilirsin.</p>
+  </header>
+
+  <!-- TOKENS -->
+  <h2 class="sec">Renk paleti</h2>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#2C7A57"></div><div class="meta"><div class="role">Primary · Yeşil</div><div class="hex">#2C7A57</div></div></div>
+    <div class="sw"><div class="chip" style="background:#215B41"></div><div class="meta"><div class="role">Primary-deep</div><div class="hex">#215B41</div></div></div>
+    <div class="sw"><div class="chip" style="background:#E8F3EC"></div><div class="meta"><div class="role">Primary-tint</div><div class="hex">#E8F3EC</div></div></div>
+    <div class="sw"><div class="chip" style="background:#E08A3C"></div><div class="meta"><div class="role">Accent · Sıcak</div><div class="hex">#E08A3C</div></div></div>
+    <div class="sw"><div class="chip" style="background:#FAF9F6;border-bottom:1px solid #E7E4DD"></div><div class="meta"><div class="role">Zemin</div><div class="hex">#FAF9F6</div></div></div>
+    <div class="sw"><div class="chip" style="background:#1E2A24"></div><div class="meta"><div class="role">Metin</div><div class="hex">#1E2A24</div></div></div>
+    <div class="sw"><div class="chip" style="background:#E0A32E"></div><div class="meta"><div class="role">Uyarı</div><div class="hex">#E0A32E</div></div></div>
+    <div class="sw"><div class="chip" style="background:#D64545"></div><div class="meta"><div class="role">Hata / Sil</div><div class="hex">#D64545</div></div></div>
+  </div>
+
+  <h2 class="sec">Tipografi &amp; hareket</h2>
+  <div class="duo">
+    <div class="panel">
+      <h3>Tip ölçeği — yuvarlak &amp; sıcak (hedef: Nunito)</h3>
+      <div class="t-d">Merhaba Kadirli</div>
+      <div class="t-h">Bugün nöbetçi eczane</div>
+      <div class="t-b">Gövde metni 16px, rahat okunur; her yaştan kullanıcı için büyük ve net. Türkçe karakterler tam desteklenir: çğışöü.</div>
+      <div class="t-c">Etiket · 12px · aralıklı</div>
+    </div>
+    <div class="panel">
+      <h3>Hareket dili — az &amp; anlamlı</h3>
+      <div class="mrow"><b>Sayfa geçişi</b><span>slide+fade · 220ms</span></div>
+      <div class="mrow"><b>Liste yükleme</b><span>skeleton shimmer</span></div>
+      <div class="mrow"><b>Buton basma</b><span>scale .98 · 120ms</span></div>
+      <div class="mrow"><b>Yenileme</b><span>pull-to-refresh</span></div>
+      <div class="mrow"><b>Sayaç değişimi</b><span>pop · 150ms</span></div>
+    </div>
+  </div>
+
+  <!-- SCREENS -->
+  <h2 class="sec">Ekranlar &amp; backend haritası</h2>
+  <div class="legend">
+    <span class="k"><span class="kd"></span> numara = bir buton/aksiyon</span>
+    <span class="k"><span class="kd dg"></span> yıkıcı işlem (onay ister)</span>
+    <span class="k"><span class="auth" style="margin:0">A</span> Bearer token gerekir</span>
+    <span class="k"><span style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">istemci</span> = backend yok, cihazda</span>
+  </div>
+
+  <div class="screens">
+
+    <!-- 1. ANA SAYFA -->
+    <div class="block">
+      <div class="cap"><span class="n">1</span> Ana Sayfa (Hub) <small>giriş noktası</small></div>
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i> 100%</span></div>
+        <div class="appbar"><span class="ttl">Merhaba, Ahmet 👋</span><span class="icobtn">⚙️<span class="mk">1</span></span></div>
+        <div class="content">
+          <div class="acil">
+            <div class="r"><span class="lab">Acil</span></div>
+            <div class="r">💊 Bugün: Şifa Eczanesi <span class="mk">2</span></div>
+            <div class="r">⚡ Planlı kesinti yok <span class="mk">3</span></div>
+          </div>
+          <div class="lbl">Modüller</div>
+          <div class="tiles">
+            <div class="tile"><span class="ic">🏷️</span>İlanlar<span class="mk">4</span></div>
+            <div class="tile"><span class="ic">📢</span>Duyuru<span class="mk">5</span></div>
+            <div class="tile"><span class="ic">💊</span>Eczane</div>
+            <div class="tile"><span class="ic">🕊️</span>Vefat</div>
+            <div class="tile"><span class="ic">🎉</span>Etkinlik</div>
+            <div class="tile"><span class="ic">🎟️</span>Kampanya</div>
+            <div class="tile"><span class="ic">📍</span>Mekan</div>
+            <div class="tile"><span class="ic">🚕</span>Taksi</div>
+          </div>
+          <div class="lbl">Öne çıkan</div>
+          <div class="card" style="font-size:12px"><b>📢 Su kesintisi duyurusu</b><div style="color:var(--muted);font-size:11px">Belediye · 2 saat önce <span class="mk">6</span></div></div>
+        </div>
+        <div class="tabbar">
+          <div class="tb on"><span class="ic">🏠</span>Ana Sayfa</div>
+          <div class="tb"><span class="ic">🏷️</span>İlanlar</div>
+          <div class="tb"><span class="ic badge">🔔</span>Bildirim<span class="mk">7</span></div>
+          <div class="tb"><span class="ic">👤</span>Profil</div>
+        </div>
+      </div></div>
+      <div class="bmap">
+        <div class="h">🔌 Buton → uç</div>
+        <div class="brow"><span class="num">1</span><div><div class="what">Ayarlar / Kontrol</div><span class="ep cli">istemci · Ayarlar ekranı</span></div></div>
+        <div class="brow"><span class="num">2</span><div><div class="what">Bugün nöbetçi eczane</div><span class="ep">GET /v1/pharmacies/on-duty</span></div></div>
+        <div class="brow"><span class="num">3</span><div><div class="what">Kesinti durumu</div><span class="ep">GET /v1/power-outages</span></div></div>
+        <div class="brow"><span class="num">4</span><div><div class="what">İlanlar kartı</div><span class="ep">GET /v1/ads</span></div></div>
+        <div class="brow"><span class="num">5</span><div><div class="what">Duyurular kartı</div><span class="ep">GET /v1/announcements</span></div></div>
+        <div class="brow"><span class="num">6</span><div><div class="what">Öne çıkan duyuru</div><span class="ep">GET /v1/announcements/{id}</span></div></div>
+        <div class="brow"><span class="num">7</span><div><div class="what">Bildirim sekmesi (rozet)</div><span class="ep">GET /v1/notifications<span class="auth">A</span></span></div></div>
+        <div class="note">Her modül kartı → ilgili GET liste ucu (eczane / vefat / etkinlik / kampanya / mekan / taksi / ulaşım / rehber).</div>
+      </div>
+    </div>
+
+    <!-- 2. İLANLAR LİSTE -->
+    <div class="block">
+      <div class="cap"><span class="n">2</span> İlanlar (Liste) <small>en aktif modül</small></div>
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i> 100%</span></div>
+        <div class="appbar"><span class="ttl">İlanlar</span><span class="icobtn">🔍<span class="mk">1</span></span></div>
+        <div class="content">
+          <div class="chiprow">
+            <span class="chip2 on">En yeni <span class="mk">2</span></span>
+            <span class="chip2">Fiyat ↑</span><span class="chip2">Fiyat ↓</span>
+          </div>
+          <div class="card adcard"><div class="th">🚗</div><div class="b"><div class="t">Temiz aile aracı</div><div class="p">285.000 ₺</div><div class="m">Cumhuriyet Mah. · bugün</div></div><span class="mk">3</span></div>
+          <div class="card adcard"><div class="th">🛋️</div><div class="b"><div class="t">L koltuk takımı</div><div class="p">7.500 ₺</div><div class="m">Sümer Mah. · dün</div></div></div>
+          <div class="card adcard"><div class="th">📱</div><div class="b"><div class="t">İkinci el telefon</div><div class="p">4.200 ₺</div><div class="m">Yeni Mah. · 2 gün</div></div></div>
+          <div class="card adcard"><div class="th">🏠</div><div class="b"><div class="t">Kiralık 2+1 daire</div><div class="p">9.000 ₺</div><div class="m">Savrun Mah. · 3 gün</div></div></div>
+        </div>
+        <div class="fab">＋ İlan Ver <span class="mk">4</span></div>
+        <div class="tabbar">
+          <div class="tb"><span class="ic">🏠</span>Ana Sayfa</div>
+          <div class="tb on"><span class="ic">🏷️</span>İlanlar</div>
+          <div class="tb"><span class="ic badge">🔔</span>Bildirim</div>
+          <div class="tb"><span class="ic">👤</span>Profil</div>
+        </div>
+      </div></div>
+      <div class="bmap">
+        <div class="h">🔌 Buton → uç</div>
+        <div class="brow"><span class="num">1</span><div><div class="what">Arama</div><span class="ep">GET /v1/ads?search=</span></div></div>
+        <div class="brow"><span class="num">2</span><div><div class="what">Sıralama chip’leri</div><span class="ep">GET /v1/ads?sort=newest|price_asc…</span></div></div>
+        <div class="brow"><span class="num">3</span><div><div class="what">İlana dokun</div><span class="ep">GET /v1/ads/{id}</span></div></div>
+        <div class="brow"><span class="num">4</span><div><div class="what">İlan Ver (FAB)</div><span class="ep">POST /v1/ads<span class="auth">A</span></span> <span class="ep">POST /v1/files/upload<span class="auth">A</span></span></div></div>
+        <div class="note">Sonsuz kaydırma: <span style="font-family:var(--font-mono)">?page=&amp;limit=</span> (public en çok 50). Boş/hata/yükleniyor durumları tanımlı.</div>
+      </div>
+    </div>
+
+    <!-- 3. İLAN DETAY -->
+    <div class="block">
+      <div class="cap"><span class="n">3</span> İlan Detayı <small>aksiyonlar + sayaçlar</small></div>
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i> 100%</span></div>
+        <div class="appbar"><span class="ttl">‹ İlan</span><span class="icobtn">↗</span></div>
+        <div class="content">
+          <div class="hero-img">🚗</div>
+          <div><div style="font-weight:700;font-size:16px">Temiz aile aracı</div><div style="color:var(--primary);font-weight:700;font-size:19px">285.000 ₺</div><div style="color:var(--muted);font-size:12px">Cumhuriyet Mah. · bugün · 👁 142</div></div>
+          <div class="card" style="font-size:12px;color:var(--muted)">Az kullanılmış, bakımlı, tek sahibinden. Detaylar için arayın.</div>
+          <div class="actbar">
+            <div class="btn gho">♥ Favori<span class="mk">1</span></div>
+            <div class="btn pri">📞 Ara<span class="mk">2</span></div>
+            <div class="btn" style="background:#25D366;color:#fff;border-color:transparent">WhatsApp<span class="mk">3</span></div>
+          </div>
+          <div class="card" style="font-size:11px;color:var(--muted);border-style:dashed">Kendi ilanınsa: <b>Düzenle · Sil · Uzat</b> <span class="mk">4</span></div>
+        </div>
+        <div class="tabbar">
+          <div class="tb on"><span class="ic">🏠</span>Ana Sayfa</div>
+          <div class="tb"><span class="ic">🏷️</span>İlanlar</div>
+          <div class="tb"><span class="ic badge">🔔</span>Bildirim</div>
+          <div class="tb"><span class="ic">👤</span>Profil</div>
+        </div>
+      </div></div>
+      <div class="bmap">
+        <div class="h">🔌 Buton → uç</div>
+        <div class="brow"><span class="num" style="background:var(--info)">•</span><div><div class="what">Detay açılışı (otomatik)</div><span class="ep">GET /v1/ads/{id} · view_count++</span></div></div>
+        <div class="brow"><span class="num">1</span><div><div class="what">Favori ekle/çıkar (idempotent)</div><span class="ep">POST · DELETE /v1/ads/{id}/favorite<span class="auth">A</span></span></div></div>
+        <div class="brow"><span class="num">2</span><div><div class="what">Ara (sonra telefonu açar)</div><span class="ep">POST /v1/ads/{id}/track-phone</span></div></div>
+        <div class="brow"><span class="num">3</span><div><div class="what">WhatsApp (sonra wa linki)</div><span class="ep">POST /v1/ads/{id}/track-whatsapp</span></div></div>
+        <div class="brow"><span class="num">4</span><div><div class="what">Sahibi: düzenle / sil / uzat</div><span class="ep">PUT · DELETE /v1/ads/{id} · POST …/extend<span class="auth">A</span></span></div></div>
+        <div class="note">Düzenleme ilanı yeniden moderasyona düşürür — kullanıcı uyarılır.</div>
+      </div>
+    </div>
+
+    <!-- 4. AYARLAR -->
+    <div class="block">
+      <div class="cap"><span class="n">4</span> Ayarlar / Kontrol <small>★ senin isteğin</small></div>
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i> 100%</span></div>
+        <div class="appbar"><span class="ttl">‹ Ayarlar</span></div>
+        <div class="content">
+          <div class="card" style="display:flex;align-items:center;gap:11px">
+            <div style="width:42px;height:42px;border-radius:50%;background:var(--primary-tint);display:grid;place-items:center;font-size:20px">👤</div>
+            <div style="flex:1"><div style="font-weight:700;font-size:14px">Ahmet Yılmaz</div><div style="font-size:11px;color:var(--muted)">Cumhuriyet Mah.</div></div>
+            <div class="chip2 on">Düzenle<span class="mk">1</span></div>
+          </div>
+          <div class="lbl">Bildirim tercihleri <span class="mk">2</span></div>
+          <div class="card" style="padding:2px 12px">
+            <div class="row-set"><div><div class="l">Duyurular</div></div><div class="sw-toggle"></div></div>
+            <div class="row-set"><div><div class="l">Vefat ilanları</div></div><div class="sw-toggle"></div></div>
+            <div class="row-set"><div><div class="l">İlan güncellemeleri</div></div><div class="sw-toggle off"></div></div>
+          </div>
+          <div class="lbl">Tema <span class="mk">3</span></div>
+          <div class="seg"><span>Açık</span><span class="on">Sistem</span><span>Koyu</span></div>
+          <div class="actbar" style="margin-top:2px">
+            <div class="btn gho">Çıkış Yap<span class="mk">4</span></div>
+            <div class="btn" style="color:var(--danger);border-color:var(--danger)">Hesabı Sil<span class="mk d">5</span></div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="tb"><span class="ic">🏠</span>Ana Sayfa</div>
+          <div class="tb"><span class="ic">🏷️</span>İlanlar</div>
+          <div class="tb"><span class="ic badge">🔔</span>Bildirim</div>
+          <div class="tb on"><span class="ic">👤</span>Profil</div>
+        </div>
+      </div></div>
+      <div class="bmap">
+        <div class="h">🔌 Buton → uç</div>
+        <div class="brow"><span class="num" style="background:var(--info)">•</span><div><div class="what">Profil bilgisi (açılışta)</div><span class="ep">GET /v1/users/me<span class="auth">A</span></span></div></div>
+        <div class="brow"><span class="num">1</span><div><div class="what">Profili düzenle (ad/mahalle/foto)</div><span class="ep">PATCH /v1/users/me<span class="auth">A</span></span></div></div>
+        <div class="brow"><span class="num">2</span><div><div class="what">Bildirim tercihleri</div><span class="ep">PATCH /v1/users/me/notifications<span class="auth">A</span></span></div></div>
+        <div class="brow"><span class="num">3</span><div><div class="what">Tema (açık/koyu/sistem)</div><span class="ep cli">istemci · kalıcı depolama</span></div></div>
+        <div class="brow"><span class="num">4</span><div><div class="what">Çıkış yap</div><span class="ep">POST /v1/auth/logout<span class="auth">A</span></span></div></div>
+        <div class="brow"><span class="num d">5</span><div><div class="what">Hesabı sil (onay ister)</div><span class="ep">DELETE /v1/users/me<span class="auth">A</span></span></div></div>
+        <div class="note">Girişten sonra cihaz token’ı: <span style="font-family:var(--font-mono)">POST /v1/notifications/fcm-token</span>.</div>
+      </div>
+    </div>
+
+    <!-- 5. BİLDİRİMLER -->
+    <div class="block">
+      <div class="cap"><span class="n">5</span> Bildirimler <small>push + deep-link</small></div>
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i> 100%</span></div>
+        <div class="appbar"><span class="ttl">Bildirimler</span><span class="chip2">Tümü okundu<span class="mk">1</span></span></div>
+        <div class="content">
+          <div class="notif"><span class="dot"></span><div class="b"><div class="t">📢 Su kesintisi duyurusu <span class="mk">2</span></div><div class="x">Yarın 09:00–14:00 arası…</div><div class="tm">2 saat önce</div></div></div>
+          <div class="notif"><span class="dot"></span><div class="b"><div class="t">🕊️ Vefat ilanı</div><div class="x">Merhum Hüseyin Bey…</div><div class="tm">dün</div></div></div>
+          <div class="notif read"><span class="dot"></span><div class="b"><div class="t">💊 Nöbetçi eczane değişti</div><div class="x">Bugün: Şifa Eczanesi</div><div class="tm">dün</div></div></div>
+          <div class="notif read"><span class="dot"></span><div class="b"><div class="t">🎉 Yeni etkinlik</div><div class="x">Cumartesi konseri…</div><div class="tm">2 gün önce</div></div></div>
+        </div>
+        <div class="tabbar">
+          <div class="tb"><span class="ic">🏠</span>Ana Sayfa</div>
+          <div class="tb"><span class="ic">🏷️</span>İlanlar</div>
+          <div class="tb on"><span class="ic">🔔</span>Bildirim</div>
+          <div class="tb"><span class="ic">👤</span>Profil</div>
+        </div>
+      </div></div>
+      <div class="bmap">
+        <div class="h">🔌 Buton → uç</div>
+        <div class="brow"><span class="num" style="background:var(--info)">•</span><div><div class="what">Liste (rozet sayısı içeride)</div><span class="ep">GET /v1/notifications?page=<span class="auth">A</span></span></div></div>
+        <div class="brow"><span class="num">1</span><div><div class="what">Tümünü okundu işaretle</div><span class="ep">POST /v1/notifications/read-all<span class="auth">A</span></span></div></div>
+        <div class="brow"><span class="num">2</span><div><div class="what">Bildirime dokun → ilgili ekran</div><span class="ep">PATCH /v1/notifications/{id}/read<span class="auth">A</span></span></div></div>
+        <div class="note">Push’tan gelen <span style="font-family:var(--font-mono)">relatedType/relatedId</span> ile doğrudan ilgili ilan/duyuru/etkinliğe deep-link.</div>
+      </div>
+    </div>
+
+    <!-- 6. GİRİŞ -->
+    <div class="block">
+      <div class="cap"><span class="n">6</span> Giriş (OTP) <small>telefon + kod</small></div>
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i> 100%</span></div>
+        <div class="content" style="justify-content:center;gap:14px;padding:0 20px">
+          <div class="logo-mark">🌿</div>
+          <div style="text-align:center"><div style="font-family:var(--font-display);font-weight:700;font-size:19px">KadirliApp</div><div style="color:var(--muted);font-size:12px">Şehrin cebinde</div></div>
+          <div class="field">📱 +90 5__ ___ __ __</div>
+          <div class="btn pri" style="flex:none">Kod Gönder <span class="mk">1</span></div>
+          <div class="otp"><b class="f">1</b><b class="f">2</b><b class="f">3</b><b>·</b><b>·</b><b>·</b></div>
+          <div class="btn pri" style="flex:none">Doğrula <span class="mk">2</span></div>
+          <div class="card" style="font-size:11px;color:var(--muted);text-align:center">Yeni kullanıcı → kullanıcı adı + mahalle → <b>Kaydı Tamamla</b> <span class="mk">3</span></div>
+        </div>
+        <div class="tabbar" style="opacity:.4">
+          <div class="tb"><span class="ic">🏠</span>Ana Sayfa</div><div class="tb"><span class="ic">🏷️</span>İlanlar</div><div class="tb"><span class="ic">🔔</span>Bildirim</div><div class="tb"><span class="ic">👤</span>Profil</div>
+        </div>
+      </div></div>
+      <div class="bmap">
+        <div class="h">🔌 Buton → uç</div>
+        <div class="brow"><span class="num">1</span><div><div class="what">Kod gönder</div><span class="ep">POST /v1/auth/login</span></div></div>
+        <div class="brow"><span class="num">2</span><div><div class="what">Doğrula → kayıtlı mı?</div><span class="ep">POST /v1/auth/verify-otp</span></div></div>
+        <div class="brow"><span class="num">3</span><div><div class="what">Yeni kullanıcı kaydı</div><span class="ep">POST /v1/auth/register</span></div></div>
+        <div class="note">Token yenileme (arka planda): <span style="font-family:var(--font-mono)">POST /v1/auth/refresh</span> · access token → tüm <span class="auth">A</span> uçlarda Bearer.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- EXTENSIBILITY -->
+  <h2 class="sec">Eksik / sonradan eklenecek</h2>
+  <div class="extend">
+    <h3>Kural: her yeni buton mutlaka bir uca (veya bilinçli “istemci”ye) bağlanır</h3>
+    <p>Yukarıdaki 6 ekran çekirdek akışı gösterir. Aşağıdaki uçlar da mevcut ve aynı desende ilgili modül ekranlarına bağlanacak — bir şey unutulursa bu listeye eklenip ekrana iliştirilir:</p>
+    <div class="eps">
+      <code>POST /v1/deaths (vefat bildir)</code>
+      <code>POST /v1/campaigns/{id}/view-code</code>
+      <code>POST /v1/taxis/drivers/{id}/call</code>
+      <code>POST /v1/complaints (şikayet/istek)</code>
+      <code>GET /v1/pharmacies/schedule</code>
+      <code>GET /v1/events/calendar</code>
+      <code>GET /v1/places · guide · transport</code>
+      <code>GET /v1/users/me/ads · favorites</code>
+    </div>
+    <p style="margin-top:12px">Tam uç envanteri ve hata kodları: <b>Memory_Bank/API_CONTRACT.md</b> · makine-okur şema: <b>docs/openapi.json</b>.</p>
+  </div>
+
+  <footer>KadirliApp mobil tasarım taslağı · renk/tip/hareket + 6 ekran + backend haritası · açık &amp; koyu tema · bu bir plandır, kod değil.</footer>
+</div>
+
+<script>
+  (function(){
+    var btn=document.getElementById('tg');
+    btn.addEventListener('click',function(){
+      var cur=document.documentElement.getAttribute('data-theme');
+      if(!cur){cur=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}
+      document.documentElement.setAttribute('data-theme', cur==='dark'?'light':'dark');
+    });
+  })();
+</script>
