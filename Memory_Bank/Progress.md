@@ -622,6 +622,12 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
 - **Koyu:** bg `#121815`, surface `#1B2420`, border `#2A352F`, primary `#46B083`, ink `#ECF1EE`, muted `#9DB0A6`.
 - **Tip:** yuvarlak-sıcak sans (hedef **Nunito**, pubspec'e font ekle); ölçek Display 28 / H1 22 / H2 18 / Body 16 / sm 14 / caption 13 / label 12; satır ~1.4. **Hareket:** az & anlamlı — geçiş 220ms, skeleton loader, pull-to-refresh, buton scale .98.
 
+## 📍 Mobil proje konumu ve komutları (11.1'de kuruldu)
+- Kod: **`mobile/`** (repo kökünde, .NET çözümünün yanında). Kurulum/çalıştırma: `mobile/README.md`.
+- `cd mobile && flutter pub get && flutter run` · gerçek cihaz: `--dart-define=API_BASE_URL=http://<LAN-IP>:5005` · prod: `--dart-define=FLAVOR=prod`.
+- Her oturum sonunda: `flutter analyze` (0 sorun) + `flutter test` (hepsi geçer).
+- ⚠️ Bu makinede **Xcode kurulumu eksik → iOS derlemesi/simülatörü yok**; doğrulama Android emülatörü (`Pixel_9`, API 37) üzerinden yapılıyor. iOS ilk kez 11.15'ten önce denenmeli (CocoaPods da kurulu değil).
+
 ## ⚙️ Teknoloji kararları (11.1'de kurulur, sonra sabit)
 - **Flutter** (stable, Dart 3) · **State:** Riverpod (`flutter_riverpod` + `riverpod_annotation`) — bu ölçek için sade, test edilebilir · **Routing:** `go_router` (push deep-link dostu) · **HTTP:** `dio` (interceptor'lar) · **Model/JSON:** `freezed` + `json_serializable` · **Güvenli depo:** `flutter_secure_storage` (token'lar) · **Tercih/tema:** `shared_preferences` · **Görsel:** `cached_network_image` + `image_picker` (yükleme) · **Tarih/Türkçe:** `intl` · **Dış link:** `url_launcher` (telefon/WhatsApp) · **Push:** `firebase_core` + `firebase_messaging` (11.13'te, Firebase config kullanıcıdan) · **Sayfalama:** manuel veya `infinite_scroll_pagination`.
 - **Mimari:** feature-first klasör (`lib/features/<modül>/{data,domain,presentation}` + `lib/core/{network,theme,router,widgets,utils}`). Her modül: repository (dio çağrısı) → provider (state) → ekran(lar).
@@ -636,14 +642,21 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
 
 ---
 
-### 11.1 — Proje iskeleti + tasarım sistemi (tema) — [ ] (1 oturum)
-- [ ] `flutter create` (org/paket adı: `app.kadirli`), gereksiz platform kodları sadeleştir (Android+iOS öncelik; web opsiyonel).
-- [ ] `pubspec.yaml`: yukarıdaki paketler + Nunito font dosyaları (`assets/fonts/`) + `flutter_gen`/asset yolları.
-- [ ] Klasör yapısı: `lib/core/{theme,network,router,widgets,utils,config}` + `lib/features/`. Boş iskelet + `main.dart` (ProviderScope + MaterialApp.router).
-- [ ] **Tema:** `core/theme/app_theme.dart` — açık+koyu `ThemeData`, `ColorScheme` (yukarıdaki hex'ler), `TextTheme` (Nunito, ölçek), shape (radius 14-16), `AppSpacing` sabitleri, `AppColors` token sınıfı. Tema modu `shared_preferences`'tan (Açık/Koyu/Sistem).
-- [ ] **Config:** `core/config/env.dart` — `baseUrl` (dev `http://10.0.2.2:5005` Android emülatör / `http://localhost:5005` iOS sim / prod URL), flavor kavramı (dev/prod). ⚠️ Android emülatör localhost = `10.0.2.2`.
-- [ ] **Ortak bileşen iskeleti** (`core/widgets`): `AppButton` (primary/ghost/danger), `AppCard`, `AppScaffold`, durum widget'ları placeholder (`LoadingView` skeleton, `EmptyView`, `ErrorView`, `OfflineBanner`).
-- **Bitti kriteri:** Uygulama açılır, boş bir "Merhaba" ekranı doğru renk/font/temayla görünür; açık↔koyu tema değişir. `flutter analyze` temiz.
+### 11.1 — Proje iskeleti + tasarım sistemi (tema) — [x] ✅ TAMAMLANDI (29 Temmuz 2026)
+- [x] `flutter create --org app.kadirli --platforms=android,ios` → **`mobile/`** dizini (Flutter 3.44.2 / Dart 3.12.2). Web/masaüstü platform kodu üretilmedi.
+- [x] `pubspec.yaml`: riverpod 3 · go_router 17 · dio 5 · freezed+json_serializable · flutter_secure_storage · shared_preferences · cached_network_image · image_picker · intl · url_launcher · flutter_localizations (+ build_runner/freezed dev). **Nunito** 3 ağırlık (400/600/700) `assets/fonts/` + OFL lisansı.
+- [x] Klasör yapısı: `lib/core/{config,network,router,theme,utils,widgets}` + `lib/features/{home,settings,dev}/presentation`. `main.dart` = ProviderScope + `app.dart` (MaterialApp.router).
+- [x] **Tema:** `core/theme/` → `app_colors.dart` (ham token'lar + **`AppPalette` ThemeExtension**: accent/success/info/warning/danger/border/muted/skeleton — Material `ColorScheme`'in karşılamadığı roller), `app_typography.dart` (ölçek + `TextTheme` eşlemesi), `app_spacing.dart` (`AppSpacing`/`AppRadius`/`AppDurations`/`AppA11y.minTapSize=48`), `app_theme.dart` (açık+koyu `ThemeData`, elle yazılmış `ColorScheme`'ler — `ColorScheme.fromSeed` tonu kaydırıyordu), `theme_controller.dart` (Riverpod `Notifier` + `shared_preferences`, Açık/Koyu/Sistem).
+- [x] **Config:** `core/config/env.dart` — `AppFlavor{dev,prod}`, `--dart-define=FLAVOR=`, Android emülatörde `10.0.2.2:5005` / iOS-sim `localhost:5005` / prod `https://api.kadirli.app`; **`--dart-define=API_BASE_URL=` override'ı** (gerçek cihaz LAN testi için).
+- [x] **Ortak bileşenler** (`core/widgets`): `AppButton` (primary/accent/ghost/danger × normal/small, loading, expand, 48dp, basılı 0.98 ölçek), `AppCard` (+`accentStripe`, `SectionHeader`), `AppScaffold` (AppBar + offline şerit + pull-to-refresh), `SkeletonBox`/`SkeletonCardList` (shimmer), `LoadingView`/`EmptyView`/`ErrorView`(traceId)/`OfflineBanner` — hepsi `widgets.dart` barrel'ından.
+- **Bitti kriteri: ✅ karşılandı** — Android emülatöründe (API 37) uygulama açılıyor, Türkçe karakterler Nunito'da doğru, açık↔koyu tema anında değişiyor ve tercih yeniden açılışta korunuyor. `flutter analyze` **0 sorun**, `flutter test` **11/11 geçti**.
+- **Plan dışı eklenenler (bilinçli):**
+  - **`/gelistirici/tasarim` — yaşayan stil kılavuzu** (yalnız debug): palet, tipografi ölçeği, tüm buton/kart varyantları, dört durum ekranı tek sayfada. Token'ların iki temada da doğru göründüğü gözle doğrulanabiliyor.
+  - **Test altyapısı** (plan yalnız `analyze` istiyordu): `test/app_smoke_test.dart` (açılış + font/renk + tema kalıcılığı), `test/core/config/env_test.dart`, `test/core/widgets/app_button_test.dart`.
+  - **Paket kimliği `app.kadirli`** olarak sadeleştirildi (Flutter varsayılanı Android'de `app.kadirli.kadirli_app`, iOS'ta `app.kadirli.kadirliApp` üretiyordu → iki platform ayrışıyordu). Uygulama adı her iki platformda **"Kadirli"**. ⚠️ Mağaza yüklemesinden sonra değiştirilemez.
+  - Türkçe locale sabitlendi (`tr_TR` + `flutter_localizations` + `initializeDateFormatting`), dikey yönlendirme kilidi, yazı ölçeği 0.9–1.4 arası sınırlandı (erişilebilirlik ile düzen bozulması dengesi), `SegmentedButton` teması yeşil tint'e çekildi (Material varsayılanı turuncu `secondaryContainer` kullanıyordu).
+  - `mobile/README.md`: kurulum, base URL tablosu, dart-define örnekleri, klasör kuralları.
+- **Karşılaşılan/çözülen 3 hata:** (1) `Material`'a hem `borderRadius` hem `shape` verilemez → yalnız `shape`; (2) `AppCard.accentStripe` `Row(stretch)` ile sonsuz yükseklik istiyordu → `Stack`+`PositionedDirectional`; (3) **`Container`'a `alignment` verilince gevşek kısıtta tüm genişliği kaplıyor** → butonlar ekranı kaplıyordu; `alignment` kaldırıldı, hizalama `Row`'a bırakıldı (regresyon testi yazıldı). Ayrıca devre dışı buton koyu temada okunmuyordu → nötr yüzey + muted metin.
 
 ### 11.2 — Ağ katmanı + kontrat modelleri — [ ] (1 oturum)
 - [ ] **Dio kurulumu** (`core/network/dio_client.dart`): baseUrl, timeout, `LogInterceptor` (dev). 
@@ -736,5 +749,7 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
 - [ ] Android imzalama + Play internal test; iOS TestFlight; gizlilik politikası linki.
 - [ ] **Backend prod bağımlılıkları kontrol listesi (mobil yayın engelleri):** gerçek SMS sağlayıcısı (`Sms:Provider` + `Otp:DevMode=false`) · Firebase service-account (`Fcm:Provider=Firebase`) · Hangfire dashboard auth (10.14/2) · uploads kalıcı volume (10.14/3) · `FileStorage:BaseUrl` prod domain · CORS (yalnız web hedeflenirse).
 - **Bitti kriteri:** İmzalı prod build; internal test kanalında çalışan uygulama; yayın engeli listesi işaretli.
+
+> **AKTİF SIRADAKİ: 11.2 — Ağ katmanı + kontrat modelleri.** 11.1'den devralınanlar: `core/network/` ve `core/utils/` klasörleri boş (yalnız `.gitkeep`), dio/freezed/json_serializable/secure_storage bağımlılıkları kurulu ve `build_runner` hazır — kod üretimi ilk kez 11.2'de çalıştırılacak (`dart run build_runner build -d`). `Env.apiBaseUrl` hazır, `Env.enableNetworkLogs` dev+debug'da true.
 
 > **Sıra:** 11.1 → 11.2 → … → 11.15 (sıralı; her biri öncekine dayanır). Büyük modül olan İlanlar bilerek 2'ye bölündü (11.8-11.9). FCM (11.13) Firebase config gerektirir — o oturuma girmeden kullanıcıdan istenir. İlk 5 alt-faz temel/iskelet, 11.6-11.13 modül dikey kesitleri, 11.14-11.15 cila+yayın.

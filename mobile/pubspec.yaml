@@ -1,0 +1,71 @@
+name: kadirli_app
+description: "Kadirli şehir uygulaması"
+publish_to: 'none'
+
+# version: <sürüm>+<build>. Store yayınında (Faz 11.15) build numarası artırılır.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations: # Türkçe Material metinleri / tarih biçimleri
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # --- Durum yönetimi (Faz 11 teknoloji kararı) ---
+  flutter_riverpod: ^3.0.3
+
+  # --- Yönlendirme ---
+  go_router: ^17.2.1
+
+  # --- Ağ (11.2'de yapılandırılır) ---
+  dio: ^5.9.0
+
+  # --- Model / JSON (11.2'de kullanılmaya başlanır) ---
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.9.0
+
+  # --- Depolama ---
+  flutter_secure_storage: ^9.2.4 # token'lar (11.2)
+  shared_preferences: ^2.5.3 # tema tercihi vb.
+
+  # --- Görsel ---
+  cached_network_image: ^3.4.1
+  image_picker: ^1.2.0
+
+  # --- Yardımcılar ---
+  intl: ^0.20.2 # Türkçe tarih/sayı biçimleme
+  url_launcher: ^6.3.2 # telefon / WhatsApp / harita
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+  # --- Kod üretimi (11.2'den itibaren) ---
+  build_runner: ^2.9.0
+  freezed: ^3.2.4
+  json_serializable: ^6.11.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+
+  fonts:
+    # Nunito (SIL OFL 1.1 — lisans: assets/fonts/OFL.txt).
+    # Yalnız 3 ağırlık: gövde 400, başlık 600, vurgu 700 (MOBILE_UX_PLAN §2).
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Nunito-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Nunito-Bold.ttf
+          weight: 700
