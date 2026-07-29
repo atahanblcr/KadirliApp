@@ -5,6 +5,9 @@ Kadirli için mobil uygulamanın backend'i (REST API) ve web tabanlı yönetim p
 
 Bu rehber, projeyi sıfırdan bir bilgisayarda ayağa kaldırmak için gereken her şeyi adım adım anlatır.
 
+> 📱 **Mobil uygulama (Flutter)** ayrı bir alt projedir: **[`mobile/`](mobile/README.md)**.
+> API kontratı (zarf, hata kodları, auth akışı, uç envanteri): `Memory_Bank/API_CONTRACT.md`.
+
 ---
 
 ## 1. Proje Yapısı
@@ -21,6 +24,9 @@ Solution 6 projeden oluşur:
 | **KadirliApp.Tests** | Otomatik testler |
 
 Bağımlılık yönü: `Api`/`Web` → `Application` → `Domain`, altyapı ise `Infrastructure` üzerinden bağlanır.
+
+Solution dışında, repo kökünde ayrıca **`mobile/`** (Flutter mobil istemci) bulunur — kendi araç zinciriyle
+çalışır (`flutter run`), .NET çözümüne dahil değildir. Kurulumu: [`mobile/README.md`](mobile/README.md).
 
 ---
 
