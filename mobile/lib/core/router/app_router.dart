@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/dev/presentation/design_preview_screen.dart';
+import '../../features/dev/presentation/network_probe_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../config/env.dart';
 import '../widgets/widgets.dart';
@@ -26,6 +27,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.designPreview,
         name: 'designPreview',
         builder: (context, state) => const DesignPreviewScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.networkProbe,
+        name: 'networkProbe',
+        builder: (context, state) => const NetworkProbeScreen(),
       ),
     ],
     errorBuilder: (context, state) => AppScaffold(

@@ -5,4 +5,5 @@
 abstract final class AppRoutes {
   static const home = '/';
   static const designPreview = '/gelistirici/tasarim';
+  static const networkProbe = '/gelistirici/ag';
 }

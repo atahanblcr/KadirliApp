@@ -95,6 +95,13 @@ class HomeScreen extends StatelessWidget {
                     expand: true,
                     onPressed: () => context.push(AppRoutes.designPreview),
                   ),
+                  AppSpacing.gapSm,
+                  AppButton.ghost(
+                    label: 'Ağ tanılama',
+                    icon: Icons.lan_rounded,
+                    expand: true,
+                    onPressed: () => context.push(AppRoutes.networkProbe),
+                  ),
                 ],
               ),
             ),
