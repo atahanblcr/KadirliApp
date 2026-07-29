@@ -169,11 +169,17 @@ builder.Services.AddRateLimiter(o =>
 
 var app = builder.Build();
 
-// Hataları {success:false, error:{code,message}, meta} kontratına çevirir — pipeline'ın en başında olmalı
-app.UseMiddleware<ExceptionMiddleware>();
-
-// Her isteği tek satır yapılandırılmış olayla loglar (method, path, status, süre)
+// Her isteği tek satır yapılandırılmış olayla loglar (method, path, status, süre).
+// ⚠️ ExceptionMiddleware'DEN ÖNCE (yani DIŞTA) olmalı: aksi halde iş kuralı
+// hataları (AppException → 400 INVALID_OTP/VALIDATION_ERROR gibi) Serilog'a
+// yakalanmamış istisna gibi görünür ve Seq'e "500 ERR" olarak düşer —
+// istemciye doğru 400 gitse bile loglar yanıltıcı olur (30 Tem 2026'da mobil
+// canlı testinde yakalandı). Gerçek 500'lerin istisna ayrıntısı yine
+// ExceptionMiddleware'in kendi LogError'ından geliyor.
 app.UseSerilogRequestLogging();
+
+// Hataları {success:false, error:{code,message}, meta} kontratına çevirir
+app.UseMiddleware<ExceptionMiddleware>();
 
 // Migration + idempotent başlangıç verisi (super_admin ve lookup tabloları)
 await DbSeeder.SeedAsync(app.Services);

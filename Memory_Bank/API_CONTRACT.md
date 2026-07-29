@@ -78,8 +78,12 @@ Telefon + OTP tabanlı. Üç token türü: **access** (kısa ömür, `Authorizat
 
 ```
 1) POST /v1/auth/login        { "phone": "+9050..." }
-   → { "expiresInSeconds": 300, "retryAfterSeconds": 60, "devOtp": "123456" }
-     // OTP SMS ile gider. "devOtp" YALNIZ Otp:DevMode=true iken doludur (prod'da null).
+   → { "message": "OTP gönderildi", "expiresIn": 300, "retryAfter": 60, "otp": "123456" }
+     // OTP SMS ile gider. "otp" alanı YALNIZ Otp:DevMode=true iken YANITA EKLENİR
+     // (prod'da alan hiç yoktur, null değil).
+     // ⚠️ DÜZELTME (30 Tem 2026): bu doküman önceden `expiresInSeconds` /
+     // `retryAfterSeconds` / `devOtp` yazıyordu; AuthController.Login gerçekte
+     // yukarıdaki adları döndürüyor (canlı curl ile doğrulandı, Faz 11.3).
 
 2) POST /v1/auth/verify-otp   { "phone": "+9050...", "otp": "123456" }
    → KAYITLI:      { "isNewUser": false, "accessToken": "..", "refreshToken": "..", "expiresIn": 86400 }

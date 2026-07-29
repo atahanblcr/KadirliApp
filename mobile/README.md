@@ -53,8 +53,9 @@ lib/
     network/   dio, zarf açma, auth interceptor, token deposu, PagedResult
     router/    go_router yapılandırması + rota sabitleri
     theme/     renk/tipografi/boşluk token'ları, ThemeData, tema tercihi
-    utils/     görsel URL, tarih biçimleme, telefon/WhatsApp/harita açma
-    widgets/   AppButton · AppCard · AppScaffold · Skeleton · Boş/Hata/Offline
+    utils/     görsel URL, tarih biçimleme, telefon numarası, WhatsApp/harita açma
+    widgets/   AppButton · AppCard · AppTextField · InfoBanner · AppScaffold
+               · Skeleton · Boş/Hata/Offline
   features/
     <modül>/{data,domain,presentation}/
 ```
@@ -96,6 +97,36 @@ Kod üretimi (freezed/json_serializable) gerektiğinde:
 dart run build_runner build       # tek seferlik
 dart run build_runner watch       # geliştirirken
 ```
+
+## Oturum / kimlik doğrulama (Faz 11.3)
+
+Telefon + OTP. Ekranlar **yönlendirme yapmaz**: durumu değiştirir, `go_router`
+`redirect`'i karar verir (`core/router/app_router.dart`).
+
+```
+/acilis  Splash   → AuthController.bootstrap()  (token var mı → users/me)
+/giris   Telefon  → POST /v1/auth/login         (+90 sabit, 10 hane maskeli)
+/giris/kod Kod    → POST /v1/auth/verify-otp    (6. hanede otomatik doğrular)
+/kayit   Kayıt    → POST /v1/auth/register      (yalnız yeni kullanıcı)
+```
+
+| Parça | Nerede | Not |
+|---|---|---|
+| Durum makinesi | `features/auth/application/auth_state.dart` | `sealed class`: unknown/anonymous/registering/authenticated |
+| Oturum sahibi | `application/auth_controller.dart` | token saklama, profil, çıkış, oturum düşmesi |
+| Akış durumu | `application/otp_flow_controller.dart` | kod gönder/tekrar gönder/doğrula + geri sayım |
+| Uçlar | `data/auth_repository.dart` | yalnız HTTP; hata olarak `ApiException` |
+| Korumalı aksiyon | `presentation/widgets/login_required_sheet.dart` | `ensureSignedIn(context, ref, reason: …)` |
+
+**Kurallar**
+
+- Oturum gerektiren bir **aksiyon**: `if (!await ensureSignedIn(context, ref)) return;`
+- Oturum gerektiren bir **ekran**: yolunu `AppRoutes.protectedPrefixes`'e ekle — redirect korur.
+- Kullanıcı bilgisi: `ref.watch(currentUserProvider)` (oturum yoksa `null`).
+- Uygulama **misafir olarak da kullanılabilir**; giriş bir kapı değil davettir.
+- `tempToken` (kayıt akışı) **diske yazılmaz**, yalnız bellekte taşınır.
+- Telefon numarası her zaman `AppPhone.toE164(...)` ile gönderilir.
+- Dev modda (`Otp:DevMode=true`) sunucu kodu yanıtta döner → kod alanı otomatik dolar.
 
 ## Geliştirici ekranları (yalnız debug)
 
