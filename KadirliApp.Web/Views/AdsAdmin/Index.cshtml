@@ -17,6 +17,80 @@
         </div>
     </div>
 
+    @{
+        var q = ViewBag.Query as KadirliApp.Application.Features.Ads.Dtos.QueryAdDto;
+        var categories = ViewBag.Categories as IEnumerable<KadirliApp.Application.Features.Ads.Queries.AdCategoryAdminDto>;
+        var sortOptions = new (string Value, string Label)[]
+        {
+            ("newest", "En yeni"), ("oldest", "En eski"),
+            ("price_asc", "Fiyat: artan"), ("price_desc", "Fiyat: azalan")
+        };
+        var hasFilter = q != null && (q.CategoryId.HasValue || q.MinPrice.HasValue
+            || q.MaxPrice.HasValue || !string.IsNullOrWhiteSpace(q.Search)
+            || (!string.IsNullOrWhiteSpace(q.Sort) && q.Sort != "newest"));
+    }
+
+    @* Sorgu bu filtreleri baştan destekliyordu; panelde girecek alan yoktu. *@
+    <form asp-action="Index" method="get" class="bg-white rounded-lg shadow p-4 flex flex-wrap items-end gap-3">
+        <div class="flex flex-col gap-1">
+            <label for="search" class="text-xs font-medium text-gray-600">Ara</label>
+            <input type="text" id="search" name="search" value="@q?.Search" placeholder="Başlık veya açıklama"
+                   class="w-56 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label for="categoryId" class="text-xs font-medium text-gray-600">Kategori</label>
+            <select id="categoryId" name="categoryId"
+                    class="w-52 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Tümü</option>
+                @if (categories != null)
+                {
+                    @* ⚠️ selected ifadesi KESİN bool olmalı — dynamic dönerse Razor koşullu
+                       öznitelik silmesini yapamaz ve selected="True" ile TÜM seçenekler işaretlenir. *@
+                    foreach (var category in categories)
+                    {
+                        bool isSelected = q?.CategoryId == category.Id;
+                        <option value="@category.Id" selected="@isSelected">@category.Name</option>
+                    }
+                }
+            </select>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label for="minPrice" class="text-xs font-medium text-gray-600">Fiyat aralığı</label>
+            <div class="flex items-center gap-1">
+                <input type="number" id="minPrice" name="minPrice" value="@q?.MinPrice" placeholder="En az" step="any" min="0"
+                       class="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <span class="text-gray-400">–</span>
+                <input type="number" name="maxPrice" value="@q?.MaxPrice" placeholder="En çok" step="any" min="0"
+                       aria-label="En çok fiyat"
+                       class="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label for="sort" class="text-xs font-medium text-gray-600">Sıralama</label>
+            <select id="sort" name="sort"
+                    class="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                @foreach (var option in sortOptions)
+                {
+                    <option value="@option.Value" selected="@(q?.Sort == option.Value)">@option.Label</option>
+                }
+            </select>
+        </div>
+
+        <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700">
+            <i class="fas fa-filter mr-1"></i> Filtrele
+        </button>
+
+        @if (hasFilter)
+        {
+            <a asp-action="Index" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                Temizle
+            </a>
+        }
+    </form>
+
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">

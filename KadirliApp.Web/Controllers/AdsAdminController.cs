@@ -33,6 +33,10 @@ public class AdsAdminController : Controller
     public async Task<IActionResult> Index([FromQuery] QueryAdDto query)
     {
         var result = await _sender.Send(new GetAdsQuery(query));
+        // Filtre çubuğunun kategori seçicisi için (sorgu zaten CategoryId/fiyat/arama/sort destekliyordu,
+        // panelde bunları girecek alan yoktu).
+        await LoadCategoriesAsync();
+        ViewBag.Query = query;
         return View(result);
     }
     [HttpGet]
