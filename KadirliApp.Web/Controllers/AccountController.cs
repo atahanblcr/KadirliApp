@@ -137,7 +137,7 @@ public class AccountController : Controller
             return View();
         }
 
-        TempData["ok"] = "Şifreniz başarıyla değiştirildi.";
+        TempData["Success"] = "Şifreniz başarıyla değiştirildi.";
         return RedirectToAction("Index", "Dashboard");
     }
 

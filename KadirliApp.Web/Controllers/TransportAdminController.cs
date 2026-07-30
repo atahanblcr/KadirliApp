@@ -41,11 +41,11 @@ public class TransportAdminController : Controller
         var result = await _sender.Send(new DeleteIntracityRouteCommand(id));
         if (result)
         {
-            TempData["SuccessMessage"] = "Ulaşım güzergahı başarıyla silindi.";
+            TempData["Success"] = "Ulaşım güzergahı başarıyla silindi.";
         }
         else
         {
-            TempData["ErrorMessage"] = "Güzergah bulunamadı.";
+            TempData["Error"] = "Güzergah bulunamadı.";
         }
         return RedirectToAction(nameof(Index));
     }

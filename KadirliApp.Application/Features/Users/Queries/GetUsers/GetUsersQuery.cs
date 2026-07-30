@@ -19,6 +19,11 @@ public class UserListItemDto
     public bool IsActive { get; set; }
     public bool IsBanned { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    // Panel listesinin gösterdiği alanlar (admin-only sorgu; ban izi + avatar).
+    public string? BanReason { get; set; }
+    public DateTime? BannedAt { get; set; }
+    public string? ProfilePhotoUrl { get; set; }
 }
 
 public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, PagedResult<UserListItemDto>>
@@ -63,7 +68,10 @@ public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, PagedResult<U
                 Role = u.Role.ToString(),
                 IsActive = u.IsActive,
                 IsBanned = u.IsBanned,
-                CreatedAt = u.CreatedAt
+                CreatedAt = u.CreatedAt,
+                BanReason = u.BanReason,
+                BannedAt = u.BannedAt,
+                ProfilePhotoUrl = u.ProfilePhotoUrl
             })
             .ToListAsync(ct);
 

@@ -16,15 +16,6 @@
     </div>
 </div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 shadow-sm" role="alert">@TempData["Success"]</div>
-}
-@if (TempData["Error"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">@TempData["Error"]</div>
-}
-
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
     <div class="p-4 border-b border-gray-200">
         <form method="get" class="flex flex-col md:flex-row md:items-center gap-3">

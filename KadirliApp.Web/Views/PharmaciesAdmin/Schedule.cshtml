@@ -35,15 +35,6 @@
     </div>
 </div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 shadow-sm" role="alert">@TempData["Success"]</div>
-}
-@if (TempData["Error"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">@TempData["Error"]</div>
-}
-
 <!-- Bugünün nöbetçisi (mobil on-duty ucunun panelden görünümü) -->
 <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 flex items-start gap-3">
     <div class="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">

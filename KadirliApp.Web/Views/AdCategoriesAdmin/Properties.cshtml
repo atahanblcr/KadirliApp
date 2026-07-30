@@ -19,15 +19,6 @@
     </a>
 </div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 shadow-sm" role="alert">@TempData["Success"]</div>
-}
-@if (TempData["Error"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">@TempData["Error"]</div>
-}
-
 @* Yeni özellik ekleme (BusinessesAdmin hızlı-kategori <details> deseni) *@
 <details class="bg-white rounded-lg border border-gray-200 shadow-sm mb-4">
     <summary class="px-6 py-4 cursor-pointer text-sm font-medium text-indigo-700 hover:bg-gray-50 rounded-lg">

@@ -26,15 +26,6 @@
         </div>
     </div>
 
-    @if (TempData["Error"] != null)
-    {
-        <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">@TempData["Error"]</div>
-    }
-    @if (TempData["Success"] != null)
-    {
-        <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 shadow-sm" role="alert">@TempData["Success"]</div>
-    }
-
     <details class="mb-4">
         <summary class="cursor-pointer text-sm text-indigo-600 hover:underline inline-flex items-center gap-1">
             <i class="fas fa-plus-circle"></i> Yeni işletme kategorisi ekle

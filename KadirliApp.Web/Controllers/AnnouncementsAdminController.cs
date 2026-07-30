@@ -43,14 +43,14 @@ public class AnnouncementsAdminController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index([FromQuery] int page = 1)
     {
-        // Faz 10.8: query PagedResult'a geçti — panel listesi tek sayfada en fazla 200 kayıt gösterir
-        // (panel sayfalama UI'ı yok; duyuru sayısı 200'ü aşarsa panele sayfalama eklenmeli — 10.9 adayı).
-        var result = await _sender.Send(new GetAnnouncementsQuery { Limit = 200 });
+        // Faz 10.8'de query PagedResult'a geçmişti ama panel sayfalama UI'ı olmadığı için
+        // tek sayfada 200 kayıt çekiliyordu; UI geldi, sayfalı okumaya dönüldü.
+        var result = await _sender.Send(new GetAnnouncementsQuery { Page = page, Limit = 20 });
         // Faz 10.10-A: görüntülenme/tıklama/tekil-erişim panel-only ayrı query'den (public DTO'ya sızdırılmaz)
         ViewBag.Stats = await _sender.Send(new KadirliApp.Application.Features.Announcements.Queries.GetAnnouncementAdminStats.GetAnnouncementAdminStatsQuery());
-        return View(result.Items.ToList());
+        return View(result);
     }
 
     [HttpGet]

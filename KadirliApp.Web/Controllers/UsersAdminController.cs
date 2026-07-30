@@ -12,6 +12,7 @@ using KadirliApp.Application.Features.Users.Commands.CreateUser;
 using KadirliApp.Application.Features.Users.Commands.SetUserBan;
 using KadirliApp.Application.Features.Users.Commands.UpdateUser;
 using KadirliApp.Application.Features.Users.DTOs;
+using KadirliApp.Application.Features.Users.Queries.GetUsers;
 using System.Security.Claims;
 
 namespace KadirliApp.Web.Controllers;
@@ -28,14 +29,15 @@ public class UsersAdminController : Controller
         _sender = sender;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index([FromQuery] string? search, [FromQuery] int page = 1)
     {
-        var users = await _uow.Repository<User>()
-            .Query()
-            .OrderByDescending(u => u.CreatedAt)
-            .ToListAsync();
-            
-        return View(users);
+        // Faz 9.4 kuralı: panel inline sorgu kurmaz. Eskiden burada filtresiz `ToListAsync()`
+        // vardı — kullanıcı tablosu en hızlı büyüyen tablo olduğundan tüm satırlar belleğe
+        // çekiliyordu ve panelde sayfalama da yoktu. GetUsersQuery arama + sayfalamayı zaten
+        // sağlıyordu (Admin API kullanıyordu), panel ondan sapmıştı.
+        var result = await _sender.Send(new GetUsersQuery(search, null, page, 20));
+        ViewBag.Search = search;
+        return View(result);
     }
 
     [HttpGet]

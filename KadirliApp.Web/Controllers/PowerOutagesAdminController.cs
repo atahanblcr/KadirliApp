@@ -4,6 +4,8 @@ using MediatR;
 using KadirliApp.Application.Features.PowerOutages.Queries.GetPowerOutages;
 using KadirliApp.Application.Features.PowerOutages.Commands.DeletePowerOutage;
 using KadirliApp.Application.Features.PowerOutages.DTOs;
+using KadirliApp.Application.Common.Models;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System;
@@ -20,16 +22,32 @@ public class PowerOutagesAdminController : Controller
         _sender = sender;
     }
 
+    private const int PageSize = 20;
+
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index([FromQuery] int page = 1)
     {
         var result = await _sender.Send(new GetPowerOutagesQuery());
-        if (result.Success)
+        var outages = result.Success ? result.Data ?? new List<PowerOutageDto>() : new List<PowerOutageDto>();
+
+        // ⚠️ Sayfalama BİLİNÇLİ olarak bellekte yapılıyor: GetPowerOutagesQuery tarih filtresi
+        // olmadan TÜM kayıtları döner ve mobil (Faz 11.4) süren/planlı ayrımını istemcide bu tam
+        // listeye bakarak yapıyor. Sorguyu PagedResult'a çevirmek public kontratı kırardı.
+        // Panelin tek sorunu 1000 satırı ekrana basmaktı — çözülen o.
+        return View(Paginate(outages, page));
+    }
+
+    private static PagedResult<PowerOutageDto> Paginate(List<PowerOutageDto> source, int page)
+    {
+        var (currentPage, pageSize) = Pagination.Clamp(page, PageSize, Pagination.AdminMaxLimit);
+
+        return new PagedResult<PowerOutageDto>
         {
-            return View(result.Data);
-        }
-        
-        return View(new List<PowerOutageDto>());
+            Items = source.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList(),
+            TotalCount = source.Count,
+            CurrentPage = currentPage,
+            PageSize = pageSize
+        };
     }
 
     [HttpGet]
@@ -92,11 +110,11 @@ public class PowerOutagesAdminController : Controller
         var result = await _sender.Send(new DeletePowerOutageCommand { Id = id });
         if (result.Success)
         {
-            TempData["SuccessMessage"] = "Kesinti bilgisi başarıyla silindi.";
+            TempData["Success"] = "Kesinti bilgisi başarıyla silindi.";
         }
         else
         {
-            TempData["ErrorMessage"] = result.Error?.Message ?? "Silinirken bir hata oluştu.";
+            TempData["Error"] = result.Error?.Message ?? "Silinirken bir hata oluştu.";
         }
         return RedirectToAction(nameof(Index));
     }

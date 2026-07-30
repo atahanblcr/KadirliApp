@@ -147,11 +147,11 @@ public class PharmaciesAdminController : Controller
         var result = await _sender.Send(new DeletePharmacyCommand(id));
         if (result)
         {
-            TempData["SuccessMessage"] = "Eczane başarıyla silindi.";
+            TempData["Success"] = "Eczane başarıyla silindi.";
         }
         else
         {
-            TempData["ErrorMessage"] = "Eczane silinirken bir hata oluştu.";
+            TempData["Error"] = "Eczane silinirken bir hata oluştu.";
         }
         return RedirectToAction(nameof(Index));
     }

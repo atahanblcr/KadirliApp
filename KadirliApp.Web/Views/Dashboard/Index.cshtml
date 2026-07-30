@@ -10,19 +10,6 @@
     </a>
 </div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 font-medium">
-        @TempData["Success"]
-    </div>
-}
-@if (TempData["Error"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 font-medium">
-        @TempData["Error"]
-    </div>
-}
-
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
     <!-- Stat Cards -->
     <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6">

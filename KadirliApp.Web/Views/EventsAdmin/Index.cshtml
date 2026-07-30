@@ -18,15 +18,6 @@
     </div>
 </div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 font-medium">@TempData["Success"]</div>
-}
-@if (TempData["Error"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 font-medium">@TempData["Error"]</div>
-}
-
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
     <div class="p-4 border-b border-gray-200">
         <form action="" method="get" class="relative w-full md:w-64">

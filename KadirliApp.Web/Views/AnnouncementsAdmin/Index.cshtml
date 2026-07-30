@@ -1,4 +1,4 @@
-@model List<KadirliApp.Application.Features.Announcements.DTOs.AnnouncementDto>
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Announcements.DTOs.AnnouncementDto>
 @using KadirliApp.Application.Features.Announcements.Queries.GetAnnouncementAdminStats
 @{
     ViewData["Title"] = "Duyuru Yönetimi";
@@ -35,9 +35,9 @@
                 </tr>
             </thead>
             <tbody>
-                @if (Model != null && Model.Any())
+                @if (Model != null && Model.Items.Any())
                 {
-                    foreach (var item in Model)
+                    foreach (var item in Model.Items)
                     {
                         <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
                             <td class="px-6 py-4">
@@ -163,4 +163,6 @@
             </tbody>
         </table>
     </div>
+
+    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "duyuru"))
 </div>

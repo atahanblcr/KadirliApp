@@ -18,19 +18,6 @@
     </div>
 </div>
 
-@if (TempData["Success"] != null || TempData["SuccessMessage"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 shadow-sm" role="alert">
-        @(TempData["Success"] ?? TempData["SuccessMessage"])
-    </div>
-}
-@if (TempData["Error"] != null || TempData["ErrorMessage"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">
-        @(TempData["Error"] ?? TempData["ErrorMessage"])
-    </div>
-}
-
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
     <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <!-- Search -->

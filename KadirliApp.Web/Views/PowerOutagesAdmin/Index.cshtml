@@ -1,4 +1,4 @@
-@model List<KadirliApp.Application.Features.PowerOutages.DTOs.PowerOutageDto>
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.PowerOutages.DTOs.PowerOutageDto>
 @{
     ViewData["Title"] = "Elektrik Kesintileri";
 }
@@ -15,19 +15,6 @@
     </div>
 </div>
 
-@if (TempData["Success"] != null || TempData["SuccessMessage"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 shadow-sm" role="alert">
-        @(TempData["Success"] ?? TempData["SuccessMessage"])
-    </div>
-}
-@if (TempData["Error"] != null || TempData["ErrorMessage"] != null)
-{
-    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">
-        @(TempData["Error"] ?? TempData["ErrorMessage"])
-    </div>
-}
-
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
     <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-gray-500">
@@ -41,9 +28,9 @@
                 </tr>
             </thead>
             <tbody>
-                @if (Model != null && Model.Any())
+                @if (Model != null && Model.Items.Any())
                 {
-                    foreach (var item in Model)
+                    foreach (var item in Model.Items)
                     {
                         <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
                             <td class="px-6 py-4 font-medium text-gray-900">
@@ -85,4 +72,6 @@
             </tbody>
         </table>
     </div>
+
+    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "kesinti"))
 </div>

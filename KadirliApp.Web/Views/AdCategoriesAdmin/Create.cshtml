@@ -13,11 +13,6 @@
         </a>
     </div>
 
-    @if (TempData["Error"] != null)
-    {
-        <div class="p-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">@TempData["Error"]</div>
-    }
-
     <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
         <div class="p-8">
             <form asp-action="Create" method="post" class="space-y-5">

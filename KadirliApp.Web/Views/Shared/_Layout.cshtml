@@ -34,14 +34,24 @@
             </header>
 
             <main class="flex-grow w-full max-w-9xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                @if (TempData["ok"] is string ok) { 
-                    <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50" role="alert">
-                        @ok
+                @*
+                    Panel bildirim balonlarının TEK yeri. View'lar bunları kendileri BASMAZ —
+                    controller yalnızca TempData["Success"] / TempData["Error"] kurar.
+                    ⚠️ TempData key'leri harf DUYARSIZDIR (TempDataDictionary OrdinalIgnoreCase):
+                    burada "error", view'da "Error" yazmak aynı kaydı İKİ kez bastırıyordu.
+                *@
+                @if (TempData["Success"] is string successMessage)
+                {
+                    <div class="flex items-start gap-2 p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 shadow-sm" role="alert">
+                        <i class="fas fa-check-circle mt-0.5"></i>
+                        <span>@successMessage</span>
                     </div>
                 }
-                @if (TempData["error"] is string error) { 
-                    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
-                        @error
+                @if (TempData["Error"] is string errorMessage)
+                {
+                    <div class="flex items-start gap-2 p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 shadow-sm" role="alert">
+                        <i class="fas fa-exclamation-circle mt-0.5"></i>
+                        <span>@errorMessage</span>
                     </div>
                 }
                 @RenderBody()
