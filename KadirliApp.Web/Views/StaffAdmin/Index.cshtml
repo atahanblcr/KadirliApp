@@ -131,21 +131,4 @@
     }
 </div>
 
-@if (Model.TotalPages > 1)
-{
-    <div class="mt-4 flex items-center justify-between text-sm text-gray-600">
-        <span>Toplam @Model.TotalCount personel — sayfa @Model.CurrentPage/@Model.TotalPages</span>
-        <div class="flex gap-2">
-            @if (Model.CurrentPage > 1)
-            {
-                <a asp-action="Index" asp-route-page="@(Model.CurrentPage - 1)" asp-route-search="@ViewBag.Search"
-                   class="px-3 py-1.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">← Önceki</a>
-            }
-            @if (Model.CurrentPage < Model.TotalPages)
-            {
-                <a asp-action="Index" asp-route-page="@(Model.CurrentPage + 1)" asp-route-search="@ViewBag.Search"
-                   class="px-3 py-1.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Sonraki →</a>
-            }
-        </div>
-    </div>
-}
+@await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "personel"))

@@ -12,6 +12,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Hangfire;
 using KadirliApp.Infrastructure.Health;
+using KadirliApp.Infrastructure.Jobs;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
 var builder = WebApplication.CreateBuilder(args);
@@ -214,7 +215,13 @@ app.MapGet("/", () => "Hello KadirliApp .NET 8 API!");
 // Faz 9.3: /health (detay), /health/live, /health/ready
 app.MapInfrastructureHealthEndpoints();
 
-app.UseHangfireDashboard("/hangfire");
+// Faz 10.14/(2): dashboard artık korumalı — Hangfire'ın "yalnız yerel istek" varsayılanı
+// reverse-proxy arkasında çöker (her istek localhost'tan gelir). Ayrıntı ve yapılandırma:
+// HangfireDashboardAuthorizationFilter.
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireDashboardAuthorizationFilter(app.Configuration) }
+});
 app.Services.UseInfrastructureJobs();
 
 app.Run();

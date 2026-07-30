@@ -149,4 +149,6 @@
             </tbody>
         </table>
     </div>
+
+    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "rehber kaydı"))
 </div>
