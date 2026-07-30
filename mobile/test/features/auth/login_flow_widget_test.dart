@@ -20,6 +20,7 @@ void main() {
   };
 
   FakeHttpAdapter authAdapter({required bool isNewUser}) => routedAdapter({
+    ...homeStubs(),
     '/v1/auth/login': (_) async => jsonResponse(
       successEnvelope({
         'message': 'OTP gönderildi',
@@ -56,14 +57,14 @@ void main() {
   testWidgets('ilk açılışta giriş ekranı gelir (oturum yok, misafir seçimi yok)', (
     tester,
   ) async {
-    await pumpApp(tester, adapter: routedAdapter({}));
+    await pumpApp(tester, adapter: routedAdapter(homeStubs()));
 
     expect(find.text('Telefonunuzla giriş yapın'), findsOneWidget);
     expect(find.text('Kod Gönder'), findsOneWidget);
   });
 
   testWidgets('geçersiz numara sunucuya gitmez, alan altında uyarı çıkar', (tester) async {
-    final adapter = routedAdapter({});
+    final adapter = routedAdapter(homeStubs());
     await pumpApp(tester, adapter: adapter);
 
     await tester.enterText(find.byType(TextField), '532 111 00');
@@ -89,7 +90,7 @@ void main() {
     await tester.tap(find.text('Doğrula'));
     await settleApp(tester);
 
-    expect(find.text('Merhaba ahmetk 👋'), findsOneWidget);
+    expect(find.textContaining('ahmetk'), findsOneWidget);
     expect(adapter.countOf('/v1/auth/verify-otp'), 1);
 
     final store = container.read(tokenStoreProvider);
@@ -122,7 +123,7 @@ void main() {
     await tester.tap(find.text('Kaydı Tamamla'));
     await settleApp(tester);
 
-    expect(find.text('Merhaba yenikomsu 👋'), findsOneWidget);
+    expect(find.textContaining('yenikomsu'), findsOneWidget);
     expect(adapter.countOf('/v1/auth/register'), 1);
   });
 
@@ -146,6 +147,7 @@ void main() {
 
   testWidgets('hatalı kod: INVALID_OTP mesajı görünür, ekran değişmez', (tester) async {
     final adapter = routedAdapter({
+      ...homeStubs(),
       '/v1/auth/login': (_) async => jsonResponse(
         successEnvelope({'message': 'OTP gönderildi', 'expiresIn': 300, 'retryAfter': 60}),
       ),
@@ -168,13 +170,13 @@ void main() {
   });
 
   testWidgets('misafir olarak devam → Ana Sayfa ve tercih kalıcı', (tester) async {
-    final container = await pumpApp(tester, adapter: routedAdapter({}));
+    final container = await pumpApp(tester, adapter: routedAdapter(homeStubs()));
 
     await tester.tap(find.text('Misafir olarak devam et'));
     await settleApp(tester);
 
-    expect(find.text('Merhaba 👋'), findsOneWidget);
-    expect(find.text('Misafir olarak geziyorsunuz'), findsOneWidget);
+    expect(find.textContaining('👋'), findsOneWidget);
+    expect(find.text('Modüller'), findsOneWidget);
     expect(container.read(sharedPreferencesProvider).getBool('auth.guestChoice'), isTrue);
   });
 
@@ -183,12 +185,13 @@ void main() {
       tester,
       tokenStore: InMemoryTokenStore(accessToken: 'ACCESS', refreshToken: 'REFRESH'),
       adapter: routedAdapter({
+        ...homeStubs(),
         '/v1/users/me': (_) async => jsonResponse(successEnvelope(meBody())),
       }),
     );
 
-    expect(find.text('Merhaba ahmetk 👋'), findsOneWidget);
-    expect(find.text('Çıkış yap'), findsOneWidget);
+    expect(find.textContaining('ahmetk'), findsOneWidget);
+    expect(find.text('Modüller'), findsOneWidget);
   });
 
   testWidgets('çıkış yapınca oturum kapanır ve Giriş ekranına dönülür', (tester) async {
@@ -197,11 +200,16 @@ void main() {
       tester,
       tokenStore: store,
       adapter: routedAdapter({
+        ...homeStubs(),
         '/v1/users/me': (_) async => jsonResponse(successEnvelope(meBody())),
         '/v1/auth/logout': (_) async =>
             jsonResponse(successEnvelope({'message': 'Çıkış yapıldı'})),
       }),
     );
+
+    // 11.4: çıkış Ayarlar ekranında (sağ üst ⚙️).
+    await tester.tap(find.byTooltip('Ayarlar'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Çıkış yap'));
     await tester.pumpAndSettle();
@@ -212,19 +220,24 @@ void main() {
     expect(find.text('Telefonunuzla giriş yapın'), findsOneWidget);
   });
 
-  testWidgets('anonim kullanıcı korumalı aksiyona basınca nazik davet gelir', (tester) async {
+  testWidgets('misafir Profil sekmesinde daveti görür, sekme kabuğu kalır', (tester) async {
     await pumpApp(
       tester,
       prefs: {'auth.guestChoice': true},
-      adapter: routedAdapter({}),
+      adapter: routedAdapter(homeStubs()),
     );
 
-    await tester.tap(find.text('Profilim'));
+    await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Bunun için giriş gerekiyor'), findsOneWidget);
-    await tester.tap(find.text('Şimdi değil'));
+    // Sert yönlendirme YOK: giriş ekranına atılmadık, davet ekranın içinde.
+    expect(find.text('Hesabınıza giriş yapın'), findsOneWidget);
+    expect(find.text('Telefonunuzla giriş yapın'), findsNothing);
+    expect(find.text('Ana Sayfa'), findsOneWidget); // alt sekmeler yerinde
+
+    // Davetteki "Giriş yap" gerçek giriş akışını açar.
+    await tester.tap(find.text('Giriş yap'));
     await tester.pumpAndSettle();
-    expect(find.text('Merhaba 👋'), findsOneWidget);
+    expect(find.text('Telefonunuzla giriş yapın'), findsOneWidget);
   });
 }

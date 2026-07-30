@@ -11,4 +11,5 @@ export 'interceptors/envelope_interceptor.dart';
 export 'models/api_meta.dart';
 export 'models/paged_result.dart';
 export 'network_providers.dart';
+export 'retry_policy.dart';
 export 'token_store.dart';

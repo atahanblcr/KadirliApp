@@ -106,6 +106,41 @@ ApiClient testApiClient(
   ),
 );
 
+/// Ana Sayfa (11.4) açılışta üç uç sorgular (nöbetçi eczane / kesinti /
+/// duyuru); oturum açıksa rozet için bir dördüncüsü.
+///
+/// Başka bir konuya odaklanan testler (auth akışı, tema) bu varsayılanları
+/// serper — böylece Ana Sayfa 404 gürültüsü üretmez:
+/// `routedAdapter({...homeStubs(), '/v1/…': …})`
+Map<String, Future<ResponseBody> Function(RequestOptions options)> homeStubs({
+  List<Map<String, dynamic>> onDuty = const [],
+  List<Map<String, dynamic>> outages = const [],
+  List<Map<String, dynamic>> announcements = const [],
+  int unreadCount = 0,
+}) => {
+  '/v1/pharmacies/on-duty': (_) async => jsonResponse(successEnvelope(onDuty)),
+  '/v1/power-outages': (_) async => jsonResponse(successEnvelope(outages)),
+  '/v1/announcements': (_) async => jsonResponse(
+    successEnvelope({
+      'items': announcements,
+      'totalCount': announcements.length,
+      'pageSize': 3,
+      'currentPage': 1,
+      'totalPages': announcements.isEmpty ? 0 : 1,
+    }),
+  ),
+  '/v1/notifications': (_) async => jsonResponse(
+    successEnvelope({
+      'unreadCount': unreadCount,
+      'items': <Object>[],
+      'totalCount': 0,
+      'pageSize': 1,
+      'currentPage': 1,
+      'totalPages': 0,
+    }),
+  ),
+};
+
 /// Sahte yanıt üreticisi: yol → gövde eşlemesi.
 FakeHttpAdapter routedAdapter(
   Map<String, Future<ResponseBody> Function(RequestOptions options)> routes, {

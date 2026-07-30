@@ -97,18 +97,32 @@ class _SkeletonBoxState extends State<SkeletonBox> with SingleTickerProviderStat
 
 /// Liste ekranlarının varsayılan yükleniyor görünümü: birkaç kart iskeleti.
 class SkeletonCardList extends StatelessWidget {
-  const SkeletonCardList({super.key, this.itemCount = 4, this.hasImage = true});
+  const SkeletonCardList({
+    super.key,
+    this.itemCount = 4,
+    this.hasImage = true,
+    this.padding = const EdgeInsets.all(AppSpacing.lg),
+    this.shrinkWrap = false,
+  });
 
   final int itemCount;
 
   /// Kartta hero görsel yeri var mı (ilan/duyuru kartları).
   final bool hasImage;
 
+  final EdgeInsetsGeometry padding;
+
+  /// ⚠️ **Başka bir kaydırılabilir alanın içinde** kullanılıyorsa (Ana Sayfa
+  /// vitrini gibi) `true` verilmeli — yoksa "Vertical viewport was given
+  /// unbounded height" hatası alınır.
+  final bool shrinkWrap;
+
   @override
   Widget build(BuildContext context) {
     final palette = Theme.of(context).palette;
     return ListView.separated(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: padding,
+      shrinkWrap: shrinkWrap,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: itemCount,
       separatorBuilder: (_, _) => AppSpacing.gapMd,

@@ -1,9 +1,16 @@
 /// Rota yolları tek yerde — string kopyalamak yok.
 ///
-/// Faz 11 ilerledikçe burası büyür (11.4 sekme kabuğu, 11.13 push deep-link
-/// hedefleri).
+/// Faz 11 ilerledikçe burası büyür (11.13 push deep-link hedefleri).
 abstract final class AppRoutes {
+  // --- Alt sekmeler (11.4) ---
+  /// Ana Sayfa (Hub) — 1. sekme.
   static const home = '/';
+  static const ads = '/ilanlar';
+  static const notifications = '/bildirimler';
+  static const profile = '/profil';
+
+  /// Sekme sırası — `StatefulShellRoute` dal indeksleriyle birebir.
+  static const tabs = [home, ads, notifications, profile];
 
   // --- Kimlik doğrulama (11.3) ---
   /// Açılış: oturum kararı burada verilir, sonra yönlendirilir.
@@ -11,6 +18,22 @@ abstract final class AppRoutes {
   static const login = '/giris';
   static const otpVerify = '/giris/kod';
   static const register = '/kayit';
+
+  // --- Ayarlar / Kontrol (11.4 iskelet → 11.5 tam) ---
+  static const settings = '/ayarlar';
+
+  // --- Modül ekranları (11.6+ dolduracak; bugün "yakında" ekranı) ---
+  static const announcements = '/duyurular';
+  static const powerOutages = '/kesintiler';
+  static const pharmacies = '/eczaneler';
+  static const guide = '/rehber';
+  static const deaths = '/vefat';
+  static const taxis = '/taksi';
+  static const places = '/mekanlar';
+  static const events = '/etkinlikler';
+  static const campaigns = '/kampanyalar';
+  static const transport = '/ulasim';
+  static const complaints = '/sikayet';
 
   // --- Geliştirici (yalnız debug) ---
   static const designPreview = '/gelistirici/tasarim';
@@ -22,10 +45,11 @@ abstract final class AppRoutes {
   /// **Oturum zorunlu** rota önekleri. Anonim kullanıcı bunlara giderse
   /// `/giris`e yönlendirilir.
   ///
-  /// Bugün boş: 11.3'te oturum gerektiren bir *ekran* yok — uygulama misafir
-  /// olarak gezilebiliyor, korumalı **aksiyonlar** ise `ensureSignedIn` ile
-  /// nazikçe girişe yönlendiriyor (MOBILE_UX_PLAN §7). 11.4/11.5'te "Profil"
-  /// ve "Bildirimler" sekmeleri eklendiğinde buraya yazılacak.
+  /// ⚠️ **Sekmeler bilinçli olarak burada DEĞİL.** Bildirimler/Profil sekmesine
+  /// dokunan misafir sert yönlendirmeyle sekme kabuğundan atılmaz; ekranın
+  /// içinde nazik `SignInPrompt` daveti görür (MOBILE_UX_PLAN §7 + 11.3'ün
+  /// "misafir gezinme birinci sınıf" kararı). Bu liste, sekme dışı **gerçek
+  /// korumalı ekranlar** için ayrılmıştır (11.9 "ilan ver" gibi).
   static const protectedPrefixes = <String>[];
 
   static bool requiresAuth(String location) =>

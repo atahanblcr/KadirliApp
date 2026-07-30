@@ -10,43 +10,60 @@ import 'helpers/pump_app.dart';
 /// ⚠️ 11.3'ten sonra açılış doğrudan Ana Sayfa'ya düşmüyor: oturumu ve "misafir
 /// devam" tercihi olmayan kullanıcı Giriş ekranına yönlendiriliyor. Tema
 /// testleri bu yüzden misafir tercihi işaretli açılıyor.
+///
+/// ⚠️ 11.4'ten sonra tema seçici Ana Sayfa'da değil **Ayarlar**'da (sağ üst ⚙️),
+/// ve selamlama saate göre değişiyor (Günaydın/İyi günler/…) → metin tam
+/// eşleşme yerine 👋 ile aranıyor.
 void main() {
   const guest = {'auth.guestChoice': true};
 
-  testWidgets('uygulama açılır ve karşılama ekranı görünür', (tester) async {
-    await pumpApp(tester, prefs: guest, adapter: routedAdapter({}));
+  testWidgets('uygulama açılır ve Ana Sayfa hub + sekmeler görünür', (tester) async {
+    await pumpApp(tester, prefs: guest, adapter: routedAdapter(homeStubs()));
 
-    expect(find.text('Merhaba 👋'), findsOneWidget);
-    expect(find.text('Kadirli'), findsOneWidget);
+    expect(find.textContaining('👋'), findsOneWidget);
+    expect(find.text('Modüller'), findsOneWidget);
+
+    // Alt sekme kabuğu ayakta. ("İlanlar" hem sekmede hem modül ızgarasında
+    // geçiyor → arama NavigationBar'ın içine daraltılır.)
+    Finder tab(String label) => find.descendant(
+      of: find.byType(NavigationBar),
+      matching: find.text(label),
+    );
+    expect(tab('Ana Sayfa'), findsOneWidget);
+    expect(tab('İlanlar'), findsOneWidget);
+    expect(tab('Bildirim'), findsOneWidget);
+    expect(tab('Profil'), findsOneWidget);
   });
 
   testWidgets('oturumu olmayan yeni kullanıcı Giriş ekranıyla karşılanır', (tester) async {
-    await pumpApp(tester, adapter: routedAdapter({}));
+    await pumpApp(tester, adapter: routedAdapter(homeStubs()));
 
     expect(find.text('Telefonunuzla giriş yapın'), findsOneWidget);
   });
 
   testWidgets('Nunito fontu ve marka renkleri uygulanır', (tester) async {
-    await pumpApp(tester, prefs: guest, adapter: routedAdapter({}));
+    await pumpApp(tester, prefs: guest, adapter: routedAdapter(homeStubs()));
 
-    final theme = Theme.of(tester.element(find.text('Merhaba 👋')));
+    final theme = Theme.of(tester.element(find.text('Modüller')));
     expect(theme.textTheme.bodyLarge?.fontFamily, 'Nunito');
     expect(theme.colorScheme.primary, AppColors.primary);
     expect(theme.scaffoldBackgroundColor, AppColors.background);
     expect(theme.palette.accent, AppColors.accent);
   });
 
-  testWidgets('tema Açık↔Koyu değişir ve tercih kalıcıdır', (tester) async {
-    await pumpApp(tester, prefs: guest, adapter: routedAdapter({}));
+  testWidgets('Ayarlar\'dan tema Açık↔Koyu değişir ve tercih kalıcıdır', (tester) async {
+    await pumpApp(tester, prefs: guest, adapter: routedAdapter(homeStubs()));
 
-    expect(Theme.of(tester.element(find.text('Merhaba 👋'))).brightness, Brightness.light);
+    expect(Theme.of(tester.element(find.text('Modüller'))).brightness, Brightness.light);
 
-    // Tema seçici "Hesap" kartının altında — testte görünür alana kaydırılır.
-    await tester.scrollUntilVisible(find.text('Koyu'), 200);
+    // Sağ üst ⚙️ → Ayarlar.
+    await tester.tap(find.byTooltip('Ayarlar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Görünüm'), findsOneWidget);
+
     await tester.tap(find.text('Koyu'));
     await tester.pumpAndSettle();
 
-    // Kaydırma sonrası selamlama liste dışında kaldı → tema seçiciyi çapa al.
     final darkTheme = Theme.of(tester.element(find.text('Koyu')));
     expect(darkTheme.brightness, Brightness.dark);
     expect(darkTheme.colorScheme.primary, AppColors.primaryDark);

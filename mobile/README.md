@@ -49,13 +49,14 @@ flutter build apk --debug
 ```
 lib/
   core/
-    config/    env.dart — flavor, base URL, dev bayrakları
-    network/   dio, zarf açma, auth interceptor, token deposu, PagedResult
-    router/    go_router yapılandırması + rota sabitleri
-    theme/     renk/tipografi/boşluk token'ları, ThemeData, tema tercihi
-    utils/     görsel URL, tarih biçimleme, telefon numarası, WhatsApp/harita açma
-    widgets/   AppButton · AppCard · AppTextField · InfoBanner · AppScaffold
-               · Skeleton · Boş/Hata/Offline
+    config/     env.dart — flavor, base URL, dev bayrakları
+    navigation/ app_modules.dart — MODÜL KAYDI (ızgara + rotalar buradan üretilir)
+    network/    dio, zarf açma, auth interceptor, token deposu, PagedResult, retry
+    router/     go_router yapılandırması + rota sabitleri + alt sekme kabuğu
+    theme/      renk/tipografi/boşluk token'ları, ThemeData, tema tercihi
+    utils/      görsel URL, tarih biçimleme, telefon numarası, WhatsApp/harita açma
+    widgets/    AppButton · AppCard · AppTextField · InfoBanner · AppScaffold
+                · AppNetworkImage · Skeleton · Boş/Hata/Offline
   features/
     <modül>/{data,domain,presentation}/
 ```
@@ -128,9 +129,40 @@ Telefon + OTP. Ekranlar **yönlendirme yapmaz**: durumu değiştirir, `go_router
 - Telefon numarası her zaman `AppPhone.toE164(...)` ile gönderilir.
 - Dev modda (`Otp:DevMode=true`) sunucu kodu yanıtta döner → kod alanı otomatik dolar.
 
+## Kabuk ve Ana Sayfa (Faz 11.4)
+
+Alt sekme kabuğu `core/router/app_shell.dart` (`StatefulShellRoute.indexedStack`):
+**Ana Sayfa · İlanlar · Bildirim(rozet) · Profil** — her dalın kendi Navigator'ı
+var, sekme değiştirmek durumu ve kaydırmayı bozmaz.
+
+```
+/            Ana Sayfa (Hub)   acil şerit + modül ızgarası + öne çıkan duyurular
+/ilanlar     İlanlar sekmesi   (11.8'de gerçek liste)
+/bildirimler Bildirimler       (11.13'te liste; rozet BUGÜN gerçek veriden)
+/profil      Profil            (11.5'te düzenleme)
+/ayarlar     Ayarlar/Kontrol   sağ üst ⚙️ — tema, hesap, hakkında
+```
+
+**Modül eklemek / rota vermek: tek yer → `core/navigation/app_modules.dart`.**
+`kAppModules` her modülün kimliğini, etiketini, ikonunu, rotasını, **hangi fazda
+geleceğini** ve **bağlanacağı uçları** taşır; Ana Sayfa ızgarası, modül rotaları
+ve "yakında" ekranları hep buradan üretilir. Bir modül gerçeklenince listede
+`ready: true` yapılır ve router'da gerçek ekran döndürülür.
+`test/core/navigation/app_modules_test.dart` her modülün açılabilir bir ekranı
+olduğunu doğrular → **işlevsiz buton kalamaz.**
+
+**Oturum gerektiren sekmeler** (Bildirim/Profil) router'da korumalı **değil**:
+misafir sekmenin içinde `SignInPrompt` daveti görür, kabuktan atılmaz.
+`AppRoutes.protectedPrefixes` sekme dışı gerçek korumalı ekranlar içindir.
+
+⚠️ **Riverpod 3 tuzağı:** hata veren provider'lar kendiliğinden, sınırsız
+yeniden denenir. Uçlara bağlı her provider `retry: apiRetry` almalı
+(`core/network/retry_policy.dart`) — yalnız geçici hatalarda (bağlantı/5xx/429)
+en fazla 2 tekrar; kalıcı hatada kullanıcıya "Tekrar dene" düğmesi kalır.
+
 ## Geliştirici ekranları (yalnız debug)
 
-Ana Sayfa → **Geliştirici**:
+Ana Sayfa → **Geliştirici** (11.4'ten sonra: **Ayarlar** → Geliştirici):
 
 - **Tasarım sistemi önizlemesi** (`/gelistirici/tasarim`) — palet, tipografi,
   tüm buton/kart varyantları ve durum ekranları, açık+koyu temada.
