@@ -1,0 +1,95 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kadirli_app/core/network/network.dart';
+import 'package:kadirli_app/features/auth/data/models/notification_preferences.dart';
+
+import '../../core/network/fake_http_adapter.dart';
+import '../../helpers/profile_fixtures.dart';
+import '../../helpers/pump_app.dart';
+
+/// Ayarlar/Kontrol ekranı: bölümlerin doğru kullanıcıya görünmesi ve
+/// bildirim anahtarlarının uca yazması.
+void main() {
+  Future<FakeHttpAdapter> openSettings(
+    WidgetTester tester, {
+    bool signedIn = true,
+    Map<String, dynamic>? profile,
+  }) async {
+    final adapter = routedAdapter({
+      ...homeStubs(),
+      '/v1/users/me': (_) async =>
+          jsonResponse(successEnvelope(profile ?? profileBody())),
+      '/v1/users/me/notifications': (_) async => jsonResponse(
+        successEnvelope(const {
+          'announcements': false,
+          'deaths': true,
+          'pharmacy': true,
+          'events': true,
+          'ads': false,
+          'campaigns': false,
+        }),
+      ),
+    });
+
+    await pumpApp(
+      tester,
+      prefs: signedIn ? const {} : const {'auth.guestChoice': true},
+      tokenStore: signedIn
+          ? InMemoryTokenStore(accessToken: 'A', refreshToken: 'R')
+          : InMemoryTokenStore(),
+      adapter: adapter,
+    );
+
+    await tester.tap(find.byTooltip('Ayarlar'));
+    await tester.pumpAndSettle();
+    return adapter;
+  }
+
+  testWidgets('oturum açıkken hesap özeti + 6 bildirim anahtarı görünür', (
+    tester,
+  ) async {
+    await openSettings(tester);
+
+    expect(find.text('ahmetk'), findsOneWidget);
+    expect(find.text('Profili düzenle'), findsOneWidget);
+
+    for (final topic in NotificationTopic.values) {
+      expect(find.text(topic.label), findsOneWidget, reason: topic.key);
+    }
+    expect(find.byType(SwitchListTile), findsNWidgets(6));
+  });
+
+  testWidgets('anahtar kapatılınca yalnız o anahtar uca yazılır', (tester) async {
+    final adapter = await openSettings(tester);
+
+    await tester.tap(find.byType(SwitchListTile).first);
+    await tester.pumpAndSettle();
+
+    expect(adapter.lastOf('/v1/users/me/notifications')!.data, {
+      'announcements': false,
+    });
+  });
+
+  testWidgets('misafir bildirim bölümünü ve hesap işlemlerini görmez', (
+    tester,
+  ) async {
+    await openSettings(tester, signedIn: false);
+
+    expect(find.text('Misafir olarak geziyorsunuz'), findsOneWidget);
+    expect(find.byType(SwitchListTile), findsNothing);
+    expect(find.text('Hesabı sil'), findsNothing);
+    expect(find.text('Çıkış yap'), findsNothing);
+  });
+
+  testWidgets('hesap işlemleri bölümünde çıkış ve hesap silme var', (tester) async {
+    await openSettings(tester);
+
+    await tester.scrollUntilVisible(find.text('Hesabı sil'), 200);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Çıkış yap'), findsOneWidget);
+    expect(find.text('Hesabı sil'), findsOneWidget);
+    // Sürüm satırı her zaman var (test ortamında platform kanalı yok → "—").
+    expect(find.textContaining('Sürüm'), findsOneWidget);
+  });
+}

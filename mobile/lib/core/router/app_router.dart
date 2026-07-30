@@ -14,6 +14,8 @@ import '../../features/dev/presentation/design_preview_screen.dart';
 import '../../features/dev/presentation/network_probe_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/profile/presentation/account_delete_screen.dart';
+import '../../features/profile/presentation/profile_edit_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../config/env.dart';
@@ -113,11 +115,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RegisterScreen(),
       ),
 
-      // --- Ayarlar / Kontrol ---
+      // --- Ayarlar / Kontrol + Profil (11.5) ---
       GoRoute(
         path: AppRoutes.settings,
         name: 'settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileEdit,
+        name: 'profileEdit',
+        builder: (context, state) => const ProfileEditScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.accountDelete,
+        name: 'accountDelete',
+        builder: (context, state) => const AccountDeleteScreen(),
       ),
 
       // --- Modül ekranları: kayıttan otomatik üretilir ---

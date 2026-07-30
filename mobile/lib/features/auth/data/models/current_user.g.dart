@@ -16,21 +16,37 @@ _CurrentUser _$CurrentUserFromJson(Map<String, dynamic> json) => _CurrentUser(
   primaryNeighborhoodId: json['primaryNeighborhoodId'] as String?,
   primaryNeighborhoodName: json['primaryNeighborhoodName'] as String?,
   profilePhotoUrl: json['profilePhotoUrl'] as String?,
+  notificationPreferences: json['notificationPreferences'] == null
+      ? const NotificationPreferences()
+      : NotificationPreferences.fromJson(
+          json['notificationPreferences'] as Map<String, dynamic>,
+        ),
+  usernameLastChangedAt: json['usernameLastChangedAt'] == null
+      ? null
+      : DateTime.parse(json['usernameLastChangedAt'] as String),
+  neighborhoodLastChangedAt: json['neighborhoodLastChangedAt'] == null
+      ? null
+      : DateTime.parse(json['neighborhoodLastChangedAt'] as String),
   createdAt: json['createdAt'] == null
       ? null
       : DateTime.parse(json['createdAt'] as String),
 );
 
-Map<String, dynamic> _$CurrentUserToJson(_CurrentUser instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'phone': instance.phone,
-      'username': instance.username,
-      'email': instance.email,
-      'age': instance.age,
-      'role': instance.role,
-      'primaryNeighborhoodId': instance.primaryNeighborhoodId,
-      'primaryNeighborhoodName': instance.primaryNeighborhoodName,
-      'profilePhotoUrl': instance.profilePhotoUrl,
-      'createdAt': instance.createdAt?.toIso8601String(),
-    };
+Map<String, dynamic> _$CurrentUserToJson(
+  _CurrentUser instance,
+) => <String, dynamic>{
+  'id': instance.id,
+  'phone': instance.phone,
+  'username': instance.username,
+  'email': instance.email,
+  'age': instance.age,
+  'role': instance.role,
+  'primaryNeighborhoodId': instance.primaryNeighborhoodId,
+  'primaryNeighborhoodName': instance.primaryNeighborhoodName,
+  'profilePhotoUrl': instance.profilePhotoUrl,
+  'notificationPreferences': instance.notificationPreferences,
+  'usernameLastChangedAt': instance.usernameLastChangedAt?.toIso8601String(),
+  'neighborhoodLastChangedAt': instance.neighborhoodLastChangedAt
+      ?.toIso8601String(),
+  'createdAt': instance.createdAt?.toIso8601String(),
+};

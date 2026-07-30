@@ -175,6 +175,30 @@ class AuthController extends Notifier<AuthState> {
     await _prefs.setBool(_guestPrefsKey, true);
   }
 
+  /// Hesap silindikten sonra (11.5) yerel oturumu kapatır.
+  ///
+  /// Sunucu tarafı iş `DELETE /v1/users/me` ile bitti (refresh iptal + hesap
+  /// anonimleştirildi) → burada `logout` çağrılmaz, yalnız yerel temizlik
+  /// yapılır. "Misafir devam" tercihi de sıfırlanır: kullanıcı Giriş ekranına
+  /// döner, sessizce misafir moduna düşmez.
+  Future<void> completeAccountDeletion() async {
+    await _prefs.remove(_guestPrefsKey);
+    await _tokens.clear();
+    _clearCachedUser();
+    state = const AuthState.anonymous();
+  }
+
+  /// Sunucudan **taze dönen** profili oturuma yazar (11.5).
+  ///
+  /// `PATCH /v1/users/me` zaten güncel `MyProfileDto` döndürdüğü için ek bir
+  /// `GET` atmaya gerek yok. Bildirim anahtarlarında iyimser güncelleme için de
+  /// kullanılır (istek başarısız olursa çağıran eski kullanıcıyı geri yazar).
+  void applyProfile(CurrentUser user) {
+    if (state is! AuthAuthenticated) return;
+    _writeCachedUser(user);
+    state = AuthState.authenticated(user);
+  }
+
   /// Profil güncellemesinden sonra durumu tazelemek için (11.5).
   Future<void> refreshCurrentUser() async {
     if (state is! AuthAuthenticated) return;

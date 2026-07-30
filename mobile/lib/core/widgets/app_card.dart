@@ -85,9 +85,18 @@ class AppCard extends StatelessWidget {
 
 /// Bölüm başlığı: "Modüller", "Öne çıkanlar" gibi.
 class SectionHeader extends StatelessWidget {
-  const SectionHeader({super.key, required this.title, this.action, this.onActionTap});
+  const SectionHeader({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.action,
+    this.onActionTap,
+  });
 
   final String title;
+
+  /// Başlığın altındaki tek satırlık açıklama (bölümün ne işe yaradığı).
+  final String? subtitle;
 
   /// Sağdaki metin bağlantısı ("Tümü").
   final String? action;
@@ -101,7 +110,19 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(title, style: theme.textTheme.titleMedium),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.titleMedium),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.palette.muted,
+                    ),
+                  ),
+              ],
+            ),
           ),
           if (action != null)
             TextButton(

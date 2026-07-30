@@ -51,9 +51,23 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
     if (code.length != OtpVerifyScreen.codeLength) return;
     FocusScope.of(context).unfocus();
     final ok = await ref.read(otpFlowProvider.notifier).verify(code);
-    // Başarılıysa yönlendirmeyi router yapar (durum değişti). Hata durumunda
-    // kod alanı temizlenir ki kullanıcı baştan yazsın.
-    if (!ok && mounted) _controller.clear();
+    if (!mounted) return;
+
+    // Hata: kod alanı temizlenir ki kullanıcı baştan yazsın.
+    if (!ok) {
+      _controller.clear();
+      return;
+    }
+
+    // Başarı: yönlendirme kararını router verdi (durum değişti) — ama bu ekran
+    // `context.push` ile yığının ÜSTÜNE bindiği için redirect'in değiştirdiği
+    // konum altta kalıyor ve kullanıcı boşalmış kod ekranında sıkışıyordu
+    // (30 Tem 2026 canlı testinde kayıtlı kullanıcı girişinde yakalandı).
+    // Ekranı bir kare sonra yığından çekiyoruz; nereye gidileceğine yine
+    // router karar veriyor.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && context.canPop()) context.pop();
+    });
   }
 
   void _changePhone() {

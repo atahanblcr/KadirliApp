@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_info.dart';
 import '../../../core/config/env.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
@@ -9,14 +10,15 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/utils.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/application/auth_controller.dart';
+import 'widgets/notification_preferences_card.dart';
 import 'widgets/theme_mode_selector.dart';
 
 /// Ayarlar / Kontrol ekranı — "uygulamanın kontrol merkezi"
 /// (MOBILE_UX_PLAN §5, kullanıcının özel isteği).
 ///
-/// **11.4 kapsamı:** görünüm (tema), hesap (oturum özeti + çıkış), hakkında,
-/// geliştirici kısayolları. **11.5** buraya profil düzenleme, bildirim
-/// tercihleri (6 anahtar) ve hesap silmeyi ekleyecek.
+/// Bölümler: **Hesap** (profil özeti + düzenleme) · **Bildirimler** (6 anahtar,
+/// `PATCH /v1/users/me/notifications`) · **Görünüm** (tema) · **Hakkında**
+/// (sürüm + şikayet) · **Hesap işlemleri** (çıkış + hesabı sil) · Geliştirici.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -75,39 +77,46 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: theme.colorScheme.primaryContainer,
-                        child: Text(
-                          user.displayName.substring(0, 1).toUpperCase(),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
+                  UserIdentityRow(
+                    initial: user.initial,
+                    name: user.displayName,
+                    photoUrl: user.profilePhotoUrl,
+                    subtitle: AppPhone.display(user.phone),
+                  ),
+                  if (user.primaryNeighborhoodName != null) ...[
+                    AppSpacing.gapMd,
+                    Row(
+                      children: [
+                        Icon(Icons.place_outlined, size: 16, color: palette.muted),
+                        AppSpacing.wGapSm,
+                        Text(
+                          user.primaryNeighborhoodName!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: palette.muted,
                           ),
                         ),
-                      ),
-                      AppSpacing.wGapMd,
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(user.displayName, style: theme.textTheme.titleSmall),
-                            Text(
-                              AppPhone.display(user.phone),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: palette.muted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                   AppSpacing.gapLg,
-                  const _LogoutButton(),
+                  AppButton.ghost(
+                    label: 'Profili düzenle',
+                    icon: Icons.edit_outlined,
+                    expand: true,
+                    onPressed: () => context.push(AppRoutes.profileEdit),
+                  ),
                 ],
               ),
             ),
+
+          if (user != null) ...[
+            AppSpacing.gapXl,
+            const SectionHeader(
+              title: 'Bildirimler',
+              subtitle: 'Hangi konularda bildirim almak istediğinizi seçin.',
+            ),
+            const NotificationPreferencesCard(),
+          ],
           AppSpacing.gapXl,
 
           const SectionHeader(title: 'Görünüm'),
@@ -115,27 +124,33 @@ class SettingsScreen extends ConsumerWidget {
           AppSpacing.gapXl,
 
           const SectionHeader(title: 'Hakkında'),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Kadirli', style: theme.textTheme.titleSmall),
-                AppSpacing.gapXs,
-                Text(
-                  'Şehrin duyuruları, nöbetçi eczanesi, ilanları ve daha '
-                  'fazlası tek uygulamada.',
-                  style: theme.textTheme.bodySmall?.copyWith(color: palette.muted),
-                ),
-                AppSpacing.gapLg,
-                AppButton.ghost(
-                  label: 'Şikayet / İstek bildir',
-                  icon: Icons.support_agent_rounded,
-                  expand: true,
-                  onPressed: () => context.push(AppRoutes.complaints),
-                ),
-              ],
+          const _AboutCard(),
+
+          if (user != null) ...[
+            AppSpacing.gapXl,
+            const SectionHeader(title: 'Hesap işlemleri'),
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  const _LogoutTile(),
+                  Divider(height: 1, thickness: 1, color: palette.border),
+                  ListTile(
+                    leading: Icon(Icons.delete_outline_rounded, color: palette.danger),
+                    title: Text(
+                      'Hesabı sil',
+                      style: theme.textTheme.bodyLarge?.copyWith(color: palette.danger),
+                    ),
+                    subtitle: Text(
+                      'Hesabınız ve ilanlarınız kaldırılır',
+                      style: theme.textTheme.bodySmall?.copyWith(color: palette.muted),
+                    ),
+                    onTap: () => context.push(AppRoutes.accountDelete),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
 
           if (Env.showDevTools) ...[
             AppSpacing.gapXl,
@@ -171,15 +186,58 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-/// Çıkış: onay diyaloğu + `POST /v1/auth/logout` (refresh iptal + FCM temizlik).
-class _LogoutButton extends ConsumerStatefulWidget {
-  const _LogoutButton();
+/// Uygulama tanıtımı + **sürüm** (11.15 mağaza yayınında otomatik doğru olur)
+/// + şikayet kısayolu.
+class _AboutCard extends ConsumerWidget {
+  const _AboutCard();
 
   @override
-  ConsumerState<_LogoutButton> createState() => _LogoutButtonState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final palette = theme.palette;
+    final info = ref.watch(appInfoProvider);
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text('Kadirli', style: theme.textTheme.titleSmall)),
+              Text(
+                'Sürüm ${info.value?.display ?? AppInfo.unknown.display}',
+                style: theme.textTheme.bodySmall?.copyWith(color: palette.muted),
+              ),
+            ],
+          ),
+          AppSpacing.gapXs,
+          Text(
+            'Şehrin duyuruları, nöbetçi eczanesi, ilanları ve daha '
+            'fazlası tek uygulamada.',
+            style: theme.textTheme.bodySmall?.copyWith(color: palette.muted),
+          ),
+          AppSpacing.gapLg,
+          AppButton.ghost(
+            label: 'Şikayet / İstek bildir',
+            icon: Icons.support_agent_rounded,
+            expand: true,
+            onPressed: () => context.push(AppRoutes.complaints),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _LogoutButtonState extends ConsumerState<_LogoutButton> {
+/// Çıkış: onay diyaloğu + `POST /v1/auth/logout` (refresh iptal + FCM temizlik).
+class _LogoutTile extends ConsumerStatefulWidget {
+  const _LogoutTile();
+
+  @override
+  ConsumerState<_LogoutTile> createState() => _LogoutTileState();
+}
+
+class _LogoutTileState extends ConsumerState<_LogoutTile> {
   bool _loggingOut = false;
 
   Future<void> _logout() async {
@@ -213,13 +271,20 @@ class _LogoutButtonState extends ConsumerState<_LogoutButton> {
   }
 
   @override
-  Widget build(BuildContext context) => AppButton.ghost(
-    label: 'Çıkış yap',
-    icon: Icons.logout_rounded,
-    expand: true,
-    loading: _loggingOut,
-    onPressed: _loggingOut ? null : _logout,
-  );
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListTile(
+      leading: _loggingOut
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(Icons.logout_rounded, color: theme.colorScheme.primary),
+      title: Text('Çıkış yap', style: theme.textTheme.bodyLarge),
+      onTap: _loggingOut ? null : _logout,
+    );
+  }
 }
 
 class _InfoRow extends StatelessWidget {

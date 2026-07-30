@@ -92,6 +92,10 @@ void main() {
 
     expect(find.textContaining('ahmetk'), findsOneWidget);
     expect(adapter.countOf('/v1/auth/verify-otp'), 1);
+    // ⚠️ Kod ekranı yığından TAMAMEN kalkmalı: `push` ile açıldığı için
+    // redirect yalnız altındaki konumu değiştiriyordu ve kullanıcı boşalmış
+    // kod ekranında sıkışıyordu (31 Tem 2026 canlı testinde yakalandı).
+    expect(find.text('Doğrula'), findsNothing);
 
     final store = container.read(tokenStoreProvider);
     expect(await store.readAccessToken(), 'ACCESS');
@@ -209,6 +213,11 @@ void main() {
 
     // 11.4: çıkış Ayarlar ekranında (sağ üst ⚙️).
     await tester.tap(find.byTooltip('Ayarlar'));
+    await tester.pumpAndSettle();
+
+    // 11.5: Ayarlar büyüdü (bildirim tercihleri + hesap işlemleri) → çıkış
+    // satırı ekranın altında kalıyor.
+    await tester.scrollUntilVisible(find.text('Çıkış yap'), 200);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Çıkış yap'));

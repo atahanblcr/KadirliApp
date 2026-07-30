@@ -40,6 +40,7 @@ dependencies:
   # --- Yardımcılar ---
   intl: ^0.20.2 # Türkçe tarih/sayı biçimleme
   url_launcher: ^6.3.2 # telefon / WhatsApp / harita
+  package_info_plus: ^9.0.1 # Ayarlar > Hakkında: sürüm/build (11.5)
 
 dev_dependencies:
   flutter_test:

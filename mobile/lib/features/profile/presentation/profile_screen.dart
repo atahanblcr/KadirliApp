@@ -10,10 +10,11 @@ import '../../../core/widgets/widgets.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/presentation/widgets/sign_in_prompt.dart';
 
-/// Profil sekmesi (11.4 iskelet → 11.5 tam).
+/// Profil sekmesi — oturum özeti + hesaba giden kısayollar.
 ///
-/// Bugün: oturum özeti + Ayarlar'a geçiş. 11.5 profil düzenleme (`PATCH
-/// /v1/users/me`), profil fotoğrafı ve bildirim tercihlerini ekleyecek.
+/// Veriyi kendi çekmez: tek kaynak `currentUserProvider` (oturum açılışında ve
+/// her `PATCH /v1/users/me` yanıtında tazelenir). Aşağı çekince `users/me`
+/// yeniden okunur — başka cihazdan yapılan değişiklik böyle görünür.
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -40,6 +41,7 @@ class ProfileScreen extends ConsumerWidget {
     return AppScaffold(
       title: 'Profil',
       showBackButton: false,
+      onRefresh: () => ref.read(authControllerProvider.notifier).refreshCurrentUser(),
       actions: [
         IconButton(
           onPressed: () => context.push(AppRoutes.settings),
@@ -57,15 +59,10 @@ class ProfileScreen extends ConsumerWidget {
         ),
         children: [
           Center(
-            child: CircleAvatar(
-              radius: 36,
-              backgroundColor: theme.colorScheme.primaryContainer,
-              child: Text(
-                user.displayName.substring(0, 1).toUpperCase(),
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  color: theme.colorScheme.onPrimaryContainer,
-                ),
-              ),
+            child: UserAvatar(
+              initial: user.initial,
+              photoUrl: user.profilePhotoUrl,
+              radius: 40,
             ),
           ),
           AppSpacing.gapLg,
@@ -82,12 +79,37 @@ class ProfileScreen extends ConsumerWidget {
           ),
           if (user.primaryNeighborhoodName != null) ...[
             AppSpacing.gapXs,
+            // Ad olduğu gibi yazılır: liste "Yenimahalle" gibi adlar ve
+            // ileride köyler de içeriyor → "Mahallesi" eki eklenmez.
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.place_outlined, size: 16, color: palette.muted),
+                AppSpacing.wGapXs,
+                Text(
+                  user.primaryNeighborhoodName!,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: palette.muted),
+                ),
+              ],
+            ),
+          ],
+          if (user.createdAt != null) ...[
+            AppSpacing.gapXs,
             Text(
-              user.primaryNeighborhoodName!,
-              style: theme.textTheme.bodyMedium?.copyWith(color: palette.muted),
+              '${AppDate.date(user.createdAt!)} tarihinden beri aramızda',
+              style: theme.textTheme.bodySmall?.copyWith(color: palette.muted),
               textAlign: TextAlign.center,
             ),
           ],
+          AppSpacing.gapLg,
+          Center(
+            child: AppButton.ghost(
+              label: 'Profili düzenle',
+              icon: Icons.edit_outlined,
+              size: AppButtonSize.small,
+              onPressed: () => context.push(AppRoutes.profileEdit),
+            ),
+          ),
           AppSpacing.gapXl,
 
           const SectionHeader(title: 'Hesabım'),
@@ -98,6 +120,12 @@ class ProfileScreen extends ConsumerWidget {
                 _ProfileRow(
                   icon: Icons.settings_rounded,
                   label: 'Ayarlar ve kontrol',
+                  onTap: () => context.push(AppRoutes.settings),
+                ),
+                _ProfileDivider(color: palette.border),
+                _ProfileRow(
+                  icon: Icons.notifications_outlined,
+                  label: 'Bildirim tercihleri',
                   onTap: () => context.push(AppRoutes.settings),
                 ),
                 _ProfileDivider(color: palette.border),

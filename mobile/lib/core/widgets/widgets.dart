@@ -10,3 +10,4 @@ export 'app_text_field.dart';
 export 'info_banner.dart';
 export 'skeleton.dart';
 export 'state_views.dart';
+export 'user_avatar.dart';

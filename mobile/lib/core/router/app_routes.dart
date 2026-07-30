@@ -19,8 +19,14 @@ abstract final class AppRoutes {
   static const otpVerify = '/giris/kod';
   static const register = '/kayit';
 
-  // --- Ayarlar / Kontrol (11.4 iskelet → 11.5 tam) ---
+  // --- Ayarlar / Kontrol + Profil (11.5) ---
   static const settings = '/ayarlar';
+
+  /// Profil düzenleme (`PATCH /v1/users/me`) — oturum zorunlu.
+  static const profileEdit = '/profil/duzenle';
+
+  /// Hesabı sil (`DELETE /v1/users/me`) — oturum zorunlu, mağaza şartı.
+  static const accountDelete = '/ayarlar/hesabi-sil';
 
   // --- Modül ekranları (11.6+ dolduracak; bugün "yakında" ekranı) ---
   static const announcements = '/duyurular';
@@ -49,8 +55,12 @@ abstract final class AppRoutes {
   /// dokunan misafir sert yönlendirmeyle sekme kabuğundan atılmaz; ekranın
   /// içinde nazik `SignInPrompt` daveti görür (MOBILE_UX_PLAN §7 + 11.3'ün
   /// "misafir gezinme birinci sınıf" kararı). Bu liste, sekme dışı **gerçek
-  /// korumalı ekranlar** için ayrılmıştır (11.9 "ilan ver" gibi).
-  static const protectedPrefixes = <String>[];
+  /// korumalı ekranlar** içindir (11.5 profil düzenleme / hesap silme,
+  /// 11.9 "ilan ver" gibi).
+  ///
+  /// ⚠️ `startsWith` ile eşleşir → `/profil` (sekme) buraya TAKILMAZ, yalnız
+  /// `/profil/duzenle` takılır.
+  static const protectedPrefixes = <String>[profileEdit, accountDelete];
 
   static bool requiresAuth(String location) =>
       protectedPrefixes.any(location.startsWith);
