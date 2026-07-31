@@ -50,7 +50,11 @@ void main() {
     );
     await container.read(authControllerProvider.notifier).bootstrap();
     container.read(favoriteAdsProvider);
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+    // ⚠️ Sabit bekleme tüm süit paralel koşarken yetmiyor (flaky).
+    await waitUntil(
+      () => !container.read(favoriteAdsProvider).isLoading,
+      reason: 'favori kümesi yüklensin',
+    );
     return (container.read(favoriteAdsProvider.notifier), adapter);
   }
 
@@ -63,7 +67,8 @@ void main() {
     final container = await testContainer(adapter: adapter);
 
     final state = container.read(favoriteAdsProvider);
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+    // Negatif iddia (istek gitmemeli) → sınırlı bekleme.
+    await Future<void>.delayed(const Duration(milliseconds: 150));
 
     expect(state.ids, isEmpty);
     expect(state.isLoading, isFalse);
@@ -152,6 +157,31 @@ void main() {
     await expectLater(controller.toggle('ad-9'), throwsA(isA<ApiException>()));
     expect(controller.state.contains('ad-9'), isFalse);
     expect(controller.state.busyId, isNull);
+  });
+
+  test('çıkış yapılınca favori kümesi sıfırlanır', () async {
+    final adapter = routedAdapter({
+      ...homeStubs(),
+      '/v1/users/me': (_) async => jsonResponse(successEnvelope(profileBody())),
+      '/v1/users/me/favorites': (_) async =>
+          jsonResponse(favoritesBody(['ad-1'])),
+      '/v1/auth/logout': (_) async => jsonResponse(successEnvelope(true)),
+    });
+
+    final container = await testContainer(
+      tokenStore: InMemoryTokenStore(accessToken: 'A', refreshToken: 'R'),
+      adapter: adapter,
+    );
+    await container.read(authControllerProvider.notifier).bootstrap();
+    container.read(favoriteAdsProvider);
+    await waitUntil(() => container.read(favoriteAdsProvider).ids.isNotEmpty);
+    expect(container.read(favoriteAdsProvider).ids, {'ad-1'});
+
+    await container.read(authControllerProvider.notifier).logout();
+    await waitUntil(() => container.read(favoriteAdsProvider).ids.isEmpty);
+
+    // Başka bir hesap açan kullanıcı öncekinin favorilerini görmemeli.
+    expect(container.read(favoriteAdsProvider).ids, isEmpty);
   });
 
   test('favorideki ilana ikinci dokunuş DELETE gönderir', () async {

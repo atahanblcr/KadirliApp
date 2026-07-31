@@ -73,4 +73,64 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('settings.themeMode'), 'dark');
   });
+
+  group('yazı ölçeği sınırı', () {
+    // `MediaQuery.withClampedTextScaling` (app.dart) 11.1'de eklendi ama hiçbir
+    // test uygulandığını doğrulamıyordu — sessizce kaldırılsa kimse fark
+    // etmezdi. Sınır kalkarsa cihaz ayarı 3.0'a çıkan kullanıcıda tüm düzen
+    // dağılır.
+    testWidgets('sistem ölçeği aşırı büyükse 1.4\'e kırpılır', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await pumpApp(tester, prefs: guest, adapter: routedAdapter(homeStubs()));
+
+      final scaler = MediaQuery.textScalerOf(
+        tester.element(find.text('Modüller')),
+      );
+      expect(scaler.scale(10), closeTo(14, 0.01), reason: '1.4 üst sınırı');
+    });
+
+    testWidgets('sistem ölçeği çok küçükse 0.9\'a yükseltilir', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 0.5;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await pumpApp(tester, prefs: guest, adapter: routedAdapter(homeStubs()));
+
+      final scaler = MediaQuery.textScalerOf(
+        tester.element(find.text('Modüller')),
+      );
+      expect(scaler.scale(10), closeTo(9, 0.01), reason: '0.9 alt sınırı');
+    });
+
+    testWidgets('en büyük ölçekte Ana Sayfa taşmadan çizilir', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 3;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.4;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await pumpApp(
+        tester,
+        prefs: guest,
+        adapter: routedAdapter(
+          homeStubs(
+            onDuty: [
+              {
+                'pharmacyId': 'p1',
+                'pharmacyName': 'Şifa Eczanesi',
+                'address': 'Cumhuriyet Mah. Uzun Sokak No 12 Kadirli/Osmaniye',
+                'phone': '03287181234',
+                'dutyDate': '2026-07-31T00:00:00Z',
+                'startTime': '19:00',
+                'endTime': '09:00',
+              },
+            ],
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

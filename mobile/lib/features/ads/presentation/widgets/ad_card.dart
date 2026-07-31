@@ -52,10 +52,17 @@ class AdCard extends StatelessWidget {
           ),
           AppSpacing.wGapMd,
           Expanded(
-            child: SizedBox(
-              height: _imageSize,
+            // 🐛 Testin yakaladığı hata: burada **sabit** `SizedBox(height: 104)`
+            // vardı; yazı ölçeği 1.4'e çıkınca içerik sığmayıp `RenderFlex`
+            // dikey taşması veriyordu. Artık 104 yalnız **alt sınır**: kart
+            // görselden kısa olmaz ama gerekirse uzar (11.7'deki `PharmacyTile`
+            // taşmasının aynı sınıfı).
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: _imageSize),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,55 +83,42 @@ class AdCard extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const Spacer(),
-                  Text(
-                    AppMoney.price(ad.price),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: ad.price == null
-                          ? palette.muted
-                          : theme.colorScheme.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  AppSpacing.gapXs,
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.schedule_rounded,
-                        size: 13,
-                        color: palette.muted,
+                      AppSpacing.gapSm,
+                      Text(
+                        AppMoney.price(ad.price),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: ad.price == null
+                              ? palette.muted
+                              : theme.colorScheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      AppSpacing.wGapXs,
-                      // Taşmayı Expanded engelliyor: "12 Ağustos 2026" + büyük
-                      // yazı ölçeğinde satır dolabiliyor (11.7'de PharmacyTile
-                      // aynı hatadan RenderFlex taşması vermişti).
-                      Expanded(
-                        child: Text(
-                          AppDate.relative(ad.createdAt),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: palette.muted,
+                      AppSpacing.gapXs,
+                      // 🐛 Testin yakaladığı ikinci hata: tarih + görüntülenme
+                      // tek `Row`'daydı ve dar ekran + 1.4 ölçekte yatay taşma
+                      // veriyordu. `Wrap` ile görüntülenme gerekirse alt satıra
+                      // iner — bilgi kesilmez, düzen bozulmaz.
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.xxs,
+                        children: [
+                          _MetaBit(
+                            icon: Icons.schedule_rounded,
+                            label: AppDate.relative(ad.createdAt),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          if (ad.viewCount > 0)
+                            _MetaBit(
+                              icon: Icons.visibility_outlined,
+                              label: '${ad.viewCount}',
+                            ),
+                        ],
                       ),
-                      if (ad.viewCount > 0) ...[
-                        AppSpacing.wGapSm,
-                        Icon(
-                          Icons.visibility_outlined,
-                          size: 13,
-                          color: palette.muted,
-                        ),
-                        AppSpacing.wGapXs,
-                        Text(
-                          '${ad.viewCount}',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: palette.muted,
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ],
@@ -133,6 +127,36 @@ class AdCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Kartın alt satırındaki küçük bilgi (ikon + metin).
+///
+/// `Wrap` içinde yaşadığı için metin **esnek**: sığmazsa kısalır, satırı
+/// taşırmaz.
+class _MetaBit extends StatelessWidget {
+  const _MetaBit({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = theme.textTheme.labelSmall?.copyWith(
+      color: theme.palette.muted,
+    );
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: theme.palette.muted),
+        AppSpacing.wGapXs,
+        Flexible(
+          child: Text(label, style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+      ],
     );
   }
 }

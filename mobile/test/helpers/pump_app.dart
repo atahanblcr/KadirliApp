@@ -64,6 +64,27 @@ Future<void> settleApp(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 400));
 }
 
+/// Bir koşul sağlanana kadar bekler (widget'sız provider testlerinde).
+///
+/// ⚠️ **Sabit `Future.delayed` kullanmayın:** tek dosya çalışırken yeten süre,
+/// tüm süit paralel koştuğunda yetmiyor ve test **flaky** oluyor (11.8 test
+/// gözden geçirmesinde yakalandı). Koşul beklemek hem hızlı hem kararlı.
+Future<void> waitUntil(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 5),
+  String? reason,
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      throw StateError(
+        'waitUntil zaman aşımı${reason == null ? '' : ' — $reason'}',
+      );
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
+
 /// Widget'sız provider testleri için kapsayıcı (aynı override'lar).
 Future<ProviderContainer> testContainer({
   Map<String, Object> prefs = const {},
