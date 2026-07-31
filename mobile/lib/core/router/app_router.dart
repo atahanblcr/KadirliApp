@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/ads/presentation/ads_screen.dart';
+import '../../features/announcements/presentation/announcement_detail_screen.dart';
+import '../../features/announcements/presentation/announcements_screen.dart';
 import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/application/otp_flow_controller.dart';
 import '../../features/auth/presentation/otp_verify_screen.dart';
@@ -14,6 +16,8 @@ import '../../features/dev/presentation/design_preview_screen.dart';
 import '../../features/dev/presentation/network_probe_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/power_outages/presentation/power_outage_detail_screen.dart';
+import '../../features/power_outages/presentation/power_outages_screen.dart';
 import '../../features/profile/presentation/account_delete_screen.dart';
 import '../../features/profile/presentation/profile_edit_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
@@ -132,11 +136,41 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AccountDeleteScreen(),
       ),
 
-      // --- Modül ekranları: kayıttan otomatik üretilir ---
-      // Bir modül gerçeklenince `AppModule.ready` true olur ve burada gerçek
-      // ekranı döndürülür; ızgara/rota/başlık kendiliğinden uyar.
+      // --- Gerçeklenmiş modüller (11.6) ---
+      // Detaylar **alt rota** olarak tanımlı: `/duyurular/<id>` hem geri tuşunda
+      // listeye döner hem de 11.13 push deep-link'i için hazır bir hedef.
+      GoRoute(
+        path: AppRoutes.announcements,
+        name: 'module-announcements',
+        builder: (context, state) => const AnnouncementsScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'announcementDetail',
+            builder: (context, state) =>
+                AnnouncementDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.powerOutages,
+        name: 'module-power-outages',
+        builder: (context, state) => const PowerOutagesScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'powerOutageDetail',
+            builder: (context, state) =>
+                PowerOutageDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+
+      // --- Henüz yazılmamış modüller: kayıttan otomatik üretilir ---
+      // Bir modül gerçeklenince `AppModule.ready` true olur, kendi rotası
+      // yukarıya yazılır ve buradaki "yakında" ekranı devreden çıkar.
       for (final module in kAppModules)
-        if (module.route != AppRoutes.ads)
+        if (module.route != AppRoutes.ads && !module.ready)
           GoRoute(
             path: module.route,
             name: 'module-${module.id}',

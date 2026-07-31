@@ -41,17 +41,28 @@ void main() {
       router.go(module.route);
       await tester.pumpAndSettle();
 
-      // Ekran açıldı ve doğru modülü gösteriyor (başlıkta modül adı var).
-      expect(
-        find.text(module.label),
-        findsWidgets,
-        reason: '${module.id} rotası boş/hatalı ekran açtı',
-      );
       expect(
         find.byType(ErrorWidget),
         findsNothing,
         reason: '${module.id} ekranı patladı',
       );
+
+      if (module.ready) {
+        // Gerçeklenmiş modül (11.6+): "yakında" ekranı ARTIK ÇIKMAMALI.
+        // Ekran başlığı modül etiketiyle birebir aynı olmak zorunda değil
+        // (ızgarada "Kesinti", ekranda "Elektrik Kesintileri").
+        expect(
+          find.textContaining('yakında'),
+          findsNothing,
+          reason: '${module.id} ready=true ama hâlâ "yakında" ekranı açıyor',
+        );
+      } else {
+        expect(
+          find.text('${module.label} yakında'),
+          findsOneWidget,
+          reason: '${module.id} rotası boş/hatalı ekran açtı',
+        );
+      }
     }
   });
 }

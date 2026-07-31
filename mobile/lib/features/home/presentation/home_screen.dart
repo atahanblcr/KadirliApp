@@ -174,7 +174,11 @@ class _LatestAnnouncements extends ConsumerWidget {
           for (final announcement in items) ...[
             AnnouncementTile(
               announcement: announcement,
-              onTap: () => context.push(AppRoutes.announcements),
+              // 11.6'dan beri doğrudan detaya: vitrindeki karta dokunan
+              // kullanıcı listeye değil okumak istediği duyuruya gider.
+              onTap: () => context.push(
+                AppRoutes.announcementDetail(announcement.id),
+              ),
             ),
             if (announcement != items.last) AppSpacing.gapSm,
           ],

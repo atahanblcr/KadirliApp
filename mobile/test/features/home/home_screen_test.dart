@@ -166,7 +166,10 @@ void main() {
     await tester.tap(find.text('Duyurular'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Duyurular yakında'), findsOneWidget);
+    // 11.6'dan beri gerçek liste ekranı açılıyor ("yakında" ekranı değil);
+    // stub boş liste döndüğü için boş durum metni görünür.
+    expect(find.text('Duyurular yakında'), findsNothing);
+    expect(find.text('Henüz duyuru yok'), findsOneWidget);
   });
 
   testWidgets('şeritteki eczane satırı Eczane modülüne götürür', (tester) async {

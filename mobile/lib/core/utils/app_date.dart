@@ -69,6 +69,34 @@ abstract final class AppDate {
     return DateTime(b.year, b.month, b.day).difference(DateTime(a.year, a.month, a.day)).inDays;
   }
 
+  /// "12 Ağustos 2026, 09:00 – 15:00" — tek güne sığan aralık tek tarihle,
+  /// güne yayılan aralık iki tam tarihle yazılır (elektrik kesintisi, etkinlik).
+  static String range(DateTime start, DateTime end) => isSameDay(start, end)
+      ? '${date(start)}, ${time(start)} – ${time(end)}'
+      : '${dateTime(start)} → ${dateTime(end)}';
+
+  /// Süre etiketi: "45 dakika", "2 saat", "2 sa 30 dk", "1 gün 4 saat".
+  ///
+  /// Geri sayımda da kullanıldığı için **yukarı yuvarlar** (59 sn → "1 dakika"):
+  /// "0 dakika kaldı" yazan bir sayaç kullanıcıya bozuk görünür.
+  static String duration(Duration value) {
+    final total = value.isNegative ? Duration.zero : value;
+    final minutes = (total.inSeconds / 60).ceil();
+    if (minutes < 60) return '$minutes dakika';
+
+    final hours = minutes ~/ 60;
+    final restMinutes = minutes % 60;
+    if (hours < 24) {
+      if (restMinutes == 0) return '$hours saat';
+      return '$hours sa $restMinutes dk';
+    }
+
+    final days = hours ~/ 24;
+    final restHours = hours % 24;
+    if (restHours == 0) return '$days gün';
+    return '$days gün $restHours saat';
+  }
+
   /// `yyyy-MM-dd` — sunucunun `?date=` / takvim parametreleri için
   /// (Türkiye günü; nöbetçi eczane "bugün" hesabı sunucuda da TR saatiyle).
   static String isoDay(DateTime value) => DateFormat('yyyy-MM-dd').format(toTurkey(value));

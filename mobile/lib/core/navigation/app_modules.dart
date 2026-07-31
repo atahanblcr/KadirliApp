@@ -63,7 +63,14 @@ const kAppModules = <AppModule>[
     route: AppRoutes.announcements,
     phase: '11.6',
     summary: 'Belediye ve kurum duyuruları, su kesintisi bildirimleri.',
-    endpoints: ['GET /v1/announcements', 'GET /v1/announcements/types'],
+    endpoints: [
+      'GET /v1/announcements',
+      'GET /v1/announcements/types',
+      'GET /v1/announcements/{id}',
+      'POST /v1/announcements/{id}/view',
+      'POST /v1/announcements/{id}/click',
+    ],
+    ready: true,
   ),
   AppModule(
     id: 'pharmacies',
@@ -150,6 +157,7 @@ const kAppModules = <AppModule>[
     phase: '11.6',
     summary: 'Planlı elektrik kesintileri: mahalle, tarih ve saat.',
     endpoints: ['GET /v1/power-outages', 'GET /v1/power-outages/{id}'],
+    ready: true,
   ),
   AppModule(
     id: 'complaints',

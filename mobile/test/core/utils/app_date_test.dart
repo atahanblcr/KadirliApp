@@ -61,4 +61,69 @@ void main() {
     expect(AppDate.clockLabel('14:30:00'), '14:30');
     expect(AppDate.clockLabel('bozuk'), 'bozuk');
   });
+
+  group('tarih aralığı (11.6 kesinti kartı)', () {
+    test('aynı güne düşen aralık tek tarihle yazılır', () {
+      expect(
+        AppDate.range(
+          DateTime.utc(2026, 8, 12, 6),
+          DateTime.utc(2026, 8, 12, 12),
+        ),
+        '12 Ağustos 2026, 09:00 – 15:00',
+      );
+    });
+
+    test('güne yayılan aralık iki tam tarihle yazılır', () {
+      // 12 Ağu 20:00 UTC = 23:00 TR → 13 Ağu 01:00 UTC = 04:00 TR
+      expect(
+        AppDate.range(
+          DateTime.utc(2026, 8, 12, 20),
+          DateTime.utc(2026, 8, 13, 1),
+        ),
+        '12 Ağustos 2026, 23:00 → 13 Ağustos 2026, 04:00',
+      );
+    });
+
+    test('gün ayrımı UTC\'ye değil KADİRLİ saatine göre yapılır', () {
+      // İkisi de UTC'de farklı günde ama Türkiye saatinde 13 Ağustos.
+      expect(
+        AppDate.range(
+          DateTime.utc(2026, 8, 12, 22),
+          DateTime.utc(2026, 8, 13, 4),
+        ),
+        '13 Ağustos 2026, 01:00 – 07:00',
+      );
+    });
+  });
+
+  group('süre etiketi (geri sayım)', () {
+    test('bir saatin altı dakika ile yazılır', () {
+      expect(AppDate.duration(const Duration(minutes: 45)), '45 dakika');
+    });
+
+    test('tam saat kısaca "n saat"', () {
+      expect(AppDate.duration(const Duration(hours: 6)), '6 saat');
+    });
+
+    test('saat + dakika kısaltmayla', () {
+      expect(
+        AppDate.duration(const Duration(hours: 2, minutes: 30)),
+        '2 sa 30 dk',
+      );
+    });
+
+    test('bir günden uzun süre gün cinsinden', () {
+      expect(AppDate.duration(const Duration(days: 1, hours: 4)), '1 gün 4 saat');
+      expect(AppDate.duration(const Duration(days: 2)), '2 gün');
+    });
+
+    test('saniyeler yukarı yuvarlanır — "0 dakika kaldı" yazmaz', () {
+      expect(AppDate.duration(const Duration(seconds: 5)), '1 dakika');
+      expect(AppDate.duration(const Duration(seconds: 61)), '2 dakika');
+    });
+
+    test('negatif süre sıfır kabul edilir (saat kayması)', () {
+      expect(AppDate.duration(const Duration(minutes: -10)), '0 dakika');
+    });
+  });
 }

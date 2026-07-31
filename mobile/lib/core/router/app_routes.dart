@@ -31,6 +31,14 @@ abstract final class AppRoutes {
   // --- Modül ekranları (11.6+ dolduracak; bugün "yakında" ekranı) ---
   static const announcements = '/duyurular';
   static const powerOutages = '/kesintiler';
+
+  /// Duyuru detayı — `/duyurular/<id>`. **11.13 push deep-link hedefi**
+  /// (bildirimin `data.relatedId`'si doğrudan buraya gider).
+  static String announcementDetail(String id) => '$announcements/$id';
+
+  /// Kesinti detayı — `/kesintiler/<id>`.
+  static String powerOutageDetail(String id) => '$powerOutages/$id';
+
   static const pharmacies = '/eczaneler';
   static const guide = '/rehber';
   static const deaths = '/vefat';

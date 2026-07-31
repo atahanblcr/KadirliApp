@@ -6,8 +6,8 @@ import '../../announcements/data/models/announcement.dart';
 import '../../notifications/application/unread_count_provider.dart';
 import '../../pharmacies/data/models/on_duty_pharmacy.dart';
 import '../../pharmacies/data/pharmacies_repository.dart';
+import '../../power_outages/application/power_outages_providers.dart';
 import '../../power_outages/data/models/power_outage.dart';
-import '../../power_outages/data/power_outages_repository.dart';
 
 /// Ana Sayfa'nın üç veri kaynağı **ayrı** provider'lar: biri patlarsa diğerleri
 /// görünmeye devam eder (tek bir "hub isteği" olsaydı nöbetçi eczane hatası
@@ -23,10 +23,15 @@ final onDutyPharmaciesProvider = FutureProvider<List<OnDutyPharmacy>>(
 );
 
 /// Süren + planlanan elektrik kesintileri (en yakın önce).
-final relevantOutagesProvider = FutureProvider<List<PowerOutage>>(
-  (ref) => ref.watch(powerOutagesRepositoryProvider).relevant(),
-  retry: apiRetry,
-);
+///
+/// Kesinti ucu **tek istekte tüm kayıtları** döndürdüğü için hub kendi isteğini
+/// atmaz, 11.6'nın [allPowerOutagesProvider]'ını süzer: hub'dan Kesintiler
+/// modülüne girmek ikinci bir ağ isteği doğurmaz (tazeleme yine hub'dan).
+final relevantOutagesProvider = FutureProvider<List<PowerOutage>>((ref) async {
+  final outages = await ref.watch(allPowerOutagesProvider.future);
+  return outages.where((outage) => outage.isRelevant()).toList()
+    ..sort((a, b) => a.startTime.compareTo(b.startTime));
+}, retry: apiRetry);
 
 /// Ana Sayfa vitrinindeki son duyurular.
 final latestAnnouncementsProvider = FutureProvider<List<Announcement>>(
@@ -41,7 +46,8 @@ final latestAnnouncementsProvider = FutureProvider<List<Announcement>>(
 /// refresh göstergesinin patlaması gerekmez.
 Future<void> refreshHome(WidgetRef ref) async {
   ref.invalidate(onDutyPharmaciesProvider);
-  ref.invalidate(relevantOutagesProvider);
+  // Kaynağı tazelemek yeter: `relevantOutagesProvider` ondan türüyor.
+  ref.invalidate(allPowerOutagesProvider);
   ref.invalidate(latestAnnouncementsProvider);
   // Rozet de tazelenir: kullanıcı Ana Sayfa'yı aşağı çekince "her şey
   // yenilendi" bekliyor, alt sekmedeki sayının bayat kalması tutarsız olurdu.
