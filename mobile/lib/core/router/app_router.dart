@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/ads/presentation/ad_detail_screen.dart';
 import '../../features/ads/presentation/ads_screen.dart';
 import '../../features/announcements/presentation/announcement_detail_screen.dart';
 import '../../features/announcements/presentation/announcements_screen.dart';
@@ -74,6 +75,16 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.ads,
                 name: 'ads',
                 builder: (context, state) => const AdsScreen(),
+                routes: [
+                  // 11.8: detay sekmenin KENDİ Navigator'ında açılır — alt
+                  // sekme çubuğu kaybolmaz, geri liste konumunu korur.
+                  GoRoute(
+                    path: ':id',
+                    name: 'adDetail',
+                    builder: (context, state) =>
+                        AdDetailScreen(id: state.pathParameters['id']!),
+                  ),
+                ],
               ),
             ],
           ),
@@ -202,7 +213,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Bir modül gerçeklenince `AppModule.ready` true olur, kendi rotası
       // yukarıya yazılır ve buradaki "yakında" ekranı devreden çıkar.
       for (final module in kAppModules)
-        if (module.route != AppRoutes.ads && !module.ready)
+        if (!module.ready)
           GoRoute(
             path: module.route,
             name: 'module-${module.id}',

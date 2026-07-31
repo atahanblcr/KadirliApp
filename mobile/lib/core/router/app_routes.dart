@@ -39,6 +39,11 @@ abstract final class AppRoutes {
   /// Kesinti detayı — `/kesintiler/<id>`.
   static String powerOutageDetail(String id) => '$powerOutages/$id';
 
+  /// İlan detayı — `/ilanlar/<id>` (11.8). İlanlar bir **sekme** olduğu için
+  /// detay o dalın alt rotası: alt sekme çubuğu yerinde kalır, geri liste
+  /// konumuna döner.
+  static String adDetail(String id) => '$ads/$id';
+
   /// Eczane detayı — `/eczaneler/<id>` (11.7).
   static String pharmacyDetail(String id) => '$pharmacies/$id';
 

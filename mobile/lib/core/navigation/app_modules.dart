@@ -54,7 +54,17 @@ const kAppModules = <AppModule>[
     route: AppRoutes.ads,
     phase: '11.8',
     summary: 'Alım-satım ilanları: ara, filtrele, favorile, ilan ver.',
-    endpoints: ['GET /v1/ads', 'GET /v1/ads/{id}', 'POST /v1/ads'],
+    endpoints: [
+      'GET /v1/ads',
+      'GET /v1/ads/categories',
+      'GET /v1/ads/{id}',
+      'POST|DELETE /v1/ads/{id}/favorite',
+      'POST /v1/ads/{id}/track-phone',
+      'POST /v1/ads/{id}/track-whatsapp',
+      // 11.9: ilan verme + benim ilanlarım.
+      'POST /v1/ads',
+    ],
+    ready: true,
   ),
   AppModule(
     id: 'announcements',

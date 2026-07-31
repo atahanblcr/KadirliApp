@@ -187,6 +187,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Kadirli Belediyesi'), findsOneWidget);
+    // 11.8'de yakalanan hata: filtre sıfırlanırken arama kutusu eski metni
+    // tutuyordu.
+    expect(find.text('olmayan'), findsNothing, reason: 'kutu da temizlenmeli');
   });
 
   testWidgets('kategoriler alınamazsa şerit çizilmez ama liste çalışır', (

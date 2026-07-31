@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/navigation/app_modules.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 
@@ -55,7 +56,12 @@ class _ModuleTile extends StatelessWidget {
           side: BorderSide(color: palette.border),
         ),
         child: InkWell(
-          onTap: () => context.push(module.route),
+          // ⚠️ Modül rotası aynı zamanda bir **sekme** ise (İlanlar) `push`
+          // kabuğun üstüne ikinci bir kabuk yığar; doğru davranış o sekmeye
+          // geçmektir. Diğer modüller kabuğun dışına açılır (11.4 kararı).
+          onTap: () => AppRoutes.tabs.contains(module.route)
+              ? context.go(module.route)
+              : context.push(module.route),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.xs,

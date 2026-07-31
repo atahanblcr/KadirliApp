@@ -56,6 +56,15 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
   Widget build(BuildContext context) {
     final controller = ref.read(guideFeedProvider.notifier);
 
+    // 🐛 11.8'de yakalanan aynı hata burada da vardı: "Filtreleri temizle"
+    // aramayı sıfırlıyor ama kutuda eski metin kalıyordu.
+    ref.listen(guideFeedProvider.select((state) => state.filter.search), (
+      _,
+      search,
+    ) {
+      if (search != _searchController.text) _searchController.text = search;
+    });
+
     return AppScaffold(
       title: 'Şehir Rehberi',
       onRefresh: () async {
