@@ -39,6 +39,12 @@ abstract final class AppRoutes {
   /// Kesinti detayı — `/kesintiler/<id>`.
   static String powerOutageDetail(String id) => '$powerOutages/$id';
 
+  /// Eczane detayı — `/eczaneler/<id>` (11.7).
+  static String pharmacyDetail(String id) => '$pharmacies/$id';
+
+  /// Rehber kaydı detayı — `/rehber/<id>` (11.7).
+  static String guideItemDetail(String id) => '$guide/$id';
+
   static const pharmacies = '/eczaneler';
   static const guide = '/rehber';
   static const deaths = '/vefat';

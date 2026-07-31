@@ -14,8 +14,12 @@ import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/common/presentation/module_placeholder_screen.dart';
 import '../../features/dev/presentation/design_preview_screen.dart';
 import '../../features/dev/presentation/network_probe_screen.dart';
+import '../../features/guide/presentation/guide_item_detail_screen.dart';
+import '../../features/guide/presentation/guide_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/pharmacies/presentation/pharmacies_screen.dart';
+import '../../features/pharmacies/presentation/pharmacy_detail_screen.dart';
 import '../../features/power_outages/presentation/power_outage_detail_screen.dart';
 import '../../features/power_outages/presentation/power_outages_screen.dart';
 import '../../features/profile/presentation/account_delete_screen.dart';
@@ -162,6 +166,34 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: 'powerOutageDetail',
             builder: (context, state) =>
                 PowerOutageDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+
+      // --- Gerçeklenmiş modüller (11.7) ---
+      GoRoute(
+        path: AppRoutes.pharmacies,
+        name: 'module-pharmacies',
+        builder: (context, state) => const PharmaciesScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'pharmacyDetail',
+            builder: (context, state) =>
+                PharmacyDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.guide,
+        name: 'module-guide',
+        builder: (context, state) => const GuideScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'guideItemDetail',
+            builder: (context, state) =>
+                GuideItemDetailScreen(id: state.pathParameters['id']!),
           ),
         ],
       ),

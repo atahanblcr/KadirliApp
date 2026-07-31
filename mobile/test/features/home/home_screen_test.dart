@@ -182,7 +182,10 @@ void main() {
     await tester.tap(find.textContaining('Şifa Eczanesi'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Eczane yakında'), findsOneWidget);
+    // 11.7'den beri gerçek eczane ekranı açılıyor ("yakında" ekranı değil).
+    expect(find.text('Eczane yakında'), findsNothing);
+    expect(find.text('Nöbetçi Eczane'), findsOneWidget, reason: 'ekran başlığı');
+    expect(find.text('BUGÜN NÖBETÇİ'), findsOneWidget);
   });
 
   testWidgets('aşağı çekince üç veri kaynağı da tazelenir', (tester) async {

@@ -79,7 +79,13 @@ const kAppModules = <AppModule>[
     route: AppRoutes.pharmacies,
     phase: '11.7',
     summary: 'Bugünün nöbetçi eczanesi ve aylık nöbet takvimi.',
-    endpoints: ['GET /v1/pharmacies/on-duty', 'GET /v1/pharmacies/schedule'],
+    endpoints: [
+      'GET /v1/pharmacies/on-duty',
+      'GET /v1/pharmacies/schedule',
+      'GET /v1/pharmacies',
+      'GET /v1/pharmacies/{id}',
+    ],
+    ready: true,
   ),
   AppModule(
     id: 'deaths',
@@ -135,7 +141,12 @@ const kAppModules = <AppModule>[
     route: AppRoutes.guide,
     phase: '11.7',
     summary: 'Şehir rehberi: kurumlar, sağlık, eğitim ve iletişim bilgileri.',
-    endpoints: ['GET /v1/guide/categories', 'GET /v1/guide/items'],
+    endpoints: [
+      'GET /v1/guide/categories',
+      'GET /v1/guide/items',
+      'GET /v1/guide/items/{id}',
+    ],
+    ready: true,
   ),
   AppModule(
     id: 'transport',
