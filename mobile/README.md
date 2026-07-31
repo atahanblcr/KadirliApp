@@ -44,6 +44,47 @@ flutter test             # birim + widget testleri
 flutter build apk --debug
 ```
 
+## Canlı doğrulama (emülatör / simülatör sürme)
+
+Her alt-faz sonunda ekranlar **gerçek API'ye bağlı** olarak deneniyor. İki
+platformda da bunu komut satırından yapabilmek için:
+
+**Android** — `adb` PATH'te değil, tam yol gerekiyor:
+
+```bash
+ADB=~/Library/Android/sdk/platform-tools/adb
+$ADB exec-out screencap -p > ekran.png
+$ADB shell input tap <x> <y>          # screenshot koordinatı birebir
+$ADB shell input text "savrun"
+$ADB shell input swipe 540 1800 540 400 250   # kaydırma
+```
+
+**iOS** — `xcrun simctl` ekran görüntüsü alır ama **dokunuş gönderemez**;
+bunun için `tool/ios_sim.sh` yazıldı (macOS erişilebilirlik katmanını kullanır):
+
+```bash
+tool/ios_sim.sh check            # izin + pencere + cihaz ekranı kutusu
+tool/ios_sim.sh shot ekran.png
+tool/ios_sim.sh tap 808 460      # screenshot koordinatı
+tool/ios_sim.sh text "savrun"
+tool/ios_sim.sh key return|escape|delete
+```
+
+> **Kurulum:** Sistem Ayarları → Gizlilik ve Güvenlik → **Erişilebilirlik**'te
+> terminal uygulamasına izin verilmeli (`check` doğrular).
+>
+> ⚠️ **İki tuzak** (31 Tem 2026'da teşhis edildi):
+> 1. Simulator penceresi **odakta değilken AX ağacından kaybolur** → `-1719`.
+>    Bu izin sorunu sanılıp yanlış teşhis edilebiliyor; gerçek izin hatası
+>    `-1743`. Script her komuttan önce `activate` çağırıyor.
+> 2. Koordinat eşlemesinde **pencere kutusu kullanılamaz** (başlık çubuğu +
+>    kenar boşluğu içeriyor). Doğru referans, pencerenin içindeki **AXGroup**
+>    = cihaz ekranı.
+>
+> **Sınır:** iOS tarafında **kaydırma yok** (System Events sürükleme/tekerlek
+> üretmiyor, `pyobjc/Quartz` kurulu değil). Ekranın altında kalan içeriği ya
+> simülatör penceresini büyüterek ya da Android emülatöründe doğrulayın.
+
 ## Klasör yapısı (feature-first)
 
 ```
