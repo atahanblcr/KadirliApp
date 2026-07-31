@@ -26,17 +26,19 @@
 #   tool/ios_sim.sh check                # izin + pencere + cihaz ekranı kutusu
 #   tool/ios_sim.sh shot out.png         # ekran görüntüsü
 #   tool/ios_sim.sh tap <x> <y>          # CİHAZ pikseli = screenshot koordinatı
+#   tool/ios_sim.sh swipe <x1> <y1> <x2> <y2> [adım]   # kaydırma (cliclick)
 #   tool/ios_sim.sh text "savrun"        # odaktaki alana yaz
-#   tool/ios_sim.sh key return           # tuş gönder (return/escape/delete...)
+#   tool/ios_sim.sh key return           # tuş gönder (return/escape/delete)
 #
 # Akış: `shot` al → görüntüdeki hedefin piksel koordinatını oku → `tap` ile
 # aynı koordinatı gönder. Ölçek dönüşümünü script yapıyor.
 #
+# ── EK BAĞIMLILIK: cliclick (yalnız `swipe` için) ────────────────────────────
+# `brew install cliclick` (~160 KB tek binary). System Events sürükleme olayı
+# üretemediği için kaydırma bununla yapılıyor; `pyobjc/Quartz` alternatifi
+# ~30-40 MB ve venv gerektirdiğinden bilinçli olarak seçilmedi.
+#
 # ── BİLİNEN SINIRLAR ─────────────────────────────────────────────────────────
-# • **Kaydırma (scroll) YOK.** System Events sürükleme/tekerlek olayı üretmiyor;
-#   Python `Quartz` (pyobjc) bu makinede kurulu değil. Ekranın altında kalan
-#   içerik için ya simülatör penceresini büyütün ya da o senaryoyu Android
-#   emülatöründe doğrulayın.
 # • Etikete göre dokunma (`AXDescription` araması) denendi, **çalışmıyor**:
 #   Simulator'ın AX ağacında `entire contents` boş dönüyor (Flutter semantikleri
 #   bu yolla listelenemiyor). Bilinçli olarak eklenmedi — çalışmayan komut
@@ -103,6 +105,32 @@ case "${1:-}" in
     read -r sx sy <<<"$(map_point "${2:?x gerekli}" "${3:?y gerekli}")"
     osascript -e "tell application \"System Events\" to click at {$sx, $sy}" >/dev/null
     echo "dokunuldu: cihaz($2,$3) → ekran($sx,$sy)"
+    ;;
+
+  swipe)
+    # Simülatör fare sürüklemesini dokunma hareketine çeviriyor → kaydırma.
+    # System Events sürükleme üretemediği için `cliclick` kullanılıyor
+    # (brew, ~160 KB tek binary).
+    command -v cliclick >/dev/null 2>&1 || {
+      echo "cliclick kurulu değil → brew install cliclick" >&2
+      exit 1
+    }
+    activate
+    read -r sx1 sy1 <<<"$(map_point "${2:?x1}" "${3:?y1}")"
+    read -r sx2 sy2 <<<"$(map_point "${4:?x2}" "${5:?y2}")"
+    # Ara adımlar şart: tek sıçrayışlı sürükleme "fırlatma" (fling) sayılmıyor
+    # ve bazı listelerde hiç hareket etmiyor.
+    steps=${6:-8}
+    # ⚠️ cliclick her adımı AYRI argüman bekliyor (tek string kabul etmiyor).
+    args=("dd:$sx1,$sy1")
+    for i in $(seq 1 "$steps"); do
+      read -r mx my <<<"$(awk -v a="$sy1" -v b="$sy2" -v x1="$sx1" -v x2="$sx2" -v i="$i" -v n="$steps" \
+        'BEGIN { printf "%d %d", x1 + (x2-x1)*i/n, a + (b-a)*i/n }')"
+      args+=("w:12" "dm:$mx,$my")
+    done
+    args+=("du:$sx2,$sy2")
+    cliclick "${args[@]}" >/dev/null
+    echo "kaydırıldı: cihaz($2,$3) → cihaz($4,$5)"
     ;;
 
   text)

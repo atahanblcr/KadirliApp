@@ -63,27 +63,32 @@ $ADB shell input swipe 540 1800 540 400 250   # kaydırma
 bunun için `tool/ios_sim.sh` yazıldı (macOS erişilebilirlik katmanını kullanır):
 
 ```bash
-tool/ios_sim.sh check            # izin + pencere + cihaz ekranı kutusu
+tool/ios_sim.sh check                  # izin + pencere + cihaz ekranı kutusu
 tool/ios_sim.sh shot ekran.png
-tool/ios_sim.sh tap 808 460      # screenshot koordinatı
+tool/ios_sim.sh tap 808 460            # screenshot koordinatı
+tool/ios_sim.sh swipe 600 2200 600 600 # kaydırma
 tool/ios_sim.sh text "savrun"
 tool/ios_sim.sh key return|escape|delete
 ```
 
-> **Kurulum:** Sistem Ayarları → Gizlilik ve Güvenlik → **Erişilebilirlik**'te
-> terminal uygulamasına izin verilmeli (`check` doğrular).
+> **Kurulum:**
+> 1. Sistem Ayarları → Gizlilik ve Güvenlik → **Erişilebilirlik**'te terminal
+>    uygulamasına izin verilmeli (`check` doğrular).
+> 2. `brew install cliclick` — yalnız `swipe` için (~160 KB tek binary).
+>    System Events sürükleme olayı üretemiyor; `pyobjc/Quartz` alternatifi
+>    ~30-40 MB ve venv gerektirdiği için tercih edilmedi.
 >
 > ⚠️ **İki tuzak** (31 Tem 2026'da teşhis edildi):
 > 1. Simulator penceresi **odakta değilken AX ağacından kaybolur** → `-1719`.
 >    Bu izin sorunu sanılıp yanlış teşhis edilebiliyor; gerçek izin hatası
->    `-1743`. Script her komuttan önce `activate` çağırıyor.
+>    `-1743`, `-25204` ise `kAXErrorCannotComplete` — ikisi de izinle ilgisiz.
+>    Script her komuttan önce `activate` çağırıyor.
 > 2. Koordinat eşlemesinde **pencere kutusu kullanılamaz** (başlık çubuğu +
 >    kenar boşluğu içeriyor). Doğru referans, pencerenin içindeki **AXGroup**
 >    = cihaz ekranı.
 >
-> **Sınır:** iOS tarafında **kaydırma yok** (System Events sürükleme/tekerlek
-> üretmiyor, `pyobjc/Quartz` kurulu değil). Ekranın altında kalan içeriği ya
-> simülatör penceresini büyüterek ya da Android emülatöründe doğrulayın.
+> `swipe` ara adımlarla sürüklüyor: tek sıçrayışlı sürükleme bazı listelerde
+> hiç hareket ettirmiyor.
 
 ## Klasör yapısı (feature-first)
 
