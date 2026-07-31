@@ -100,6 +100,25 @@ class _AdsScreenState extends ConsumerState<AdsScreen> {
         ref.read(favoriteAdsProvider.notifier).load();
         await controller.refresh();
       },
+      // 11.9: pazaryerinin ana aksiyonu. Anonim kullanıcı router'la giriş
+      // ekranına ATILMAZ (kabuk kapanır) — önce nazik davet gösterilir,
+      // vazgeçerse listede kalır.
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'ads-create',
+        onPressed: () async {
+          if (!await ensureSignedIn(
+            context,
+            ref,
+            reason: 'İlan verebilmek için giriş yapmanız gerekiyor.',
+          )) {
+            return;
+          }
+          if (!context.mounted) return;
+          context.push(AppRoutes.adCreate);
+        },
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('İlan ver'),
+      ),
       body: Column(
         children: [
           AppSpacing.gapMd,
@@ -453,7 +472,8 @@ class _Body extends ConsumerWidget {
         AppSpacing.lg,
         AppSpacing.sm,
         AppSpacing.lg,
-        AppSpacing.xxl,
+        // "İlan ver" düğmesi son kartın üstünü kapatmasın (11.9).
+        AppSpacing.huge + AppSpacing.xl,
       ),
       itemCount: state.items.length + 1,
       separatorBuilder: (_, _) => AppSpacing.gapSm,

@@ -28,6 +28,30 @@ abstract final class AppRoutes {
   /// Hesabı sil (`DELETE /v1/users/me`) — oturum zorunlu, mağaza şartı.
   static const accountDelete = '/ayarlar/hesabi-sil';
 
+  // --- İlanlar Bölüm 2 (11.9) ---
+
+  /// İlan verme formu (`POST /v1/ads`) — oturum zorunlu.
+  ///
+  /// Kabuğun **dışında** tam ekran: uzun ve odaklanmış bir görev, alt sekme
+  /// çubuğu kullanıcıyı formun ortasında başka yere davet etmemeli.
+  static const adCreate = '/ilan-ver';
+
+  /// İlan düzenleme (`PUT /v1/ads/{id}`) — aynı form, kategori kilitli.
+  ///
+  /// ⚠️ Bilinçli olarak `/ilan-ver`in **alt rotası değil**: go_router iç içe
+  /// rotada üst ekranı da kurar (11.7 tuzağı) → düzenlemeye girerken arkada
+  /// "yeni ilan" formu açılıyor, kategori isteği atıyor ve taslak diyaloğunu
+  /// düzenleme ekranının üstüne fırlatıyordu.
+  static const adEditPrefix = '/ilan-duzenle';
+
+  static String adEdit(String id) => '$adEditPrefix/$id';
+
+  /// "İlanlarım" (`GET /v1/users/me/ads`) — Profil sekmesinin alt rotası.
+  static const myAds = '/profil/ilanlarim';
+
+  /// "Favorilerim" (`GET /v1/users/me/favorites`) — Profil sekmesinin alt rotası.
+  static const myFavorites = '/profil/favorilerim';
+
   // --- Modül ekranları (11.6+ dolduracak; bugün "yakında" ekranı) ---
   static const announcements = '/duyurular';
   static const powerOutages = '/kesintiler';
@@ -79,7 +103,15 @@ abstract final class AppRoutes {
   ///
   /// ⚠️ `startsWith` ile eşleşir → `/profil` (sekme) buraya TAKILMAZ, yalnız
   /// `/profil/duzenle` takılır.
-  static const protectedPrefixes = <String>[profileEdit, accountDelete];
+  static const protectedPrefixes = <String>[
+    profileEdit,
+    accountDelete,
+    // 11.9: ilan verme/düzenleme ve me-scoped listeler.
+    adCreate,
+    adEditPrefix,
+    myAds,
+    myFavorites,
+  ];
 
   static bool requiresAuth(String location) =>
       protectedPrefixes.any(location.startsWith);

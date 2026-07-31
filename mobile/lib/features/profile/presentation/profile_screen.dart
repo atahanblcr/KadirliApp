@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/utils.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../ads/application/my_ads_controller.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/presentation/widgets/sign_in_prompt.dart';
 
@@ -132,15 +133,16 @@ class ProfileScreen extends ConsumerWidget {
                 _ProfileRow(
                   icon: Icons.sell_outlined,
                   label: 'İlanlarım',
-                  trailing: 'Yakında',
-                  onTap: () => context.go(AppRoutes.ads),
+                  // Sayı, listeyi zaten okuyan denetleyiciden türer (ek istek
+                  // yok); liste henüz açılmadıysa rozet çizilmez.
+                  trailing: ref.watch(myAdsCountProvider)?.toString(),
+                  onTap: () => context.push(AppRoutes.myAds),
                 ),
                 _ProfileDivider(color: palette.border),
                 _ProfileRow(
                   icon: Icons.favorite_outline_rounded,
                   label: 'Favorilerim',
-                  trailing: 'Yakında',
-                  onTap: () => context.go(AppRoutes.ads),
+                  onTap: () => context.push(AppRoutes.myFavorites),
                 ),
               ],
             ),

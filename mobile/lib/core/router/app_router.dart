@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/ads/presentation/ad_detail_screen.dart';
+import '../../features/ads/presentation/ad_form_screen.dart';
 import '../../features/ads/presentation/ads_screen.dart';
+import '../../features/ads/presentation/favorites_screen.dart';
+import '../../features/ads/presentation/my_ads_screen.dart';
 import '../../features/announcements/presentation/announcement_detail_screen.dart';
 import '../../features/announcements/presentation/announcements_screen.dart';
 import '../../features/auth/application/auth_controller.dart';
@@ -103,6 +106,20 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.profile,
                 name: 'profile',
                 builder: (context, state) => const ProfileScreen(),
+                routes: [
+                  // 11.9: me-scoped listeler sekmenin İÇİNDE (alt sekme
+                  // çubuğu kalır, geri tuşu profile döner).
+                  GoRoute(
+                    path: 'ilanlarim',
+                    name: 'myAds',
+                    builder: (context, state) => const MyAdsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'favorilerim',
+                    name: 'myFavorites',
+                    builder: (context, state) => const FavoritesScreen(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -149,6 +166,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.accountDelete,
         name: 'accountDelete',
         builder: (context, state) => const AccountDeleteScreen(),
+      ),
+
+      // --- İlan verme / düzenleme (11.9) ---
+      // Kabuğun dışında tam ekran. ⚠️ Düzenleme **kardeş** rota: alt rota
+      // yapılırsa go_router üstteki "yeni ilan" ekranını da kurar (11.7'de
+      // eczane detayında görülen tuzak) ve arkada boşuna istek/diyalog çıkar.
+      GoRoute(
+        path: AppRoutes.adCreate,
+        name: 'adCreate',
+        builder: (context, state) => const AdFormScreen(),
+      ),
+      GoRoute(
+        path: '${AppRoutes.adEditPrefix}/:id',
+        name: 'adEdit',
+        builder: (context, state) =>
+            AdFormScreen(adId: state.pathParameters['id']!),
       ),
 
       // --- Gerçeklenmiş modüller (11.6) ---

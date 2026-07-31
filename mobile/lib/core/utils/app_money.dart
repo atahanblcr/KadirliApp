@@ -18,6 +18,15 @@ abstract final class AppMoney {
     return '${(hasKurus ? _fractional : _whole).format(value)} $symbol';
   }
 
+  /// Fiyat **girişi** için sembolsüz metin (`25.000`, `1.250,50`).
+  ///
+  /// [parse] bu biçimi geri okuyabildiği için düzenleme formunda değer
+  /// kaybolmadan gidip gelir (11.9).
+  static String plain(num value) {
+    final hasKurus = (value - value.roundToDouble()).abs() >= 0.005;
+    return (hasKurus ? _fractional : _whole).format(value);
+  }
+
   /// Fiyatsız ilan (`price: null`) için nötr metin — "0 ₺" YAZILMAZ,
   /// bedava sanılır.
   static String price(num? value, {String empty = 'Fiyat belirtilmemiş'}) =>

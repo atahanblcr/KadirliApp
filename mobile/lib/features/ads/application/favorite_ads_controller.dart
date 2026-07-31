@@ -84,27 +84,41 @@ class FavoriteAdsController extends Notifier<FavoriteAdsState> {
     }
   }
 
-  /// Favoriyi çevirir. **İyimser:** kalp anında dolar/boşalır, istek başarısız
-  /// olursa geri alınır ve hata çağırana döner (ekran şerit gösterir).
+  /// Favoriyi çevirir (kalp ikonu): yönü **mevcut kümeye** bakarak belirler.
   ///
   /// Dönen değer: işlemden sonraki favori durumu.
   Future<bool> toggle(String adId) async {
-    if (state.busyId == adId) return state.contains(adId);
+    final next = !state.contains(adId);
+    await setFavorite(adId, value: next);
+    return next;
+  }
+
+  /// Favori durumunu **açıkça** belirler.
+  ///
+  /// ⚠️ [toggle] yerine bunu kullanın: durumu zaten bilen ekranlar (favori
+  /// listesindeki "çıkar" düğmesi gibi) kümenin yüklenmesini beklememeli.
+  /// Küme henüz dolmamışken `toggle` yanlış yöne gider — bu hata testte
+  /// yakalandı (liste "çıkar" derken uca POST gidiyordu).
+  ///
+  /// **İyimser:** kalp anında dolar/boşalır, istek başarısız olursa geri
+  /// alınır ve hata çağırana döner (ekran şerit gösterir). Uçlar idempotent,
+  /// bu yüzden "zaten favoride" durumu da güvenli.
+  Future<void> setFavorite(String adId, {required bool value}) async {
+    if (state.busyId == adId) return;
 
     final wasFavorite = state.contains(adId);
     final next = {...state.ids};
-    wasFavorite ? next.remove(adId) : next.add(adId);
+    value ? next.add(adId) : next.remove(adId);
     state = state.copyWith(ids: next, busyId: adId);
 
     final repository = ref.read(adsRepositoryProvider);
     try {
-      if (wasFavorite) {
-        await repository.removeFavorite(adId);
-      } else {
+      if (value) {
         await repository.addFavorite(adId);
+      } else {
+        await repository.removeFavorite(adId);
       }
       state = state.copyWith(clearBusy: true);
-      return !wasFavorite;
     } on ApiException {
       final reverted = {...state.ids};
       wasFavorite ? reverted.add(adId) : reverted.remove(adId);

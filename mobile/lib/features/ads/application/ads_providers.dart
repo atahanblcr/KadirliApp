@@ -7,6 +7,7 @@ import '../data/ads_repository.dart';
 import '../data/models/ad_category.dart';
 import '../data/models/ad_detail.dart';
 import '../data/models/ad_summary.dart';
+import '../data/models/category_property.dart';
 
 /// İlan sıralaması — sunucunun whitelist'i (`GetAdsQueryHandler`); dışındaki
 /// değer 400 üretir, bu yüzden ekran serbest metin göndermez.
@@ -38,6 +39,18 @@ final adSubCategoriesProvider = FutureProvider.family<List<AdCategory>, String>(
       ref.watch(adsRepositoryProvider).categories(parentId: parentId),
   retry: apiRetry,
 );
+
+/// Kategoriye özel form alanları (11.9 ilan verme formunun dinamik bölümü).
+///
+/// Kategori seçilince istenir; sunucuda 15 dk cache'li olduğu için istemcide
+/// `autoDispose` **yok** — kullanıcı adım ileri-geri gidince yeniden istek
+/// atılmasın.
+final adCategoryPropertiesProvider =
+    FutureProvider.family<List<CategoryProperty>, String>(
+      (ref, categoryId) =>
+          ref.watch(adsRepositoryProvider).categoryProperties(categoryId),
+      retry: apiRetry,
+    );
 
 /// İlan detayı — 11.13 push deep-link hedefi de bunu okuyacak.
 ///
