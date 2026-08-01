@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kadirli_app/core/theme/app_theme.dart';
+import 'package:kadirli_app/core/utils/app_date.dart';
 import 'package:kadirli_app/features/campaigns/data/models/campaign.dart';
 import 'package:kadirli_app/features/campaigns/presentation/widgets/campaign_card.dart';
 import 'package:kadirli_app/features/events/data/models/event.dart';
@@ -27,7 +28,10 @@ void main() {
   }) => Event(
     id: 'e1',
     title: title,
-    eventDate: DateTime.now().toUtc().add(Duration(days: inDays)),
+    // ⚠️ `eventDate` sunucuda "Türkiye günü, 00:00 UTC" olarak yazılır ve model
+    // onu **kaydırmadan** okur. `DateTime.now().toUtc()` verilirse saat
+    // 00:00-03:00 arasında gün bir geri kayıyor ve test yalnız gece patlıyordu.
+    eventDate: _turkeyDay(inDays),
     eventTime: '10:00:00',
     venueName: venue,
     categoryName: category,
@@ -175,4 +179,10 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+}
+
+/// Bugünden [inDays] gün sonrasının **Kadirli takvim günü**, 00:00 UTC olarak.
+DateTime _turkeyDay(int inDays) {
+  final day = AppDate.nowInTurkey.add(Duration(days: inDays));
+  return DateTime.utc(day.year, day.month, day.day);
 }

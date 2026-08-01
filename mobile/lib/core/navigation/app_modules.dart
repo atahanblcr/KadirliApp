@@ -104,7 +104,14 @@ const kAppModules = <AppModule>[
     route: AppRoutes.deaths,
     phase: '11.11',
     summary: 'Vefat ilanları, cenaze namazı ve taziye bilgileri.',
-    endpoints: ['GET /v1/deaths', 'POST /v1/deaths'],
+    endpoints: [
+      'GET /v1/deaths',
+      'GET /v1/deaths/{id}',
+      'GET /v1/deaths/cemeteries',
+      'GET /v1/deaths/mosques',
+      'POST /v1/deaths',
+    ],
+    ready: true,
   ),
   AppModule(
     id: 'events',
@@ -144,7 +151,12 @@ const kAppModules = <AppModule>[
     route: AppRoutes.places,
     phase: '11.11',
     summary: 'Gezilecek yerler, park ve mekan bilgileri.',
-    endpoints: ['GET /v1/places', 'GET /v1/places/{id}'],
+    endpoints: [
+      'GET /v1/places',
+      'GET /v1/places/categories',
+      'GET /v1/places/{id}',
+    ],
+    ready: true,
   ),
   AppModule(
     id: 'taxis',
@@ -153,7 +165,12 @@ const kAppModules = <AppModule>[
     route: AppRoutes.taxis,
     phase: '11.11',
     summary: 'Doğrulanmış taksi durakları ve sürücüleri — tek dokunuşla ara.',
-    endpoints: ['GET /v1/taxis/drivers', 'POST /v1/taxis/drivers/{id}/call'],
+    endpoints: [
+      'GET /v1/taxis/drivers',
+      'GET /v1/taxis/drivers/{id}',
+      'POST /v1/taxis/drivers/{id}/call',
+    ],
+    ready: true,
   ),
   AppModule(
     id: 'guide',

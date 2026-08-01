@@ -10,6 +10,7 @@ export 'app_text_field.dart';
 export 'contact_actions.dart';
 export 'filter_chip.dart';
 export 'info_banner.dart';
+export 'lookup_dropdown.dart';
 export 'month_calendar.dart';
 export 'skeleton.dart';
 export 'state_views.dart';

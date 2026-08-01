@@ -81,9 +81,17 @@ class AppTextField extends StatelessWidget {
         if (label != null) ...[
           Row(
             children: [
-              Text(
-                label!,
-                style: theme.textTheme.labelMedium?.copyWith(color: palette.muted),
+              // ⚠️ Uzun etiket dar sütunda `RenderFlex` taşırıyordu (11.11'de
+              // vefat formunun "Taziye adresi (isteğe bağlı)" alanında test
+              // yakaladı) → `Flexible` + ellipsis.
+              Flexible(
+                child: Text(
+                  label!,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: palette.muted,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               if (required)
                 Text(

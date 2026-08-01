@@ -27,6 +27,13 @@ public class PlacesController : ApiControllerBase
         return Ok(result);
     }
 
+    // Faz 11.11: mobil filtre şeridi + kart üzerindeki kategori adı için lookup.
+    // ⚠️ Literal segment `{id}`'den önce eşleşir (ASP.NET Core öncelik kuralı),
+    // yine de okunurluk için burada duruyor — bkz. DeathsController/cemeteries.
+    [HttpGet("categories")]
+    public async Task<IActionResult> GetCategories()
+        => Ok(await _mediator.Send(new Application.Features.Lookups.GetPlaceCategoriesQuery()));
+
     [HttpGet("{id}")]
     public async Task<ActionResult<PlaceResponseDto>> GetPlaceById(Guid id)
     {

@@ -18,6 +18,9 @@ import '../../features/auth/presentation/phone_login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/common/presentation/module_placeholder_screen.dart';
+import '../../features/deaths/presentation/death_detail_screen.dart';
+import '../../features/deaths/presentation/death_report_screen.dart';
+import '../../features/deaths/presentation/deaths_screen.dart';
 import '../../features/dev/presentation/design_preview_screen.dart';
 import '../../features/events/presentation/event_detail_screen.dart';
 import '../../features/events/presentation/events_screen.dart';
@@ -28,12 +31,16 @@ import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/pharmacies/presentation/pharmacies_screen.dart';
 import '../../features/pharmacies/presentation/pharmacy_detail_screen.dart';
+import '../../features/places/presentation/place_detail_screen.dart';
+import '../../features/places/presentation/places_screen.dart';
 import '../../features/power_outages/presentation/power_outage_detail_screen.dart';
 import '../../features/power_outages/presentation/power_outages_screen.dart';
 import '../../features/profile/presentation/account_delete_screen.dart';
 import '../../features/profile/presentation/profile_edit_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/taxis/presentation/taxi_driver_detail_screen.dart';
+import '../../features/taxis/presentation/taxis_screen.dart';
 import '../config/env.dart';
 import '../navigation/app_modules.dart';
 import '../widgets/widgets.dart';
@@ -270,6 +277,53 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: 'campaignDetail',
             builder: (context, state) =>
                 CampaignDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+
+      // --- Gerçeklenmiş modüller (11.11) ---
+      GoRoute(
+        path: AppRoutes.deaths,
+        name: 'module-deaths',
+        builder: (context, state) => const DeathsScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'deathDetail',
+            builder: (context, state) =>
+                DeathDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+      // ⚠️ Vefat bildirimi `/vefat`ın alt rotası DEĞİL (bkz. AppRoutes.deathReport).
+      GoRoute(
+        path: AppRoutes.deathReport,
+        name: 'deathReport',
+        builder: (context, state) => const DeathReportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.taxis,
+        name: 'module-taxis',
+        builder: (context, state) => const TaxisScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'taxiDriverDetail',
+            builder: (context, state) =>
+                TaxiDriverDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.places,
+        name: 'module-places',
+        builder: (context, state) => const PlacesScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'placeDetail',
+            builder: (context, state) =>
+                PlaceDetailScreen(id: state.pathParameters['id']!),
           ),
         ],
       ),

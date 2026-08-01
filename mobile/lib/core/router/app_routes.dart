@@ -80,6 +80,22 @@ abstract final class AppRoutes {
   /// Kampanya detayı — `/kampanyalar/<id>` (11.10).
   static String campaignDetail(String id) => '$campaigns/$id';
 
+  /// Vefat ilanı detayı — `/vefat/<id>` (11.11).
+  static String deathDetail(String id) => '$deaths/$id';
+
+  /// Taksi sürücüsü detayı — `/taksi/<id>` (11.11).
+  static String taxiDriverDetail(String id) => '$taxis/$id';
+
+  /// Mekan detayı — `/mekanlar/<id>` (11.11).
+  static String placeDetail(String id) => '$places/$id';
+
+  /// Vefat bildirimi formu (`POST /v1/deaths`) — oturum zorunlu.
+  ///
+  /// ⚠️ `/vefat`ın **alt rotası değil, kardeşi**: go_router iç içe rotada üst
+  /// ekranı da kurar (11.7/11.9 tuzağı) → arkada liste açılıp gereksiz istek
+  /// atardı. Ayrıca form kabuğun dışında, odaklanmış bir görev.
+  static const deathReport = '/vefat-bildir';
+
   static const pharmacies = '/eczaneler';
   static const guide = '/rehber';
   static const deaths = '/vefat';
@@ -117,6 +133,8 @@ abstract final class AppRoutes {
     adEditPrefix,
     myAds,
     myFavorites,
+    // 11.11: vefat bildirimi (`POST /v1/deaths` `[A]`).
+    deathReport,
   ];
 
   static bool requiresAuth(String location) =>

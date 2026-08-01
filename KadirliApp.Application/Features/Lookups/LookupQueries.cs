@@ -100,3 +100,29 @@ public sealed class GetEventCategoriesQueryHandler : IRequestHandler<GetEventCat
             .Select(c => new SluggedLookupDto(c.Id, c.Name, c.Slug))
             .ToListAsync(ct);
 }
+
+/// <summary>
+/// Faz 11.11: mobil mekan filtresi için kategori lookup'ı.
+/// `PlaceResponseDto` yalnız `CategoryId` taşıyor; public bir kategori ucu
+/// olmadan mobil ne kategori adını yazabiliyor ne de filtre chip'i çizebiliyordu
+/// ("işlevsiz buton yok" kuralı olmayan listeden chip üretmeyi de yasaklıyor).
+/// Etkinlik kategorileriyle bire bir aynı desen — additive, kontrat kırılmaz.
+/// </summary>
+public sealed record GetPlaceCategoriesQuery : IRequest<IReadOnlyList<SluggedLookupDto>>, ICacheableQuery
+{
+    public string CacheKey => "lookups:place-categories";
+    public string CacheGroup => CacheGroups.Lookups;
+    public TimeSpan CacheDuration => TimeSpan.FromMinutes(15);
+}
+
+public sealed class GetPlaceCategoriesQueryHandler : IRequestHandler<GetPlaceCategoriesQuery, IReadOnlyList<SluggedLookupDto>>
+{
+    private readonly IUnitOfWork _uow;
+    public GetPlaceCategoriesQueryHandler(IUnitOfWork uow) => _uow = uow;
+
+    public async Task<IReadOnlyList<SluggedLookupDto>> Handle(GetPlaceCategoriesQuery request, CancellationToken ct)
+        => await _uow.Repository<PlaceCategory>().Query()
+            .OrderBy(c => c.DisplayOrder).ThenBy(c => c.Name)
+            .Select(c => new SluggedLookupDto(c.Id, c.Name, c.Slug))
+            .ToListAsync(ct);
+}

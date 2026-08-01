@@ -197,7 +197,10 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
 - `GET /v1/deaths`, `/deaths/{id}`, `/deaths/cemeteries`, `/deaths/mosques`; `POST /v1/deaths` `[A]` (moderasyona düşer)
 - `GET /v1/pharmacies`, `/pharmacies/{id}`, `/pharmacies/on-duty?date=`, `/pharmacies/schedule?year=&month=`
 - `GET /v1/taxis/drivers`, `/taxis/drivers/{id}`; `POST /v1/taxis/drivers/{id}/call` `[A]` (telefon döner)
-- `GET /v1/places`, `/places/{id}`
+  - ⚠️ Arama parametresi **`searchTerm`** (diğer modüllerde `search`) — ad **ve plakada** arar; yanlış ad sessizce yok sayılır.
+- `GET /v1/places`, `/places/categories` (11.11'de eklendi — `{id,name,slug}`), `/places/{id}`
+  - ⚠️ `place.amenities` DB'de `jsonb` ama DTO'da `string` → yanıtta **JSON içeren metin** gelir (`"{\"WC\":true,\"Wi-Fi\":false}"`), nesne değil. Anahtarda **olmayan** olanak "belirtilmemiş" demektir, "yok" değil.
+  - ⚠️ Liste **ada göre** sıralı (başka sıralama seçeneği yok); arama yalnız **adda** koşar.
 - `GET /v1/guide/categories`, `/guide/categories/{id}`, `/guide/items`, `/guide/items/{id}`
 - `GET /v1/transport/intercity-routes`, `/transport/intracity-routes`
 

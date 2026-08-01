@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kadirli_app/core/router/app_router.dart';
+import 'package:kadirli_app/core/utils/app_date.dart';
 import 'package:kadirli_app/features/events/application/events_providers.dart';
 import 'package:kadirli_app/features/events/data/models/event.dart';
 import 'package:kadirli_app/features/events/data/models/event_calendar_item.dart';
@@ -21,8 +22,13 @@ void main() {
 
   /// Bugünden [inDays] gün sonrası — testler takvim gününe bağlı olmasın diye
   /// tarihler hep "şimdi"ye göre üretiliyor.
+  ///
+  /// ⚠️ Gün **Kadirli saatiyle** hesaplanır: `eventDate` sunucuda "Türkiye
+  /// günü, 00:00 UTC" konvansiyonuyla yazılıyor ve ekran da onu böyle okuyor.
+  /// `DateTime.now().toUtc()` kullanıldığında saat 00:00-03:00 arasında UTC
+  /// günü bir gün geride kalıyor ve testler **yalnız gece** patlıyordu.
   String dayFromNow(int inDays) {
-    final date = DateTime.now().toUtc().add(Duration(days: inDays));
+    final date = AppDate.nowInTurkey.add(Duration(days: inDays));
     return '${date.year.toString().padLeft(4, '0')}-'
         '${date.month.toString().padLeft(2, '0')}-'
         '${date.day.toString().padLeft(2, '0')}';
@@ -239,7 +245,7 @@ void main() {
   testWidgets('takvimde etkinlikli güne dokununca o günün listesi gelir', (
     tester,
   ) async {
-    final now = DateTime.now();
+    final now = AppDate.nowInTurkey;
     final day = now.day;
     await openEvents(
       tester,
@@ -279,7 +285,7 @@ void main() {
   ) async {
     // Ayın 1'i ile bugün aynı gün olursa test anlamını yitirir → bugünün
     // dışında, kesin boş bir gün seçiliyor.
-    final now = DateTime.now();
+    final now = AppDate.nowInTurkey;
     final emptyDay = now.day == 1 ? 2 : 1;
 
     await openEvents(
@@ -345,6 +351,17 @@ void main() {
     expect(find.text('Saat 10:00'), findsOneWidget);
     expect(find.text('Mekan'), findsOneWidget);
     expect(find.text('Yol tarifi'), findsOneWidget);
+
+    // ⚠️ Detay bir `ListView` — ekran dışındaki satır hiç kurulmuyor. Tarihin
+    // gün adı uzun olduğunda ("Çarşamba") kart bir satır büyüyüp "Düzenleyen"i
+    // görünürün dışına itiyordu: iddia kaydırmaya bağlanmalı, güne değil.
+    // (`scrollUntilVisible` burada kullanılamıyor: kabuğun dalları ayakta
+    // kaldığı için ağaçta birden çok `Scrollable` var → "Too many elements".)
+    await tester.dragUntilVisible(
+      find.textContaining('Düzenleyen'),
+      find.byType(ListView).last,
+      const Offset(0, -200),
+    );
     expect(find.textContaining('Düzenleyen'), findsOneWidget);
   });
 
