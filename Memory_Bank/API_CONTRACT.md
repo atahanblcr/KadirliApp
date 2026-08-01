@@ -188,8 +188,10 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
 - `GET /v1/power-outages`, `GET /v1/power-outages/{id}`
 
 ### Etkinlik / Kampanya / İşletme
-- `GET /v1/events`, `/events/{id}`, `/events/categories`, `/events/calendar`
-- `GET /v1/campaigns`, `/campaigns/{id}`; `POST /v1/campaigns/{id}/view-code` `[A]`
+- `GET /v1/events` (sayfalı; `?search=` başlık+mekan, `?categoryId=`, `?startDate=`/`?endDate=` (`yyyy-MM-dd`, gün dahil), `?isFree=`, **`?sort=date_asc|date_desc`** — varsayılan `date_desc`, bilinmeyen değer varsayılana düşer). ⚠️ **Yalnız `approved` döner** (`status` parametresi public uçta yok sayılır); `eventDate` "TR günü 00:00 UTC", `eventTime` ayrı `"HH:mm:ss"` alanı → **saat dilimi kaydırılmaz**.
+- `GET /v1/events/{id}`, `/events/categories` (sayfasız `{id,name,slug}` listesi), `/events/calendar?year=&month=` (sayfasız, o ayın onaylı etkinlikleri — ince DTO)
+- `GET /v1/campaigns` (sayfalı; `?search=` kampanya başlığı + işletme adı). ⚠️ Public uç **yalnız onaylı VE tarihi geçerli** kampanyaları döner (`OnlyActive` sabit) → süresi dolan kampanya listede de detayda da yok (`{id}` **404**). ⚠️ `discountCode` gövdede geliyor ama mobil onu göstermez; kod `view-code` ile açılır (sayaç esnafın ölçümü).
+- `GET /v1/campaigns/{id}`; `POST /v1/campaigns/{id}/view-code` `[A]` → `{code, viewedAt}`; aynı kullanıcı ikinci kez isterse **aynı kayıt** döner (sayaç artmaz), **kodsuz kampanyada 400 VALIDATION_ERROR**
 
 ### Vefat / Eczane / Taksi / Mekan / Rehber / Ulaşım
 - `GET /v1/deaths`, `/deaths/{id}`, `/deaths/cemeteries`, `/deaths/mosques`; `POST /v1/deaths` `[A]` (moderasyona düşer)

@@ -18,4 +18,12 @@ public class QueryEventDto
 
     /// <summary>true → yalnızca ücretsiz, false → yalnızca ücretli etkinlikler.</summary>
     public bool? IsFree { get; set; }
+
+    /// <summary>
+    /// Sıralama: <c>date_asc</c> (tarihi en yakın önce) | <c>date_desc</c> (varsayılan, en ileri tarih önce).
+    /// Faz 11.10: mobil "Yaklaşan etkinlikler" listesi StartDate filtresiyle birlikte date_asc kullanır —
+    /// varsayılan azalan sırada ilk sayfa EN UZAK tarihli etkinlikleri getirdiği için sayfalama anlamsız oluyordu.
+    /// Bilinmeyen değer varsayılana düşer (istemci hatası liste bozmaz).
+    /// </summary>
+    public string? Sort { get; set; }
 }

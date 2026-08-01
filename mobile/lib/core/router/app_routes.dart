@@ -74,6 +74,12 @@ abstract final class AppRoutes {
   /// Rehber kaydı detayı — `/rehber/<id>` (11.7).
   static String guideItemDetail(String id) => '$guide/$id';
 
+  /// Etkinlik detayı — `/etkinlikler/<id>` (11.10).
+  static String eventDetail(String id) => '$events/$id';
+
+  /// Kampanya detayı — `/kampanyalar/<id>` (11.10).
+  static String campaignDetail(String id) => '$campaigns/$id';
+
   static const pharmacies = '/eczaneler';
   static const guide = '/rehber';
   static const deaths = '/vefat';

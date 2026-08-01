@@ -104,7 +104,12 @@ abstract class PagedFeedController<T, F>
   @override
   PagedFeedState<T, F> build() {
     // İlk sayfa `build` içinde beklenmez: provider kurulumu senkron kalmalı.
-    Future.microtask(loadFirstPage);
+    // ⚠️ `ref.mounted` kontrolü şart: provider mikro-görev çalışmadan atılırsa
+    // (test kapsayıcısının kapanması, `autoDispose`) `ref` kullanmak
+    // "Cannot use the Ref ... after it has been disposed" hatası veriyordu.
+    Future.microtask(() {
+      if (ref.mounted) loadFirstPage();
+    });
     return PagedFeedState<T, F>(filter: initialFilter);
   }
 
@@ -122,6 +127,7 @@ abstract class PagedFeedController<T, F>
   Future<void> retry() => loadFirstPage();
 
   Future<void> loadFirstPage({bool keepItems = false}) async {
+    if (!ref.mounted) return;
     final token = ++_requestId;
     _page = 1;
     state = state.copyWith(
@@ -138,7 +144,8 @@ abstract class PagedFeedController<T, F>
         limit: pageSize,
         filter: state.filter,
       );
-      if (token != _requestId) return; // filtre değişti / yeni tazeleme geldi
+      // Atılmış provider'ın durumunu yazmak da hata verir.
+      if (token != _requestId || !ref.mounted) return; // filtre değişti / yeni tazeleme
       state = state.copyWith(
         items: result.items,
         isLoadingFirstPage: false,
@@ -147,7 +154,7 @@ abstract class PagedFeedController<T, F>
         clearError: true,
       );
     } on ApiException catch (error) {
-      if (token != _requestId) return;
+      if (token != _requestId || !ref.mounted) return;
       state = state.copyWith(
         isLoadingFirstPage: false,
         items: keepItems ? state.items : const [],
@@ -158,7 +165,10 @@ abstract class PagedFeedController<T, F>
 
   /// Liste sonuna gelindiğinde bir sonraki sayfa.
   Future<void> loadMore() async {
-    if (state.isLoadingMore || state.isLoadingFirstPage || !state.hasMore) {
+    if (state.isLoadingMore ||
+        state.isLoadingFirstPage ||
+        !state.hasMore ||
+        !ref.mounted) {
       return;
     }
     final token = _requestId;
@@ -170,7 +180,7 @@ abstract class PagedFeedController<T, F>
         limit: pageSize,
         filter: state.filter,
       );
-      if (token != _requestId) return;
+      if (token != _requestId || !ref.mounted) return;
       _page += 1;
       state = state.copyWith(
         items: _mergeUnique(state.items, result.items),
@@ -179,7 +189,7 @@ abstract class PagedFeedController<T, F>
         totalCount: result.totalCount,
       );
     } on ApiException catch (error) {
-      if (token != _requestId) return;
+      if (token != _requestId || !ref.mounted) return;
       state = state.copyWith(isLoadingMore: false, loadMoreError: error);
     }
   }

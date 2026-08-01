@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/network.dart';
 import '../../../core/paging/paged_feed.dart';
 import '../../../core/utils/utils.dart';
+import '../../../core/widgets/widgets.dart';
 import '../data/models/duty_schedule.dart';
 import '../data/models/pharmacy.dart';
 import '../data/pharmacies_repository.dart';
@@ -27,16 +28,15 @@ final pharmacyTabProvider = NotifierProvider<PharmacyTabController, PharmacyTab>
   PharmacyTabController.new,
 );
 
-/// Takvimde gösterilen ay (record → yapısal eşitlik, family anahtarı olabilir).
-typedef DutyMonth = ({int year, int month});
+/// Takvimde gösterilen ay. 11.10'da ortak takvime taşındı ([CalendarMonth]) —
+/// eczane tarafındaki adlar okunabilirlik için duruyor.
+typedef DutyMonth = CalendarMonth;
 
-DutyMonth dutyMonthOf(DateTime date) => (year: date.year, month: date.month);
+DutyMonth dutyMonthOf(DateTime date) => calendarMonthOf(date);
 
 /// Bir ay ileri/geri (Aralık→Ocak sarması dahil).
-DutyMonth shiftDutyMonth(DutyMonth month, int delta) {
-  final shifted = DateTime(month.year, month.month + delta);
-  return (year: shifted.year, month: shifted.month);
-}
+DutyMonth shiftDutyMonth(DutyMonth month, int delta) =>
+    shiftCalendarMonth(month, delta);
 
 /// Takvimde seçili ay — açılışta **Kadirli'nin içinde bulunduğu ay**.
 class DutyMonthController extends Notifier<DutyMonth> {

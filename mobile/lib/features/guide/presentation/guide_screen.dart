@@ -118,7 +118,7 @@ class _CategoryFilter extends ConsumerWidget {
           separatorBuilder: (_, _) => AppSpacing.wGapSm,
           itemBuilder: (context, index) {
             if (index == 0) {
-              return _CategoryChip(
+              return FilterChoiceChip(
                 label: 'Tümü',
                 icon: Icons.apps_rounded,
                 selected: selectedId == null,
@@ -127,11 +127,14 @@ class _CategoryFilter extends ConsumerWidget {
               );
             }
             final category = items[index - 1];
-            return _CategoryChip(
+            return FilterChoiceChip(
               label: category.name,
               icon: category.materialIcon,
               selected: selectedId == category.id,
-              emphasize: category.isEmergency,
+              // Acil numaralar chip'i seçili değilken de dikkat çeker.
+              accent: category.isEmergency
+                  ? Theme.of(context).palette.danger
+                  : null,
               onTap: () => ref
                   .read(guideFeedProvider.notifier)
                   .selectCategory(category.id),
@@ -159,78 +162,6 @@ class _CategoryFilter extends ConsumerWidget {
   }
 }
 
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-    this.emphasize = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  /// Acil numaralar chip'i seçili değilken de dikkat çeker (danger tonu).
-  final bool emphasize;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = theme.palette;
-
-    final accent = emphasize ? palette.danger : theme.colorScheme.primary;
-    final background = selected ? accent : theme.colorScheme.surface;
-    final foreground = selected
-        ? theme.colorScheme.onPrimary
-        : (emphasize ? accent : theme.colorScheme.onSurface);
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: label,
-      child: Material(
-        color: background,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadius.rPill,
-          side: BorderSide(
-            color: selected || emphasize ? accent : palette.border,
-          ),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: AppRadius.rPill,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: selected ? foreground : (emphasize ? accent : palette.muted),
-                ),
-                AppSpacing.wGapSm,
-                Text(
-                  label,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: foreground,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _Body extends ConsumerWidget {
   const _Body({required this.scrollController});

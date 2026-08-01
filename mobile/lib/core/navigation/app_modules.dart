@@ -113,7 +113,13 @@ const kAppModules = <AppModule>[
     route: AppRoutes.events,
     phase: '11.10',
     summary: 'Şehirdeki etkinlikler, takvim görünümü ve detaylar.',
-    endpoints: ['GET /v1/events', 'GET /v1/events/calendar'],
+    endpoints: [
+      'GET /v1/events',
+      'GET /v1/events/categories',
+      'GET /v1/events/calendar',
+      'GET /v1/events/{id}',
+    ],
+    ready: true,
   ),
   AppModule(
     id: 'campaigns',
@@ -124,7 +130,12 @@ const kAppModules = <AppModule>[
     route: AppRoutes.campaigns,
     phase: '11.10',
     summary: 'Esnaf kampanyaları ve indirim kodları.',
-    endpoints: ['GET /v1/campaigns', 'POST /v1/campaigns/{id}/view-code'],
+    endpoints: [
+      'GET /v1/campaigns',
+      'GET /v1/campaigns/{id}',
+      'POST /v1/campaigns/{id}/view-code',
+    ],
+    ready: true,
   ),
   AppModule(
     id: 'places',

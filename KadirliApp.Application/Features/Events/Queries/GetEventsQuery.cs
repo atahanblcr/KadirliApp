@@ -58,8 +58,12 @@ public class GetEventsQueryHandler : IRequestHandler<GetEventsQuery, PagedResult
         var totalCount = await query.CountAsync(cancellationToken);
         var (page, limit) = Pagination.Clamp(dto.Page, dto.Limit, Pagination.AdminMaxLimit);
 
+        // Faz 11.10: yalnız iki sıralama var; bilinmeyen değer varsayılana (en ileri tarih önce) düşer.
+        query = dto.Sort == "date_asc"
+            ? query.OrderBy(x => x.EventDate).ThenBy(x => x.EventTime)
+            : query.OrderByDescending(x => x.EventDate).ThenByDescending(x => x.EventTime);
+
         var items = await query
-            .OrderByDescending(x => x.EventDate)
             .Skip((page - 1) * limit)
             .Take(limit)
             .Select(x => new EventResponseDto

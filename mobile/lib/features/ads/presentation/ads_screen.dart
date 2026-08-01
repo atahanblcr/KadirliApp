@@ -217,7 +217,7 @@ class _CategoryStrip extends ConsumerWidget {
         : roots.where((category) => category.id == rootId).firstOrNull;
 
     final chips = <Widget>[
-      _FilterChip(
+      FilterChoiceChip(
         label: 'Tümü',
         icon: Icons.apps_rounded,
         selected: filter.categoryId == null,
@@ -228,7 +228,7 @@ class _CategoryStrip extends ConsumerWidget {
     if (selectedRoot == null) {
       for (final category in roots) {
         chips.add(
-          _FilterChip(
+          FilterChoiceChip(
             label: category.name,
             icon: category.materialIcon,
             selected: false,
@@ -241,7 +241,7 @@ class _CategoryStrip extends ConsumerWidget {
       }
     } else {
       chips.add(
-        _FilterChip(
+        FilterChoiceChip(
           label: selectedRoot.name,
           icon: selectedRoot.materialIcon,
           selected: filter.categoryId == selectedRoot.id,
@@ -252,7 +252,7 @@ class _CategoryStrip extends ConsumerWidget {
         final subs = ref.watch(adSubCategoriesProvider(selectedRoot.id)).value;
         for (final sub in subs ?? const <AdCategory>[]) {
           chips.add(
-            _FilterChip(
+            FilterChoiceChip(
               label: sub.name,
               icon: sub.materialIcon,
               selected: filter.categoryId == sub.id,
@@ -300,7 +300,7 @@ class _SortStrip extends ConsumerWidget {
         child: Row(
           children: [
             for (final sort in AdSort.values) ...[
-              _FilterChip(
+              FilterChoiceChip(
                 label: sort.label,
                 icon: _sortIcon(sort),
                 selected: filter.sort == sort,
@@ -309,7 +309,7 @@ class _SortStrip extends ConsumerWidget {
               ),
               AppSpacing.wGapSm,
             ],
-            _FilterChip(
+            FilterChoiceChip(
               label: priceLabel ?? 'Fiyat',
               icon: Icons.payments_outlined,
               selected: filter.hasPriceRange,
@@ -345,90 +345,6 @@ class _SortStrip extends ConsumerWidget {
 
 /// Şeritlerdeki ortak chip (rehberdeki `_CategoryChip`'in ilan ekranı sürümü:
 /// sonuna ikon alabiliyor ve `dense` varyantı var).
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-    this.trailing,
-    this.dense = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-  final IconData? trailing;
-  final bool dense;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = theme.palette;
-
-    final accent = theme.colorScheme.primary;
-    final background = selected ? accent : theme.colorScheme.surface;
-    final foreground = selected
-        ? theme.colorScheme.onPrimary
-        : theme.colorScheme.onSurface;
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: label,
-      child: Material(
-        color: background,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadius.rPill,
-          side: BorderSide(color: selected ? accent : palette.border),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: AppRadius.rPill,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: dense ? AppSpacing.md : AppSpacing.md,
-              vertical: dense ? AppSpacing.xs : AppSpacing.sm,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  size: dense ? 15 : 16,
-                  color: selected ? foreground : palette.muted,
-                ),
-                AppSpacing.wGapSm,
-                Text(
-                  label,
-                  style:
-                      (dense
-                              ? theme.textTheme.labelMedium
-                              : theme.textTheme.labelLarge)
-                          ?.copyWith(
-                            color: foreground,
-                            fontWeight: selected
-                                ? FontWeight.w700
-                                : FontWeight.w600,
-                          ),
-                ),
-                if (trailing != null) ...[
-                  AppSpacing.wGapXs,
-                  Icon(
-                    trailing,
-                    size: dense ? 15 : 16,
-                    color: selected ? foreground : palette.muted,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _Body extends ConsumerWidget {
   const _Body({required this.scrollController});

@@ -10,6 +10,8 @@ import '../../features/ads/presentation/my_ads_screen.dart';
 import '../../features/announcements/presentation/announcement_detail_screen.dart';
 import '../../features/announcements/presentation/announcements_screen.dart';
 import '../../features/auth/application/auth_controller.dart';
+import '../../features/campaigns/presentation/campaign_detail_screen.dart';
+import '../../features/campaigns/presentation/campaigns_screen.dart';
 import '../../features/auth/application/otp_flow_controller.dart';
 import '../../features/auth/presentation/otp_verify_screen.dart';
 import '../../features/auth/presentation/phone_login_screen.dart';
@@ -17,6 +19,8 @@ import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/common/presentation/module_placeholder_screen.dart';
 import '../../features/dev/presentation/design_preview_screen.dart';
+import '../../features/events/presentation/event_detail_screen.dart';
+import '../../features/events/presentation/events_screen.dart';
 import '../../features/dev/presentation/network_probe_screen.dart';
 import '../../features/guide/presentation/guide_item_detail_screen.dart';
 import '../../features/guide/presentation/guide_screen.dart';
@@ -238,6 +242,34 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: 'guideItemDetail',
             builder: (context, state) =>
                 GuideItemDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+
+      // --- Gerçeklenmiş modüller (11.10) ---
+      GoRoute(
+        path: AppRoutes.events,
+        name: 'module-events',
+        builder: (context, state) => const EventsScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'eventDetail',
+            builder: (context, state) =>
+                EventDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.campaigns,
+        name: 'module-campaigns',
+        builder: (context, state) => const CampaignsScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'campaignDetail',
+            builder: (context, state) =>
+                CampaignDetailScreen(id: state.pathParameters['id']!),
           ),
         ],
       ),

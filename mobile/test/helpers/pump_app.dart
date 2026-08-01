@@ -69,9 +69,12 @@ Future<void> settleApp(WidgetTester tester) async {
 /// ⚠️ **Sabit `Future.delayed` kullanmayın:** tek dosya çalışırken yeten süre,
 /// tüm süit paralel koştuğunda yetmiyor ve test **flaky** oluyor (11.8 test
 /// gözden geçirmesinde yakalandı). Koşul beklemek hem hızlı hem kararlı.
+/// ⚠️ Zaman aşımı **cömert** (15 sn): koşul sağlanır sağlanmaz dönüldüğü için
+/// geçen testleri yavaşlatmaz, ama süit büyüdükçe (11.10'da 473 test) paralel
+/// koşan isolate'ler zaman zaman 5 sn'yi aşıyor ve testler **flaky** oluyordu.
 Future<void> waitUntil(
   bool Function() condition, {
-  Duration timeout = const Duration(seconds: 5),
+  Duration timeout = const Duration(seconds: 15),
   String? reason,
 }) async {
   final deadline = DateTime.now().add(timeout);
