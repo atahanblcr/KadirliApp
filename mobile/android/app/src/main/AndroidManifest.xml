@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Faz 11.13 — Android 13 (API 33) ve üstünde bildirim göstermek için
+         çalışma zamanı izni şart. İzin, kullanıcı giriş yaptığında isteniyor
+         (açılışta değil): boşluğa sorulan izin reddediliyor. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <application
         android:label="Kadirli"
         android:name="${applicationName}"

@@ -43,6 +43,15 @@ dependencies:
   package_info_plus: ^9.0.1 # Ayarlar > Hakkında: sürüm/build (11.5)
   share_plus: ^12.0.2
 
+  # --- Push bildirimleri (11.13) ---
+  # ⚠️ Firebase yapılandırma dosyaları (android/app/google-services.json,
+  # ios/Runner/GoogleService-Info.plist) .gitignore'da — depoda YOKLAR.
+  # Uygulama bu dosyalar olmadan da AÇILIR: `Firebase.initializeApp()` hatası
+  # yakalanıp push devre dışı bırakılır (backend'deki `Fcm:Provider=None`
+  # no-op kararının istemci aynası). Bkz. `core/push/push_messaging.dart`.
+  firebase_core: ^4.2.1
+  firebase_messaging: ^16.0.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

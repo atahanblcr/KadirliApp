@@ -21,6 +21,9 @@ plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "9.0.1" apply false
     id("org.jetbrains.kotlin.android") version "2.3.20" apply false
+    // Faz 11.13 — FCM. Eklenti `app/google-services.json` dosyasını okur;
+    // o dosya .gitignore'da (Firebase yapılandırması commit edilmiyor).
+    id("com.google.gms.google-services") version "4.4.3" apply false
 }
 
 include(":app")

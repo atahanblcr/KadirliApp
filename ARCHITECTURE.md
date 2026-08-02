@@ -8,7 +8,7 @@
 > öğretici bir rehber değil (o `DOTNET_MASTERCLASS.md`), istemci kontratı değil
 > (o `Memory_Bank/API_CONTRACT.md`). Burası **harita**: bugün neyin nerede olduğu.
 >
-> Son güncelleme: 2 Ağustos 2026 (Faz 11.14).
+> Son güncelleme: 2 Ağustos 2026 (Faz 11.13 — bildirimler/push).
 
 ## Hangi dokümanı ne zaman okumalı
 
@@ -111,12 +111,13 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | `lib/core/navigation/app_modules.dart` | 🔑 **Modül kaydı** — ızgara + rota + uç listesi tek yerde |
 | `lib/core/theme/` | Renk token'ları, `AppPalette` ThemeExtension, açık/koyu tema |
 | `lib/core/paging/paged_feed.dart` | 🔑 Ortak sayfalama çekirdeği (yarış, mükerrer eleme, filtre) |
+| `lib/core/push/` | 🔑 Push soyutlaması: `PushMessaging` arayüzü + `NoopPushMessaging` + Firebase gerçeklemesi. **Yapılandırma yoksa uygulama push'suz açılır, çökmez** |
 | `lib/core/widgets/` | `AppScaffold`, `AppButton`, `AppCard`, `ContactActions`, `LookupDropdown`, `MonthCalendar`… |
 | `lib/core/utils/` | `AppDate` (sabit UTC+3), `AppMoney`, `AppLinks`, `AppImage`, `AppShare`, `Debouncer` |
 | `lib/features/<modül>/data/` | Model + repository (yalnız burası Dio görür) |
 | `lib/features/<modül>/application/` | Provider'lar, denetleyiciler, saf mantık |
 | `lib/features/<modül>/presentation/` | Ekranlar + `widgets/` |
-| `test/` | 578 test; klasör yapısı `lib/`'i aynalar |
+| `test/` | 613 test; klasör yapısı `lib/`'i aynalar |
 
 ---
 
@@ -140,7 +141,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | 11 | **Ulaşım** | `Transport/` | `transport/intercity-routes`, `transport/intracity-routes` | `TransportAdmin` | `transport` | `transport/` | `/ulasim` *(detay rotası YOK — §6)* |
 | 12 | **Kesintiler** | `PowerOutages/` | `power-outages`, `power-outages/{id}` | `PowerOutagesAdmin` | `power-outages` | `power_outages/` | `/kesintiler`, `/kesintiler/:id` |
 | 13 | **Şikayet/İstek** | `Complaints/` | `POST complaints`, `complaints/my` | `ComplaintsAdmin` | `complaints` | `complaints/` | `/sikayet`, `/sikayet-bildir` |
-| 14 | **Bildirimler** | `Notifications/` | `notifications`, `…/{id}/read`, `notifications/read-all`, `notifications/fcm-token` | *(yok)* | — | `notifications/` | Bildirim sekmesi |
+| 14 | **Bildirimler** | `Notifications/` | `notifications`, `…/{id}/read`, `notifications/read-all`, `notifications/fcm-token` | *(yok)* | — | `notifications/` (+ `core/push/`) | Bildirim sekmesi |
 | 15 | **Kimlik** | `Auth/` | `auth/login`, `auth/verify-otp`, `auth/register`, `auth/refresh`, `auth/logout` | `Account` | — | `auth/` | `/giris`, `/kayit` |
 | 16 | **Kullanıcı** | `Users/` | `users/me`, `users/me/notifications`, `users/me/ads`, `users/me/favorites`, `DELETE users/me` | `UsersAdmin` | `users` | `profile/`, `settings/` | Profil sekmesi, `/ayarlar` |
 | 17 | **Dosyalar** | `Files/` | `files/upload`, `DELETE files/{id}` | *(yok)* | — | `files/` | *(ekran yok — ortak repo)* |
@@ -331,6 +332,9 @@ mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 | 13 | İlan sayısal özellikleri **InvariantCulture**, binlik ayracı **yok** (`2020.5` ✓, `2020,5` ✗) | *(11.14'te düzeltildi — eskiden `2020,5` geçiyor ve `20205` okunuyordu)* |
 | 14 | Kategori `select`/`multiSelect` değeri **seçenek metniyle** ve **harf duyarlı** doğrulanır | Seçenek metni panelden yeniden adlandırılırsa eski ilanlar güncellenemez hâle gelir |
 | 15 | `AdCategory` filtresi **TAM EŞLEŞME** — kök kategori alt kategori ilanlarını getirmez | Mobil bu yüzden kategori şeridinde "içeri iniyor"; filtre hiyerarşik yapılırsa şerit tasarımı gereksizleşir |
+| 16 | Push `data` sözlüğü **tam olarak** `notificationId` (her zaman) + `type` + `relatedId` + `relatedType` taşır ve hepsi **metin**tir (`SendPushNotificationsJob.BuildData`) | Anahtar adı değişirse deep-link **sessizce ölür**: bildirime dokunan kullanıcı hiçbir yere gitmez, hata da görmez |
+| 17 | `GET /v1/notifications` `unreadCount`'u **sayfalı gövdenin İÇİNE** koyar (zarf `meta`'sı filtreyle sabitlendiği için) ve bu sayı **filtreden bağımsız** toplamdır | `unreadOnly=true` isteğinde de rozet doğru kalsın diye; `meta`'ya taşınırsa istemci sayacı kaybeder |
+| 18 | `relatedType` değerleri mobilde **rota üretir** (`announcement`→`/duyurular/:id` …); tanınmayan tür ve GUID olmayan kimlik **gezinmeyi iptal eder** | Sunucu yeni bir `relatedType` üretmeye başlarsa mobil onu sessizce yok sayar → `app_notification.dart` eşlemesine eklenmeli |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 

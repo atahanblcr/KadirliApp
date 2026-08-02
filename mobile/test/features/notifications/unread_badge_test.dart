@@ -67,12 +67,19 @@ void main() {
     expect(find.text('Bildirimleriniz burada olacak'), findsOneWidget);
   });
 
-  testWidgets('oturum açıkken Bildirimler sekmesi sayıyı gösterir', (tester) async {
+  // ⚠️ 11.13'te bu iddia bilinçli olarak değişti: ekran artık "N okunmamış
+  // bildirim" özeti gösteren bir yer tutucu değil, **gerçek liste**. Rozetin
+  // sayısı yukarıdaki testlerde doğrulanıyor; burada listenin geldiği ve
+  // sekmenin çalıştığı doğrulanıyor. (Modül "yakında"dan gerçeğe geçince eski
+  // testlerin kırılması **beklenen sinyaldir** — 11.6'da da böyle olmuştu.)
+  testWidgets('oturum açıkken Bildirimler sekmesi listeyi gösterir', (
+    tester,
+  ) async {
     await pumpApp(
       tester,
       tokenStore: InMemoryTokenStore(accessToken: 'ACCESS', refreshToken: 'REFRESH'),
       adapter: routedAdapter({
-        ...homeStubs(unreadCount: 2),
+        ...homeStubs(unreadCount: 0),
         '/v1/users/me': (_) async => jsonResponse(successEnvelope(meBody())),
       }),
     );
@@ -82,6 +89,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('2 okunmamış bildirim'), findsOneWidget);
+    expect(find.text('Henüz bildiriminiz yok'), findsOneWidget);
   });
 }

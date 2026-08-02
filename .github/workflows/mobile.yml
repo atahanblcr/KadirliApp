@@ -46,8 +46,6 @@ jobs:
   # Derlenebilirlik güvencesi: analiz geçse de platform yapılandırması bozulmuş olabilir.
   # ⚠️ iOS derlemesi macOS runner gerektirir (ücretli dakikaları hızla tüketir) → bilinçli
   # olarak yalnız Android derleniyor; iOS her alt-faz sonunda yerelde doğrulanıyor.
-  # ⚠️ Faz 11.13'te firebase_core eklendiğinde bu iş `google-services.json` ister
-  # (dosya bilinçli olarak commit EDİLMİYOR) → o zaman GitHub secret'tan yazılmalı.
   build-android:
     runs-on: ubuntu-latest
     needs: analyze-and-test
@@ -70,6 +68,37 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      # ⚠️ Faz 11.13: google-services plugin `android/app/google-services.json`
+      # arıyor ama o dosya Firebase yapılandırması olduğu için .gitignore'da.
+      # CI'ın sırra ihtiyaç duymaması için biçimsel olarak geçerli bir yer
+      # tutucu yazılıyor: derlenebilirlik doğrulanır, gerçek push davranışı
+      # yalnız yerelde/yayın hattında sınanır (zaten gerçek cihaz istiyor).
+      - name: Provide placeholder google-services.json
+        run: |
+          if [ ! -f android/app/google-services.json ]; then
+            cat > android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "ci-placeholder",
+              "storage_bucket": "ci-placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": { "package_name": "app.kadirli" }
+                },
+                "oauth_client": [],
+                "api_key": [ { "current_key": "ci-placeholder-key" } ],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+          fi
 
       - name: Build debug APK
         run: flutter build apk --debug

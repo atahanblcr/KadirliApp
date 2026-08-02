@@ -9,6 +9,16 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # ⚠️ Faz 11.13: iOS derlemesi Swift Package Manager ile eklentileri
+    # `build/ios/SourcePackages/` altına açıyor ve o kopyalar **eklentinin
+    # kendi test dosyalarını** da içeriyor (firebase_messaging'in mock'ları
+    # farklı bir `mockito` sürümüne göre yazılmış) → `flutter analyze`
+    # bizim yazmadığımız 85 hata raporluyordu. Üretilmiş çıktı analiz
+    # edilmez; `build/` bilinçli olarak kapsam dışı.
+    - build/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
