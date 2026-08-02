@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kadirli_app/core/router/app_router.dart';
+import 'package:kadirli_app/core/utils/app_date.dart';
 import 'package:kadirli_app/features/transport/data/models/intercity_route.dart';
 import 'package:kadirli_app/features/transport/data/models/intracity_route.dart';
 import 'package:kadirli_app/features/transport/presentation/widgets/intercity_route_card.dart';
@@ -67,6 +68,23 @@ void main() {
     ],
   };
 
+  /// Bugün **kesin olarak ileride** olan iki kalkış saati üretir (Kadirli saatiyle).
+  /// Gece yarısına yakın koşulduğunda ertesi güne taşmamak için son sefer 23:30'da
+  /// sabitlenir; o pencerede de en az bir "sıradaki" kalkış kalır.
+  List<String> soonTimes({DateTime? now}) {
+    final t = now == null ? AppDate.nowInTurkey : AppDate.toTurkey(now);
+    String at(int minutesFromNow) {
+      final target = t.add(Duration(minutes: minutesFromNow));
+      final clamped = target.day == t.day
+          ? target
+          : DateTime(t.year, t.month, t.day, 23, 30);
+      return '${clamped.hour.toString().padLeft(2, '0')}:'
+          '${clamped.minute.toString().padLeft(2, '0')}';
+    }
+
+    return [at(45), at(150)];
+  }
+
   Map<String, dynamic> pagedBody(List<Map<String, dynamic>> items) =>
       successEnvelope({
         'items': items,
@@ -104,7 +122,12 @@ void main() {
   testWidgets('şehirlerarası hatlar sıradaki kalkışla listelenir', (
     tester,
   ) async {
-    await openTransport(tester);
+    // ⚠️ Sabit saatli fixture ("07:00 · 10:30 · 14:00 · 17:30") bu iddiayı **duvar
+    // saatine bağımlı** kılıyordu: akşam koşulduğunda bugünkü seferler bittiği için
+    // kart "Bugünkü seferler bitti · Yarın 07:00" yazıyor ve test kırmızıya dönüyordu
+    // (11.10'daki "yalnız geceleri patlayan fixture" hatasının akşam sürümü).
+    // Sefer saati artık **şimdiye göre** üretiliyor → gün içinde her saatte geçerli.
+    await openTransport(tester, intercityItems: [intercity(times: soonTimes())]);
 
     expect(find.text('Kadirli → Adana'), findsOneWidget);
     expect(find.text('Kadirli Seyahat'), findsOneWidget);

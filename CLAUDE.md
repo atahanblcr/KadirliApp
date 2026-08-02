@@ -1,0 +1,68 @@
+# KadirliApp — 30 saniyelik giriş
+
+**Ne bu proje?** Kadirli (Osmaniye) için şehir uygulaması: duyurular, nöbetçi eczane,
+ilanlar, vefat, etkinlik, kampanya, taksi, ulaşım, elektrik kesintisi, şehir rehberi,
+mekanlar, şikayet/istek. Üç parça: **.NET 8 API** + **Razor admin paneli** + **Flutter mobil**.
+
+**Durum:** Backend ve panel bitti (Faz 0–10). Mobil 11.12'ye kadar bitti — Ana Sayfa
+ızgarasındaki 12 modülün tamamı gerçek. Sırada FCM push (11.13) ve yayın (11.15–11.16).
+
+## Çalıştır
+
+```bash
+docker compose up -d                          # Postgres · Redis · Seq
+dotnet run --project KadirliApp.Api           # http://localhost:5005  (Swagger: /swagger)
+dotnet run --project KadirliApp.Web           # admin paneli
+cd mobile && flutter pub get && flutter run   # mobil (Android emülatörü / iOS simülatörü)
+```
+
+Mobil base URL: Android emülatörü `10.0.2.2:5005`, iOS simülatörü `localhost:5005`,
+gerçek cihaz `--dart-define=API_BASE_URL=http://<LAN-IP>:5005`.
+
+## Denetle (her oturum sonunda yeşil olmalı)
+
+```bash
+dotnet test KadirliApp.Tests                  # Docker açık olmalı (Testcontainers)
+cd mobile && flutter analyze && flutter test
+```
+
+## Hangi dokümanı ne zaman okumalı
+
+| Soru | Dosya |
+|---|---|
+| **"Neyin nerede? Nasıl modül eklerim/değiştiririm/kaldırırım?"** | **`ARCHITECTURE.md`** ← harita, önce buraya bak |
+| "Mobil istemci sunucuyla nasıl konuşuyor?" | `Memory_Bank/API_CONTRACT.md` |
+| "Bu karar neden böyle verilmiş?" | `Memory_Bank/Progress.md` (faz faz) · `Memory_Bank/Active_Context.md` (son durum) |
+| "Bu .NET kalıbı ne demek?" | `DOTNET_MASTERCLASS.md` |
+| "Mobil tasarım sistemi / UX kuralları?" | `Memory_Bank/MOBILE_UX_PLAN.md` |
+| "Uçların makine-okur şeması?" | `docs/openapi.json` |
+| "Mobil kurulum / canlı doğrulama komutları?" | `mobile/README.md` |
+
+⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
+listelenen 15 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+davranır. Hepsi `InvisibleContractsTests.cs` ile kilitli.
+
+## Değişmez kurallar
+
+1. **Katman yönü** `Domain ← Application ← Infrastructure ← Api/Web`. Yanlış yön
+   **derlenmez** (proje referanslarıyla zorlanmış) — disiplin meselesi değil.
+2. **Kontrat additive.** DTO'ya alan eklemek serbest; alan silmek/yeniden adlandırmak
+   mağazadaki eski sürümleri kırar → sürüm planı gerekir (`ARCHITECTURE.md` §5).
+3. **Public uç yalnız yayınlanmış içerik döndürür**: onaylı + aktif + silinmemiş + süresi
+   geçmemiş. Filtreyi controller'da zorla, DTO'dan gelene güvenme.
+4. **Panel uçları** `AdminApiControllerBase`'den türer ve `[RequirePermission(modül, eylem)]`
+   taşır. (Yapısal test bunu denetliyor.)
+5. **"İşlevsiz buton yok"** — mobilde her buton bir uca ya da bir ekrana gider.
+   Modül kaydı tek yerde: `mobile/lib/core/navigation/app_modules.dart`.
+6. **Arayüz Türkçe**, kod ve kimlikler İngilizce. Kullanıcıya teknik/İngilizce hata
+   mesajı gösterilmez.
+7. **Sırlar commit edilmez**: `secrets/`, `google-services.json`, `GoogleService-Info.plist`
+   `.gitignore`'da. `secrets/README.md` neyin nasıl edinileceğini anlatır.
+8. **Oturum sonunda**: `dotnet test` + `flutter analyze` + `flutter test` yeşil,
+   `Memory_Bank/Progress.md` ve `Active_Context.md` güncel, commit atılmış.
+
+## Yeni bir modül mü ekleyeceksin?
+
+`ARCHITECTURE.md` §4'teki 18 adımlı reçeteyi sırayla uygula. Son adımı atlamayın:
+modülü **`ARCHITECTURE.md` tablosuna yazmadan** `dotnet test` yeşile dönmez
+(`ArchitectureDocTests` dokümanı gerçekle karşılaştırıyor — doküman bilerek çürüyemiyor).

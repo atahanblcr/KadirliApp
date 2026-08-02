@@ -93,8 +93,14 @@ internal static class AdSubmissionRules
             var def = definitions.First(d => d.Id == propertyId);
             switch (def.PropertyType)
             {
-                case PropertyType.Number when !decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out _):
-                    throw new ValidationException($"\"{def.PropertyName}\" sayısal bir değer olmalıdır.");
+                // ⚠️ Faz 11.14 düzeltmesi: eskiden NumberStyles.Number kullanılıyordu; o stil
+                // AllowThousands içerdiği ve .NET grup boyutlarını denetlemediği için Türkçe
+                // ondalık gösterimi olan "2020,5" doğrulamadan GEÇİYOR ve 20205 olarak okunuyordu
+                // (10 kat sapma, sessiz). Ondalık ayracı nokta, binlik ayracı hiç kabul edilmiyor.
+                case PropertyType.Number when !decimal.TryParse(
+                        value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+                        CultureInfo.InvariantCulture, out _):
+                    throw new ValidationException($"\"{def.PropertyName}\" sayısal bir değer olmalıdır (ondalık ayracı nokta).");
                 case PropertyType.Boolean when !bool.TryParse(value, out _):
                     throw new ValidationException($"\"{def.PropertyName}\" true/false olmalıdır.");
                 case PropertyType.Select when !def.Options.Contains(value):

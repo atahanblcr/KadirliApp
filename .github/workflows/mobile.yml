@@ -1,0 +1,75 @@
+name: Mobile CI (Flutter)
+
+# Faz 11.14: mobilde 43.000 satır koda karşılık 578 test var ama hiçbiri otomatik
+# koşmuyordu — "biri hatırlarsa" çalışan test, olmayan testtir.
+on:
+  push:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile.yml'
+  pull_request:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile.yml'
+
+defaults:
+  run:
+    working-directory: mobile
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Yerel geliştirme sürümüyle aynı — sürüm sürüklenmesi CI'da sürpriz üretmesin.
+          flutter-version: '3.44.2'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # `flutter analyze` uyarıyı da hata sayar (analysis_options.yaml).
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test --reporter expanded
+
+  # Derlenebilirlik güvencesi: analiz geçse de platform yapılandırması bozulmuş olabilir.
+  # ⚠️ iOS derlemesi macOS runner gerektirir (ücretli dakikaları hızla tüketir) → bilinçli
+  # olarak yalnız Android derleniyor; iOS her alt-faz sonunda yerelde doğrulanıyor.
+  # ⚠️ Faz 11.13'te firebase_core eklendiğinde bu iş `google-services.json` ister
+  # (dosya bilinçli olarak commit EDİLMİYOR) → o zaman GitHub secret'tan yazılmalı.
+  build-android:
+    runs-on: ubuntu-latest
+    needs: analyze-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.2'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build debug APK
+        run: flutter build apk --debug

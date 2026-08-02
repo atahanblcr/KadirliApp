@@ -419,13 +419,23 @@ void main() {
     test('geri sayım yalnız bugünkü cenazede üretilir', () {
       final today = AppDate.nowInTurkey;
       final later = DateTime(today.year, today.month, today.day, 23, 59);
+
+      // ⚠️ `timeUntilFuneral()` `now` parametresi alıyor ama test onu vermiyordu →
+      // iddia **duvar saatine** bağımlıydı: 23:59'luk cenaze yalnız gündüz koşuda
+      // "ileride" oluyor, gece 23:59'dan sonra sayaç null dönüp test kırmızıya
+      // dönüyordu. Zaman artık sabitleniyor (bugün 08:00 Kadirli saati).
+      final morning = DateTime.utc(today.year, today.month, today.day, 5);
+
       final item = parse(notice(inDays: 0, time: '23:59:00'));
-      expect(item.timeUntilFuneral(), isNotNull);
+      expect(item.timeUntilFuneral(now: morning), isNotNull);
       expect(item.funeralAt, later);
 
-      expect(parse(notice(inDays: 3)).timeUntilFuneral(), isNull);
+      expect(parse(notice(inDays: 3)).timeUntilFuneral(now: morning), isNull);
       // Saati geçmiş bugünkü cenazede de sayaç yazılmaz.
-      expect(parse(notice(inDays: 0, time: '00:00:00')).timeUntilFuneral(), isNull);
+      expect(
+        parse(notice(inDays: 0, time: '00:00:00')).timeUntilFuneral(now: morning),
+        isNull,
+      );
     });
 
     test('paylaşım metni cami, defin ve başsağlığı dileğini taşır', () {

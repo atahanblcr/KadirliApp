@@ -5,6 +5,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      Faz 11.14: iş kuralı sınıflarının (AdSubmissionRules gibi) `internal` kalması ama
+      birim testlerle doğrudan kilitlenebilmesi için. Kurallar `internal` çünkü Application
+      dışından çağrılmamalılar; test projesi tek istisna.
+    -->
+    <InternalsVisibleTo Include="KadirliApp.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="MediatR" Version="14.1.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />

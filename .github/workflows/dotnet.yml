@@ -1,5 +1,11 @@
 name: .NET CI/CD Pipeline
 
+# ⚠️ Not (11.14 denetimi): entegrasyon testleri **Testcontainers** kullanıyor, yani
+# Postgres/Redis'i kendileri ayağa kaldırıyor (bkz. CustomWebApplicationFactory).
+# Aşağıdaki `services:` blokları ve "Apply Migrations" adımı bu yüzden **artık
+# gereksiz** — çalışan bir hattı doğrulayamadan değiştirmemek için bilinçli olarak
+# bırakıldı. İlk yeşil koşudan sonra kaldırılabilir (koşu süresini kısaltır).
+
 on:
   push:
     branches: [ "main", "develop" ]
