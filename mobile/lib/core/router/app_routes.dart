@@ -106,6 +106,38 @@ abstract final class AppRoutes {
   static const transport = '/ulasim';
   static const complaints = '/sikayet';
 
+  /// Şikayet/istek gönderme formu (`POST /v1/complaints`).
+  ///
+  /// ⚠️ `/sikayet`in **alt rotası değil, kardeşi** (11.9/11.11 dersi: go_router
+  /// iç içe rotada üst ekranı da kurar → arkada "Bildirimlerim" açılıp
+  /// gereksiz istek atardı).
+  ///
+  /// ⚠️ `protectedPrefixes`'e de **yazılmadı**: uç anonim gönderime açık
+  /// (`[AllowAnonymous]`), kullanıcıyı Giriş'e atmak bildirimi engellerdi.
+  static const complaintCreate = '/sikayet-bildir';
+
+  /// Bir içeriği şikayet etme kısayolu (ilan detayı → "Şikayet et").
+  /// Form türü/ilgili kaydı sorgu parametreleriyle önden doldurur.
+  static String complaintForContent({
+    required String module,
+    required String id,
+    String? title,
+  }) {
+    final query = <String, String>{
+      'tur': 'content',
+      'modul': module,
+      'kayit': id,
+      if (title != null && title.trim().isNotEmpty) 'baslik': title.trim(),
+    };
+    final encoded = query.entries
+        .map(
+          (entry) =>
+              '${entry.key}=${Uri.encodeQueryComponent(entry.value)}',
+        )
+        .join('&');
+    return '$complaintCreate?$encoded';
+  }
+
   // --- Geliştirici (yalnız debug) ---
   static const designPreview = '/gelistirici/tasarim';
   static const networkProbe = '/gelistirici/ag';

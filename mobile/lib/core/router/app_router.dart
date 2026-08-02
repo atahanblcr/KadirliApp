@@ -12,6 +12,8 @@ import '../../features/announcements/presentation/announcements_screen.dart';
 import '../../features/auth/application/auth_controller.dart';
 import '../../features/campaigns/presentation/campaign_detail_screen.dart';
 import '../../features/campaigns/presentation/campaigns_screen.dart';
+import '../../features/complaints/presentation/complaint_form_screen.dart';
+import '../../features/complaints/presentation/complaints_screen.dart';
 import '../../features/auth/application/otp_flow_controller.dart';
 import '../../features/auth/presentation/otp_verify_screen.dart';
 import '../../features/auth/presentation/phone_login_screen.dart';
@@ -41,6 +43,7 @@ import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/taxis/presentation/taxi_driver_detail_screen.dart';
 import '../../features/taxis/presentation/taxis_screen.dart';
+import '../../features/transport/presentation/transport_screen.dart';
 import '../config/env.dart';
 import '../navigation/app_modules.dart';
 import '../widgets/widgets.dart';
@@ -326,6 +329,34 @@ final routerProvider = Provider<GoRouter>((ref) {
                 PlaceDetailScreen(id: state.pathParameters['id']!),
           ),
         ],
+      ),
+
+      // --- Gerçeklenmiş modüller (11.12) ---
+      // ⚠️ Ulaşımda detay rotası YOK: sunucuda `{id}` ucu yok, saatler ve
+      // duraklar liste gövdesinde geliyor → kart yerinde açılıyor.
+      GoRoute(
+        path: AppRoutes.transport,
+        name: 'module-transport',
+        builder: (context, state) => const TransportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.complaints,
+        name: 'module-complaints',
+        builder: (context, state) => const ComplaintsScreen(),
+      ),
+      // ⚠️ Form `/sikayet`in kardeşi (bkz. AppRoutes.complaintCreate).
+      GoRoute(
+        path: AppRoutes.complaintCreate,
+        name: 'complaintCreate',
+        builder: (context, state) {
+          final query = state.uri.queryParameters;
+          return ComplaintFormScreen(
+            initialType: query['tur'],
+            relatedModule: query['modul'],
+            relatedId: query['kayit'],
+            relatedTitle: query['baslik'],
+          );
+        },
       ),
 
       // --- Henüz yazılmamış modüller: kayıttan otomatik üretilir ---

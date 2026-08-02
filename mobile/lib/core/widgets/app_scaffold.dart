@@ -53,10 +53,33 @@ class AppScaffold extends StatelessWidget {
         : body;
 
     if (onRefresh != null) {
+      // 🐛 11.12'de canlıda yakalandı: içerik ekrana **sığdığında** Android'in
+      // varsayılan `ClampingScrollPhysics`i taşmaya izin vermiyor, dolayısıyla
+      // aşağı çekme jesti `RefreshIndicator`a hiç ulaşmıyordu — kısa listeli
+      // her ekranda pull-to-refresh sessizce ölüydü (yalnız uzun listelerde
+      // çalışıyordu, o yüzden fark edilmemişti).
+      //
+      // Düzeltme burada, çünkü `onRefresh` de burada: `ScrollConfiguration`
+      // altındaki **tüm** kaydırılabilirlere uygulanır ve kendi `physics`ini
+      // açıkça veren ekranlar (varsa) etkilenmez.
+      //
+      // ⚠️ Platform fiziği **korunmalı**: `AlwaysScrollableScrollPhysics()`
+      // tek başına verilirse Android'in `ClampingScrollPhysics`i tümden
+      // düşüyor (fling simülasyonu ve sınır davranışı değişiyor, uzun
+      // listelerde tek hamlelik sürükleme çalışmaz oluyor) → `applyTo` ile
+      // mevcut fiziğin ÜSTÜNE ekleniyor.
+      final scrollBehavior = ScrollConfiguration.of(context);
       content = RefreshIndicator(
         onRefresh: onRefresh!,
         color: Theme.of(context).colorScheme.primary,
-        child: content,
+        child: ScrollConfiguration(
+          behavior: scrollBehavior.copyWith(
+            physics: const AlwaysScrollableScrollPhysics().applyTo(
+              scrollBehavior.getScrollPhysics(context),
+            ),
+          ),
+          child: content,
+        ),
       );
     }
 

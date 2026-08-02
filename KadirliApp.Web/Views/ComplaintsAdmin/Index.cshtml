@@ -41,6 +41,25 @@
                         <tr class="bg-white border-b hover:bg-gray-50 transition-colors align-top">
                             <td class="px-6 py-4 font-medium text-gray-900">
                                 @item.Subject
+                                @* Faz 11.12: `Type` panelde hiç gösterilmiyordu — mobilde kullanıcı
+                                   "Şikayet / İstek / Öneri / İçerik / Uygulama hatası" seçiyor ama
+                                   yönetici bunu göremiyordu. Bilinmeyen değer ham hâliyle basılır. *@
+                                @if (!string.IsNullOrEmpty(item.Type))
+                                {
+                                    var typeLabel = item.Type switch
+                                    {
+                                        "complaint" => "Şikayet",
+                                        "request" => "İstek / Talep",
+                                        "suggestion" => "Öneri",
+                                        "content" => "İçerik şikayeti",
+                                        "app" => "Uygulama hatası",
+                                        "other" => "Diğer",
+                                        _ => item.Type
+                                    };
+                                    <div class="mt-1">
+                                        <span class="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded">@typeLabel</span>
+                                    </div>
+                                }
                                 @if (!string.IsNullOrEmpty(item.RelatedModule))
                                 {
                                     <div class="text-xs text-gray-400 mt-1">Modül: @item.RelatedModule</div>

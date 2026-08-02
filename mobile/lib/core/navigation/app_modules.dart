@@ -197,6 +197,7 @@ const kAppModules = <AppModule>[
       'GET /v1/transport/intercity-routes',
       'GET /v1/transport/intracity-routes',
     ],
+    ready: true,
   ),
   AppModule(
     id: 'power-outages',
@@ -216,6 +217,7 @@ const kAppModules = <AppModule>[
     phase: '11.12',
     summary: 'Şikayet ve istek bildir, durumunu takip et.',
     endpoints: ['POST /v1/complaints', 'GET /v1/complaints/my'],
+    ready: true,
   ),
 ];
 

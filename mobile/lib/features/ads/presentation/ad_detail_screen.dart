@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/network/network.dart';
+import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/utils.dart';
@@ -255,10 +257,27 @@ class _Content extends StatelessWidget {
               ),
               AppSpacing.gapSm,
               Text(
-                'Alışverişte dikkatli olun: parayı ürünü görmeden göndermeyin. '
-                'Şüpheli ilanları Ayarlar → Şikayet/İstek üzerinden bildirin.',
+                'Alışverişte dikkatli olun: parayı ürünü görmeden göndermeyin.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: palette.muted,
+                ),
+              ),
+              AppSpacing.gapMd,
+              // 11.12 ⭐: şüpheli ilan buradan tek dokunuşla bildirilir. Önceki
+              // metin kullanıcıyı "Ayarlar → Şikayet/İstek"e yolluyordu; oraya
+              // gidince hangi ilanı şikayet ettiğini de kendisi yazması
+              // gerekirdi. Form artık tür + modül + ilan kimliğiyle açılıyor.
+              AppButton.ghost(
+                label: 'Bu ilanı şikayet et',
+                icon: Icons.flag_outlined,
+                size: AppButtonSize.small,
+                expand: true,
+                onPressed: () => context.push(
+                  AppRoutes.complaintForContent(
+                    module: 'ads',
+                    id: ad.id,
+                    title: ad.title,
+                  ),
                 ),
               ),
             ],

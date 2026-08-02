@@ -364,6 +364,33 @@ void main() {
     expect(find.text('Tekrar dene'), findsOneWidget);
   });
 
+  testWidgets('11.12: "Bu ilanı şikayet et" formu ilanla bağlantılı açar', (
+    tester,
+  ) async {
+    await openDetail(
+      tester,
+      routes: {
+        '/v1/ads/ad-1': (_) async => jsonResponse(successEnvelope(detailBody())),
+      },
+    );
+
+    // Buton sayfanın en altında (güvenlik notunun yanında) → görünür kılınmalı.
+    await tester.dragUntilVisible(
+      find.text('Bu ilanı şikayet et'),
+      find.byType(ListView).last,
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bu ilanı şikayet et'));
+    await tester.pumpAndSettle();
+
+    // Form türü "içerik şikayeti" ve ilgili ilan adıyla önden dolu gelir;
+    // kullanıcı hangi ilanı şikayet ettiğini ayrıca yazmak zorunda değil.
+    expect(find.text('Bildirim gönder'), findsOneWidget);
+    expect(find.text('İlgili içerik'), findsOneWidget);
+    expect(find.text('Sahibinden Temiz Fiat Egea'), findsOneWidget);
+  });
+
   group('metinler', () {
     AdDetail sample({num? price = 750000, String phone = '05321110001'}) =>
         AdDetail(

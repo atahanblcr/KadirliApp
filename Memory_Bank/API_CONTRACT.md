@@ -202,10 +202,16 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
   - ⚠️ `place.amenities` DB'de `jsonb` ama DTO'da `string` → yanıtta **JSON içeren metin** gelir (`"{\"WC\":true,\"Wi-Fi\":false}"`), nesne değil. Anahtarda **olmayan** olanak "belirtilmemiş" demektir, "yok" değil.
   - ⚠️ Liste **ada göre** sıralı (başka sıralama seçeneği yok); arama yalnız **adda** koşar.
 - `GET /v1/guide/categories`, `/guide/categories/{id}`, `/guide/items`, `/guide/items/{id}`
-- `GET /v1/transport/intercity-routes`, `/transport/intracity-routes`
+- `GET /v1/transport/intercity-routes`, `/transport/intracity-routes` — **sayfalı**; yalnız aktif hatlar (ve şehirlerarasında yalnız aktif seferler)
+  - ⚠️ Arama parametresi **`searchTerm`** (taksi gibi; `search` sessizce yok sayılır). Şehirlerarası: hedef + firma; şehir içi: hat adı + numara.
+  - ⚠️ **Detay ucu YOK** — kalkış saatleri (`schedules[].departureTime`) ve duraklar (`stops[]`, `stopOrder` sıralı) **liste gövdesinde** gelir.
+  - ⚠️ Saat biçimleri **farklı**: şehirlerarası `departureTime` **`"07:00"`**, şehir içi `firstDeparture`/`lastDeparture` `TimeSpan` → **`"06:30:00"`**. İkisi de **tarihsiz duvar saati** → saat dilimi kaydırılmaz.
 
 ### Şikayet / Dosya / Lookup
-- `POST /v1/complaints` — anonim (opsiyonel); `GET /v1/complaints/my` `[A]`
+- `POST /v1/complaints` — **anonim gönderim açık**; oturum varsa sunucu `user_id` claim'ini kendisi bağlar (istemci kullanıcı kimliği yollamaz). Yanıt: oluşan kaydın **Guid**'i. Gövde: `{subject, message, type?, relatedModule?, relatedId?}`.
+  - ⚠️ **Sunucuda doğrulayıcı YOK** → zorunlu alan denetimi istemcide.
+  - ⚠️ `type` **serbest metin** (sözlük ucu yok). Mobilin kullandığı değerler: `complaint | request | suggestion | content | app | other`; tanınmayan değer ham gösterilir.
+- `GET /v1/complaints/my` `[A]` — sayfalı, **filtre parametresi yok**. ⚠️ Anonim gönderimlerde `user_id` NULL kaldığı için **hiçbir kullanıcının listesinde görünmez**. `status`: `pending | in_progress | resolved | rejected` (panelin kullandığı sabitler); `adminNotes` = kullanıcıya dönen **yanıt**.
 - `POST /v1/files/upload` `[A]`, `DELETE /v1/files/{id}` `[A]`
 - `GET /v1/neighborhoods`
 
