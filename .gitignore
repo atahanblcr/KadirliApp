@@ -27,3 +27,13 @@ cookies.txt
 # ---- Yerel sırlar (isteğe bağlı: gerçek sırlar buraya konursa) ----
 appsettings.*.Local.json
 *.local.json
+
+# --- Gizli anahtarlar (ASLA commit edilmez) ---
+# Firebase service-account JSON'u özel anahtar taşır; sızarsa proje adına
+# push gönderilebilir. Yer tutucu ve nasıl edinileceği: secrets/README.md
+secrets/*
+!secrets/README.md
+
+# Firebase istemci yapılandırmaları (API anahtarı + proje kimliği taşır)
+mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist

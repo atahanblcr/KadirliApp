@@ -35,17 +35,33 @@ public sealed class FcmPushService : IPushService
             return;
         }
 
-        FirebaseApp app;
+        // ⚠️ Faz 11.13 hazırlığında düzeltildi: FirebaseAdmin **.NET** SDK'sında
+        // FirebaseApp.GetInstance(name) uygulama yoksa ArgumentException FIRLATMAZ,
+        // null DÖNDÜRÜR (Java SDK'sı fırlatır — kod o davranışa göre yazılmıştı).
+        // Sonuç: catch hiç çalışmıyor, Create hiç çağrılmıyor ve GetMessaging(null)
+        // "App argument must not be null" ile patlıyordu. Bu yol bugüne kadar
+        // ÇALIŞTIRILMAMIŞTI çünkü Fcm:Provider varsayılanı "None" idi; gerçek bir
+        // service-account bağlanır bağlanmaz her dakika Hangfire hatası üretti.
         try
         {
-            app = FirebaseApp.GetInstance(AppName);
+            var app = FirebaseApp.GetInstance(AppName)
+                      ?? FirebaseApp.Create(
+                          new AppOptions { Credential = GoogleCredential.FromFile(keyPath) },
+                          AppName);
+
+            _messaging = FirebaseMessaging.GetMessaging(app);
+            _log.LogInformation("FCM push sağlayıcısı hazır (service-account: {Path}).", keyPath);
         }
-        catch (System.ArgumentException)
+        catch (System.Exception ex)
         {
-            app = FirebaseApp.Create(new AppOptions { Credential = GoogleCredential.FromFile(keyPath) }, AppName);
+            // Bozuk/geçersiz anahtar dosyası uygulamayı ÇÖKERTMEMELİ (sınıfın
+            // sözleşmesi: "Firebase'siz ortam çökmez"). Push no-op'a düşer,
+            // sebep loglanır — sessiz başarısızlık yok.
+            _log.LogError(
+                ex,
+                "FCM başlatılamadı (service-account: {Path}). Push gönderimi DEVRE DIŞI (no-op).",
+                keyPath);
         }
-        _messaging = FirebaseMessaging.GetMessaging(app);
-        _log.LogInformation("FCM push sağlayıcısı hazır (service-account: {Path}).", keyPath);
     }
 
     public bool IsConfigured => _messaging is not null;
