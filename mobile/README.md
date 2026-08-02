@@ -40,9 +40,45 @@ flutter run --dart-define=FLAVOR=prod
 
 ```bash
 flutter analyze          # uyarı/hata kalmamalı
-flutter test             # birim + widget testleri
+flutter test             # birim + widget + golden testleri
 flutter build apk --debug
 ```
+
+## Golden (görsel regresyon) testleri — Faz 11.15
+
+Dar sütunda `Row` içindeki `Text` taşması bu projede **altı kez** tekrarladı ve
+her seferinde el emeğiyle yakalandı. Golden testler bunu mekanikleştiriyor.
+
+```bash
+flutter test test/golden                   # yalnız karşılaştır (CI da bunu yapar)
+flutter test --update-goldens test/golden  # referans görüntüleri YENİDEN üret
+```
+
+- **Referanslar:** `test/golden/goldens/<bileşen>_{light,dark}.png` (depoda tutulur).
+- **Matris:** her dosya bileşeni **360 dp** genişlikte ve **1.0 + 1.4 yazı
+  ölçeğinde** üst üste gösterir — taşmaların çıktığı tam koşullar.
+- **Kapsam:** ortak bileşenler + modül liste kartları. **Tam ekran golden'ı
+  YOK**: her metin değişiminde kırılır ve insan "güncelle geç" alışkanlığı
+  edinir, testin değeri sıfırlanır.
+- **Yazı tipi:** `test/golden/flutter_test_config.dart` `FontManifest.json`'daki
+  tüm aileleri (Nunito + MaterialIcons) açıkça yükler. Yüklenmezse Flutter
+  varsayılan test fontuyla çizer ve satır kırılmaları gerçek uygulamadan farklı
+  olur.
+- **Tolerans:** karşılaştırıcı **%0.5** piksel farkına izin verir (makineler
+  arası kenar yumuşatma farkı). Gerçek düzen hataları binlerce pikseli
+  değiştirdiği için gizlenmez; **boyut değişimi hiç tolere edilmez**.
+- ⚠️ **CI golden ÜRETMEZ, yalnız karşılaştırır.** Üretmesine izin verilirse
+  hatalı düzen "yeni doğru" diye kaydedilir ve test kendini onaylar.
+- Bir golden kırıldığında fark görüntüsü `test/golden/failures/` altına yazılır
+  (`.gitignore`'da). Değişiklik kasıtlıysa `--update-goldens` ile yenileyip
+  **PNG farkını gözle inceleyin**.
+
+## Erişilebilirlik denetimi
+
+`test/core/accessibility_test.dart` `flutter_test`in yerleşik kılavuzlarını
+koşar: metin kontrastı (WCAG AA), 48 dp dokunma hedefi, ekran okuyucu etiketi,
+ve **360 dp × 1.4 ölçekte taşma yok** iddiası. `test/core/reduced_motion_test.dart`
+"hareketi azalt" ayarına saygıyı kilitler.
 
 ## Canlı doğrulama (emülatör / simülatör sürme)
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/network.dart';
+import '../../../core/paging/paged_list_footer.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -143,7 +144,6 @@ class _MyAdsScreenState extends ConsumerState<MyAdsScreen> {
     MyAdsState state,
     MyAdsController controller,
   ) {
-    final theme = Theme.of(context);
 
     if (state.isLoadingFirstPage) return const LoadingView(itemCount: 4);
 
@@ -187,29 +187,10 @@ class _MyAdsScreenState extends ConsumerState<MyAdsScreen> {
       separatorBuilder: (_, _) => AppSpacing.gapSm,
       itemBuilder: (context, index) {
         if (index == state.items.length) {
-          if (state.isLoadingMore) return const LoadingView.compact();
-          if (state.loadMoreError != null) {
-            return Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.md),
-              child: AppButton.ghost(
-                label: 'Devamını yükle',
-                icon: Icons.refresh_rounded,
-                size: AppButtonSize.small,
-                expand: true,
-                onPressed: controller.loadMore,
-              ),
-            );
-          }
-          if (state.hasMore) return const SizedBox(height: AppSpacing.lg);
-          return Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.lg),
-            child: Text(
-              'Toplam ${state.totalCount} ilan',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.palette.muted,
-              ),
-            ),
+          return PagedListFooter(
+            state: state,
+            onLoadMore: controller.loadMore,
+            itemNoun: 'ilan',
           );
         }
 

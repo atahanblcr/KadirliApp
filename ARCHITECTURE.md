@@ -371,6 +371,10 @@ mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 | Doküman tutarlılığı | `Integration/Architecture/ArchitectureDocTests.cs` | **Bu dosya** ↔ gerçek klasörler/modüller |
 | Mobil saf mantık | `mobile/test/core/**`, `features/*/…_test.dart` | `departure_times`, `paged_feed`, `AppDate`, `AppMoney`… |
 | Mobil ekran | `mobile/test/features/*/…_screen_test.dart` | Boş/yükleniyor/hata durumları, filtre, taşma |
+| Mobil **görsel regresyon** | `mobile/test/golden/` | Ortak bileşenler + liste kartları; 360 dp × (1.0 ve 1.4 ölçek) × açık/koyu |
+| Mobil **erişilebilirlik** | `mobile/test/core/accessibility_test.dart` | WCAG AA kontrast, 48 dp dokunma hedefi, ekran okuyucu etiketi, 1.4 ölçekte taşma yok |
+| Mobil **hareket** | `mobile/test/core/reduced_motion_test.dart` | "Hareketi azalt" ayarına saygı |
+| Mobil **Türkçe sözleşmesi** | `mobile/test/core/turkish_ui_test.dart` | Her hata kodunun Türkçe karşılığı var, teknik/İngilizce mesaj sızmıyor |
 
 ### Nasıl koşulur
 
@@ -383,6 +387,10 @@ dotnet test KadirliApp.Tests --filter "FullyQualifiedName~Unit"
 
 # Mobil
 cd mobile && flutter analyze && flutter test
+
+# Yalnız görsel regresyon / golden'ları yeniden üret
+cd mobile && flutter test --tags golden
+cd mobile && flutter test --update-goldens test/golden   # ⚠️ CI ASLA üretmez
 ```
 
 ### Yeni kod için hangi test yazılır
@@ -392,6 +400,9 @@ cd mobile && flutter analyze && flutter test
 - **Yeni uç** → yetki testi kendiliğinden kapsar; ayrıca görünürlük ve "mutlu yol" testi.
 - **Yeni görünmez bağımlılık** → §7 tablosuna satır + `InvisibleContractsTests`'e test.
 - **Mobil yeni ekran** → en az: boş durum, hata durumu, ana etkileşim.
+- **Mobil yeni ortak bileşen / liste kartı** → `mobile/test/golden/` altına bir golden
+  senaryosu (**uzun Türkçe metinle**; kısa örnek hiçbir düzen hatası göstermez) ve
+  gerekiyorsa `accessibility_test.dart`'a dokunma hedefi/etiket iddiası.
 
 ### Bilinen test tuzakları
 

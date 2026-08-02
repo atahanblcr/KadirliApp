@@ -198,15 +198,13 @@ class _CurrentList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!groups.hasCurrent) {
-      return _EmptyScrollable(
-        child: EmptyView(
-          icon: Icons.check_circle_outline_rounded,
-          title: 'Planlı kesinti yok',
-          message: groups.hiddenByNeighborhood > 0
-              ? 'Mahallenizde planlı kesinti görünmüyor. '
-                    '${groups.hiddenByNeighborhood} kesinti filtre dışında.'
-              : 'Şu an süren ya da planlanan elektrik kesintisi bulunmuyor.',
-        ),
+      return EmptyView(
+        icon: Icons.check_circle_outline_rounded,
+        title: 'Planlı kesinti yok',
+        message: groups.hiddenByNeighborhood > 0
+            ? 'Mahallenizde planlı kesinti görünmüyor. '
+                  '${groups.hiddenByNeighborhood} kesinti filtre dışında.'
+            : 'Şu an süren ya da planlanan elektrik kesintisi bulunmuyor.',
       );
     }
 
@@ -265,12 +263,10 @@ class _PastList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (groups.past.isEmpty) {
-      return const _EmptyScrollable(
-        child: EmptyView(
-          icon: Icons.history_rounded,
-          title: 'Geçmiş kayıt yok',
-          message: 'Tamamlanmış bir kesinti kaydı bulunmuyor.',
-        ),
+      return const EmptyView(
+        icon: Icons.history_rounded,
+        title: 'Geçmiş kayıt yok',
+        message: 'Tamamlanmış bir kesinti kaydı bulunmuyor.',
       );
     }
 
@@ -295,20 +291,3 @@ class _PastList extends StatelessWidget {
   }
 }
 
-/// Boş durumu kaydırılabilir tutar → pull-to-refresh çalışmaya devam eder.
-class _EmptyScrollable extends StatelessWidget {
-  const _EmptyScrollable({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) => SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: constraints.maxHeight),
-        child: child,
-      ),
-    ),
-  );
-}

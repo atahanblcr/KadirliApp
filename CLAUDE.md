@@ -4,8 +4,9 @@
 ilanlar, vefat, etkinlik, kampanya, taksi, ulaşım, elektrik kesintisi, şehir rehberi,
 mekanlar, şikayet/istek. Üç parça: **.NET 8 API** + **Razor admin paneli** + **Flutter mobil**.
 
-**Durum:** Backend ve panel bitti (Faz 0–10). Mobil 11.12'ye kadar bitti — Ana Sayfa
-ızgarasındaki 12 modülün tamamı gerçek. Sırada FCM push (11.13) ve yayın (11.15–11.16).
+**Durum:** Backend ve panel bitti (Faz 0–10). Mobil 11.15'e kadar bitti — 12 modülün
+tamamı gerçek, push canlı, golden + erişilebilirlik testleri ayakta. Sırada backend
+emniyet ağı 2. tur (11.15b) ve yayın (11.16).
 
 ## Çalıştır
 
@@ -25,6 +26,10 @@ gerçek cihaz `--dart-define=API_BASE_URL=http://<LAN-IP>:5005`.
 dotnet test KadirliApp.Tests                  # Docker açık olmalı (Testcontainers)
 cd mobile && flutter analyze && flutter test
 ```
+
+Golden (görsel regresyon) testleri `flutter test` içinde koşar. Bilerek düzen
+değiştirdiyseniz `flutter test --update-goldens test/golden` ile referansları
+yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`.
 
 ## Hangi dokümanı ne zaman okumalı
 

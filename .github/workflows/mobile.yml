@@ -40,8 +40,43 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
+      # ⚠️ Golden testler burada KOŞMAZ: referans görüntüler geliştirme
+      # makinesinde (macOS) üretiliyor ve yazı tipi rasterleştirmesi işletim
+      # sistemine göre değiştiği için Linux'ta sahte kırmızı verirler. Ayrı bir
+      # macOS işinde koşuyorlar (aşağıda).
       - name: Test
-        run: flutter test --reporter expanded
+        run: flutter test --exclude-tags golden --reporter expanded
+
+  # Görsel regresyon (Faz 11.15). Golden'ların üretildiği platformda koşar.
+  # ⚠️ `--update-goldens` BİLİNÇLİ OLARAK YOK: CI golden üretirse hatalı düzen
+  # "yeni doğru" diye kaydedilir ve test kendini onaylar.
+  goldens:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.2'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Golden tests (yalnız karşılaştırma)
+        run: flutter test --tags golden --reporter expanded
+
+      # Kırılan golden'ın farkını gözle incelemek için.
+      - name: Upload golden diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: mobile/test/golden/failures/
+          if-no-files-found: ignore
 
   # Derlenebilirlik güvencesi: analiz geçse de platform yapılandırması bozulmuş olabilir.
   # ⚠️ iOS derlemesi macOS runner gerektirir (ücretli dakikaları hızla tüketir) → bilinçli

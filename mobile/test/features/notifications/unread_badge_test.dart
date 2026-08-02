@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kadirli_app/core/network/network.dart';
+import 'package:kadirli_app/features/notifications/application/unread_count_provider.dart';
 
 import '../../core/network/fake_http_adapter.dart';
 import '../../helpers/pump_app.dart';
@@ -90,5 +91,57 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Henüz bildiriminiz yok'), findsOneWidget);
+  });
+
+  testWidgets('rozet ARTINCA kısa bir "pop" oynar (11.15 cilası)', (tester) async {
+    // 📌 Push ile gelen bildirim uygulama açıkken rozeti sessizce artırıyordu;
+    // kullanıcı alt çubuğa bakmıyorsa değişimi hiç fark etmiyordu.
+    var unread = 1;
+    final adapter = routedAdapter({
+      ...homeStubs(),
+      '/v1/users/me': (_) async => jsonResponse(successEnvelope(meBody())),
+      '/v1/notifications': (_) async => jsonResponse(
+        successEnvelope({
+          'items': <dynamic>[],
+          'totalCount': 0,
+          'pageSize': 1,
+          'currentPage': 1,
+          'totalPages': 0,
+          'unreadCount': unread,
+        }),
+      ),
+    });
+    final container = await pumpApp(
+      tester,
+      tokenStore: InMemoryTokenStore(accessToken: 'ACCESS', refreshToken: 'REFRESH'),
+      adapter: adapter,
+    );
+    expect(find.text('1'), findsOneWidget);
+
+    // Dinlenmeye bırakılınca ölçek 1.0'a döner.
+    final restingScale =
+        tester.widget<ScaleTransition>(find.byKey(const ValueKey('unreadBadgePop'))).scale.value;
+    expect(restingScale, 1.0);
+
+    unread = 2;
+    container.invalidate(unreadNotificationCountProvider);
+    // ⚠️ `waitUntil` widget testinde KULLANILAMAZ: gerçek zamanı bekler, test
+    // saati ise `pump` ile ilerler → süit kilitlenir. Kareler elle ilerletilir.
+    for (var i = 0; i < 8 && !tester.any(find.text('2')); i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(find.text('2'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 80));
+
+    final poppedScale =
+        tester.widget<ScaleTransition>(find.byKey(const ValueKey('unreadBadgePop'))).scale.value;
+    expect(poppedScale, greaterThan(1.0), reason: 'Artışta rozet büyümeli');
+
+    // Animasyon kalıcı değil: biraz sonra 1.0'a döner.
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      tester.widget<ScaleTransition>(find.byKey(const ValueKey('unreadBadgePop'))).scale.value,
+      1.0,
+    );
   });
 }

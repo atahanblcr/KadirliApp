@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kadirli_app/core/widgets/widgets.dart';
 
@@ -23,17 +24,21 @@ void main() {
     final controller = ScrollController();
     addTearDown(controller.dispose);
 
+    // ⚠️ 11.15'ten beri `AppScaffold` offline şeridini
+    // `connectivityStatusProvider`'dan okuyor → `ProviderScope` şart.
     await tester.pumpWidget(
-      MaterialApp(
-        home: AppScaffold(
-          title: 'Test',
-          onRefresh: () async => onRefresh(),
-          body: ListView(
-            controller: controller,
-            children: [
-              for (var i = 0; i < itemCount; i++)
-                SizedBox(height: 60, child: Text('Satır $i')),
-            ],
+      ProviderScope(
+        child: MaterialApp(
+          home: AppScaffold(
+            title: 'Test',
+            onRefresh: () async => onRefresh(),
+            body: ListView(
+              controller: controller,
+              children: [
+                for (var i = 0; i < itemCount; i++)
+                  SizedBox(height: 60, child: Text('Satır $i')),
+              ],
+            ),
           ),
         ),
       ),
@@ -71,12 +76,14 @@ void main() {
     addTearDown(controller.dispose);
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: AppScaffold(
-          title: 'Test',
-          body: ListView(
-            controller: controller,
-            children: const [SizedBox(height: 60, child: Text('Tek satır'))],
+      ProviderScope(
+        child: MaterialApp(
+          home: AppScaffold(
+            title: 'Test',
+            body: ListView(
+              controller: controller,
+              children: const [SizedBox(height: 60, child: Text('Tek satır'))],
+            ),
           ),
         ),
       ),

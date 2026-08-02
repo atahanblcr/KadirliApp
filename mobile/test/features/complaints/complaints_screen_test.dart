@@ -311,6 +311,12 @@ void main() {
       find.byType(TextField).at(1),
       'İlandaki fotoğraflar başka bir araca ait görünüyor.',
     );
+    // Formun başında "İlgili içerik" kartı var; ayrıca 11.15'te filtre chip'i
+    // 48 dp dokunma hedefine çıkarıldı (erişilebilirlik) → tür şeridi bir tık
+    // yükseldi ve gönder butonu ekran dışında kalıyor. `ListView` tembel
+    // olduğu için buton hiç kurulmuyor (11.9 tuzağı) → önce kaydır.
+    await tester.drag(find.byType(ListView).last, const Offset(0, -300));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Bildirimi gönder'));
     await tester.pumpAndSettle();
 

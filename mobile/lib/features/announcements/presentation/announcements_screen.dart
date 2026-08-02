@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/paging/paged_list_footer.dart';
 import '../../../core/router/app_routes.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/widgets.dart';
 import '../application/announcements_providers.dart';
@@ -81,30 +81,22 @@ class _Body extends ConsumerWidget {
 
     if (state.error != null && state.items.isEmpty) {
       final error = state.error!;
-      return _ScrollableState(
-        controller: scrollController,
-        child: ErrorView(
-          message: error.message,
-          traceId: error.traceId,
-          onRetry: controller.retry,
-        ),
+      return ErrorView(
+        message: error.message,
+        traceId: error.traceId,
+        onRetry: controller.retry,
       );
     }
 
     if (state.isEmpty) {
-      return _ScrollableState(
-        controller: scrollController,
-        child: EmptyView(
-          icon: Icons.campaign_outlined,
-          title: state.isFiltered
-              ? 'Bu türde duyuru yok'
-              : 'Henüz duyuru yok',
-          message: state.isFiltered
-              ? 'Başka bir tür seçebilir ya da tüm duyurulara bakabilirsiniz.'
-              : 'Yeni duyurular burada görünecek.',
-          actionLabel: state.isFiltered ? 'Tüm duyurular' : null,
-          onAction: state.isFiltered ? () => controller.selectType(null) : null,
-        ),
+      return EmptyView(
+        icon: Icons.campaign_outlined,
+        title: state.isFiltered ? 'Bu türde duyuru yok' : 'Henüz duyuru yok',
+        message: state.isFiltered
+            ? 'Başka bir tür seçebilir ya da tüm duyurulara bakabilirsiniz.'
+            : 'Yeni duyurular burada görünecek.',
+        actionLabel: state.isFiltered ? 'Tüm duyurular' : null,
+        onAction: state.isFiltered ? () => controller.selectType(null) : null,
       );
     }
 
@@ -121,7 +113,11 @@ class _Body extends ConsumerWidget {
       separatorBuilder: (_, _) => AppSpacing.gapSm,
       itemBuilder: (context, index) {
         if (index == state.items.length) {
-          return _FeedFooter(scrollController: scrollController);
+          return PagedListFooter(
+            state: state,
+            onLoadMore: controller.loadMore,
+            itemNoun: 'duyuru',
+          );
         }
         final announcement = state.items[index];
         return AnnouncementTile(
@@ -131,89 +127,6 @@ class _Body extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-}
-
-/// Boş/hata durumlarını da kaydırılabilir tutar — yoksa `RefreshIndicator`
-/// çalışmaz ve kullanıcı "aşağı çekip yenile" refleksini kullanamaz.
-class _ScrollableState extends StatelessWidget {
-  const _ScrollableState({required this.controller, required this.child});
-
-  final ScrollController controller;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) => SingleChildScrollView(
-      controller: controller,
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: constraints.maxHeight),
-        child: child,
-      ),
-    ),
-  );
-}
-
-/// Listenin altı: sonraki sayfa göstergesi / sayfa hatası / bitiş çizgisi.
-class _FeedFooter extends ConsumerWidget {
-  const _FeedFooter({required this.scrollController});
-
-  final ScrollController scrollController;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(announcementFeedProvider);
-    final controller = ref.read(announcementFeedProvider.notifier);
-    final theme = Theme.of(context);
-
-    if (state.isLoadingMore) {
-      return const Padding(
-        padding: EdgeInsets.only(top: AppSpacing.md),
-        child: LoadingView.compact(),
-      );
-    }
-
-    // Sonraki sayfa patladı: mevcut kayıtlar duruyor, yalnız devamı yeniden
-    // denenir (tüm ekranı hataya düşürmek okunan içeriği silerdi).
-    if (state.loadMoreError != null) {
-      return Padding(
-        padding: const EdgeInsets.only(top: AppSpacing.lg),
-        child: AppCard(
-          child: Column(
-            children: [
-              Text(
-                state.loadMoreError!.message,
-                style: theme.textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              AppSpacing.gapMd,
-              AppButton.ghost(
-                label: 'Devamını yükle',
-                icon: Icons.refresh_rounded,
-                size: AppButtonSize.small,
-                expand: true,
-                onPressed: controller.loadMore,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (state.hasMore) return const SizedBox(height: AppSpacing.lg);
-
-    // Liste bitti — "daha fazlası var mı?" sorusunu kapatan sakin bir satır.
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.lg),
-      child: Text(
-        state.totalCount > 0
-            ? 'Toplam ${state.totalCount} duyuru'
-            : 'Hepsi bu kadar',
-        textAlign: TextAlign.center,
-        style: theme.textTheme.labelSmall?.copyWith(color: theme.palette.muted),
-      ),
     );
   }
 }

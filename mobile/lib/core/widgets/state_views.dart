@@ -42,6 +42,41 @@ class LoadingView extends StatelessWidget {
   }
 }
 
+/// Boş/hata durumlarını **kaydırılabilir** tutan sarmalayıcı.
+///
+/// 🐛 **Neden var (11.15'te sistematik olarak yakalandı):** `RefreshIndicator`
+/// jesti ancak bir kaydırılabilir alt ağaç varsa yakalar. Boş ve hata
+/// görünümleri ise `Center` (kaydırılamaz) → **pull-to-refresh tam da
+/// kullanıcının en çok ihtiyaç duyduğu anda ölüyordu**: "liste boş, aşağı
+/// çekip yenileyeyim" ve "hata aldım, tekrar deneyeyim". 11.6'da duyurularda,
+/// 11.6'da kesintilerde tek tek çözülmüştü; kalan **12 ekranda** açıktı.
+///
+/// Bu yüzden düzeltme çağrı yerinde değil, [EmptyView]/[ErrorView]'in **kendi
+/// içinde**: yeni yazılan ekran bunu unutamaz (11.12 `AppScaffold`
+/// düzeltmesinin aynı felsefesi).
+///
+/// ⚠️ Yüksekliği **sınırsız** bir ebeveynin (ör. `ListView` çocuğu) içinde
+/// kaydırma sarmalayıcısı kurulamaz — o durumda içerik olduğu gibi geçer.
+class ScrollableStateBody extends StatelessWidget {
+  const ScrollableStateBody({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (!constraints.hasBoundedHeight) return child;
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
 /// Boş durum — dostane ikon + mesaj + (varsa) aksiyon (MOBILE_UX_PLAN §7).
 class EmptyView extends StatelessWidget {
   const EmptyView({
@@ -62,7 +97,8 @@ class EmptyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
+    return ScrollableStateBody(
+      child: Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
@@ -93,6 +129,7 @@ class EmptyView extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -121,7 +158,8 @@ class ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = theme.palette;
-    return Center(
+    return ScrollableStateBody(
+      child: Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
@@ -157,6 +195,7 @@ class ErrorView extends StatelessWidget {
             ],
           ],
         ),
+      ),
       ),
     );
   }

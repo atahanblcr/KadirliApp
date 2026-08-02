@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/network.dart';
+import '../../../core/paging/paged_list_footer.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -393,11 +394,18 @@ class _AllPharmaciesTabState extends ConsumerState<_AllPharmaciesTab> {
                 AppSpacing.lg,
                 AppSpacing.xxl,
               ),
-              itemCount: state.items.length + (state.isLoadingMore ? 1 : 0),
+              // +1 = altbilgi (sayfa yükleniyor / sayfa hatası / liste sonu).
+              // ⚠️ 11.15'e kadar burada YALNIZ yükleniyor göstergesi vardı:
+              // 2. sayfa patlarsa liste sessizce eksik kalıyordu.
+              itemCount: state.items.length + 1,
               separatorBuilder: (_, _) => AppSpacing.gapSm,
               itemBuilder: (context, index) {
                 if (index == state.items.length) {
-                  return const LoadingView.compact();
+                  return PagedListFooter(
+                    state: state,
+                    onLoadMore: controller.loadMore,
+                    itemNoun: 'eczane',
+                  );
                 }
                 final pharmacy = state.items[index];
                 return PharmacyTile(

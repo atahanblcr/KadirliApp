@@ -4,6 +4,7 @@ library;
 export 'api_client.dart';
 export 'api_error_codes.dart';
 export 'api_exception.dart';
+export 'connectivity_status.dart';
 export 'dio_client.dart';
 export 'error_messages.dart';
 export 'interceptors/auth_interceptor.dart';

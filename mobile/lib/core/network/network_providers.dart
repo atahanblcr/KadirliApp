@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api_client.dart';
+import 'connectivity_status.dart';
 import 'dio_client.dart';
 import 'token_store.dart';
 
@@ -28,6 +29,9 @@ final dioProvider = Provider<Dio>((ref) {
   final dio = DioClient.create(
     tokenStore: ref.watch(tokenStoreProvider),
     onSessionExpired: () => ref.read(sessionExpiredProvider.notifier).signal(),
+    onReachable: () => ref.read(connectivityStatusProvider.notifier).goOnline(),
+    onUnreachable: () =>
+        ref.read(connectivityStatusProvider.notifier).goOffline(),
   );
   ref.onDispose(dio.close);
   return dio;

@@ -1,0 +1,11 @@
+# Test etiketleri (Faz 11.15).
+#
+# `golden` etiketi görsel regresyon testlerini ayırır: referans görüntüler
+# geliştirme makinesinde (macOS) üretiliyor ve yazı tipi rasterleştirmesi
+# işletim sistemine göre değiştiği için Linux CI'da sahte kırmızı verirler.
+# CI bu yüzden iki iş koşuyor:
+#   - ubuntu: flutter test --exclude-tags golden
+#   - macos : flutter test --tags golden      (yalnız karşılaştırma, ÜRETİM YOK)
+tags:
+  golden:
+    description: Görsel regresyon (matchesGoldenFile) testleri.

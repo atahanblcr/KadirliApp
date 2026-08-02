@@ -1,0 +1,248 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kadirli_app/core/theme/app_colors.dart';
+import 'package:kadirli_app/core/theme/app_spacing.dart';
+import 'package:kadirli_app/core/theme/app_theme.dart';
+import 'package:kadirli_app/core/widgets/widgets.dart';
+
+/// Erişilebilirlik iddiaları — Faz 11.15.
+///
+/// 📌 **Neden test:** erişilebilirlik bu projede bugüne kadar yalnız **gözle**
+/// denetlendi ("48 dp'ye dikkat ettik", "kontrast iyi görünüyor"). Gözle
+/// denetim yeni bir ekranla birlikte çürür. `flutter_test`in yerleşik
+/// kılavuzları (`meetsGuideline`) bunu mekanikleştiriyor:
+///
+/// - [textContrastGuideline] — WCAG AA metin kontrastı,
+/// - [androidTapTargetGuideline] — en az 48×48 dokunma hedefi,
+/// - [labeledTapTargetGuideline] — her dokunulabilir öğenin ekran okuyucu
+///   etiketi var mı (ikon-only düğmelerde kritik).
+///
+/// Kapsam **temsilci bileşenler**: gerçek ekranlar ağ/router kurulumu
+/// gerektiriyor ve kılavuz ihlalleri neredeyse her zaman bileşen düzeyinde
+/// doğuyor (buton, chip, kart, form alanı).
+void main() {
+  Future<void> pumpA11y(
+    WidgetTester tester,
+    Widget child, {
+    Brightness brightness = Brightness.light,
+    double textScale = 1,
+  }) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: brightness == Brightness.light ? AppTheme.light : AppTheme.dark,
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+            child: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  group('dokunma hedefi en az 48 dp', () {
+    testWidgets('AppButton (normal + expand)', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpA11y(
+        tester,
+        Column(
+          spacing: AppSpacing.md,
+          children: [
+            AppButton(label: 'Kaydet', onPressed: () {}),
+            AppButton.ghost(label: 'Vazgeç', expand: true, onPressed: () {}),
+            AppButton.danger(label: 'Sil', onPressed: () {}),
+          ],
+        ),
+      );
+
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      handle.dispose();
+    });
+
+    testWidgets('FilterChoiceChip — dense varyantı dahil', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpA11y(
+        tester,
+        Wrap(
+          spacing: AppSpacing.sm,
+          children: [
+            FilterChoiceChip(label: 'Tümü', selected: true, onTap: () {}),
+            FilterChoiceChip(label: 'Ücretsiz', selected: false, dense: true, onTap: () {}),
+          ],
+        ),
+      );
+
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      handle.dispose();
+    });
+
+    testWidgets('ContactActions düğmeleri', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpA11y(
+        tester,
+        const ContactActions(
+          phone: '+905321110001',
+          latitude: 37.37,
+          longitude: 36.09,
+          website: 'https://kadirli.bel.tr',
+        ),
+      );
+
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      handle.dispose();
+    });
+  });
+
+  group('dokunulabilir her öğenin ekran okuyucu etiketi var', () {
+    testWidgets('AppButton', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpA11y(tester, AppButton(label: 'İlan ver', onPressed: () {}));
+
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      handle.dispose();
+    });
+
+    testWidgets('ContactActions — ikonlu düğmeler etiketsiz kalmamalı', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpA11y(
+        tester,
+        const ContactActions(phone: '+905321110001', website: 'https://kadirli.bel.tr'),
+      );
+
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      handle.dispose();
+    });
+  });
+
+  group('metin kontrastı (WCAG AA)', () {
+    for (final brightness in Brightness.values) {
+      final themeName = brightness == Brightness.light ? 'açık' : 'koyu';
+
+      testWidgets('durum görünümleri — $themeName tema', (tester) async {
+        final handle = tester.ensureSemantics();
+        await pumpA11y(
+          tester,
+          brightness: brightness,
+          const Column(
+            children: [
+              Expanded(child: EmptyView(title: 'Henüz ilan yok', message: 'İlk ilanı siz verin.')),
+              OfflineBanner(),
+            ],
+          ),
+        );
+
+        await expectLater(tester, meetsGuideline(textContrastGuideline));
+        handle.dispose();
+      });
+
+      testWidgets('bilgi şeritleri — $themeName tema', (tester) async {
+        final handle = tester.ensureSemantics();
+        await pumpA11y(
+          tester,
+          brightness: brightness,
+          const Column(
+            spacing: AppSpacing.sm,
+            children: [
+              InfoBanner(message: 'Doğrulama kodu gönderildi.'),
+              InfoBanner(tone: InfoBannerTone.success, message: 'İlanınız gönderildi.'),
+              InfoBanner(tone: InfoBannerTone.warning, message: 'Giriş yapmadınız.'),
+              InfoBanner(tone: InfoBannerTone.danger, message: 'Oturum süresi doldu.'),
+            ],
+          ),
+        );
+
+        await expectLater(tester, meetsGuideline(textContrastGuideline));
+        handle.dispose();
+      });
+
+      testWidgets('birincil ve yıkıcı butonlar — $themeName tema', (tester) async {
+        final handle = tester.ensureSemantics();
+        await pumpA11y(
+          tester,
+          brightness: brightness,
+          Column(
+            spacing: AppSpacing.md,
+            children: [
+              AppButton(label: 'Kaydet', onPressed: () {}),
+              AppButton.ghost(label: 'Vazgeç', onPressed: () {}),
+              AppButton.danger(label: 'Hesabı sil', onPressed: () {}),
+            ],
+          ),
+        );
+
+        await expectLater(tester, meetsGuideline(textContrastGuideline));
+        handle.dispose();
+      });
+    }
+  });
+
+  group('yazı ölçeği 1.4 iken düzen bozulmuyor', () {
+    // ⚠️ 1.4 uygulamanın üst sınırı (`app.dart`'ta `withClampedTextScaling`).
+    // Taşma bu projede altı kez tam bu ölçekte çıktı → mekanik denetim.
+    testWidgets('ortak bileşenler 360 dp × 1.4 ölçekte taşmıyor', (tester) async {
+      tester.view.physicalSize = const Size(360, 800) * tester.view.devicePixelRatio;
+      addTearDown(tester.view.reset);
+
+      await pumpA11y(
+        tester,
+        textScale: 1.4,
+        SingleChildScrollView(
+          child: Column(
+            spacing: AppSpacing.md,
+            children: [
+              AppButton(
+                label: 'Cenaze namazının kılınacağı camiyi seç',
+                icon: Icons.mosque_rounded,
+                expand: true,
+                onPressed: () {},
+              ),
+              const AppTextField(
+                label: 'Cenaze namazının kılınacağı cami',
+                required: true,
+                hint: 'Cami adı',
+              ),
+              const InfoBanner(
+                tone: InfoBannerTone.warning,
+                title: 'Giriş yapmadınız',
+                message: 'Anonim gönderilen bildirimi daha sonra takip edemezsiniz.',
+              ),
+              FilterChoiceChip(label: 'Yaklaşan etkinlikler', selected: true, onTap: () {}),
+            ],
+          ),
+        ),
+      );
+
+      // `RenderFlex overflowed` bir istisna olarak raporlanır → burada null olmalı.
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('renk tek başına anlam taşımıyor', () {
+    testWidgets('offline şeridi metinle de anlatır', (tester) async {
+      await pumpA11y(tester, const OfflineBanner());
+
+      expect(find.text('İnternet bağlantısı yok'), findsOneWidget);
+    });
+
+    testWidgets('palet semantik renkleri iki temada da tanımlı', (tester) async {
+      // Renk körü kullanıcılar için kural: her semantik renk bir METİN/ikonla
+      // birlikte kullanılır. Bu test paletin eksiksizliğini kilitliyor —
+      // eksik bir rol sessizce `null` dönemez.
+      for (final palette in [AppPalette.light, AppPalette.dark]) {
+        expect(palette.success, isNotNull);
+        expect(palette.info, isNotNull);
+        expect(palette.warning, isNotNull);
+        expect(palette.danger, isNotNull);
+        expect(palette.muted, isNotNull);
+      }
+    });
+  });
+}

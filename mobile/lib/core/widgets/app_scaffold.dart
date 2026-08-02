@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../network/connectivity_status.dart';
 import '../theme/app_spacing.dart';
 import 'state_views.dart';
 
@@ -20,7 +22,7 @@ class AppScaffold extends StatelessWidget {
     this.bottomNavigationBar,
     this.floatingActionButton,
     this.onRefresh,
-    this.offline = false,
+    this.offline,
     this.padded = false,
     this.backgroundColor,
   });
@@ -37,7 +39,15 @@ class AppScaffold extends StatelessWidget {
   /// Pull-to-refresh geri çağrısı (liste ekranlarında zorunlu sayılır).
   final Future<void> Function()? onRefresh;
 
-  final bool offline;
+  /// Offline şeridi. **Varsayılan `null` = otomatik** — `AppScaffold` sinyali
+  /// [connectivityStatusProvider]'dan kendisi okur, hiçbir ekranın bunu
+  /// bağlaması gerekmez.
+  ///
+  /// 📌 11.15'e kadar bu alan `false` sabitiydi ve **hiçbir ekran değer
+  /// geçmiyordu** → `OfflineBanner` 11.1'de yazılmış ama uygulamada hiç
+  /// görünmemişti (yalnız stil kılavuzunda). Açık bir değer vermek yalnız
+  /// testler ve `/gelistirici/tasarim` için anlamlı.
+  final bool? offline;
 
   /// Gövdeye standart ekran yatay boşluğu uygula.
   final bool padded;
@@ -99,7 +109,10 @@ class AppScaffold extends StatelessWidget {
         bottom: false,
         child: Column(
           children: [
-            OfflineBanner(visible: offline),
+            if (offline case final bool value)
+              OfflineBanner(visible: value)
+            else
+              const _ConnectivityBanner(),
             Expanded(child: content),
           ],
         ),
@@ -108,4 +121,16 @@ class AppScaffold extends StatelessWidget {
       floatingActionButton: floatingActionButton,
     );
   }
+}
+
+/// Ağ katmanının çevrimdışı sinyalini dinleyen şerit.
+///
+/// Ayrı bir widget olması bilinçli: yalnız bu küçük parça yeniden çizilir,
+/// bağlantı durumu değişince ekranın tamamı yeniden kurulmaz.
+class _ConnectivityBanner extends ConsumerWidget {
+  const _ConnectivityBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) =>
+      OfflineBanner(visible: ref.watch(connectivityStatusProvider));
 }

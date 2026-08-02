@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../config/env.dart';
+import 'connectivity_status.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/envelope_interceptor.dart';
 import 'interceptors/log_interceptor.dart';
@@ -23,6 +24,10 @@ abstract final class DioClient {
   static Dio create({
     required TokenStore tokenStore,
     void Function()? onSessionExpired,
+    // 11.15: offline şeridi bu iki sinyalden besleniyor (bkz.
+    // `connectivity_status.dart` — ayrı bir bağlantı paketi kullanılmıyor).
+    void Function()? onReachable,
+    void Function()? onUnreachable,
     String? baseUrl,
     // Testlerde sahte HTTP katmanı bağlanabilsin diye (her iki istemciye de
     // uygulanır — yenileme akışı da sahte adaptörden geçmeli).
@@ -41,6 +46,8 @@ abstract final class DioClient {
         onSessionExpired: onSessionExpired,
       ),
       EnvelopeInterceptor(),
+      if (onReachable != null && onUnreachable != null)
+        ConnectivityInterceptor(onOnline: onReachable, onOffline: onUnreachable),
       if (Env.enableNetworkLogs) NetworkLogInterceptor(),
     ]);
     return dio;

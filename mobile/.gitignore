@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Golden testleri başarısız olduğunda üretilen fark görüntüleri (11.15).
+# Yalnız hata ayıklama içindir, referans golden'lar `test/golden/goldens/`.
+test/golden/failures/
