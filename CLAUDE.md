@@ -7,7 +7,7 @@ mekanlar, şikayet/istek. Üç parça: **.NET 8 API** + **Razor admin paneli** +
 **Durum:** Backend ve panel bitti (Faz 0–10). Mobil 11.15c'ye kadar bitti — 12 modülün
 tamamı gerçek, push canlı, golden + erişilebilirlik testleri ayakta, panel/önbellek/moderasyon
 emniyet ağı kuruldu, panelin canlı denetiminde bulunan hataların tamamı (11.15c A grubu)
-düzeltildi (368 backend + 669 mobil test). **Sırada yalnız yayın (11.16).**
+düzeltildi (382 backend + 669 mobil test). **Sırada yalnız yayın (11.16).**
 
 ## Çalıştır
 

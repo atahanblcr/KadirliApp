@@ -1284,7 +1284,7 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
   çıktı** ve Dashboard da "Yayındaki İlanlar 1" dedi (panel ile vatandaş artık aynı sayıyı
   görüyor) · **push'lu duyuru → 9 bildirim → duyuru silindi → 0 bildirim** (geçen oturumda
   9'u ayakta kalmıştı). Geçici veri temizlendi (test duyurusu silindi, ilan `expired`'a geri alındı).
-- **Doğrulama:** `dotnet test` **368/368** · `flutter analyze` **0** · `flutter test` **669/669**.
+- **Doğrulama:** `dotnet test` **382/382** (327 → +55) · `flutter analyze` **0** · `flutter test` **669/669**.
 
 #### 📌 B grubu KARARI (bitti kriteri (b))
 
