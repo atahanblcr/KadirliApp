@@ -57,13 +57,19 @@
 | Kural | Açıklama | Referans |
 |---|---|---|
 | Yeni panel controller'ına **hem** `[Authorize(Roles="admin,super_admin,moderator")]` **hem** `[PanelPermission("<modül>")]` eklendi mi? | Rol listesine `moderator` yazıp özniteliği unutmak, moderatöre o modülde **sınırsız** yetki verir — bu proje bunu canlıda yaşadı (11.15b'nin en büyük bulgusu). `PanelModeratorPermissionTests` yakalar ama PR'da elle de kontrol et. | ARCHITECTURE.md §3, Active_Context.md |
-| `PanelMenu.Items`'a satır eklendi mi? | Menü tek liste; eklenmezse ekran erişilebilir ama menüden görünmez (ölü buton kuralının tersi — "gizli buton"). | ARCHITECTURE.md §3 |
+| `PanelMenu.Items`'a satır eklendi mi? | Menü tek liste; eklenmezse ekran erişilebilir ama menüden görünmez (ölü buton kuralının tersi — "gizli buton"). `StaffAdminController.Modules` ve `PanelDisplay.ModuleLabel()` **buradan türer** — ikinci bir liste yazma. | ARCHITECTURE.md §3 |
+| ⚠️ **TEKRARLAYAN** Durum/rol ekrana **ham** mı basılıyor? | `@item.Status` / `@user.Role` doğrudan yazılmaz → `<partial name="_StatusBadge" model="PanelDisplay.Status(...)" />`. 11.15c'de **yedi listede** `expired`/`archived`/`SuperAdmin` ham basıyordu; sebep her görünümün kendi if/else zincirini yazması ve **son `else` dalının** ham değeri geçirmesiydi. | `PanelDisplayTests`, `PanelUsabilityTests` |
+| Para `PanelDisplay.TL()`'den mi geçiyor? | `ToString("C2")` **kullanılmaz**: panel `Program.cs`'te bilinçli olarak `InvariantCulture`'a sabit, bu yüzden jenerik **`¤`** basar (canlıda `¤750,000.00` görüldü). | `PanelDisplayTests.TL_UsesTurkishFormat…` |
+| Yeni gezinme bağlantısı **dar ekranda** da var mı? | Menü iki yerde çizilir (kenar çubuğu + `<details>` açılır menü) ama **tek listeden** gelir (`_MenuLinks.cshtml`). Kendi `<a>` bloğunu yazarsan dar ekranda görünmez. | `PanelUsabilityTests.NarrowScreen_…` |
+| Panelde gösterilen **"aktif/yayında" sayacı** public uçla aynı tanımı mı kullanıyor? | Ayrışırsa panel ile vatandaş **farklı gerçeklik görür ve kimse hata almaz**: 11.15c'de panel "Aktif İlanlar 1" derken `GET /v1/ads` 0 döndürüyordu (`ExpiresAt` yok sayılıyordu). | ARCHITECTURE.md §7 madde 23 |
+| Bir kaydı **görünmez kılan/geri getiren** aksiyon, ona bağlı türetilmiş veriyi de düşünüyor mu? | Silinen duyurunun bildirimleri ayakta kalıyordu → kullanıcı bildirime dokunup boş sayfaya düşüyordu. Kaynakta temizle **ve** sorguda "hedefi yaşayan" süzgeci koru; sayaç (`unreadCount`) listeyle **aynı** sorgudan türemeli. | ARCHITECTURE.md §7 madde 24 |
 | Yeni Index view'de **sayfalama UI'ı** var mı (yalnız `PagedResult` dönmek yetmez)? | Geçmişte 8 Index view `PagedResult`'a bağlıyken sayfalama arayüzü hiç yoktu → 20. kayıttan sonrasına erişilemiyordu. Ortak `_Pagination.cshtml` kullan, mevcut query string'i koru. | Progress.md Faz 11 denetim oturumu |
 | Başarı/hata mesajı **yalnız `_Layout`'ta mı** basılıyor? | `TempData` key'leri harf duyarsız; view içinde ayrıca `TempData["Success"]/["Error"]` basmak çift balona yol açar. Controller'da tek standart key (`Success`/`Error`) kullan. | Progress.md Faz 11 denetim oturumu |
 | Yeni yazma aksiyonu **audit izi** bırakıyor mu? | `IAuditableCommand` deseni panelde de geçerli; onay/red/silme gibi aksiyonlarda "kim yaptı" izlenebilir olmalı. | Active_Context.md güvenlik notları |
-| Silme/onay gibi geri alınamaz aksiyonlarda tarayıcı `confirm()` **neyi sildiğini yazıyor mu**? | Genel "Emin misiniz?" yerine kaydın adını/özetini göster — bilinen açık madde. | Active_Context.md güvenlik notları |
+| Silme/onay gibi geri alınamaz aksiyonlarda onay **neyi sildiğini yazıyor mu**? | `onsubmit="return confirm(...)"` **yazılmaz** → `data-confirm="…"` özniteliği (dinleyici `_Layout`'ta tek yerde). Kaydın adını yaz. ⚠️ Adı inline JS dizesine gömmek kırılgandır: Razor öznitelikleri HTML-encode ettiği için tırnaklı bir başlık (`Ali'nin arabası`) dizeyi bozar; öznitelikte taşınırsa bu sorun yok. | 11.15c |
 | Dar ekranda (< 1024px) bu sayfaya ulaşmanın bir yolu var mı? | Panelin kenar çubuğu `hidden lg:flex`; dar ekranda menü tamamen kayboluyor — yeni ekran eklerken bu boşluğu büyütme. | Active_Context.md |
-| Varsayılan admin şifresi / hassas bilgi `IsDevelopment()` koşulu **olmadan** ekrana basılıyor mu? | Login sayfası gibi yerlerde ortam kontrolü olmadan sızdırma riski var — yeni debug/yardım metni eklerken tekrarlama. | Active_Context.md güvenlik notları |
+| Varsayılan admin şifresi / hassas bilgi `IsDevelopment()` koşulu **olmadan** ekrana basılıyor mu? | Login sayfasındaki satır 11.15c'de koşula bağlandı (`@inject IWebHostEnvironment Env`); yeni debug/yardım metni eklerken tekrarlama. | 11.15c |
+| Dar ekranda menü hâlâ açılıyor mu? | Kenar çubuğu `hidden lg:flex`; dar ekranın tek gezinme yolu üstteki `<details>` menüsü. 11.15c öncesinde o buton **bir kabuktu** (`id`/`onclick`/JS yoktu) ve <1024 px'de panelde hiç menü yoktu. | `PanelUsabilityTests` |
 
 ---
 
@@ -77,7 +83,7 @@
 | Boş/hata durumu (`EmptyView`/`ErrorView`) **kaydırılabilir mi**? | Sarmalamadan direkt kullanma; `ScrollableStateBody` olmadan pull-to-refresh boş/hata durumunda sessizce ölür. | Progress.md Faz 11.15 |
 | Form/detay rotası bir listenin **kardeşi mi, alt rotası mı**? | `go_router` iç içe rotada üst ekranı da kurar — form/detay rotaları her zaman **kardeş** olmalı, yoksa arka planda gereksiz istek+diyalog açılır (11.9'da taslak diyaloğu düzenleme ekranının üstüne fırlamıştı). | ARCHITECTURE.md §7 kod-dışı |
 | `context.push` ile açılan ekran, durum değiştikten sonra **`addPostFrameCallback` içinde** kapatılıyor mu? | Aksi halde ekran router redirect'inin üstünde asılı kalır (kayıt sonrası kapanmama, hesap silme sonrası sonsuz spinner gibi 3 gerçek hata buradan çıktı). | Progress.md Faz 11.5 |
-| Tarih gösteren yeni bir karta (`"3 saat önce"` gibi) **`now` enjekte edilebiliyor mu**? | Enjekte edilemeyen göreli tarih golden testi her gün kırar → insan `--update-goldens`'ı refleks yapar ve testin değeri sıfırlanır. | ARCHITECTURE.md §8 |
+| ⚠️ **TEKRARLAYAN (4 kez)** Tarih gösteren yeni bir karta (`"3 saat önce"` gibi) **`now` enjekte edilebiliyor mu**? | Enjekte edilemeyen göreli tarih golden testi her gün kırar → insan `--update-goldens`'ı refleks yapar ve testin değeri sıfırlanır. 11.15b'de `AnnouncementTile`+`ComplaintCard`, 11.15c'de `NotificationTile` bu yüzden kırıldı. 🔑 **Referansı yenilemeden önce PNG'nin NE gösterdiğine bak:** `NotificationTile`'ın referansı "20 dakika önce" değil tam tarih basıyordu — yani referansın kendisi **hatalı davranışın çıktısıydı**. | ARCHITECTURE.md §8 |
 | Yeni ortak bileşen/liste kartı `test/golden/`'a eklendi mi (uzun Türkçe metinle)? | Kısa örnek hiçbir düzen hatasını göstermez; golden senaryosu **uzun** Türkçe metinle olmalı. | ARCHITECTURE.md §8 |
 | Arayüz metni **Türkçe**, hata mesajı kullanıcıya **teknik/İngilizce sızmıyor** mu? | `turkish_ui_test.dart` sözlük eksiksizliğini kaynağı tarayarak kontrol eder — yeni hata koduna karşılıksız metin eklenirse kırılır. | Değişmez Kural #6, ARCHITECTURE.md §8 |
 | Yeni buton bir uca/ekrana gidiyor mu (işlevsiz buton yok)? | `app_modules_test.dart` bunu mekanik doğruluyor ama yeni ekran eklerken elle de düşün. | Değişmez Kural #5 |
@@ -140,6 +146,20 @@
 | `Memory_Bank/Progress.md`'ye oturum özeti düşüldü mü (kararlar + gerçek hatalar + doğrulama)? | Proje bu formatı kronolojik hafıza olarak kullanıyor; büyük değişikliklerde atlanmamalı. | ARCHITECTURE.md giriş tablosu |
 
 ---
+
+## Bakım
+
+Bu dosya **testle kilitli değildir** (`ARCHITECTURE.md`'yi `ArchitectureDocTests` denetler,
+burayı denetleyen bir test yok) — yani **çürüyebilir**. İki koruma:
+
+1. Satırlara **dosya:satır** yazmaktan kaçın, **sınıf/yardımcı adı** yaz (`PanelDisplay.TL()`
+   taşınsa da aranabilir; `AdsAdmin/Index.cshtml:129` bir sonraki düzenlemede yanlış olur).
+2. Bir madde **ortak bir bileşene** dönüştüğünde (yani artık unutulamaz hâle geldiğinde)
+   satırı silme — bileşenin adını yazarak bırak; yeni gelen "neden böyle" sorusunun
+   cevabı burada.
+
+Son gözden geçirme: **3 Ağustos 2026 (Faz 11.15c)** — o oturumda fiilen kullanıldı ve
+yakaladığı maddeler işaretlendi.
 
 ## Notlar
 
