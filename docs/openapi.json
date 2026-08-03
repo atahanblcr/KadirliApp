@@ -359,6 +359,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "Status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -886,6 +893,13 @@
           },
           {
             "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Status",
             "in": "query",
             "schema": {
               "type": "string"
@@ -2854,6 +2868,13 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3027,6 +3048,13 @@
             "in": "query",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -4830,6 +4858,18 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/places/categories": {
+      "get": {
+        "tags": [
+          "Places"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }

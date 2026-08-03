@@ -2,7 +2,9 @@
 
 > **Amaç:** Flutter mobil istemcisinin tek referansı. Zarf şeması, hata kodları, auth akışı, sayfalama, tarih/görsel kuralları ve public uç envanteri.
 > **Makine-okur şema:** `docs/openapi.json` (OpenAPI 3.0; `openapi_generator`/`dio` ile kod üretimi için). Bu doküman insan rehberi, openapi.json kesin şema — **çeliştiğinde openapi.json + mevcut kod kazanır.**
-> Son güncelleme: 25 Temmuz 2026 (Faz 10.13). Kapsam: 10.1–10.12 sonrası güncel public yüzey.
+> Son güncelleme: 3 Ağustos 2026 (Faz 11.15c). Kapsam: 10.1–10.12'nin public yüzeyi + mobil fazlarının
+> additive eklemeleri (11.10 `?sort=date_asc` · 11.11 `/v1/places/categories` · 11.15c bildirimlerde
+> "hedefi yaşayan" süzgeci ve `/v1/ads`'in public'te yok sayılan `?status=` parametresi).
 
 ---
 
@@ -123,7 +125,10 @@ Sayfalı uçlar `data` içinde şu zarfı döner (`PagedResult<T>`):
 ```
 - Query parametreleri: `?page=1&limit=20`.
 - **Limit clamp'i:** public uçlarda en fazla **50**, admin uçlarında 200. Aşan değer sessizce sınıra çekilir (`items`/`pageSize` gerçek değeri raporlar).
-- İstisna: `GET /v1/notifications` sayfalıdır AMA filtre-bağımsız toplam okunmamış sayısı `data.unreadCount` olarak zarf İÇİNDE ek taşınır (meta değil).
+- İstisna: `GET /v1/notifications` sayfalıdır AMA toplam okunmamış sayısı `data.unreadCount` olarak zarf İÇİNDE ek taşınır (meta değil).
+  "Filtre-bağımsız" demek **`?unreadOnly=` ve sayfadan bağımsız** demektir — `unreadCount` her zaman kullanıcının
+  tüm okunmamışlarını sayar. ⚠️ Ama 11.15c'den beri **"hedefi yaşayan" süzgecine tabidir** (bkz. §Bildirimler):
+  liste ile sayaç aynı sorgudan türer, bu yüzden ayrışmaları mümkün değil.
 
 ---
 
@@ -176,11 +181,25 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
 
 ### İlanlar (Ads)
 - `GET /v1/ads`, `GET /v1/ads/{id}`, `GET /v1/ads/categories`, `GET /v1/ads/categories/{id}/properties` — anonim
+  - ⚠️ **Faz 11.15c:** şemada (`openapi.json`) bir **`?status=`** parametresi görünür ama **public uçta YOK SAYILIR**
+    (yalnız panelin onay kuyruğu içindir; `/v1/events`'teki `status` ile aynı durum). Public liste her zaman
+    yalnız `approved` **ve süresi geçmemiş** ilanları döner. Mobil bu parametreyi **göndermemeli** — gönderirse
+    hata almaz, sessizce yok sayılır ve yanlış beklenti oluşur.
 - `POST /v1/ads` `[A]`, `PUT|DELETE /v1/ads/{id}` `[A]`, `POST /v1/ads/{id}/extend` `[A]`, `POST|DELETE /v1/ads/{id}/favorite` `[A]`
 - `POST /v1/ads/{id}/track-phone`, `/track-whatsapp` — anonim (sayaç)
 
 ### Bildirimler
 - `GET /v1/notifications` `[A]`, `PATCH /v1/notifications/{id}/read` `[A]`, `POST /v1/notifications/read-all` `[A]`, `POST /v1/notifications/fcm-token` `[A]`
+- 🔑 **Faz 11.15c — "hedefi yaşayan" süzgeci (DAVRANIŞ DEĞİŞİKLİĞİ, mobilde görünür):**
+  Hedefi artık **yayında olmayan** bildirim listede **hiç dönmez**. Bir bildirim şu üç durumda kaybolur:
+  duyuru silinir · duyuru `draft`a çekilir · duyurunun `visibleUntil`'i geçer.
+  **Neden:** aksi hâlde kullanıcı bildirimi görüyor, dokunuyor ve `GET /v1/announcements/{id}` `NOT_FOUND`
+  döndüğü için boş sayfaya düşüyordu (canlı kanıtlı: silinen duyurunun 9 bildirimi ayakta kalmıştı).
+  ⚠️ **`unreadCount` AYNI süzgeçten geçer** — rozet ile liste asla ayrışmaz.
+  📌 Mobil tarafta yapılacak bir şey yok: liste kısalır, deep-link zaten çalışan hedeflere gider.
+  📌 Bugün bildirim üreten tek modül **duyurular**; başka bir modül bildirim üretmeye başlarsa
+  (vefat/etkinlik/kampanya) o modülün de süzgece dalı yazılmalı — yoksa o türden bildirimler
+  süzgeçten **muaf** kalır (silinmez, ama ölü bağlantı olabilir).
 
 ### Duyurular / Kesintiler
 - `GET /v1/announcements` (sayfalı, `?typeId=`), `GET /v1/announcements/types`, `GET /v1/announcements/{id}` (⚠️ 200+success:false quirk)

@@ -398,7 +398,11 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | Yetki (yapısal) | `Integration/Security/EndpointAuthorizationSweepTests.cs` | `EndpointDataSource`'tan **tüm** uçlar — yeni uç kendiliğinden kapsanır |
 | Görünürlük | `Integration/Security/ModuleVisibilitySweepTests.cs` | Liste seviyesinde "gizli kayıt sızmıyor" |
 | Doküman tutarlılığı | `Integration/Architecture/ArchitectureDocTests.cs` | **Bu dosya** ↔ gerçek klasörler/modüller |
+| Checklist tutarlılığı | `Integration/Architecture/CodeReviewChecklistDocTests.cs` | `CODE_REVIEW_CHECKLIST.md`'nin **atıfları** ↔ gerçek test sınıfları/yardımcılar (maddelerin *doğruluğu* değil, işaret ettikleri yerlerin *varlığı*) |
 | **Panel (Razor/MVC)** | `Integration/Panel/` | Gerçek panel + Postgres + Redis: oturum/yetki, her sayfanın render'ı, form yazımı + audit izi, moderatör izin matrisi |
+| **Panel görsel dili** | `Integration/Panel/PanelDisplayTests.cs` | Kodun ürettiği **her** durum/rolün Türkçe karşılığı var mı, para `¤` basıyor mu, izin matrisi ↔ menü ayrışması (container gerektirmez) |
+| **Panel kullanılabilirliği** | `Integration/Panel/PanelUsabilityTests.cs` | Dar ekranda menü açılıyor mu, listede ham İngilizce/`¤` sızıyor mu, 404 gövdeli mi, onay kuyruğu bağlantısı çalışıyor mu |
+| **Panel ↔ vatandaş paritesi** | `Integration/Panel/PanelBusinessRuleTests.cs` | §7 madde **23–26**: sayaçlar public görünürlük tanımıyla aynı mı, onay ilanı gerçekten görünür kılıyor mu, ölü bildirim (iki katman + `unreadCount` tutarlılığı) |
 | **Önbellek sözleşmesi** | `Unit/Application/Caching/CacheContractTests.cs` | Grup adları sabit mi, her grubun invalidator'ı var mı, anahtar filtreyle değişiyor mu |
 | **Önbellek davranışı** | `Integration/Panel/CacheInvalidationTests.cs` | Gerçek Redis: önce **bayat veri döndüğü** gösterilir, sonra mutasyonun temizlediği |
 | **Moderasyon** | `Integration/Panel/ModerationStateMachineTests.cs` | Vefat/etkinlik/kampanya/işletme onay-red geçişleri, soft-delete etkileşimi |

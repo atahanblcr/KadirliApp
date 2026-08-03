@@ -149,11 +149,24 @@
 
 ## Bakım
 
-Bu dosya **testle kilitli değildir** (`ARCHITECTURE.md`'yi `ArchitectureDocTests` denetler,
-burayı denetleyen bir test yok) — yani **çürüyebilir**. İki koruma:
+Bu dosyanın **referansları** `CodeReviewChecklistDocTests` ile kilitlidir
+(`ARCHITECTURE.md` ↔ `ArchitectureDocTests` ilişkisinin aynısı). Denetlenen şey
+**maddelerin doğruluğu değil, atıflarının gerçekliği**:
 
-1. Satırlara **dosya:satır** yazmaktan kaçın, **sınıf/yardımcı adı** yaz (`PanelDisplay.TL()`
-   taşınsa da aranabilir; `AdsAdmin/Index.cshtml:129` bir sonraki düzenlemede yanlış olur).
+- atıf yapılan her test sınıfı (`…Tests`) ve mobil test dosyası (`…_test.dart` ) **var mı**,
+- atıf yapılan ortak yardımcılar (`PanelDisplay`, `PanelMenu`, `PagedListFooter`, `_StatusBadge`…)
+  **hâlâ duruyor mu**,
+- katman bölümlerinden biri **kaybolmuş mu**,
+- satır numarasına **çivilenmiş atıf** var mı.
+
+Bir kuralın hâlâ *iyi bir kural* olup olmadığı insan kararıdır — o kısım kilitlenemez.
+Test kırıldığında yapılacak şey testi gevşetmek değil, **checklist'i güncellemektir.**
+
+İki yazım kuralı:
+
+1. Satırlara **dosya:satır** yazma, **sınıf/yardımcı adı** yaz — `PanelDisplay.TL()`
+   taşınsa bile aranabilir; bir görünümün "129. satırı" ise ilk düzenlemede yanlış olur.
+   (`Checklist_DoesNotPinLineNumbers` bunu zorluyor.)
 2. Bir madde **ortak bir bileşene** dönüştüğünde (yani artık unutulamaz hâle geldiğinde)
    satırı silme — bileşenin adını yazarak bırak; yeni gelen "neden böyle" sorusunun
    cevabı burada.
