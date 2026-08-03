@@ -2,9 +2,11 @@
 
 > **Amaç:** Flutter mobil istemcisinin tek referansı. Zarf şeması, hata kodları, auth akışı, sayfalama, tarih/görsel kuralları ve public uç envanteri.
 > **Makine-okur şema:** `docs/openapi.json` (OpenAPI 3.0; `openapi_generator`/`dio` ile kod üretimi için). Bu doküman insan rehberi, openapi.json kesin şema — **çeliştiğinde openapi.json + mevcut kod kazanır.**
-> Son güncelleme: 3 Ağustos 2026 (Faz 11.15c). Kapsam: 10.1–10.12'nin public yüzeyi + mobil fazlarının
+> Son güncelleme: 4 Ağustos 2026 (Faz 11.17). Kapsam: 10.1–10.12'nin public yüzeyi + mobil fazlarının
 > additive eklemeleri (11.10 `?sort=date_asc` · 11.11 `/v1/places/categories` · 11.15c bildirimlerde
-> "hedefi yaşayan" süzgeci ve `/v1/ads`'in public'te yok sayılan `?status=` parametresi).
+> "hedefi yaşayan" süzgeci ve `/v1/ads`'in public'te yok sayılan `?status=` parametresi ·
+> **11.17 `schedules[].isActive`**). 11.17 **yeni public uç eklemedi** (denetim izi ve çöp kutusu
+> yalnız paneldedir); uç sayısı **136**'da kaldı, `docs/openapi.json` bu oturumda yenilendi.
 
 ---
 
@@ -225,6 +227,11 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
   - ⚠️ Arama parametresi **`searchTerm`** (taksi gibi; `search` sessizce yok sayılır). Şehirlerarası: hedef + firma; şehir içi: hat adı + numara.
   - ⚠️ **Detay ucu YOK** — kalkış saatleri (`schedules[].departureTime`) ve duraklar (`stops[]`, `stopOrder` sıralı) **liste gövdesinde** gelir.
   - ⚠️ Saat biçimleri **farklı**: şehirlerarası `departureTime` **`"07:00"`**, şehir içi `firstDeparture`/`lastDeparture` `TimeSpan` → **`"06:30:00"`**. İkisi de **tarihsiz duvar saati** → saat dilimi kaydırılmaz.
+  - 🆕 **Faz 11.17 (additive):** `schedules[].isActive` eklendi. Bu uçta **her zaman `true`**'dur
+    (liste sorgusu zaten yalnız aktif seferleri döndürür); alan panelin tek-kayıt sorgusu için var,
+    orada pasif seferler de dönüp bu bayrakla işaretleniyor. **Mobil bu alanı okumak zorunda değil.**
+  - 📌 **Faz 11.17'de bu hatlar panelden yönetilebilir oldu** (şehirlerarası hat + kalkış saati +
+    şehir içi durak). Uç davranışı **değişmedi**; yalnız içeriğin kaynağı artık `psql` değil panel.
 
 ### Şikayet / Dosya / Lookup
 - `POST /v1/complaints` — **anonim gönderim açık**; oturum varsa sunucu `user_id` claim'ini kendisi bağlar (istemci kullanıcı kimliği yollamaz). Yanıt: oluşan kaydın **Guid**'i. Gövde: `{subject, message, type?, relatedModule?, relatedId?}`.

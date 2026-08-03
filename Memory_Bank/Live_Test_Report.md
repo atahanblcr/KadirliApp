@@ -1,6 +1,6 @@
 # Canlı Test Sonuçları (Live Test Execution)
 
-> Son çalıştırma: 8 Temmuz 2026 — Auth route `/v1/auth` + yanlış OTP 400/INVALID_OTP + Otp:DevMode + Guide kategori delete testleri (en altta). Önceki çalıştırma: 7 Temmuz 2026 — Faz 8 (Admin API + response zarfı) smoke testleri.
+> Son çalıştırma: **4 Ağustos 2026 — Faz 11.17** (panel: şehirlerarası ulaşım · denetim izi · çöp kutusu · kesinti filtresi; en altta). Önceki: 8 Temmuz 2026 — Auth route `/v1/auth` + yanlış OTP 400/INVALID_OTP + Otp:DevMode + Guide kategori delete testleri.
 
 ## Ortam
 - `docker compose up -d` → kadirliapp_db (Postgres) + kadirliapp_redis ayakta.
@@ -234,3 +234,63 @@ config override'ı build sırasında eklendiğinden eager connection-string okum
 AddInfrastructure lazy config okumaya geçirildi; kanıt: test koşusu öncesi/sonrası dev DB users sayısı 13→13.
 ⚠️ Eski oturum kalıntılarının (4 test kullanıcısı + 2 dosya satırı + 2 png) silinmesi izin engeline takıldı —
 SQL Progress.md 10.2 sonunda, kullanıcı onayı bekliyor.
+
+---
+
+## 4 Ağustos 2026 — Faz 11.17 (panel: şehirlerarası ulaşım · denetim izi · çöp kutusu · kesinti filtresi)
+
+**Ortam:** `docker compose up -d` · API `:5005` · panel `:5203` · Chrome (super_admin) ·
+Android `Pixel_9` emülatörü · iOS `iPhone 17` simülatörü — dördü de aynı anda ayakta.
+⚠️ API ve panel **aynı anda** `dotnet run` edilirse `KadirliApp.Infrastructure` ref-assembly
+kopyalamasında dosya kilidi oluşuyor ve panel derlemesi patlıyor → **sırayla başlatıldı**.
+
+### 🔑 Asıl doğrulama — panel → API → telefon halkası
+
+```
+[1] Panel /TransportAdmin/Intercity                      → 200, 2 hat ✅
+      fiyat "₺220,00" (PanelDisplay.TL — jenerik ¤ YOK) ✅
+      sekmeler: Şehir İçi Hatlar | Şehirlerarası Hatlar  ✅
+[2] Adana hattı → IntercityEdit → "21:15" + Saat Ekle    → 302, "21:15 kalkışı eklendi." ✅
+[3] GET /v1/transport/intercity-routes?searchTerm=Adana
+      → ['07:00','10:30','14:00','17:30','21:15']        ✅ (mobilin gördüğü uç)
+[4] Android emülatörü: Ana Sayfa → Ulaşım → Şehirlerarası
+      → "Kadirli → Adana" kartı açıldı → 21:15 çipi GÖRÜNDÜ ✅
+      🔑 11.17 öncesi bu değişiklik yalnız psql ile yapılabiliyordu.
+[5] Temizlik: DELETE FROM intercity_schedules WHERE departure_time='21:15:00' → 1 satır ✅
+      uç tekrar ['07:00','10:30','14:00','17:30'] ✅
+```
+
+### Denetim izi
+
+```
+[6] /AuditLogsAdmin/Index → 200; 11.15c oturumunun GERÇEK kayıtları listelendi ✅
+      "03.08.2026 18:48 · admin · Süper Yönetici · Duyurular · [Sildi] · Duyuru fb81b61f… · ::1"
+      "03.08.2026 18:45 · admin · Süper Yönetici · İlanlar   · [Onayladı] · İlan 901ecf04…"
+      → eylem/modül/rol/kayıt tipi TÜMÜ Türkçe, ham İngilizce sızıntısı yok ✅
+      → "bu ilanı kim onayladı/sildi?" sorusu ilk kez psql'siz cevaplandı ✅
+```
+
+### Çöp kutusu
+
+```
+[7] /TrashAdmin/Index → 200; iki silinmiş kayıt bulundu ✅
+      "Kadirli Yaz Konseri" (Etkinlikler) · "iPhone 13 128 GB" (İlanlar)
+      → IgnoreQueryFilters gerçekten çalışıyor (global süzgeç bunları gizliyor)
+      → modül çipleri + "geri getirilemeyenler" açıklaması (rehber/kullanıcı) çizildi ✅
+   ⚠️ "Geri getir" CANLIDA DENENMEDİ: data-confirm tarayıcı confirm()'ini tetikliyor ve
+      Chrome uzantısını kilitliyor. Davranış PanelTrashTests'te kapsandı (status korunumu
+      dâhil) ve "kuralı bilerek boz" turunda kırmızıya döndüğü görüldü.
+```
+
+### Kesinti filtresi
+
+```
+[8] /PowerOutagesAdmin/Index                             → 200, 2 kesinti, rozet "Bitti" ✅
+[9] ?neighborhood=karata&phase=past                      → 1 satır ("Karataş") ✅
+      "Toplam 2 kaydın 1 tanesi gösteriliyor" ✅ · "Temizle" bağlantısı belirdi ✅
+      → parçalı + harf duyarsız arama ✅ ; durum süzgeci gerçekten süzüyor ✅
+```
+
+**Sonuç:** dört ekran da canlıda çalıştı. Geçici veri temizlendi (21:15 kalkışı),
+`audit_logs`'ta `action='restore'` satırı **0** (test kalıntısı yok).
+`dotnet test` 464/464 · `flutter analyze` 0 · `flutter test` 669/669.

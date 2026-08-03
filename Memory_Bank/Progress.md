@@ -1402,7 +1402,23 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
   yapılmayan ikisi yukarıda **11.18**'e gerekçesiyle bağlandı ve `Notifications` paneli
   `ARCHITECTURE.md`'de *bilinçli eksik* olarak yazılı kaldı.
 
-> **AKTİF SIRADAKİ: 11.16 — Yayına hazırlık.** (11.15c A grubu 3 Ağustos 4. oturumda bitti;
+> **AKTİF SIRADAKİ: 11.16 — Yayına hazırlık.** (11.17'nin 4 maddesi 4 Ağustos 2026'da bitti —
+> **kullanıcı isteğiyle 11.16'dan ÖNCE**: "panel ve uygulama arası API bağlantılarını sorunsuz
+> hale getirelim". Kalan iki 🟡 madde **11.18**'e alındı.)
+>
+> 11.17'den devralınanlar: 🔑 **yalnız-admin panel ekranı deseni** (`[Authorize(Roles=
+> "admin,super_admin")]` + `[PanelPermission]` **YOK** + menü `Module` **null** +
+> `AdminOnlyControllers`; modül anahtarı verilirse izin matrisinde *karşılığı olmayan yetki*
+> belirir) · **panelde bir zaman/durum ayrımı istemcide de yapılıyorsa iki tanım testle
+> eşitlenmeli** (`PowerOutagePhaseRules` ↔ mobil `PowerOutage.isActive/…`, görünmez sözleşme #27) ·
+> **`IgnoreQueryFilters()` gerektiren yeni sorguda "önce boş görünür" tuzağı** (unutulursa ekran
+> her zaman boş, hata yok) · **geri getirme `status`'e dokunmaz** (#28) · **yeni
+> `IAuditableCommand` → `PanelDisplay.AuditAction` sözlüğüne satır** (kaynak taraması kırar) ·
+> ⚠️ çöp kutusu boşken sayfada hiç form (dolayısıyla hiç antiforgery token) olmaz — panel
+> testinde token'ı önceden al · ⚠️ API ve paneli **aynı anda** `dotnet run` etme (Infrastructure
+> ref-assembly dosya kilidi).
+>
+> ~~AKTİF SIRADAKİ: 11.16~~ (11.17 araya girdi) — (11.15c A grubu 3 Ağustos 4. oturumda bitti;
 > B grubu **11.17**'ye, C grubunun kalanı **11.16**'ya bağlandı.)
 > 11.16'ya devralınanlar: **yeni panel görünümünde durum/rol asla ham basılmaz** →
 > `PanelDisplay.Status()`/`.Role()` + `_StatusBadge` partial'ı; **para `PanelDisplay.TL()`'den
