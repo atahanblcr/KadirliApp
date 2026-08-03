@@ -7,7 +7,9 @@ mekanlar, şikayet/istek. Üç parça: **.NET 8 API** + **Razor admin paneli** +
 **Durum:** Backend ve panel bitti (Faz 0–10). Mobil 11.15c'ye kadar bitti — 12 modülün
 tamamı gerçek, push canlı, golden + erişilebilirlik testleri ayakta, panel/önbellek/moderasyon
 emniyet ağı kuruldu, panelin canlı denetiminde bulunan hataların tamamı (11.15c A grubu)
-düzeltildi (382 backend + 669 mobil test). **Sırada yalnız yayın (11.16).**
+düzeltildi. **11.17 ile panel gerçek bir yönetim paneli oldu**: şehirlerarası ulaşım (tek
+işlevsel boşluktu), denetim izi, çöp kutusu, kesinti filtresi (464 backend + 669 mobil test).
+**Sırada yayın (11.16); 11.18'de toplu işlem/dışa aktarma + bağımsız push ekranı.**
 
 ## Çalıştır
 
@@ -46,8 +48,9 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 26 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
-davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`.
+listelenen 28 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
+27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`.
 
 ## Değişmez kurallar
 
@@ -61,6 +64,10 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
    taşır. (Yapısal test bunu denetliyor.) **Razor panelinde** karşılığı
    `[Authorize(Roles = "admin,super_admin,moderator")]` + `[PanelPermission("<modül>")]` +
    `PanelMenu.Items` satırıdır — üçü aynı modül anahtarını kullanır.
+   **Yalnız admin'e açık ekranda** (Personel, Denetim İzi, Çöp Kutusu) desen farklıdır:
+   rol listesinde `moderator` **yok**, `[PanelPermission]` **yok**, menü satırının `Module`'ü
+   **`null`** ve controller adı `AdminOnlyControllers`'ta — aksi hâlde izin matrisinde
+   *karşılığı olmayan* bir yetki belirir (`ARCHITECTURE.md` §3).
 5. **"İşlevsiz buton yok"** — mobilde her buton bir uca ya da bir ekrana gider.
    Modül kaydı tek yerde: `mobile/lib/core/navigation/app_modules.dart`.
 6. **Arayüz Türkçe**, kod ve kimlikler İngilizce. Kullanıcıya teknik/İngilizce hata

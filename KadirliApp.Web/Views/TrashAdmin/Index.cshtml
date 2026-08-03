@@ -1,0 +1,97 @@
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Trash.Dtos.TrashItemDto>
+@{
+    ViewData["Title"] = "Çöp Kutusu";
+
+    var modules = ViewBag.Modules as IReadOnlyList<string> ?? Array.Empty<string>();
+    string? selected = ViewBag.Module;
+
+    string ChipClass(bool active) => active
+        ? "bg-indigo-600 text-white border-indigo-600"
+        : "bg-white text-gray-700 border-gray-300 hover:border-indigo-400";
+}
+
+<div class="mb-6">
+    <h2 class="text-2xl font-semibold text-gray-800">Çöp Kutusu</h2>
+    <p class="text-sm text-gray-500 mt-1">
+        Silinmiş kayıtlar. Geri getirilen kayıt <strong>silinmeden önceki durumuyla</strong> döner —
+        onay bekleyen bir ilan yine onay kuyruğuna girer, doğrudan yayına alınmaz.
+    </p>
+</div>
+
+<div class="mb-6 flex flex-wrap gap-2">
+    <a asp-action="Index" class="rounded-full border px-4 py-1.5 text-sm font-medium transition-colors @ChipClass(selected == null)">
+        Tümü
+    </a>
+    @foreach (var m in modules)
+    {
+        <a asp-action="Index" asp-route-module="@m"
+           class="rounded-full border px-4 py-1.5 text-sm font-medium transition-colors @ChipClass(selected == m)">
+            @PanelDisplay.ModuleLabel(m)
+        </a>
+    }
+</div>
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                    <th scope="col" class="px-6 py-3 font-medium">Kayıt</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Modül</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Silinme</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Oluşturulma</th>
+                    <th scope="col" class="px-6 py-3 text-right font-medium">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model?.Items != null && Model.Items.Any())
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 font-medium text-gray-900">@item.Title</td>
+                            <td class="px-6 py-4">@PanelDisplay.ModuleLabel(item.Module)</td>
+                            <td class="px-6 py-4 whitespace-nowrap">@item.DeletedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                            <td class="px-6 py-4 whitespace-nowrap">@item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</td>
+                            <td class="px-6 py-4 text-right whitespace-nowrap">
+                                <a asp-controller="AuditLogsAdmin" asp-action="Index" asp-route-affectedId="@item.Id"
+                                   class="text-gray-500 hover:text-gray-800 mr-3" title="Bu kaydı kim sildi?">
+                                    <i class="fas fa-clipboard-list"></i>
+                                </a>
+                                <form asp-action="Restore" method="post" class="inline"
+                                      data-confirm="@($"\"{item.Title}\" kaydını geri getirmek istediğinize emin misiniz? Kayıt silinmeden önceki durumuna döner.")">
+                                    <input type="hidden" name="module" value="@item.Module" />
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <input type="hidden" name="returnModule" value="@selected" />
+                                    <button type="submit" class="text-green-600 hover:text-green-900 font-medium" title="Geri getir">
+                                        <i class="fas fa-trash-arrow-up mr-1"></i> Geri getir
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-trash-can text-4xl text-gray-300 mb-3"></i>
+                                <p>Çöp kutusu boş.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "kayıt"))
+</div>
+
+<p class="mt-6 text-xs text-gray-500">
+    <i class="fas fa-circle-info mr-1"></i>
+    Şehir rehberi kayıtları burada görünmez: rehber silmesi kalıcıdır (kayıt soft-delete tutmaz),
+    bu yüzden geri getirilemez. Kullanıcı hesapları da bilinçli olarak kapsam dışıdır —
+    hesap silme talebi yönetici tarafından geri alınmaz.
+</p>

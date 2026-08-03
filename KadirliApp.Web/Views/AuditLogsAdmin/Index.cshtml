@@ -1,0 +1,190 @@
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Audit.Dtos.AuditLogResponseDto>
+@{
+    ViewData["Title"] = "Denetim İzi";
+
+    var modules = ViewBag.Modules as List<(string Key, string Label)> ?? new();
+    var actions = ViewBag.Actions as List<(string Key, string Label)> ?? new();
+    var staff = ViewBag.Staff as List<KadirliApp.Web.Controllers.AuditLogsAdminController.StaffOption> ?? new();
+
+    string? selectedModule = ViewBag.Module;
+    string? selectedAction = ViewBag.Action;
+    Guid? selectedUser = ViewBag.UserId;
+    Guid? affectedId = ViewBag.AffectedId;
+    DateTime? from = ViewBag.From;
+    DateTime? to = ViewBag.To;
+    string? search = ViewBag.Search;
+
+    var hasFilter = selectedModule != null || selectedAction != null || selectedUser != null
+                    || affectedId != null || from != null || to != null || !string.IsNullOrWhiteSpace(search);
+}
+
+<div class="mb-6">
+    <h2 class="text-2xl font-semibold text-gray-800">Denetim İzi</h2>
+    <p class="text-sm text-gray-500 mt-1">
+        Panelde ve yönetim uçlarında yapılan onay, red, silme ve yetki değişikliklerinin kaydı.
+    </p>
+</div>
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <form asp-action="Index" method="get" class="p-4 border-b border-gray-200 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        <div>
+            <label for="module" class="block text-xs font-medium text-gray-600 mb-1">Modül</label>
+            <select id="module" name="module" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var m in modules)
+                {
+                    <option value="@m.Key" selected="@(m.Key == selectedModule)">@m.Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="action" class="block text-xs font-medium text-gray-600 mb-1">İşlem</label>
+            <select id="action" name="action" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var a in actions)
+                {
+                    <option value="@a.Key" selected="@(a.Key == selectedAction)">@a.Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="userId" class="block text-xs font-medium text-gray-600 mb-1">Personel</label>
+            <select id="userId" name="userId" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var s in staff)
+                {
+                    <option value="@s.Id" selected="@(s.Id == selectedUser)">@s.Name@(s.IsDeleted ? " (silinmiş)" : "")</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="from" class="block text-xs font-medium text-gray-600 mb-1">Başlangıç</label>
+            <input id="from" name="from" type="date" value="@(from?.ToString("yyyy-MM-dd"))"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+            <label for="to" class="block text-xs font-medium text-gray-600 mb-1">Bitiş</label>
+            <input id="to" name="to" type="date" value="@(to?.ToString("yyyy-MM-dd"))"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+            <label for="search" class="block text-xs font-medium text-gray-600 mb-1">Ara</label>
+            <input id="search" name="search" type="text" value="@search" placeholder="Personel veya kayıt türü"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        @* Kayıt kimliği süzgeci ("bu ilana ne oldu?") — bağlantıdan gelir, elle de yazılabilir. *@
+        @if (affectedId.HasValue)
+        {
+            <input type="hidden" name="affectedId" value="@affectedId" />
+        }
+
+        <div class="sm:col-span-2 lg:col-span-6 flex flex-wrap items-center gap-3">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-filter mr-2"></i> Filtrele
+            </button>
+            @if (hasFilter)
+            {
+                @* Temizle bağlantısı, arama kutusu dâhil TÜM alanları sıfırlamalı — 11.7/11.8'de
+                   "Filtreleri temizle" arama kutusunu bırakıyordu, aynı hatayı panelde tekrarlamayalım. *@
+                <a asp-action="Index" class="text-sm font-medium text-gray-600 hover:text-gray-900">
+                    <i class="fas fa-times mr-1"></i> Filtreleri temizle
+                </a>
+            }
+            @if (affectedId.HasValue)
+            {
+                <span class="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-medium text-indigo-800">
+                    <i class="fas fa-link"></i> Tek kayıt: @affectedId
+                </span>
+            }
+        </div>
+    </form>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                    <th scope="col" class="px-6 py-3 font-medium">Tarih</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Kim</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Modül</th>
+                    <th scope="col" class="px-6 py-3 font-medium">İşlem</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Etkilenen Kayıt</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Ayrıntı</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model?.Items != null && Model.Items.Any())
+                {
+                    foreach (var log in Model.Items)
+                    {
+                        var actionBadge = PanelDisplay.AuditAction(log.Action);
+                        var roleBadge = PanelDisplay.Role(log.UserRole);
+                        <tr class="bg-white border-b hover:bg-gray-50 transition-colors align-top">
+                            <td class="px-6 py-4 whitespace-nowrap text-gray-900">
+                                @log.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="font-medium text-gray-900">@(log.UserName ?? "Bilinmeyen personel")</div>
+                                <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium @roleBadge.Css">
+                                    <i class="fas @roleBadge.Icon"></i> @roleBadge.Label
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">@PanelDisplay.ModuleLabel(log.Module)</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @actionBadge.Css">
+                                    <i class="fas @actionBadge.Icon"></i> @actionBadge.Label
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-gray-900">@PanelDisplay.AffectedTypeLabel(log.AffectedType)</div>
+                                @if (log.AffectedId.HasValue)
+                                {
+                                    @* Aynı kaydın tüm geçmişi — denetim izinin asıl kullanım biçimi. *@
+                                    <a asp-action="Index" asp-route-affectedId="@log.AffectedId"
+                                       class="text-xs text-blue-600 hover:text-blue-800 break-all" title="Bu kaydın tüm geçmişi">
+                                        @log.AffectedId
+                                    </a>
+                                }
+                            </td>
+                            <td class="px-6 py-4 max-w-xs">
+                                @if (!string.IsNullOrWhiteSpace(log.Details))
+                                {
+                                    <details>
+                                        <summary class="cursor-pointer text-blue-600 hover:text-blue-800 text-xs">Göster</summary>
+                                        <pre class="mt-2 whitespace-pre-wrap break-all rounded bg-gray-50 p-2 text-xs text-gray-700">@log.Details</pre>
+                                    </details>
+                                }
+                                else
+                                {
+                                    <span class="text-gray-400">—</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(log.IpAddress))
+                                {
+                                    <div class="mt-1 text-xs text-gray-400">@log.IpAddress</div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+                                <p>@(hasFilter ? "Bu filtreye uyan kayıt yok." : "Henüz denetim kaydı yok.")</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "kayıt"))
+</div>

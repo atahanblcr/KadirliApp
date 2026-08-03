@@ -148,6 +148,8 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | 18 | **Sözlükler** | `Lookups/` | `neighborhoods` (+ modül içi `cemeteries`/`mosques`/`categories`) | `LookupsAdmin` | `lookups` | `lookups/` | *(ekran yok)* |
 | 19 | **Personel** | `Staff/` | *(public uç yok)* | `StaffAdmin` | `staff` | *(yok)* | — |
 | 20 | **Panel istatistik** | `Dashboard/` | *(public uç yok)* | `Dashboard` | `dashboard` | *(yok)* | — |
+| 21 | **Denetim izi** | `Audit/` | *(public uç yok)* | `AuditLogsAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
+| 22 | **Çöp kutusu** | `Trash/` | *(public uç yok)* | `TrashAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
 
 **Mobilde ayrıca ekran taşıyan ama backend modülü olmayan klasörler:** `home/` (hub),
 `common/`, `dev/` (yalnız debug: `/gelistirici/tasarim`, `/gelistirici/ag`).
@@ -164,7 +166,7 @@ denetler — **"işlevsiz buton yok" şartı test edilebilir hâlde**.
 | Rol | Panelde ne görür |
 |---|---|
 | `super_admin` / `admin` | Her şey. İzin matrisi bu roller için **atlanır**. |
-| `moderator` | Yalnız `admin_permissions`'ta **okuma izni** verilmiş modüller + Dashboard. Yazma/silme/onaylama ayrı bayraklara tabi. **Personel yönetimi ve örnek veri basma kapalı.** |
+| `moderator` | Yalnız `admin_permissions`'ta **okuma izni** verilmiş modüller + Dashboard. Yazma/silme/onaylama ayrı bayraklara tabi. **Personel yönetimi, örnek veri basma, denetim izi ve çöp kutusu kapalı.** |
 | diğer roller | Panele hiç giremez (`AccountController` girişte reddeder). |
 
 Uygulama noktaları — üçü aynı modül anahtarını kullanır:
@@ -176,6 +178,13 @@ Uygulama noktaları — üçü aynı modül anahtarını kullanır:
 **ve** `[PanelPermission("<modül>")]` yazın, `PanelMenu.Items`'a satır ekleyin. Rol listesine
 "moderator" yazıp özniteliği unutursanız moderatör o modülde **sınırsız** yetki kazanır —
 `PanelModeratorPermissionTests` bunu yakalar.
+
+⚠️ **Yalnız admin'e açık bir ekran** ekliyorsanız (Faz 11.17: `AuditLogsAdmin`, `TrashAdmin`)
+desen farklıdır: `[Authorize(Roles = "admin,super_admin")]` + `[PanelPermission]` **yok** +
+`PanelMenu.Items` satırının `Module`'ü **`null`** + `AdminOnlyControllers`'a controller adı.
+Modül anahtarı verirseniz izin matrisinde moderatöre dağıtılabilen ama rol kapısı yüzünden
+asla çalışmayacak bir yetki belirir — 11.15b'nin en büyük bulgusu ("karşılığı olmayan yetki")
+tam olarak buydu.
 
 ### Arka plan işleri (Hangfire)
 
@@ -332,8 +341,10 @@ tam süiti koşmadan commit etme.
 
 Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıklar. Hepsi
 **testle kilitli** — 1–22 `KadirliApp.Tests/Integration/Contracts/InvisibleContractsTests.cs`,
-**23–26 (Faz 11.15c)** `Integration/Panel/PanelBusinessRuleTests.cs` içinde (panelin canlı
-denetiminde bulundular ve gerçek Postgres isterler). Biri kırmızıya dönerse ya sözleşme
+**23–26 (Faz 11.15c)** `Integration/Panel/PanelBusinessRuleTests.cs`, **27 (Faz 11.17)**
+`Integration/Panel/PanelPowerOutageFilterTests.cs`, **28 (Faz 11.17)**
+`Integration/Panel/PanelTrashTests.cs` içinde (panelin canlı denetiminde bulundular ve
+gerçek Postgres isterler). Biri kırmızıya dönerse ya sözleşme
 bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 
 | # | Sözleşme | Bozulursa ne olur |
@@ -364,6 +375,8 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | 24 | **Bildirim, hedefi yayında olduğu sürece görünür.** `GetMyNotificationsQuery` "hedefi yaşayan" süzgeci uygular ve `unreadCount` **aynı** süzgeçten geçer; ayrıca `DeleteAnnouncementCommand` ilgili bildirimleri **fiziksel** siler | Süzgeç kalkarsa kullanıcı bildirimi görür, dokunur, `NOT_FOUND` sayfasına düşer (11.15c canlı kanıtı: silinen duyurunun 9 bildirimi ayakta kaldı). Sayaç süzgeçten ayrılırsa rozet "3 okunmamış" derken liste 1 satır gösterir |
 | 25 | **İlan onayı, ilanı gerçekten görünür kılar**: `ApproveAdCommandHandler` süresi geçmiş (`ExpiresAt <= now`) ilana taze 30 günlük pencere verir | Kaldırılırsa panel "onaylandı" der, mobil hiçbir şey göstermez ve `ExpireAdsJob` bir saat içinde durumu sessizce geri alır. Koşul **duruma değil tarihe** bakar: onay kuyruğunda 30 günden fazla bekleyen `pending` ilan da aynı tuzağa düşüyordu |
 | 26 | `QueryAdDto.Status` **yalnız panel/admin yolunda** okunur; public uç (`OnlyPublished=true`) onu yok sayar | `else if` `if`'e çevrilirse `GET /v1/ads?status=pending` onaylanmamış ilanları **iletişim telefonlarıyla** herkese açar (10.5'te bir kez yaşandı) |
+| 27 | Panelin kesinti **süren/planlı/bitti** tanımı (`PowerOutagePhaseRules`) mobildeki `PowerOutage.isActive/isUpcoming/isPast` ile **birebir** aynı olmak zorunda: başlangıç anı **dâhil**, bitiş anı **hariç** | `GET /v1/power-outages` bilinçli olarak sayfalamaz ve tarih süzmez (madde 1); ayrım tümüyle istemcide. Tanımlar ayrışırsa yönetici "sürüyor" derken vatandaş "planlı" görür ve **kimse hata almaz** (madde 23'ün aynı sınıfı) |
+| 28 | **Geri getirme, yayına alma DEĞİLDİR:** `RestoreRecordCommand` yalnız `deleted_at`'i temizler, `status`'e dokunmaz | Dokunsaydı çöp kutusu moderasyonun arka kapısı olurdu: reddedilmiş bir ilan silinip geri getirilerek yayına sokulabilirdi. Kapsam `TrashModules.Supported`'da **tek listede** — sorgu ve komut ayrı `switch` yazarsa "listede görünen ama geri getirilemeyen kayıt" doğar |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 
@@ -403,6 +416,10 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | **Panel görsel dili** | `Integration/Panel/PanelDisplayTests.cs` | Kodun ürettiği **her** durum/rolün Türkçe karşılığı var mı, para `¤` basıyor mu, izin matrisi ↔ menü ayrışması (container gerektirmez) |
 | **Panel kullanılabilirliği** | `Integration/Panel/PanelUsabilityTests.cs` | Dar ekranda menü açılıyor mu, listede ham İngilizce/`¤` sızıyor mu, 404 gövdeli mi, onay kuyruğu bağlantısı çalışıyor mu |
 | **Panel ↔ vatandaş paritesi** | `Integration/Panel/PanelBusinessRuleTests.cs` | §7 madde **23–26**: sayaçlar public görünürlük tanımıyla aynı mı, onay ilanı gerçekten görünür kılıyor mu, ölü bildirim (iki katman + `unreadCount` tutarlılığı) |
+| **Ulaşım paneli** | `Integration/Panel/PanelTransportTests.cs` | Şehirlerarası hat + kalkış saati + durak yazımı; iddia "kayıt oluştu" değil **"mobilin gördüğü sorguya düştü"** |
+| **Denetim izi** | `Integration/Panel/PanelAuditLogTests.cs` | Gerçek bir silmenin ize düşmesi; eylem sözlüğü **kaynak taranarak** kilitli (`AuditAction => "…"`), menü satırı matris dışında mı |
+| **Çöp kutusu** | `Integration/Panel/PanelTrashTests.cs` | §7 madde **28**: geri getirme `status`'e dokunmuyor, `IgnoreQueryFilters` unutulmamış, ikinci geri getirme iz bırakmıyor |
+| **Kesinti süzgeci** | `Integration/Panel/PanelPowerOutageFilterTests.cs` | §7 madde **27**: süren/planlı/bitti sınır anları mobil tanımıyla birebir; tarih aralığı **kesişim** üzerinden |
 | **Önbellek sözleşmesi** | `Unit/Application/Caching/CacheContractTests.cs` | Grup adları sabit mi, her grubun invalidator'ı var mı, anahtar filtreyle değişiyor mu |
 | **Önbellek davranışı** | `Integration/Panel/CacheInvalidationTests.cs` | Gerçek Redis: önce **bayat veri döndüğü** gösterilir, sonra mutasyonun temizlediği |
 | **Moderasyon** | `Integration/Panel/ModerationStateMachineTests.cs` | Vefat/etkinlik/kampanya/işletme onay-red geçişleri, soft-delete etkileşimi |

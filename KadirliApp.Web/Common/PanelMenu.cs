@@ -49,12 +49,19 @@ public static class PanelMenu
         new("LookupsAdmin",       "fa-tags",            "Tanımlar",             "lookups"),
         // Personel yönetimi bilinçli olarak matrisin DIŞINDA: izin veren rolü, izinleri
         // kendine yazabilecek biri yönetmemeli.
-        new("StaffAdmin",         "fa-user-shield",     "Personel",             "staff")
+        new("StaffAdmin",         "fa-user-shield",     "Personel",             "staff"),
+        // Faz 11.17 — denetim izi. Module NULL: aynı gerekçeyle matrisin dışında (denetlenen
+        // kişi denetim ekranını yönetmemeli) ve modül anahtarı verilseydi izin matrisinde
+        // **karşılığı olmayan bir yetki** belirirdi — 11.15b'nin en büyük bulgusu buydu.
+        new("AuditLogsAdmin",     "fa-clipboard-list",  "Denetim İzi",          null),
+        // Faz 11.17 — çöp kutusu. Aynı gerekçe: geri getirme, moderatörün silme kararını
+        // tersine çevirmektir; silme yetkisiyle aynı güven değildir.
+        new("TrashAdmin",         "fa-trash-can",       "Çöp Kutusu",           null)
     };
 
     /// <summary>Yalnız admin/super_admin'in görebileceği satırlar.</summary>
     public static readonly IReadOnlySet<string> AdminOnlyControllers =
-        new HashSet<string>(StringComparer.Ordinal) { "StaffAdmin" };
+        new HashSet<string>(StringComparer.Ordinal) { "StaffAdmin", "AuditLogsAdmin", "TrashAdmin" };
 }
 
 /// <summary>Görünümün "bu kullanıcı neyi görebilir?" sorusunu tek sorguyla cevaplar.</summary>

@@ -26,6 +26,8 @@ public class PanelPagesSmokeTests
     public static TheoryData<string> ListPages() => new()
     {
         "/Dashboard/Index",
+        "/AuditLogsAdmin/Index",   // Faz 11.17
+        "/TrashAdmin/Index",       // Faz 11.17
         "/AdsAdmin/Index",
         "/AdCategoriesAdmin/Index",
         "/AnnouncementsAdmin/Index",
@@ -45,6 +47,9 @@ public class PanelPagesSmokeTests
         "/StaffAdmin/Index",
         "/TaxiAdmin/Index",
         "/TransportAdmin/Index",
+        // Faz 11.17: şehirlerarası taraf artık panelden yönetiliyor (menüde ayrı satır değil,
+        // Ulaşım ekranının ikinci sekmesi — bu yüzden SidebarLinks testi onu görmez).
+        "/TransportAdmin/Intercity",
         "/UsersAdmin/Index"
     };
 
@@ -65,6 +70,7 @@ public class PanelPagesSmokeTests
         "/StaffAdmin/Create",
         "/TaxiAdmin/Create",
         "/TransportAdmin/Create",
+        "/TransportAdmin/IntercityCreate",
         "/UsersAdmin/Create"
     };
 

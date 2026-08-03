@@ -1,31 +1,30 @@
-@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Transport.Dtos.IntracityRouteResponseDto>
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Transport.Dtos.IntercityRouteResponseDto>
 @{
-    ViewData["Title"] = "Ulaşım Yönetimi";
+    ViewData["Title"] = "Şehirlerarası Hatlar";
 }
 
 <div class="mb-6 flex justify-between items-center">
     <div>
         <h2 class="text-2xl font-semibold text-gray-800">Ulaşım Yönetimi</h2>
-        <p class="text-sm text-gray-500 mt-1">Şehir içi ulaşım hatlarını ve güzergahlarını yönetin.</p>
+        <p class="text-sm text-gray-500 mt-1">Şehirlerarası hatları ve kalkış saatlerini yönetin.</p>
     </div>
     <div>
-        <a asp-action="Create" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-            <i class="fas fa-plus mr-2"></i> Yeni Ekle
+        <a asp-action="IntercityCreate" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+            <i class="fas fa-plus mr-2"></i> Yeni Hat
         </a>
     </div>
 </div>
 
-<partial name="_TransportTabs" model="@("Index")" />
+<partial name="_TransportTabs" model="@("Intercity")" />
 
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
     <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <!-- Search -->
         <div class="relative w-full md:w-64">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <i class="fas fa-search text-gray-400"></i>
             </div>
-            <form action="" method="get">
-                <input type="text" name="search" placeholder="Hat ara..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="@ViewBag.Search">
+            <form asp-action="Intercity" method="get">
+                <input type="text" name="search" placeholder="Varış yeri veya firma ara..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="@ViewBag.Search">
             </form>
         </div>
     </div>
@@ -34,42 +33,39 @@
         <table class="w-full text-left text-sm text-gray-500">
             <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
                 <tr>
-                    <th scope="col" class="px-6 py-3 font-medium">Hat No</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Hat Adı</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Sefer Süresi</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Duraklar</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Varış Yeri</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Firma</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Ücret</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Süre</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Kalkış Saatleri</th>
                     <th scope="col" class="px-6 py-3 font-medium">Durum</th>
                     <th scope="col" class="px-6 py-3 text-right font-medium">İşlemler</th>
                 </tr>
             </thead>
             <tbody>
-                @if (Model != null && Model.Items != null && Model.Items.Any())
+                @if (Model?.Items != null && Model.Items.Any())
                 {
                     foreach (var item in Model.Items)
                     {
                         <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
-                            <td class="px-6 py-4 font-medium text-gray-900">
-                                @item.RouteNumber
-                            </td>
+                            <td class="px-6 py-4 font-medium text-gray-900">@item.Destination</td>
+                            <td class="px-6 py-4">@(string.IsNullOrWhiteSpace(item.Company) ? "—" : item.Company)</td>
+                            <td class="px-6 py-4">@PanelDisplay.TL(item.Price, "—")</td>
+                            <td class="px-6 py-4">@(item.DurationMinutes.HasValue ? $"{item.DurationMinutes} dk" : "—")</td>
                             <td class="px-6 py-4">
-                                @item.RouteName
-                            </td>
-                            <td class="px-6 py-4">
-                                @if(item.FirstDeparture.HasValue && item.LastDeparture.HasValue)
+                                @if (item.Schedules.Any())
                                 {
-                                    @($"{item.FirstDeparture.Value:hh\\:mm} - {item.LastDeparture.Value:hh\\:mm}")
-                                }
-                            </td>
-                            <td class="px-6 py-4">
-                                @if (item.Stops.Any())
-                                {
-                                    <span>@item.Stops.Count durak</span>
+                                    <span class="text-gray-900">@string.Join(" · ", item.Schedules.Take(4).Select(s => s.DepartureTime))</span>
+                                    @if (item.Schedules.Count > 4)
+                                    {
+                                        <span class="text-gray-400"> +@(item.Schedules.Count - 4)</span>
+                                    }
                                 }
                                 else
                                 {
-                                    @* Duraksız hat: mobilde zaman çizelgesi hiç çizilmez — uyarı, süs değil. *@
+                                    @* Saat yoksa mobilde "Sıradaki kalkış" satırı hiç çizilmez — bu bir uyarı, süs değil. *@
                                     <span class="inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 text-xs font-medium">
-                                        <i class="fas fa-triangle-exclamation"></i> Durak yok
+                                        <i class="fas fa-triangle-exclamation"></i> Saat girilmemiş — mobilde sefer görünmez
                                     </span>
                                 }
                             </td>
@@ -84,14 +80,11 @@
                                 }
                             </td>
                             <td class="px-6 py-4 text-right whitespace-nowrap">
-                                <a asp-action="Stops" asp-route-id="@item.Id" class="text-indigo-600 hover:text-indigo-900 mr-3" title="Duraklar">
-                                    <i class="fas fa-map-pin"></i>
+                                <a asp-action="IntercityEdit" asp-route-id="@item.Id" class="text-blue-600 hover:text-blue-900 mr-3" title="Düzenle ve kalkış saatleri">
+                                    <i class="fas fa-clock"></i>
                                 </a>
-                                <a asp-action="Edit" asp-route-id="@item.Id" class="text-blue-600 hover:text-blue-900 mr-3" title="Düzenle">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="inline"
-                                      data-confirm="@($"\"{item.RouteNumber} — {item.RouteName}\" hattını ve duraklarını silmek istediğinize emin misiniz?")">
+                                <form asp-action="IntercityDelete" asp-route-id="@item.Id" method="post" class="inline"
+                                      data-confirm="@($"\"{item.Destination}\" hattını ve tüm kalkış saatlerini silmek istediğinize emin misiniz?")">
                                     <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
@@ -103,7 +96,7 @@
                 else
                 {
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
                                 <p>Kayıt bulunamadı.</p>
@@ -115,5 +108,5 @@
         </table>
     </div>
 
-    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "güzergah"))
+    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "hat"))
 </div>

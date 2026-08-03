@@ -1,0 +1,29 @@
+@*
+    Faz 11.17 — ulaşımın iki tarafı arasındaki geçiş.
+
+    Menüde tek "Ulaşım" satırı var (PanelMenu.Items); şehirlerarası taraf ayrı bir menü
+    satırı değil, bu sekmeyle açılıyor — mobildeki iki sekmeli ulaşım ekranının aynısı.
+    Model: aktif sekmenin aksiyon adı ("Index" | "Intercity").
+*@
+@model string
+
+@{
+    string TabClass(string action) => action == Model
+        ? "border-indigo-600 text-indigo-600"
+        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
+}
+
+<div class="mb-6 border-b border-gray-200">
+    <nav class="-mb-px flex gap-6 text-sm font-medium" aria-label="Ulaşım türü">
+        <a asp-action="Index"
+           class="border-b-2 px-1 py-3 transition-colors @TabClass("Index")"
+           aria-current="@(Model == "Index" ? "page" : null)">
+            <i class="fas fa-bus mr-2"></i> Şehir İçi Hatlar
+        </a>
+        <a asp-action="Intercity"
+           class="border-b-2 px-1 py-3 transition-colors @TabClass("Intercity")"
+           aria-current="@(Model == "Intercity" ? "page" : null)">
+            <i class="fas fa-road mr-2"></i> Şehirlerarası Hatlar
+        </a>
+    </nav>
+</div>

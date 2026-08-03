@@ -1,0 +1,94 @@
+@model KadirliApp.Application.Features.Transport.Dtos.IntracityRouteResponseDto
+@{
+    ViewData["Title"] = "Hat Durakları";
+    var nextOrder = Model.Stops.Any() ? Model.Stops.Max(s => s.StopOrder) + 1 : 1;
+}
+
+<div class="max-w-3xl mx-auto">
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">@Model.RouteNumber — @Model.RouteName</h2>
+            <p class="text-sm text-gray-500 mt-1">Güzergâh durakları. Mobildeki durak zaman çizelgesi bu sıradan çizilir.</p>
+        </div>
+        <a asp-action="Index" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium transition-colors">
+            <i class="fas fa-arrow-left mr-1"></i> Listeye Dön
+        </a>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <div class="px-8 py-5 border-b border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-800"><i class="fas fa-map-pin mr-2 text-indigo-500"></i> Yeni Durak</h3>
+        </div>
+
+        <form asp-action="AddStop" method="post" class="p-8 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <input type="hidden" name="routeId" value="@Model.Id" />
+
+            <div class="md:col-span-2">
+                <label for="stopName" class="block text-sm font-semibold text-gray-700 mb-2">Durak Adı</label>
+                <input id="stopName" name="stopName" required maxlength="200"
+                       class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm outline-none"
+                       placeholder="Örn: Devlet Hastanesi" />
+            </div>
+
+            <div>
+                <label for="stopOrder" class="block text-sm font-semibold text-gray-700 mb-2">Sıra</label>
+                @* Sıra güzergâhı belirler; aynı hatta aynı sıra 409 döner → bir sonraki boş sıra önerilir. *@
+                <input id="stopOrder" name="stopOrder" type="number" min="1" required value="@nextOrder"
+                       class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm outline-none" />
+            </div>
+
+            <div>
+                <label for="timeFromStart" class="block text-sm font-semibold text-gray-700 mb-2">Kalkıştan (dk)</label>
+                <input id="timeFromStart" name="timeFromStart" type="number" min="0"
+                       class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm outline-none"
+                       placeholder="Örn: 12" />
+            </div>
+
+            <div class="md:col-span-4 flex justify-end">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition-all">
+                    <i class="fas fa-plus mr-2"></i> Durak Ekle
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mt-8">
+        <div class="px-8 py-5 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-800">Duraklar</h3>
+            <span class="text-sm text-gray-500">@Model.Stops.Count durak</span>
+        </div>
+
+        @if (Model.Stops.Any())
+        {
+            <ol class="divide-y divide-gray-100">
+                @foreach (var stop in Model.Stops)
+                {
+                    <li class="flex items-center justify-between gap-4 px-8 py-4">
+                        <div class="flex items-center gap-4 min-w-0">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">@stop.StopOrder</span>
+                            <div class="min-w-0">
+                                <p class="truncate font-medium text-gray-900">@stop.StopName</p>
+                                <p class="text-sm text-gray-500">
+                                    @(stop.TimeFromStart.HasValue ? $"Kalkıştan {stop.TimeFromStart} dk sonra" : "Süre girilmemiş")
+                                </p>
+                            </div>
+                        </div>
+                        <form asp-action="DeleteStop" asp-route-id="@stop.Id" asp-route-routeId="@Model.Id" method="post"
+                              data-confirm="@($"\"{stop.StopName}\" durağını silmek istediğinize emin misiniz?")">
+                            <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
+                    </li>
+                }
+            </ol>
+        }
+        else
+        {
+            <div class="px-8 py-10 text-center text-gray-500">
+                <i class="fas fa-inbox text-4xl text-gray-300 mb-3 block"></i>
+                <p>Bu hatta henüz durak eklenmemiş — mobilde durak zaman çizelgesi görünmez.</p>
+            </div>
+        }
+    </div>
+</div>

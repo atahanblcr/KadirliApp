@@ -1,4 +1,4 @@
-# KadirliApp — Code Review Checklist
+ # KadirliApp — Code Review Checklist
 
 > Bu liste jenerik bir kurumsal şablon değil; `ARCHITECTURE.md`, `Memory_Bank/API_CONTRACT.md`,
 > `Memory_Bank/Active_Context.md` ve `Memory_Bank/Progress.md`'den (Faz 10–11.15c) çıkarılmıştır.
@@ -57,6 +57,10 @@
 | Kural | Açıklama | Referans |
 |---|---|---|
 | Yeni panel controller'ına **hem** `[Authorize(Roles="admin,super_admin,moderator")]` **hem** `[PanelPermission("<modül>")]` eklendi mi? | Rol listesine `moderator` yazıp özniteliği unutmak, moderatöre o modülde **sınırsız** yetki verir — bu proje bunu canlıda yaşadı (11.15b'nin en büyük bulgusu). `PanelModeratorPermissionTests` yakalar ama PR'da elle de kontrol et. | ARCHITECTURE.md §3, Active_Context.md |
+| Ekran **yalnız admin'e** açıksa desen farklı — modül anahtarı verilmedi mi? | `[Authorize(Roles="admin,super_admin")]` + `[PanelPermission]` **YOK** + `PanelMenu.Items` satırının `Module`'ü **`null`** + `AdminOnlyControllers`'a controller adı. Modül anahtarı verirsen izin matrisinde moderatöre dağıtılabilen ama rol kapısı yüzünden **asla çalışmayacak** bir yetki belirir — 11.15b'nin "karşılığı olmayan yetki" hatasının tekrarı. Örnek: `StaffAdmin`, `AuditLogsAdmin`, `TrashAdmin`. | ARCHITECTURE.md §3, `PanelAuditLogTests`, `PanelTrashTests` |
+| Panelde bir zaman/durum ayrımı **istemcide de** yapılıyor mu? | Yapılıyorsa iki tanım **birebir** aynı olmalı ve testle kilitlenmeli: `PowerOutagePhaseRules` ↔ mobil `PowerOutage.isActive/isUpcoming/isPast` (başlangıç dâhil, bitiş hariç). Ayrışırsa panel "sürüyor" derken vatandaş "planlı" görür ve **kimse hata almaz** — §7 madde 27. | `PanelPowerOutageFilterTests` |
+| Soft-delete edilmiş kaydı listeleyen yeni sorguya `IgnoreQueryFilters()` konuldu mu? | Global süzgeç tam olarak o satırları gizler; unutulursa ekran **her zaman boş** görünür ve hata da vermez (çöp kutusu). Geri getirme ayrıca `status`'e **dokunmamalı** — yoksa sil+geri getir ikilisi moderasyonu atlar (§7 madde 28). | `PanelTrashTests` |
+| Yeni `IAuditableCommand` eklendiyse `PanelDisplay.AuditAction` sözlüğüne satır atıldı mı? | Denetim izi ekranı ham `AuditAction` değerini basmaz. Sözlük **kaynak taranarak** kilitli (`AuditAction => "…"`), eksik satır testi kırar — ama neyin Türkçesi olacağı insan kararı. | `PanelAuditLogTests.AuditAction_HasTurkishLabel…` |
 | `PanelMenu.Items`'a satır eklendi mi? | Menü tek liste; eklenmezse ekran erişilebilir ama menüden görünmez (ölü buton kuralının tersi — "gizli buton"). `StaffAdminController.Modules` ve `PanelDisplay.ModuleLabel()` **buradan türer** — ikinci bir liste yazma. | ARCHITECTURE.md §3 |
 | ⚠️ **TEKRARLAYAN** Durum/rol ekrana **ham** mı basılıyor? | `@item.Status` / `@user.Role` doğrudan yazılmaz → `<partial name="_StatusBadge" model="PanelDisplay.Status(...)" />`. 11.15c'de **yedi listede** `expired`/`archived`/`SuperAdmin` ham basıyordu; sebep her görünümün kendi if/else zincirini yazması ve **son `else` dalının** ham değeri geçirmesiydi. | `PanelDisplayTests`, `PanelUsabilityTests` |
 | Para `PanelDisplay.TL()`'den mi geçiyor? | `ToString("C2")` **kullanılmaz**: panel `Program.cs`'te bilinçli olarak `InvariantCulture`'a sabit, bu yüzden jenerik **`¤`** basar (canlıda `¤750,000.00` görüldü). | `PanelDisplayTests.TL_UsesTurkishFormat…` |
@@ -171,8 +175,9 @@ Test kırıldığında yapılacak şey testi gevşetmek değil, **checklist'i g�
    satırı silme — bileşenin adını yazarak bırak; yeni gelen "neden böyle" sorusunun
    cevabı burada.
 
-Son gözden geçirme: **3 Ağustos 2026 (Faz 11.15c)** — o oturumda fiilen kullanıldı ve
-yakaladığı maddeler işaretlendi.
+Son gözden geçirme: **4 Ağustos 2026 (Faz 11.17)** — panelin dört yeni ekranı bu listeyle
+yazıldı; §4'e dört satır eklendi (yalnız-admin ekran deseni, panel↔istemci zaman tanımı
+paritesi, `IgnoreQueryFilters` + geri getirmenin `status`'e dokunmaması, denetim eylemi sözlüğü).
 
 ## Notlar
 

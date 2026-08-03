@@ -6,6 +6,7 @@ using KadirliApp.Application.Features.PowerOutages.Queries.GetPowerOutages;
 using KadirliApp.Application.Features.PowerOutages.Commands.DeletePowerOutage;
 using KadirliApp.Application.Features.PowerOutages.DTOs;
 using KadirliApp.Application.Common.Models;
+using KadirliApp.Web.Common;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -27,7 +28,12 @@ public class PowerOutagesAdminController : Controller
     private const int PageSize = 20;
 
     [HttpGet]
-    public async Task<IActionResult> Index([FromQuery] int page = 1)
+    public async Task<IActionResult> Index(
+        [FromQuery] string? neighborhood,
+        [FromQuery] string? phase,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int page = 1)
     {
         var result = await _sender.Send(new GetPowerOutagesQuery());
         var outages = result.Success ? result.Data ?? new List<PowerOutageDto>() : new List<PowerOutageDto>();
@@ -36,7 +42,44 @@ public class PowerOutagesAdminController : Controller
         // olmadan TÜM kayıtları döner ve mobil (Faz 11.4) süren/planlı ayrımını istemcide bu tam
         // listeye bakarak yapıyor. Sorguyu PagedResult'a çevirmek public kontratı kırardı.
         // Panelin tek sorunu 1000 satırı ekrana basmaktı — çözülen o.
-        return View(Paginate(outages, page));
+        //
+        // Faz 11.17: süzgeç de aynı sebeple bellekte. Uca filtre parametresi eklemek
+        // görünmez sözleşme #1'i (sayfalamayan düz dizi) tartışmaya açardı.
+        var now = DateTime.UtcNow;
+        var wantedPhase = PowerOutagePhaseRules.Parse(phase);
+
+        var filtered = outages.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(neighborhood))
+            filtered = filtered.Where(o => o.Neighborhood != null &&
+                o.Neighborhood.Contains(neighborhood.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (wantedPhase is { } p)
+            filtered = filtered.Where(o => PowerOutagePhaseRules.Phase(o.StartTime, o.EndTime, now) == p);
+
+        // Tarih aralığı **kesişim** üzerinden: "1–3 Ağustos" seçen yönetici, 31 Temmuz'da
+        // başlayıp 2 Ağustos'ta biten kesintiyi de görmek ister. Yalnız StartTime'a bakmak
+        // uzun kesintileri sessizce eler.
+        if (from is { } f)
+        {
+            var start = DateTime.SpecifyKind(f.Date, DateTimeKind.Utc);
+            filtered = filtered.Where(o => o.EndTime >= start);
+        }
+
+        if (to is { } t)
+        {
+            var end = DateTime.SpecifyKind(t.Date.AddDays(1), DateTimeKind.Utc);
+            filtered = filtered.Where(o => o.StartTime < end);
+        }
+
+        ViewBag.Neighborhood = neighborhood;
+        ViewBag.Phase = phase;
+        ViewBag.From = from;
+        ViewBag.To = to;
+        ViewBag.Now = now;
+        ViewBag.TotalBeforeFilter = outages.Count;
+
+        return View(Paginate(filtered.ToList(), page));
     }
 
     private static PagedResult<PowerOutageDto> Paginate(List<PowerOutageDto> source, int page)

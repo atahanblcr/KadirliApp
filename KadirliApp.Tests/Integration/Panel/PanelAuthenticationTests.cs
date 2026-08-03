@@ -110,6 +110,7 @@ public class PanelAuthenticationTests
     [InlineData("/StaffAdmin/Index")]
     [InlineData("/TaxiAdmin/Index")]
     [InlineData("/TransportAdmin/Index")]
+    [InlineData("/TransportAdmin/Intercity")]
     [InlineData("/UsersAdmin/Index")]
     public async Task AnonymousRequest_IsRedirectedToLogin(string path)
     {

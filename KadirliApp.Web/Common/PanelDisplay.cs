@@ -118,4 +118,116 @@ public static class PanelDisplay
     /// </summary>
     public static string ModuleLabel(string moduleKey) =>
         PanelMenu.Items.FirstOrDefault(i => i.Module == moduleKey)?.Label ?? moduleKey;
+
+    // ── Denetim izi eylemleri (Faz 11.17) ───────────────────────────────────────
+    //
+    // audit_logs.action ham değerleri komutların IAuditableCommand.AuditAction'ından gelir
+    // ("approve", "delete-schedule", "set-permissions"…). Ekrana ham basılırsa panel yine
+    // İngilizce konuşur (Değişmez Kural #6) — durum rozetleriyle aynı sebep, aynı çözüm.
+    //
+    // ⚠️ Bu sözlük komutlardaki değerlerle **birebir** olmalı; yeni bir IAuditableCommand
+    // eklendiğinde buraya satır atılmazsa PanelDisplayTests kırmızıya döner (kaynak taranır).
+
+    private static readonly Dictionary<string, PanelBadge> AuditActions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Moderasyon
+        ["approve"] = new("Onayladı", "bg-green-100 text-green-800", "fa-check-circle"),
+        ["reject"] = new("Reddetti", "bg-red-100 text-red-800", "fa-times-circle"),
+        ["resolve"] = new("Sonuçlandırdı", "bg-green-100 text-green-800", "fa-circle-check"),
+        ["verify"] = new("Doğruladı", "bg-blue-100 text-blue-800", "fa-badge-check"),
+        ["unverify"] = new("Doğrulamayı kaldırdı", "bg-gray-200 text-gray-700", "fa-ban"),
+        ["ban"] = new("Yasakladı", "bg-red-100 text-red-800", "fa-user-slash"),
+        ["unban"] = new("Yasağı kaldırdı", "bg-green-100 text-green-800", "fa-user-check"),
+
+        // Genel CRUD
+        ["create"] = new("Oluşturdu", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["update"] = new("Güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
+        ["delete"] = new("Sildi", "bg-red-100 text-red-800", "fa-trash"),
+        ["restore"] = new("Geri getirdi", "bg-green-100 text-green-800", "fa-trash-arrow-up"),
+
+        // Personel / güvenlik
+        ["set-permissions"] = new("İzinleri değiştirdi", "bg-purple-100 text-purple-800", "fa-user-shield"),
+        ["change-password"] = new("Parola değiştirdi", "bg-purple-100 text-purple-800", "fa-key"),
+        ["reset-password"] = new("Parola sıfırladı", "bg-purple-100 text-purple-800", "fa-key"),
+
+        // Eczane nöbeti
+        ["assign-duty"] = new("Nöbet atadı", "bg-indigo-100 text-indigo-800", "fa-calendar-plus"),
+        ["delete-duty"] = new("Nöbet sildi", "bg-red-100 text-red-800", "fa-calendar-xmark"),
+
+        // Alt kayıtlar (kategori / özellik / seçenek / sözlükler / ulaşım)
+        ["create-category"] = new("Kategori ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["update-category"] = new("Kategori güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
+        ["delete-category"] = new("Kategori sildi", "bg-red-100 text-red-800", "fa-trash"),
+        ["create-property"] = new("Özellik ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["update-property"] = new("Özellik güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
+        ["delete-property"] = new("Özellik sildi", "bg-red-100 text-red-800", "fa-trash"),
+        ["create-option"] = new("Seçenek ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["delete-option"] = new("Seçenek sildi", "bg-red-100 text-red-800", "fa-trash"),
+        ["create-neighborhood"] = new("Mahalle ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["update-neighborhood"] = new("Mahalle güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
+        ["create-cemetery"] = new("Mezarlık ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["update-cemetery"] = new("Mezarlık güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
+        ["create-mosque"] = new("Cami ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["update-mosque"] = new("Cami güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
+        ["create-event-category"] = new("Etkinlik kategorisi ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["update-event-category"] = new("Etkinlik kategorisi güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
+        ["create-place-category"] = new("Mekan kategorisi ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["update-place-category"] = new("Mekan kategorisi güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
+        ["delete-schedule"] = new("Kalkış saati sildi", "bg-red-100 text-red-800", "fa-trash"),
+        ["delete-stop"] = new("Durak sildi", "bg-red-100 text-red-800", "fa-trash"),
+    };
+
+    /// <summary>
+    /// Denetim izi eylemini Türkçe rozete çevirir. Bilinmeyen eylem <b>ham geçmez</b> —
+    /// durum rozetiyle aynı karar: sorun gizlenmez ama İngilizce de sızmaz.
+    /// </summary>
+    public static PanelBadge AuditAction(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return new PanelBadge("—", "bg-gray-100 text-gray-500", "fa-minus");
+
+        return AuditActions.TryGetValue(raw, out var badge)
+            ? badge
+            : new PanelBadge($"Bilinmeyen işlem ({raw})", "bg-red-50 text-red-700", "fa-triangle-exclamation");
+    }
+
+    /// <summary>Testlerin "kodun ürettiği her eylem eşlenmiş mi" sorusunu sorabilmesi için.</summary>
+    public static IReadOnlyCollection<string> KnownAuditActions => AuditActions.Keys;
+
+    /// <summary>
+    /// Denetim izinde geçen entity tipini (<c>Ad</c>, <c>IntercitySchedule</c>) Türkçeleştirir.
+    /// Eşleşmeyen tip ham geçer — bu bilinçli: yeni bir entity izi kaybolmasın, sadece
+    /// İngilizce görünsün (rozet değil, yardımcı bilgi).
+    /// </summary>
+    public static string AffectedTypeLabel(string? raw) => raw switch
+    {
+        null or "" => "—",
+        "Ad" => "İlan",
+        "AdCategory" => "İlan kategorisi",
+        "AdCategoryProperty" => "Kategori özelliği",
+        "Announcement" => "Duyuru",
+        "Business" => "İşletme",
+        "Campaign" => "Kampanya",
+        "Complaint" => "Şikayet",
+        "Death" => "Vefat ilanı",
+        "Event" => "Etkinlik",
+        "EventCategory" => "Etkinlik kategorisi",
+        "GuideItem" => "Rehber kaydı",
+        "GuideCategory" => "Rehber kategorisi",
+        "Pharmacy" => "Eczane",
+        "PharmacyDuty" => "Eczane nöbeti",
+        "Place" => "Mekan",
+        "PlaceCategory" => "Mekan kategorisi",
+        "PowerOutage" => "Elektrik kesintisi",
+        "TaxiDriver" => "Taksici",
+        "Neighborhood" => "Mahalle",
+        "Cemetery" => "Mezarlık",
+        "Mosque" => "Cami",
+        "User" => "Kullanıcı",
+        "IntercityRoute" => "Şehirlerarası hat",
+        "IntercitySchedule" => "Kalkış saati",
+        "IntracityRoute" => "Şehir içi hat",
+        "IntracityStop" => "Durak",
+        _ => raw
+    };
 }

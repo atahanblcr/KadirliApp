@@ -1315,31 +1315,92 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
   ~~silme onayları neyi sildiğini yazmıyor~~ ✅ **11.15c'de yapıldı** (`data-confirm`).
 - **Bitti kriteri:** İmzalı prod build; internal test kanalında çalışan uygulama; yayın engeli listesi işaretli.
 
-### 11.17 — Panel "gerçek yönetim paneli" eksikleri (11.15c B grubu) — [ ] (2-3 oturum, YAYIN SONRASI)
+### 11.17 — Panel "gerçek yönetim paneli" eksikleri (11.15c B grubu) — [x] 4/6 (4 Ağustos 2026)
 
 > **Neden ayrı faz:** 11.15c'nin bitti kriteri (b) "B grubundan hangilerinin yapılacağı karara
 > bağlanmış olmalı" diyordu. Karar: **hiçbiri yayını bloklamıyor** (hepsi *eksik*, *hata* değil;
 > vatandaşın gördüğü uygulamayı etkilemiyorlar) → yayından sonraki ilk bakım turuna alındı.
 > Tek onay kuyruğu maddesi ucuz ve etkili olduğu için 11.15c'de öne alınıp **yapıldı**.
+>
+> 📌 **11.16'dan ÖNCE yapıldı** (kullanıcı isteği): "panel ve uygulama arası API bağlantılarını
+> sorunsuz hale getirelim". Kalan iki 🟡 madde (toplu işlem/dışa aktarma, bağımsız push ekranı)
+> **11.18**'e alındı — gerekçe aşağıda.
 
-- [ ] 🔴 **Denetim izi ekranı.** `AuditBehavior` her yazma komutunu `audit_logs`'a yazıyor ama
-  onu okuyan tek ekran/uç yok — "bu ilanı kim sildi?" bugün ancak `psql` ile cevaplanıyor.
-  Moderatör rolü 11.15b'den beri gerçekten çalıştığı için kaçınılmaz.
-  ⚠️ `audit_logs.details` **jsonb** → LINQ `.Contains()` `like_escape` hatası verir, belleğe alıp süz.
-- [ ] 🔴 **Şehirlerarası ulaşım paneli.** `TransportAdminController` yalnız `Intracity` çağırıyor;
-  `CreateIntercityRouteCommand` / `CreateIntercityScheduleCommand` / `DeleteIntercityScheduleCommand` /
-  `CreateIntracityStopCommand` / `DeleteIntracityStopCommand` **hazır** ama onları çağıran istemci yok.
-  Listedeki **tek gerçek işlevsel boşluk**: mobildeki "Şehirlerarası" sekmesi, kalkış saatleri ve
-  durak zaman çizelgesi panelden ne oluşturulabiliyor ne düzenlenebiliyor.
-- [ ] 🔴 **Çöp kutusu / geri alma.** Soft delete her modülde var, panelde karşılığı yok.
-  ⚠️ `GuideItem` `ISoftDeletable` **değil** → onun silmesi fiziksel, geri alma **mümkün değil**.
-- [ ] 🟡 Toplu işlem (satır seçimi), CSV/Excel dışa aktarma, global arama, sütun sıralaması
-  (bugün yalnız İlanlar'da ve o da açılır liste).
-- [ ] 🟡 Elektrik Kesintileri ekranında arama/filtre (mahalle, tarih aralığı, süren/planlanan).
-- [ ] 🟡 **Bağımsız bildirim/push ekranı + gönderim sonucu** ("kaç cihaza gitti, `fcm_sent` oldu mu").
-  📌 Şu an **bilinçli eksik**: `ARCHITECTURE.md` modül tablosunda `Notifications` panel sütunu *(yok)*.
-- **Bitti kriteri:** Her yapılan madde için panel render + davranış testi; yapılmayanlar
-  `ARCHITECTURE.md`'de *bilinçli eksik* olarak yazılı kalmalı.
+- [x] 🔴 **Şehirlerarası ulaşım paneli.** Listedeki **tek gerçek işlevsel boşluk** kapandı.
+  `TransportAdminController` artık iki sekmeli (`_TransportTabs` partial'ı — menüde ikinci satır
+  açılmadı, mobildeki iki sekmeli ulaşım ekranının aynısı): şehir içi hatlar + **duraklar**
+  (`Stops`), şehirlerarası hatlar + **kalkış saatleri** (`IntercityEdit`).
+  10.8'de yazılmış ama hiç çağrılmamış komutlar (`CreateIntercitySchedule`,
+  `CreateIntracityStop`, `DeleteIntercitySchedule`, `DeleteIntracityStop`) ilk kez istemci buldu;
+  eksik olan ikisi (`UpdateIntercityRouteCommand`, `DeleteIntercityRouteCommand`) yazıldı.
+  Ayrıca `GetIntercityRouteByIdQuery` / `GetIntracityRouteByIdQuery` (detay ekranları için).
+  ⭐ **Saatsiz hat / duraksız hat listede sarı uyarıyla işaretleniyor** — panel "kaydettim"
+  derken mobilde sefer görünmemesi tam olarak bu fazın kapattığı sessiz hata sınıfı.
+  ⚠️ `IntercityRouteResponseDto.ScheduleDto`'ya **additive `IsActive`** eklendi: liste sorgusu
+  (mobil) yalnız aktifleri döndürür, panelin tek-kayıt sorgusu pasifleri de döndürüp işaretler —
+  aksi hâlde panel, mobilde **görünmeyen** bir saati yayındaymış gibi gösterirdi.
+- [x] 🔴 **Denetim izi ekranı** (`AuditLogsAdmin`). `AuditBehavior` 10.9(i)'den beri yazıyordu,
+  okuyan yoktu. Süzgeçler: modül · işlem · personel · tarih aralığı · **etkilenen kayıt kimliği**
+  ("bu ilana ne oldu?" — çöp kutusundan da buraya bağlantı var).
+  ⚠️ **`details` üzerinde serbest metin araması BİLİNÇLİ olarak yok**: kolon `jsonb`, LINQ
+  `.Contains()` `like_escape(jsonb, unknown)` verir; belleğe alıp süzmek panelin en hızlı büyüyen
+  tablosunu belleğe çekerdi (checklist §8). Yapılandırılmış süzgeçler aynı soruları zaten cevaplıyor.
+  ⚠️ **Silinen personelin izi isimsizleşmemeli** → kullanıcı sorgusunda `IgnoreQueryFilters()`.
+  ⚠️ `Enum.ToString()` ve `IPAddress.ToString()` SQL'e çevrilemez → sayfa boyu kadar satır ham
+  çekilip bellekte biçimleniyor.
+  🔑 **35 denetim eylemi Türkçeleştirildi** (`PanelDisplay.AuditAction`) ve sözlük **kaynak
+  taranarak** kilitlendi: `AuditAction => "…"` literal'lerini bulan bir `TheoryData` her eylemin
+  Türkçe karşılığı olduğunu denetliyor — yeni bir `IAuditableCommand` eklenip sözlüğe satır
+  atılmazsa test kırmızıya döner. (`restore` eklenince gerçekten kırmızı oldu, sözlüğe eklendi.)
+- [x] 🔴 **Çöp kutusu / geri alma** (`TrashAdmin`). Kapsam `TrashModules.Supported`'da **tek liste**
+  (sorgu ve komut ondan türüyor — iki ayrı `switch` yazılsaydı "listede görünen ama geri
+  getirilemeyen kayıt" doğardı): ilan, duyuru, vefat, etkinlik, kampanya, taksi.
+  🔑 **Geri getirme yayına alma DEĞİL**: `RestoreRecordCommand` yalnız `deleted_at`'i temizler,
+  `status`'e dokunmaz. Dokunsaydı çöp kutusu moderasyonun **arka kapısı** olurdu (reddedilmiş ilan
+  → sil → geri getir → yayında). Bu, kod okunarak fark edilmeyecek bir karar olduğu için testle kilitli.
+  ⚠️ `IgnoreQueryFilters()` unutulursa çöp kutusu **her zaman boş** görünür ve kimse hata almaz.
+  ⚠️ Bilinçli kapsam dışı: **`GuideItem`** (`ISoftDeletable` değil, silmesi fiziksel — geri alma
+  *mümkün değil*, eksik değil), **`User`** (hesap silme mağaza/gizlilik gereği; yönetici geri
+  açamamalı), **`File`** (kayıt değil ek). Ekranın altında bu üçü kullanıcıya da yazılı.
+- [x] 🟡 **Elektrik Kesintileri arama/filtre.** Mahalle (parçalı, harf duyarsız) · durum
+  (sürüyor/planlandı/bitti) · tarih aralığı · filtrelenmiş/toplam sayaç · Türkçe durum rozeti.
+  🔑 **Asıl iş süzgeç değil, zaman tanımı**: `PowerOutagePhaseRules` mobildeki
+  `PowerOutage.isActive/isUpcoming/isPast` ile **birebir** (başlangıç anı dâhil, bitiş anı hariç)
+  ve sınır anları testle kilitli — uç sayfalamıyor ve tarih süzmüyor (görünmez sözleşme #1),
+  ayrım tümüyle istemcide olduğu için iki tanım ayrışırsa panel "sürüyor" derken vatandaş
+  "planlı" görür ve **kimse hata almaz**.
+  🔑 Tarih aralığı **kesişim** üzerinden: 1–3 Ağustos'u seçen yönetici, 31 Temmuz'da başlayıp
+  2 Ağustos'ta biten kesintiyi de görmeli. Yalnız `StartTime`'a bakan bir süzgeç **uzun**
+  kesintileri sessizce elerdi — ve tam da onlar en önemlileridir.
+- ⏭️ 🟡 **Toplu işlem / CSV dışa aktarma / global arama / sütun sıralaması** → **11.18**.
+  Gerekçe: dördü de *ayrı* birer ürün kararı (hangi sütunlar? hangi format? arama neyi kapsıyor?)
+  ve hiçbiri bir hatayı kapatmıyor. Onay kuyruğu 11.15c'de geldiği için toplu onayın aciliyeti
+  zaten düşmüştü.
+- ⏭️ 🟡 **Bağımsız bildirim/push ekranı + gönderim sonucu** → **11.18**.
+  📌 Hâlâ **bilinçli eksik**: `ARCHITECTURE.md` modül tablosunda `Notifications` panel sütunu
+  *(yok)*; push duyuruya iliştirilmeye devam ediyor. "Kaç cihaza gitti" sorusu FCM yanıtının
+  saklanmasını gerektiriyor — bu bir şema değişikliği, tek ekranlık iş değil.
+
+#### 11.17 kapanış notları
+
+- 🔑 **Yeni desen: yalnız admin'e açık panel ekranı.** `AuditLogsAdmin` ve `TrashAdmin`
+  `[Authorize(Roles = "admin,super_admin")]` + **`[PanelPermission]` YOK** + `PanelMenu.Items`
+  satırının `Module`'ü **`null`** + `AdminOnlyControllers`'a controller adı.
+  Modül anahtarı verilseydi izin matrisinde moderatöre dağıtılabilen ama rol kapısı yüzünden asla
+  çalışmayacak bir yetki belirirdi — **11.15b'nin en büyük bulgusunun ("karşılığı olmayan yetki")
+  tekrarı olurdu.** `ARCHITECTURE.md` §3'e yazıldı, iki testle kilitli.
+- **Görünmez sözleşmelere #27 (kesinti zaman tanımı) ve #28 (geri getirme yayına almaz) eklendi.**
+- **Testler: 382 → 464 (+82).** `PanelTransportTests` (12), `PanelAuditLogTests` (39 — 35'i
+  kaynak taramalı eylem sözlüğü), `PanelTrashTests` (12), `PanelPowerOutageFilterTests` (13),
+  ayrıca smoke/auth listelerine 4 yeni sayfa.
+- **"Kuralı bilerek boz" ölçütü uygulandı:** geri getirme `status`'ü `approved` yapsın ·
+  kesinti bitiş anı dâhil olsun · `IgnoreQueryFilters()` kalksın · `restore` etiketi silinsin ·
+  `AddSchedule` komutu göndermesin → **12 test kırmızıya döndü (4 sınıfın hepsinde)**, geri
+  alınınca 464/464 yeşil.
+- **Doğrulama:** `dotnet test` **464/464** · `flutter analyze` **0** · `flutter test` **669/669**.
+- **Bitti kriteri:** ✅ yapılan her madde panel render + davranış testiyle kapandı;
+  yapılmayan ikisi yukarıda **11.18**'e gerekçesiyle bağlandı ve `Notifications` paneli
+  `ARCHITECTURE.md`'de *bilinçli eksik* olarak yazılı kaldı.
 
 > **AKTİF SIRADAKİ: 11.16 — Yayına hazırlık.** (11.15c A grubu 3 Ağustos 4. oturumda bitti;
 > B grubu **11.17**'ye, C grubunun kalanı **11.16**'ya bağlandı.)

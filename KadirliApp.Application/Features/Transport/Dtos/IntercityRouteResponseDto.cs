@@ -15,5 +15,11 @@ public class IntercityRouteResponseDto
     /// <summary>Faz 10.8: kalkış saatleri — "HH:mm", sıralı; yalnız aktif seferler (mobil "Adana otobüsü kaçta?").</summary>
     public List<ScheduleDto> Schedules { get; set; } = new();
 
-    public record ScheduleDto(Guid Id, string DepartureTime);
+    /// <summary>
+    /// Faz 11.17: <c>IsActive</c> additive olarak eklendi. Liste sorgusu (mobil) yalnız aktifleri
+    /// döndürdüğü için orada her zaman <c>true</c>'dur; panelin tek-kayıt sorgusu pasifleri de
+    /// döndürür ve bu bayrakla işaretler — aksi hâlde panel, mobilde <b>görünmeyen</b> bir saati
+    /// yayındaymış gibi gösterirdi (görünmez sözleşme #23'ün aynı sınıfı).
+    /// </summary>
+    public record ScheduleDto(Guid Id, string DepartureTime, bool IsActive = true);
 }
