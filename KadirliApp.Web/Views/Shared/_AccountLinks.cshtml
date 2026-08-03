@@ -1,0 +1,14 @@
+@*
+    Şifre değiştirme + çıkış. Hem kenar çubuğunun altında hem dar ekran menüsünde
+    görünür — 11.15c öncesinde dar ekranda ÇIKIŞ YAPMANIN da yolu yoktu.
+*@
+<a class="flex items-center px-4 py-2 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100"
+   asp-controller="Account" asp-action="ChangePassword">
+    <i class="fas fa-key w-5 h-5" aria-hidden="true"></i>
+    <span class="mx-4 font-medium">Şifremi Değiştir</span>
+</a>
+<a class="flex items-center px-4 py-2 mt-2 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100"
+   asp-controller="Account" asp-action="Logout">
+    <i class="fas fa-sign-out-alt w-5 h-5" aria-hidden="true"></i>
+    <span class="mx-4 font-medium">Çıkış Yap</span>
+</a>

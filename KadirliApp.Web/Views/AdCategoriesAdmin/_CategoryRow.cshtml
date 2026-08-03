@@ -48,7 +48,7 @@
                 <i class="fas fa-edit"></i>
             </a>
             <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="inline"
-                  onsubmit="return confirm('Bu kategoriyi silmek istediğinize emin misiniz? İlanı, alt kategorisi veya özelliği olan kategori silinemez.');">
+                  data-confirm="Bu kategoriyi silmek istediğinize emin misiniz? İlanı, alt kategorisi veya özelliği olan kategori silinemez.">
                 <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
                     <i class="fas fa-trash-alt"></i>
                 </button>

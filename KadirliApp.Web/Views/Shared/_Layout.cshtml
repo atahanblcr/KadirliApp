@@ -1,3 +1,5 @@
+@using KadirliApp.Web.Common
+@inject IPanelMenuProvider MenuProvider
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -15,11 +17,31 @@
             <header class="sticky top-0 bg-white border-b border-gray-200 z-30">
                 <div class="px-4 sm:px-6 lg:px-8">
                     <div class="flex items-center justify-between h-16 -mb-px">
-                        <div class="flex">
-                            <button class="text-gray-500 hover:text-gray-600 lg:hidden">
-                                <span class="sr-only">Open sidebar</span>
-                                <i class="fas fa-bars"></i>
-                            </button>
+                        @*
+                            Faz 11.15c — DAR EKRAN MENÜSÜ.
+                            Önceki hâlde buradaki buton bir kabuktu: id/onclick/data-* yoktu ve
+                            panelde onu bağlayan JS de yoktu; kenar çubuğu "hidden lg:flex" olduğu
+                            için <1024 px'de modüller arası TEK geçiş yolu adres çubuğuydu.
+                            (Mobildeki "işlevsiz buton yok" kuralının panel ihlaliydi.)
+
+                            Çözüm JS'siz <details>/<summary> ile: panelin başka yerinde de
+                            kullanılan desen (AdsAdmin red popover'ı). JS olmadığı için
+                            "menü açılıyor mu" sorusu sunucu tarafı render testiyle
+                            denetlenebiliyor — bağlantılar işaretlemede GERÇEKTEN var.
+                        *@
+                        <div class="flex lg:hidden">
+                            <details class="relative" id="panel-mobile-menu">
+                                <summary class="list-none cursor-pointer text-gray-500 hover:text-gray-600 p-2 -ml-2"
+                                         aria-label="Menüyü aç">
+                                    <i class="fas fa-bars text-xl" aria-hidden="true"></i>
+                                </summary>
+                                <nav aria-label="Menü"
+                                     class="absolute left-0 z-40 mt-2 w-72 max-h-[80vh] overflow-y-auto rounded-lg bg-gray-900 p-3 shadow-2xl">
+                                    <partial name="_MenuLinks" model="await MenuProvider.VisibleItemsAsync(User)" />
+                                    <hr class="my-3 border-gray-700" />
+                                    <partial name="_AccountLinks" />
+                                </nav>
+                            </details>
                         </div>
                         <div class="flex items-center space-x-3">
                             @if (User.Identity?.IsAuthenticated == true)
@@ -60,6 +82,23 @@
     </div>
     
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script>
+        // Faz 11.15c — silme/geri alınamaz aksiyonlar için ORTAK onay.
+        //
+        // Önceki hâl: 21 ayrı görünümde inline onsubmit="return confirm('… emin misiniz?')".
+        // İki sorunu vardı: (1) hiçbiri NEYİN silindiğini yazmıyordu, yanlış satırı silmek
+        // kolaydı; (2) kayıt adını inline JS dizesine gömmek kırılgan — Razor öznitelikleri
+        // HTML-encode ettiği için tırnak içeren bir başlık ("Ali'nin arabası") JS dizesini
+        // bozuyordu. data-confirm özniteliği bu sorunun ikisini birden çözer: metin
+        // öznitelikte güvenle taşınır, buradan getAttribute ile okunur.
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!form || !form.hasAttribute || !form.hasAttribute('data-confirm')) return;
+            if (!window.confirm(form.getAttribute('data-confirm'))) {
+                e.preventDefault();
+            }
+        });
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

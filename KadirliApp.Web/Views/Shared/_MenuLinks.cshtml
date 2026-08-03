@@ -1,0 +1,32 @@
+@using KadirliApp.Web.Common
+@model IReadOnlyList<PanelMenuItem>
+@*
+    Faz 11.15c — menü BAĞLANTILARININ tek işaretlemesi.
+
+    Neden ayrı partial: dar ekran menüsü (üstteki açılır liste) ile geniş ekran kenar
+    çubuğu aynı bağlantıları göstermeli. İki yere kopyalamak, 11.15b'de 17 kopya <a>
+    bloğunu tek listeye indirgeyen düzeltmenin aynısını geri getirirdi — bu kez ikiye
+    katlanmış olarak. Kaynak yine PanelMenu.Items; burada yalnız çizim var.
+*@
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+}
+@foreach (var item in Model)
+{
+    var isActive = string.Equals(currentController, item.Controller, StringComparison.OrdinalIgnoreCase);
+    var colors = isActive
+        ? "text-gray-100 bg-gray-800"
+        : "text-gray-300 hover:bg-gray-800 hover:text-gray-100";
+
+    <a class="flex items-center px-4 py-2 @colors transition-colors duration-300 transform rounded-lg"
+       asp-controller="@item.Controller" asp-action="Index"
+       aria-current="@(isActive ? "page" : null)">
+        <i class="fas @item.Icon w-5 h-5" aria-hidden="true"></i>
+        <span class="mx-4 font-medium">@item.Label</span>
+    </a>
+
+    if (item.Controller == "Dashboard")
+    {
+        <hr class="my-3 border-gray-700" />
+    }
+}

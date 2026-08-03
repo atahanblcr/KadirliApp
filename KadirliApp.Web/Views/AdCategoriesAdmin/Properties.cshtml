@@ -115,7 +115,7 @@
                             </form>
                         </details>
                         <form asp-action="PropertyDelete" method="post" class="inline"
-                              onsubmit="return confirm('Bu özelliği silmek istediğinize emin misiniz? Değer girilmiş ilan varsa silinemez.');">
+                              data-confirm="Bu özelliği silmek istediğinize emin misiniz? Değer girilmiş ilan varsa silinemez.">
                             <input type="hidden" name="id" value="@p.Id" />
                             <input type="hidden" name="categoryId" value="@category.Id" />
                             <button type="submit" class="text-red-600 hover:text-red-800 text-sm"><i class="fas fa-trash-alt mr-1"></i>Sil</button>
@@ -133,7 +133,7 @@
                                 <span class="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
                                     @o.OptionValue
                                     <form asp-action="OptionDelete" method="post" class="inline"
-                                          onsubmit="return confirm('@o.OptionValue seçeneğini silmek istediğinize emin misiniz?');">
+                                          data-confirm="@o.OptionValue seçeneğini silmek istediğinize emin misiniz?">
                                         <input type="hidden" name="id" value="@o.Id" />
                                         <input type="hidden" name="categoryId" value="@category.Id" />
                                         <button type="submit" class="text-gray-400 hover:text-red-600 leading-none" title="Seçeneği sil">&times;</button>

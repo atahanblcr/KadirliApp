@@ -15,6 +15,9 @@ public class GetAdsQueryHandler : IRequestHandler<GetAdsQuery, PagedResult<AdRes
 {
     private readonly IUnitOfWork _uow;
 
+    /// <summary>Panelin status süzgeci whitelist'i — GetMyAdsQuery.ValidStatuses ile aynı sözlük.</summary>
+    private static readonly string[] ValidAdminStatuses = { "pending", "approved", "rejected", "expired" };
+
     public GetAdsQueryHandler(IUnitOfWork uow)
     {
         _uow = uow;
@@ -30,6 +33,18 @@ public class GetAdsQueryHandler : IRequestHandler<GetAdsQuery, PagedResult<AdRes
         // ilanlar (iletişim telefonlarıyla) herkese dönüyordu. Public uç OnlyPublished=true geçer.
         if (request.OnlyPublished)
             query = query.Where(x => x.Status == "approved" && x.ExpiresAt > DateTime.UtcNow);
+        else if (!string.IsNullOrWhiteSpace(dto.Status))
+        {
+            // Faz 11.15c: panelin onay kuyruğu (?status=pending). Bilinçli olarak
+            // `else if` — public yolda status parametresi hiç OKUNMAZ, yoksa
+            // ?status=pending onaylanmamış ilanları sızdırırdı.
+            if (!ValidAdminStatuses.Contains(dto.Status))
+                throw new Common.Exceptions.AppException(
+                    "Geçersiz status değeri. Kullanılabilir: pending, approved, rejected, expired.",
+                    "VALIDATION_ERROR");
+
+            query = query.Where(x => x.Status == dto.Status);
+        }
 
         if (dto.CategoryId.HasValue)
             query = query.Where(x => x.CategoryId == dto.CategoryId.Value);

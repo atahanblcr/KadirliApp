@@ -42,6 +42,16 @@ public class DashboardController : Controller
             TaxiCallsLast7Days = stats.TaxiCallsLast7Days,
             NewAdsLast7Days = stats.NewAdsLast7Days,
             TotalAnnouncementViews = stats.TotalAnnouncementViews,
+            // Faz 11.15c: kırılım artık ekrana çıkıyor; sıfır olan modül satırı çizilmez
+            // ("0 bekliyor" satırı gürültü, tıklanınca boş liste açar).
+            PendingQueue = new List<PendingQueueItem>
+            {
+                new("İlanlar",       "fa-bullhorn",     stats.PendingBreakdown.Ads,        "AdsAdmin",        "pending"),
+                new("Vefat İlanları","fa-book-dead",    stats.PendingBreakdown.Deaths,     "DeathsAdmin",     "pending"),
+                new("Etkinlikler",   "fa-calendar-alt", stats.PendingBreakdown.Events,     "EventsAdmin",     "pending"),
+                new("Kampanyalar",   "fa-percent",      stats.PendingBreakdown.Campaigns,  "CampaignsAdmin",  "pending"),
+                new("Şikayetler",    "fa-flag",         stats.PendingBreakdown.Complaints, "ComplaintsAdmin", "pending"),
+            }.Where(x => x.Count > 0).ToList(),
             RecentActivities = recent.Select(a => new ActivityItem
             {
                 Type = a.Type == "ad" ? "İlan" : "Duyuru",

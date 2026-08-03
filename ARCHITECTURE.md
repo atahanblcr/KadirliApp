@@ -331,9 +331,10 @@ tam süiti koşmadan commit etme.
 ## 7. 🔑 GÖRÜNMEZ SÖZLEŞMELER
 
 Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıklar. Hepsi
-`KadirliApp.Tests/Integration/Contracts/InvisibleContractsTests.cs` içinde **testle
-kilitli** — biri kırmızıya dönerse ya sözleşme bilinçli değişmiştir (o zaman burayı ve
-mobil istemciyi aynı commit'te güncelle) ya da kazadır.
+**testle kilitli** — 1–22 `KadirliApp.Tests/Integration/Contracts/InvisibleContractsTests.cs`,
+**23–26 (Faz 11.15c)** `Integration/Panel/PanelBusinessRuleTests.cs` içinde (panelin canlı
+denetiminde bulundular ve gerçek Postgres isterler). Biri kırmızıya dönerse ya sözleşme
+bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 
 | # | Sözleşme | Bozulursa ne olur |
 |---|---|---|
@@ -359,6 +360,10 @@ mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 | 20 | Panel menüsü (`PanelMenu.Items`), izin matrisi (`StaffAdminController.Modules`) ve `[PanelPermission("…")]` **aynı modül anahtarını** kullanır | Ayrışırlarsa yöneticinin matriste verdiği yetkinin panelde karşılığı olmaz (ya da tersi) ve sebep hiçbir yerde görünmez |
 | 21 | Slug üretiminin tek sahibi `SlugHelper`; `DbSeeder.Slugify` ona delege eder | İkinci bir gerçekleme yazılırsa seed'lenen kayıtla panelden eklenen kayıt farklı slug alır. 10.9–11.15b arasında tam olarak bu oldu: `'İ'` (U+0130) `ToLowerInvariant()` ile küçülmediği için slug'a ham giriyordu ("İstasyon" ≠ "istasyon" → mükerrer mahalle) |
 | 22 | Cache grup adları **yalnız `CacheGroups` sabitleri** olabilir; her cache'lenen grubun en az bir invalidate eden komutu vardır (**tek istisna `dashboard`** — bilinçli olarak 60 sn TTL'e dayanır) | Serbest metin grup adı invalidation'ı **sessizce** kapatır: panelde güncellenen veri mobilde 15 dakika eski kalır, ne log düşer ne istisna |
+| 23 | Panelin **"aktif/yayında" sayaçları** public sorguların görünürlük tanımıyla **birebir aynı** olmak zorunda (`GetDashboardStatsQueryHandler` ↔ `GetAdsQueryHandler:32`, `GetAnnouncementsQuery:46`) | Ayrışırsa panel ile vatandaş **farklı gerçeklik görür** ve kimse hata almaz. 11.15c'de canlıda görüldü: panel "Aktif İlanlar 1" derken `GET /v1/ads` **0** döndürdü (süresi dolmuş ilan sayılıyordu) |
+| 24 | **Bildirim, hedefi yayında olduğu sürece görünür.** `GetMyNotificationsQuery` "hedefi yaşayan" süzgeci uygular ve `unreadCount` **aynı** süzgeçten geçer; ayrıca `DeleteAnnouncementCommand` ilgili bildirimleri **fiziksel** siler | Süzgeç kalkarsa kullanıcı bildirimi görür, dokunur, `NOT_FOUND` sayfasına düşer (11.15c canlı kanıtı: silinen duyurunun 9 bildirimi ayakta kaldı). Sayaç süzgeçten ayrılırsa rozet "3 okunmamış" derken liste 1 satır gösterir |
+| 25 | **İlan onayı, ilanı gerçekten görünür kılar**: `ApproveAdCommandHandler` süresi geçmiş (`ExpiresAt <= now`) ilana taze 30 günlük pencere verir | Kaldırılırsa panel "onaylandı" der, mobil hiçbir şey göstermez ve `ExpireAdsJob` bir saat içinde durumu sessizce geri alır. Koşul **duruma değil tarihe** bakar: onay kuyruğunda 30 günden fazla bekleyen `pending` ilan da aynı tuzağa düşüyordu |
+| 26 | `QueryAdDto.Status` **yalnız panel/admin yolunda** okunur; public uç (`OnlyPublished=true`) onu yok sayar | `else if` `if`'e çevrilirse `GET /v1/ads?status=pending` onaylanmamış ilanları **iletişim telefonlarıyla** herkese açar (10.5'te bir kez yaşandı) |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 

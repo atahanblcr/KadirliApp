@@ -87,6 +87,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// Faz 11.15c: gövdesiz durum sayfalarının sonu. Bu satır olmadan panelde var olmayan
+// bir adres 404 + 0 BAYT (bembeyaz sayfa) dönüyordu; yönetici ne olduğunu anlamıyor ve
+// panele dönecek bir bağlantı bulamıyordu. UseExceptionHandler yalnız 500'ü ve yalnız
+// Development dışında karşılar — durum kodları için ayrı katman gerekiyor.
+// Statik dosyalardan ÖNCE: yeniden çalıştırma (re-execute) tüm pipeline'dan geçmeli.
+app.UseStatusCodePagesWithReExecute("/Home/StatusCode", "?code={0}");
+
 // app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseStaticFiles(new StaticFileOptions

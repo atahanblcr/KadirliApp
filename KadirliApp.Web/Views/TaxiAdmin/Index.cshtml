@@ -106,7 +106,7 @@
                                     <a asp-action="Edit" asp-route-id="@item.Id" class="text-indigo-600 hover:text-indigo-900" title="Düzenle">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <form asp-action="Delete" method="post" class="inline" onsubmit="return confirm('Taksiciyi silmek istediğinize emin misiniz?');">
+                                    <form asp-action="Delete" method="post" class="inline" data-confirm="“@item.Name” taksici kaydını silmek istediğinize emin misiniz?">
                                         <input type="hidden" name="id" value="@item.Id" />
                                         <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
                                             <i class="fas fa-trash-alt"></i>

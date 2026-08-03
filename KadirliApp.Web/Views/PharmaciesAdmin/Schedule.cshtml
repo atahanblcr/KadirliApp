@@ -153,7 +153,7 @@
                                  title="@entry.PharmacyName — @entry.StartTime–@entry.EndTime@(entry.Source != null ? $" (kaynak: {entry.Source})" : "")">
                                 <span class="truncate flex-1"><i class="fas fa-pills mr-0.5"></i>@entry.PharmacyName</span>
                                 <form asp-action="ScheduleDelete" asp-route-id="@entry.Id" asp-route-year="@year" asp-route-month="@month" method="post" class="inline shrink-0"
-                                      onsubmit="return confirm('@entry.PharmacyName — @date.ToString("dd.MM.yyyy") nöbet kaydını silmek istediğinize emin misiniz?');">
+                                      data-confirm="@entry.PharmacyName — @date.ToString("dd.MM.yyyy") nöbet kaydını silmek istediğinize emin misiniz?">
                                     <button type="submit" class="text-emerald-700/60 hover:text-red-600" title="Nöbeti sil">
                                         <i class="fas fa-times"></i>
                                     </button>

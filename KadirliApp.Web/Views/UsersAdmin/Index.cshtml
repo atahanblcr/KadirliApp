@@ -79,10 +79,7 @@
                                     </div>
                                 </td>
                                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm dark:bg-gray-900 dark:border-gray-700">
-                                    <span class="relative inline-block px-3 py-1 font-semibold text-blue-900 leading-tight">
-                                        <span aria-hidden class="absolute inset-0 bg-blue-200 opacity-50 rounded-full"></span>
-                                        <span class="relative">@user.Role</span>
-                                    </span>
+                                    <partial name="_StatusBadge" model="PanelDisplay.Role(user.Role)" />
                                 </td>
                                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm dark:bg-gray-900 dark:border-gray-700">
                                     <p class="text-gray-900 whitespace-no-wrap dark:text-gray-300">
@@ -148,7 +145,7 @@
                                         }
                                         else
                                         {
-                                            <form asp-action="Unban" method="post" onsubmit="return confirm('Kullanıcının banını kaldırmak istediğinize emin misiniz?');">
+                                            <form asp-action="Unban" method="post" data-confirm="Kullanıcının banını kaldırmak istediğinize emin misiniz?">
                                                 <input type="hidden" name="id" value="@user.Id" />
                                                 <button type="submit" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300" title="Banı Kaldır">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

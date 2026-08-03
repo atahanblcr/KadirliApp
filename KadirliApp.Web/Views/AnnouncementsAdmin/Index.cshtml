@@ -116,29 +116,14 @@
                                 }
                             </td>
                             <td class="px-6 py-4">
-                                @if (item.Status == "active")
-                                {
-                                    <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Yayında</span>
-                                }
-                                else if (item.Status == "scheduled")
-                                {
-                                    <span class="bg-amber-100 text-amber-800 text-xs font-medium px-2.5 py-0.5 rounded"><i class="fas fa-clock mr-1"></i>Zamanlandı</span>
-                                }
-                                else if (item.Status == "draft")
-                                {
-                                    <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">Taslak</span>
-                                }
-                                else
-                                {
-                                    <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">@item.Status</span>
-                                }
+                                <partial name="_StatusBadge" model="PanelDisplay.Status(item.Status)" />
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex justify-end gap-2">
                                     <a asp-action="Edit" asp-route-id="@item.Id" class="text-indigo-600 hover:text-indigo-900" title="Düzenle">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <form asp-action="Delete" method="post" class="inline" onsubmit="return confirm('Duyuruyu silmek istediğinize emin misiniz?');">
+                                    <form asp-action="Delete" method="post" class="inline" data-confirm="“@item.Title” duyurusunu silmek istediğinize emin misiniz? Bu duyurunun bildirimleri de silinir.">
                                         <input type="hidden" name="id" value="@item.Id" />
                                         <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
                                             <i class="fas fa-trash-alt"></i>

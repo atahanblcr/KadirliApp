@@ -127,11 +127,11 @@ void main() {
       scenarios: [
         GoldenScenario(
           'Okunmamış',
-          NotificationTile(notification: notification(isRead: false), onTap: () {}),
+          NotificationTile(notification: notification(isRead: false), onTap: () {}, now: now),
         ),
         GoldenScenario(
           'Okunmuş',
-          NotificationTile(notification: notification(isRead: true), onTap: () {}),
+          NotificationTile(notification: notification(isRead: true), onTap: () {}, now: now),
         ),
       ],
     );

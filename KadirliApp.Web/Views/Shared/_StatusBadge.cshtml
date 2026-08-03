@@ -1,0 +1,14 @@
+@using KadirliApp.Web.Common
+@model PanelBadge
+@*
+    Faz 11.15c — panelin TEK durum rozeti.
+
+    Kullanım:  <partial name="_StatusBadge" model="PanelDisplay.Status(item.Status)" />
+               <partial name="_StatusBadge" model="PanelDisplay.Role(user.Role)" />
+
+    Görünümler artık durum başına if/else zinciri YAZMAZ. Zincir yazıldığı her yerde
+    son "else" dalı ham İngilizce basıyordu (11.15c'de yedi listede bulundu).
+*@
+<span class="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium @Model.Css">
+    <i class="fas @Model.Icon" aria-hidden="true"></i>@Model.Label
+</span>

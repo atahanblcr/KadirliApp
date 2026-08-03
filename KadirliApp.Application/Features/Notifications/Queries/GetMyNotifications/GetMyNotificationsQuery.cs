@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using KadirliApp.Application.Common.Interfaces;
 using KadirliApp.Application.Common.Models;
 using KadirliApp.Application.Features.Notifications.DTOs;
+using KadirliApp.Application.Features.Notifications.Services;
 using KadirliApp.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -26,8 +27,35 @@ public class GetMyNotificationsQueryHandler : IRequestHandler<GetMyNotifications
 
     public async Task<NotificationListDto> Handle(GetMyNotificationsQuery request, CancellationToken cancellationToken)
     {
+        var now = DateTime.UtcNow;
+
+        // 🔴 Faz 11.15c — "HEDEFİ YAŞAYAN" SÜZGECİ (ölü bildirim emniyet ağı).
+        //
+        // Canlı kanıt: panelden push'lu duyuru oluşturuldu → 9 notifications satırı üretildi →
+        // duyuru panelden silindi → 9 satır AYNEN DURDU. Kullanıcı bildirimi görüyor,
+        // dokunuyor ve GET /v1/announcements/{id} NOT_FOUND döndüğü için boş sayfaya düşüyordu.
+        //
+        // İki katmanlı düzeltme yapıldı:
+        //   1) Kaynakta: DeleteAnnouncementCommand artık ilgili bildirimleri de siler.
+        //   2) Burada (emniyet ağı): silme dışındaki yollarla da hedef görünmez olabilir —
+        //      duyuru "draft"a çekilir ya da VisibleUntil geçer. O durumda da bildirim
+        //      ölü bağlantıdır. Süzgeç, public sorgunun görünürlük tanımıyla birebir aynı:
+        //      GetAnnouncementsQuery:46 → Status == "active" && (VisibleUntil == null || > now)
+        //
+        // ⚠️ Süzgeç unreadCount'a da uygulanmalı: baseQuery'den TÜREDİĞİ için otomatik uygulanır.
+        //    Ayrılırsa rozet "3 okunmamış" derken liste 1 satır gösterir (sessiz tutarsızlık).
+        //
+        // 📌 Bugün bildirim üreten TEK modül duyurular (AnnouncementNotificationGenerator).
+        //    Vefat/etkinlik/kampanya bildirimi eklendiği gün buraya o modülün de dalı yazılmalı;
+        //    RelatedType'ı bilinmeyen bildirim (else dalı) elenmez — bilerek: yeni bir modül
+        //    eklendiğinde bildirimleri "sessizce kaybolmaz", yalnız bu süzgeçten muaf kalır.
+        var liveAnnouncements = _uow.Repository<Announcement>().Query()
+            .Where(a => a.Status == "active" && (a.VisibleUntil == null || a.VisibleUntil > now));
+
         var baseQuery = _uow.Repository<Notification>().Query()
-            .Where(x => x.UserId == request.UserId);
+            .Where(x => x.UserId == request.UserId)
+            .Where(x => x.RelatedType != AnnouncementNotificationGenerator.RelatedTypeAnnouncement
+                        || (x.RelatedId != null && liveAnnouncements.Any(a => a.Id == x.RelatedId)));
 
         var unreadCount = await baseQuery.CountAsync(x => !x.IsRead, cancellationToken);
 

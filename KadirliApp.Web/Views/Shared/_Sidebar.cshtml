@@ -4,46 +4,20 @@
     // Faz 11.15b: menü artık elle yazılmış 17 <a> bloğu değil, PanelMenu.Items listesinden
     // üretiliyor ve kullanıcının izinlerine göre süzülüyor — göremeyeceği modülün
     // bağlantısı hiç çizilmez.
+    // Faz 11.15c: bağlantıların çizimi _MenuLinks partial'ına taşındı; aynı liste dar
+    // ekran menüsünde de kullanılıyor (bkz. _Layout.cshtml).
     var menuItems = await MenuProvider.VisibleItemsAsync(User);
-    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
 }
-<aside class="flex flex-col w-64 h-screen px-4 py-8 overflow-y-auto bg-gray-900 border-r hidden lg:flex shrink-0">
+<aside class="flex-col w-64 h-screen px-4 py-8 overflow-y-auto bg-gray-900 border-r hidden lg:flex shrink-0">
     <h2 class="text-3xl font-semibold text-white">KadirliApp</h2>
 
     <div class="flex flex-col justify-between flex-1 mt-6">
-        <nav>
-            @foreach (var item in menuItems)
-            {
-                var isActive = string.Equals(currentController, item.Controller, StringComparison.OrdinalIgnoreCase);
-                var isDashboard = item.Controller == "Dashboard";
-                var spacing = isDashboard ? "" : "mt-5";
-                var colors = isActive
-                    ? "text-gray-100 bg-gray-800"
-                    : "text-gray-300 hover:bg-gray-800 hover:text-gray-100";
-
-                <a class="flex items-center px-4 py-2 @spacing @colors transition-colors duration-300 transform rounded-lg"
-                   asp-controller="@item.Controller" asp-action="Index"
-                   aria-current="@(isActive ? "page" : null)">
-                    <i class="fas @item.Icon w-5 h-5"></i>
-                    <span class="mx-4 font-medium">@item.Label</span>
-                </a>
-
-                if (isDashboard)
-                {
-                    <hr class="my-6 border-gray-700" />
-                }
-            }
+        <nav aria-label="Ana menü">
+            <partial name="_MenuLinks" model="menuItems" />
         </nav>
 
-        <div class="mt-auto">
-            <a class="flex items-center px-4 py-2 mt-5 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="Account" asp-action="ChangePassword">
-                <i class="fas fa-key w-5 h-5"></i>
-                <span class="mx-4 font-medium">Şifremi Değiştir</span>
-            </a>
-            <a class="flex items-center px-4 py-2 mt-2 text-gray-300 transition-colors duration-300 transform rounded-lg hover:bg-gray-800 hover:text-gray-100" asp-controller="Account" asp-action="Logout">
-                <i class="fas fa-sign-out-alt w-5 h-5"></i>
-                <span class="mx-4 font-medium">Çıkış Yap</span>
-            </a>
+        <div class="mt-auto pt-5">
+            <partial name="_AccountLinks" />
         </div>
     </div>
 </aside>

@@ -74,18 +74,7 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4">
-                                @if (item.Status == "approved")
-                                {
-                                    <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Aktif</span>
-                                }
-                                else if (item.Status == "pending")
-                                {
-                                    <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">Bekliyor</span>
-                                }
-                                else
-                                {
-                                    <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">@item.Status</span>
-                                }
+                                <partial name="_StatusBadge" model="PanelDisplay.Status(item.Status)" />
                             </td>
                             <td class="px-6 py-4 text-right">
                                 @if (item.Status != "approved")
@@ -100,7 +89,7 @@
                                 <a asp-action="Edit" asp-route-id="@item.Id" class="text-blue-600 hover:text-blue-900 mr-3" title="Düzenle">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <form asp-action="Delete" method="post" class="inline" onsubmit="return confirm('İlanı silmek istediğinize emin misiniz?');">
+                                <form asp-action="Delete" method="post" class="inline" data-confirm="“@item.DeceasedName” vefat ilanını silmek istediğinize emin misiniz?">
                                     <input type="hidden" name="id" value="@item.Id" />
                                     <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
                                         <i class="fas fa-trash-alt"></i>

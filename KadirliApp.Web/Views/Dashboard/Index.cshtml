@@ -1,6 +1,15 @@
+@using KadirliApp.Web.Common
+@inject IPanelMenuProvider MenuProvider
 @model KadirliApp.Web.Models.DashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
+
+    // ⚠️ Faz 11.15b dersi: moderatöre, tıklayınca "Yetkiniz yok" diyecek bir bağlantı
+    // ÇİZİLMEZ. Onay kuyruğu satırları da menüyle aynı süzgeçten geçiyor.
+    var visibleControllers = (await MenuProvider.VisibleItemsAsync(User))
+        .Select(i => i.Controller)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    var pendingQueue = Model.PendingQueue.Where(q => visibleControllers.Contains(q.Controller)).ToList();
 }
 
 <div class="mb-4 flex justify-between items-center">
@@ -36,7 +45,8 @@
                 <i class="fas fa-bullhorn text-2xl"></i>
             </div>
             <div class="ml-4">
-                <p class="text-sm text-gray-500 font-medium">Aktif İlanlar</p>
+                @* 11.15c: "aktif" artık vatandaşın gördüğüyle aynı tanım (onaylı VE süresi geçmemiş). *@
+                <p class="text-sm text-gray-500 font-medium" title="Onaylı ve süresi dolmamış — mobilde görünen ilan sayısı">Yayındaki İlanlar</p>
                 <p class="text-2xl text-gray-800 font-semibold">@Model.ActiveAds.ToString("N0")</p>
             </div>
         </div>
@@ -60,12 +70,39 @@
                 <i class="fas fa-bell text-2xl"></i>
             </div>
             <div class="ml-4">
-                <p class="text-sm text-gray-500 font-medium">Toplam Duyuru</p>
+                <p class="text-sm text-gray-500 font-medium" title="Yayında ve görünürlük süresi dolmamış duyurular">Yayındaki Duyurular</p>
                 <p class="text-2xl text-gray-800 font-semibold">@Model.TotalAnnouncements.ToString("N0")</p>
             </div>
         </div>
     </div>
 </div>
+
+@*
+    Faz 11.15c — ONAY KUYRUĞU.
+    "Bekleyen Onaylar" kartı 10.10'dan beri tıklanamayan tek bir sayıydı; oysa
+    GetDashboardStatsQueryHandler kırılımı (PendingBreakdown) zaten hesaplıyor ve
+    sonuç hiçbir yerde okunmuyordu. Artık her satır ilgili modülün bekleyen
+    filtresine gidiyor — yöneticinin işe nereden başlayacağı tek bakışta belli.
+*@
+@if (pendingQueue.Count > 0)
+{
+    <div class="bg-white rounded-lg border border-amber-200 shadow-sm p-4 mb-6">
+        <p class="text-xs text-gray-400 uppercase font-medium mb-3">
+            <i class="fas fa-inbox mr-1" aria-hidden="true"></i>Onay Kuyruğu
+        </p>
+        <div class="flex flex-wrap gap-2">
+            @foreach (var q in pendingQueue)
+            {
+                <a asp-controller="@q.Controller" asp-action="Index" asp-route-status="@q.StatusValue"
+                   class="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 hover:bg-amber-100 transition-colors">
+                    <i class="fas @q.Icon" aria-hidden="true"></i>
+                    <span class="font-medium">@q.Label</span>
+                    <span class="rounded-full bg-amber-600 px-2 py-0.5 text-xs font-semibold text-white">@q.Count.ToString("N0")</span>
+                </a>
+            }
+        </div>
+    </div>
+}
 
 <!-- Faz 10.10-A: Etkileşim satırı — üç 7-günlük nabız + duyuru erişim toplamı (mobil yayınla dolmaya başlar) -->
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6">

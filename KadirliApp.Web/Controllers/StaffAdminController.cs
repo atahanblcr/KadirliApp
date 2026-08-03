@@ -7,6 +7,7 @@ using KadirliApp.Application.Common.Exceptions;
 using KadirliApp.Application.Features.Staff.Commands;
 using KadirliApp.Application.Features.Staff.DTOs;
 using KadirliApp.Application.Features.Staff.Queries;
+using KadirliApp.Web.Common;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,26 +24,18 @@ namespace KadirliApp.Web.Controllers;
 [Authorize(Roles = "admin,super_admin")]
 public class StaffAdminController : Controller
 {
-    /// <summary>İzin matrisindeki modüller — Admin API'deki [RequirePermission] modül adlarıyla birebir.</summary>
-    public static readonly IReadOnlyList<(string Key, string Label)> Modules = new List<(string, string)>
-    {
-        ("ads", "İlanlar"),
-        ("announcements", "Duyurular"),
-        ("events", "Etkinlikler"),
-        ("campaigns", "Kampanyalar"),
-        ("businesses", "İşletmeler"),
-        ("users", "Kullanıcılar"),
-        ("deaths", "Vefat İlanları"),
-        ("pharmacies", "Nöbetçi Eczaneler"),
-        ("power-outages", "Elektrik Kesintileri"),
-        ("transport", "Ulaşım"),
-        ("taxis", "Taksiciler"),
-        ("places", "Mekanlar"),
-        ("guide", "Şehir Rehberi"),
-        ("complaints", "Şikayetler"),
-        ("lookups", "Tanımlar"),
-        ("staff", "Personel")
-    };
+    /// <summary>
+    /// İzin matrisindeki modüller — Admin API'deki [RequirePermission] modül adlarıyla birebir.
+    ///
+    /// ⚠️ 11.15c: bu liste daha önce elle yazılmış İKİNCİ bir kopyaydı (anahtar + Türkçe etiket
+    /// <see cref="PanelMenu.Items"/>'ta zaten vardı). İki liste ayrıştığında hata sessizdir:
+    /// matriste görünen modül menüde görünmez ya da tersi. Artık tek kaynaktan türüyor.
+    /// </summary>
+    public static readonly IReadOnlyList<(string Key, string Label)> Modules =
+        PanelMenu.Items
+            .Where(i => i.RequiresPermission)
+            .Select(i => (Key: i.Module!, i.Label))
+            .ToList();
 
     private readonly ISender _sender;
 

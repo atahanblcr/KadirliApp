@@ -22,13 +22,24 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
         var pendingCampaigns = await _uow.Repository<Campaign>().Query().CountAsync(c => c.Status == "pending", ct);
         var pendingComplaints = await _uow.Repository<Complaint>().Query().CountAsync(c => c.Status == "pending", ct);
 
-        var last7Days = DateTime.UtcNow.AddDays(-7);
+        var now = DateTime.UtcNow;
+        var last7Days = now.AddDays(-7);
 
+        // ⚠️ Faz 11.15c: "Aktif" sayaçları VATANDAŞIN GÖRDÜĞÜ tanıma bağlıdır.
+        // Önceki hâlde ActiveAds yalnız Status == "approved" sayıyordu; süresi dolmuş ama
+        // ExpireAdsJob'ın (saatlik) henüz dokunmadığı ilanlar da "aktif" görünüyordu.
+        // Canlı denetimde panel 1 derken GET /v1/ads 0 döndürdü — yönetici ile vatandaş
+        // farklı gerçeklik görüyordu. Süzgeçler public sorgularla birebir aynı:
+        //   GetAdsQueryHandler:32           → Status == "approved" && ExpiresAt > now
+        //   GetAnnouncementsQuery:46        → Status == "active" && (VisibleUntil == null || > now)
+        // (Public uçların süzgeci değişirse buranın da değişmesi gerekir; DashboardStatsTests kilitliyor.)
         return new DashboardStatsDto
         {
             TotalUsers = await _uow.Repository<User>().Query().CountAsync(ct),
-            ActiveAds = await _uow.Repository<Ad>().Query().CountAsync(a => a.Status == "approved", ct),
-            TotalAnnouncements = await _uow.Repository<Announcement>().Query().CountAsync(ct),
+            ActiveAds = await _uow.Repository<Ad>().Query()
+                .CountAsync(a => a.Status == "approved" && a.ExpiresAt > now, ct),
+            TotalAnnouncements = await _uow.Repository<Announcement>().Query()
+                .CountAsync(a => a.Status == "active" && (a.VisibleUntil == null || a.VisibleUntil > now), ct),
             PendingApprovals = pendingAds + pendingDeaths + pendingEvents + pendingCampaigns + pendingComplaints,
             PendingBreakdown = new PendingBreakdownDto
             {

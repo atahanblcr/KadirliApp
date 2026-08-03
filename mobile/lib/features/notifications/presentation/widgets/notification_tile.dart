@@ -14,10 +14,27 @@ const unreadDotKey = ValueKey('notification-unread-dot');
 /// ve solda ince bir nokta. Okunmuş satır sönük ama **silik değil** — geçmişe
 /// bakmak da bu ekranın işi.
 class NotificationTile extends StatelessWidget {
-  const NotificationTile({super.key, required this.notification, this.onTap});
+  const NotificationTile({
+    super.key,
+    required this.notification,
+    this.onTap,
+    this.now,
+  });
 
   final AppNotification notification;
   final VoidCallback? onTap;
+
+  /// Göreli tarihin ("20 dakika önce") ölçüldüğü an — yalnız testler geçer.
+  ///
+  /// ⚠️ Faz 11.15c: bu alan olmadan widget **kendi saatine** bakıyordu. Fixture
+  /// tarihi sabit olmasına rağmen referans PNG "bugünün fixture tarihine
+  /// uzaklığını" kodluyordu → golden **her gün** kırılıyordu (bu oturumda
+  /// kırmızıydı). Aynı hata 11.15b'de `AnnouncementTile` ve `ComplaintCard`'da
+  /// düzeltilmişti; **bu kart atlanmıştı** — sınıfın dördüncü tekrarı.
+  ///
+  /// Neden önemli: her gün kırılan bir golden, insanı `--update-goldens`'ı
+  /// refleks hâline getirir ve testin değerini sıfırlar.
+  final DateTime? now;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +97,7 @@ class NotificationTile extends StatelessWidget {
                         Text(
                           notification.createdAt == null
                               ? ''
-                              : AppDate.relative(notification.createdAt!),
+                              : AppDate.relative(notification.createdAt!, now: now),
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: palette.muted,
                           ),

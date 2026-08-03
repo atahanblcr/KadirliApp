@@ -4,9 +4,10 @@
 ilanlar, vefat, etkinlik, kampanya, taksi, ulaşım, elektrik kesintisi, şehir rehberi,
 mekanlar, şikayet/istek. Üç parça: **.NET 8 API** + **Razor admin paneli** + **Flutter mobil**.
 
-**Durum:** Backend ve panel bitti (Faz 0–10). Mobil 11.15b'ye kadar bitti — 12 modülün
+**Durum:** Backend ve panel bitti (Faz 0–10). Mobil 11.15c'ye kadar bitti — 12 modülün
 tamamı gerçek, push canlı, golden + erişilebilirlik testleri ayakta, panel/önbellek/moderasyon
-emniyet ağı kuruldu (327 backend + 669 mobil test). **Sırada yalnız yayın (11.16).**
+emniyet ağı kuruldu, panelin canlı denetiminde bulunan hataların tamamı (11.15c A grubu)
+düzeltildi (368 backend + 669 mobil test). **Sırada yalnız yayın (11.16).**
 
 ## Çalıştır
 
@@ -42,10 +43,11 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Mobil tasarım sistemi / UX kuralları?" | `Memory_Bank/MOBILE_UX_PLAN.md` |
 | "Uçların makine-okur şeması?" | `docs/openapi.json` |
 | "Mobil kurulum / canlı doğrulama komutları?" | `mobile/README.md` |
+| "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 15 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
-davranır. Hepsi `InvisibleContractsTests.cs` ile kilitli.
+listelenen 26 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`.
 
 ## Değişmez kurallar
 
@@ -62,7 +64,9 @@ davranır. Hepsi `InvisibleContractsTests.cs` ile kilitli.
 5. **"İşlevsiz buton yok"** — mobilde her buton bir uca ya da bir ekrana gider.
    Modül kaydı tek yerde: `mobile/lib/core/navigation/app_modules.dart`.
 6. **Arayüz Türkçe**, kod ve kimlikler İngilizce. Kullanıcıya teknik/İngilizce hata
-   mesajı gösterilmez.
+   mesajı gösterilmez. **Panelde** durum/rol asla ham basılmaz — `PanelDisplay.Status()` /
+   `.Role()` + `_StatusBadge` partial'ı kullanılır; para `PanelDisplay.TL()`'den geçer
+   (panel `InvariantCulture`'a sabit olduğu için `ToString("C2")` `¤` basar).
 7. **Sırlar commit edilmez**: `secrets/`, `google-services.json`, `GoogleService-Info.plist`
    `.gitignore`'da. `secrets/README.md` neyin nasıl edinileceğini anlatır.
 8. **Oturum sonunda**: `dotnet test` + `flutter analyze` + `flutter test` yeşil,

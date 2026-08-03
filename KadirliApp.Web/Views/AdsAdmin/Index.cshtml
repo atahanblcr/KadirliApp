@@ -25,8 +25,15 @@
             ("newest", "En yeni"), ("oldest", "En eski"),
             ("price_asc", "Fiyat: artan"), ("price_desc", "Fiyat: azalan")
         };
+        // 11.15c: Dashboard onay kuyruğu buraya ?status=pending ile geliyor.
+        var statusOptions = new (string Value, string Label)[]
+        {
+            ("", "Tümü"), ("pending", "Bekleyen"), ("approved", "Onaylı"),
+            ("rejected", "Reddedilen"), ("expired", "Süresi Dolmuş")
+        };
         var hasFilter = q != null && (q.CategoryId.HasValue || q.MinPrice.HasValue
             || q.MaxPrice.HasValue || !string.IsNullOrWhiteSpace(q.Search)
+            || !string.IsNullOrWhiteSpace(q.Status)
             || (!string.IsNullOrWhiteSpace(q.Sort) && q.Sort != "newest"));
     }
 
@@ -52,6 +59,18 @@
                         bool isSelected = q?.CategoryId == category.Id;
                         <option value="@category.Id" selected="@isSelected">@category.Name</option>
                     }
+                }
+            </select>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label for="status" class="text-xs font-medium text-gray-600">Durum</label>
+            <select id="status" name="status"
+                    class="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                @foreach (var option in statusOptions)
+                {
+                    bool isSelected = (q?.Status ?? "") == option.Value;
+                    <option value="@option.Value" selected="@isSelected">@option.Label</option>
                 }
             </select>
         </div>
@@ -96,13 +115,13 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İlan Başlığı</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fiyat</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" title="Mobil detay açılışı">Görüntülenme</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tarih</th>
-                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">İlan Başlığı</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fiyat</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telefon</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase" title="Mobil detay açılışı">Görüntülenme</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tarih</th>
+                        <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">İşlemler</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -111,7 +130,7 @@
                         foreach (var ad in Model.Items)
                         {
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-4 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         @if (ad.ImageUrls != null && ad.ImageUrls.Any())
                                         {
@@ -121,81 +140,81 @@
                                         }
                                         <div class="ml-4">
                                             <div class="text-sm font-medium text-gray-900">@ad.Title</div>
-                                            <div class="text-sm text-gray-500 truncate max-w-xs">@ad.Description</div>
+                                            <div class="text-sm text-gray-500 truncate max-w-[16rem]">@ad.Description</div>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">@(ad.Price.HasValue ? ad.Price.Value.ToString("C2") : "Belirtilmemiş")</div>
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">@PanelDisplay.TL(ad.Price)</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-4 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">@ad.ContactPhone</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-4 py-4 whitespace-nowrap">
                                     <div class="text-sm font-medium text-gray-900">@ad.ViewCount.ToString("N0")</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    @if (ad.Status.ToLower() == "approved")
-                                    {
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                            Onaylandı
-                                        </span>
-                                    }
-                                    else if (ad.Status.ToLower() == "pending")
-                                    {
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                            Bekliyor
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                            @ad.Status
-                                        </span>
-                                    }
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <partial name="_StatusBadge" model="PanelDisplay.Status(ad.Status)" />
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    @ad.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+                                @* 11.15c: tarih+saat tek satırda ~110 px istiyordu; iki satıra
+                                   alınınca işlem sütunu yatay kaydırma olmadan görünür hâle geliyor. *@
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <div>@ad.CreatedAt.ToString("dd.MM.yyyy")</div>
+                                    <div class="text-xs text-gray-400">@ad.CreatedAt.ToString("HH:mm")</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    @if (ad.Status.ToLower() != "approved")
-                                    {
-                                        <form asp-action="Approve" method="post" class="inline">
+                                @*
+                                    Faz 11.15c: bu sütun panelin TEK metin-butonlu işlem sütunuydu
+                                    (diğer 15 liste ikon kullanıyor) ve dört geniş buton tabloyu
+                                    1437 px'e itip 1470 px'lik pencerede işlemleri ekran DIŞINDA
+                                    bırakıyordu. İkon + title'a geçildi: hem tutarlı hem sığıyor.
+                                *@
+                                <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <div class="flex justify-end gap-3 items-center">
+                                        @if (ad.Status.ToLower() != "approved")
+                                        {
+                                            <form asp-action="Approve" method="post" class="inline">
+                                                <input type="hidden" name="id" value="@ad.Id" />
+                                                <button type="submit" class="text-green-600 hover:text-green-900" title="Onayla">
+                                                    <i class="fas fa-check" aria-hidden="true"></i>
+                                                    <span class="sr-only">Onayla</span>
+                                                </button>
+                                            </form>
+                                        }
+                                        @if (ad.Status.ToLower() != "rejected")
+                                        {
+                                            <!-- Faz 10.14(1): red artık sebep sorarak RejectAdCommand'e gider (JS'siz details popover; ban-sebep deseni) -->
+                                            <details class="relative inline-block align-middle">
+                                                <summary class="list-none cursor-pointer text-yellow-600 hover:text-yellow-800" title="Reddet">
+                                                    <i class="fas fa-ban" aria-hidden="true"></i>
+                                                    <span class="sr-only">Reddet</span>
+                                                </summary>
+                                                <div class="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-lg text-left">
+                                                    <form asp-action="Reject" method="post">
+                                                        <input type="hidden" name="id" value="@ad.Id" />
+                                                        <label class="block text-xs font-medium text-gray-600 mb-1">Red sebebi <span class="text-gray-400">(opsiyonel — kullanıcı görür)</span></label>
+                                                        <input type="text" name="reason" maxlength="500" placeholder="Örn: İletişim bilgisi eksik"
+                                                               class="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-500" />
+                                                        <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium py-1.5 rounded-md">
+                                                            İlanı Reddet
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </details>
+                                        }
+                                        <a asp-action="Edit" asp-route-id="@ad.Id" class="text-indigo-600 hover:text-indigo-900" title="Düzenle">
+                                            <i class="fas fa-edit" aria-hidden="true"></i>
+                                            <span class="sr-only">Düzenle</span>
+                                        </a>
+                                        @* 11.15c: genel "emin misiniz?" yerine NEYİN silindiğini yazıyoruz (bkz. _Layout data-confirm). *@
+                                        <form asp-action="Delete" method="post" class="inline"
+                                              data-confirm="“@ad.Title” adlı ilanı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.">
                                             <input type="hidden" name="id" value="@ad.Id" />
-                                            <button type="submit" class="text-white bg-green-600 hover:bg-green-700 font-medium rounded-lg text-sm px-4 py-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors mr-2">
-                                                Onayla
+                                            <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
+                                                <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                                <span class="sr-only">Sil</span>
                                             </button>
                                         </form>
-                                    }
-                                    @if (ad.Status.ToLower() != "rejected")
-                                    {
-                                        <!-- Faz 10.14(1): red artık sebep sorarak RejectAdCommand'e gider (JS'siz details popover; ban-sebep deseni) -->
-                                        <details class="relative inline-block align-middle mr-2">
-                                            <summary class="list-none cursor-pointer text-white bg-yellow-600 hover:bg-yellow-700 font-medium rounded-lg text-sm px-4 py-2 inline-block transition-colors">
-                                                Reddet
-                                            </summary>
-                                            <div class="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-lg text-left">
-                                                <form asp-action="Reject" method="post">
-                                                    <input type="hidden" name="id" value="@ad.Id" />
-                                                    <label class="block text-xs font-medium text-gray-600 mb-1">Red sebebi <span class="text-gray-400">(opsiyonel — kullanıcı görür)</span></label>
-                                                    <input type="text" name="reason" maxlength="500" placeholder="Örn: İletişim bilgisi eksik"
-                                                           class="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-500" />
-                                                    <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium py-1.5 rounded-md">
-                                                        İlanı Reddet
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </details>
-                                    }
-                                    <a asp-action="Edit" asp-route-id="@ad.Id" class="inline-flex items-center justify-center text-white bg-indigo-600 hover:bg-indigo-700 font-medium rounded-lg text-sm px-4 py-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors mr-2">
-                                        Düzenle
-                                    </a>
-                                    <form asp-action="Delete" method="post" class="inline" onsubmit="return confirm('Bu ilanı silmek istediğinize emin misiniz?');">
-                                        <input type="hidden" name="id" value="@ad.Id" />
-                                        <button type="submit" class="text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm px-4 py-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
-                                            Sil
-                                        </button>
-                                    </form>
+                                    </div>
                                 </td>
                             </tr>
                         }
