@@ -1077,14 +1077,158 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
 - **Canlı (Chrome + panel + API + Android):** panelden matrisle moderatör oluşturuldu → giriş yaptı, Dashboard açıldı, **menüde yalnız izinli iki modül**, `/UsersAdmin` "erişim yetkiniz yok"a düştü · panelden "İstasyon Mahallesi" eklendi → slug **`istasyon-mahallesi`**, Redis anahtarı silindi, mobilin gördüğü liste **anında** tazelendi.
 - **Doğrulama:** `dotnet test` **327/327** · `flutter analyze` **0** · `flutter test` **669/669**. Geçici veri ve `uploads/` artefaktları temizlendi.
 
+### 11.15c — Panel canlı denetimi: bulgular + "gerçek yönetim paneli" eksikleri — [ ] (1-2 oturum)
+
+> **Neden bu faz var (3 Ağustos 2026, 3. oturum'da eklendi):** 11.15b paneli **moderatör** gözüyle
+> düzeltti ve testle kilitledi; ama panel bugüne dek **`super_admin` hesabıyla, canlı Chrome'da,
+> sayfa sayfa** hiç gezilmemişti. Bu oturumda gezildi (18 sayfa + form/alt ekranlar, gerçek yazma
+> denemeleriyle: ilan onayı, duyuru oluştur→sil, kategori özellikleri). Aşağıdaki maddelerin
+> **tamamı bu gezide gözle görüldü ve kanıtlandı** — hiçbiri "olsa iyi olur" listesi değil.
+>
+> ⚠️ **Bu faz kod yazmadan kapanmaz ama sırası esnektir:** A grubu (hatalar) yayından **önce**,
+> B grubu (eksikler) yayından sonra ilk bakım turuna bırakılabilir. C grubu (güvenlik)
+> **11.16'nın içine** girmeli — canlıya çıkarken açık kalamaz.
+>
+> 📌 **Genel teşhis:** panel *modül modül* çok iyi (18 ekranın 15'i gerçekten iyi tasarlanmış:
+> nöbet takvimi mobili uyarıyor, duyuru formunda harita+push+hedefleme var, kategori özellik
+> editörü dinamik mobil formu birebir besliyor). Zayıf olan taraf **ekranların arası**: ortak
+> durum-etiketi yok, ortak sayfa-dışı navigasyon yok, ortak "kim ne yaptı" izi yok.
+
+**A. Canlı gezide bulunan gerçek hatalar (yayından önce)**
+
+- [ ] 🔴 **Dar ekranda panelde HİÇ gezinme yok — hamburger butonu ölü.** `Views/Shared/_Layout.cshtml:19`
+  butonunda `id`/`onclick`/`data-*` yok ve panelde onu bağlayan JS yok; kenar çubuğu ise
+  `hidden lg:flex`. **<1024 px'de menü açılmıyor**, modüller arası tek geçiş yolu adres çubuğuna
+  URL yazmak. Canlı doğrulandı (500 px pencere, tıklandı, hiçbir şey olmadı). Ekran okuyucu
+  etiketi de çevrilmemiş: `"Open sidebar"`. 📌 Bu, mobildeki **"işlevsiz buton yok"** kuralının
+  panel ihlali — 11.15b'de menü tek listeye çekilirken bu buton gözden kaçtı.
+- [ ] 🔴 **Fiyatlar `¤750,000.00` görünüyor.** `Program.cs:13-14` paneli **`InvariantCulture`**'a
+  sabitliyor (form ondalıkları için bilinçli), `Views/AdsAdmin/Index.cshtml:129` ise
+  `Price.ToString("C2")` çağırıyor → para birimi simgesi jenerik **`¤`**, ayırıcılar ABD düzeni.
+  Tek yer: diğer modüller zaten `$"₺{x:N2}"` yazıyor (`EventsAdmin`, `PlacesAdmin`). Düzeltme
+  `"C"` formatını bırakıp aynı desene geçmek; **ortak bir `TL()` yardımcısı** en doğrusu.
+- [ ] 🔴 **Yedi listede ham İngilizce durum/rol rozeti** — CLAUDE.md kural 6 ihlali. Görülenler:
+  `expired` (İlanlar), `archived` (Vefat), ayrıca `Moderator`/`SuperAdmin`/`User`
+  (`UsersAdmin/Index.cshtml:84`). Sebep: her görünüm `approved`/`pending` için elle Türkçe
+  yazıyor, **geri kalan her değeri gri rozetle ham basıyor**
+  (`AnnouncementsAdmin:133`, `DeathsAdmin:87`, `EventsAdmin:84`, `ComplaintsAdmin:101`,
+  `CampaignsAdmin:84`, `AdsAdmin:153`). 🔑 **Kök sebep panelde ortak bir "durum → Türkçe etiket +
+  renk + ikon" yardımcısının olmaması** — mobilde bunun karşılığı (`AdStatus`) 11.10'da yazılmıştı.
+  Bir `StatusBadge` tag helper'ı/partial'ı yedi görünümü birden kapatır ve yeni modül unutamaz.
+- [ ] 🔴 **Duyuru silinince bildirimleri kalıyor → mobilde ölü bildirim.** Canlı kanıt: panelden
+  push'lu duyuru oluşturuldu → **9 `notifications` satırı** üretildi → duyuru panelden silindi →
+  **9 satır aynen durdu**; `GET /v1/announcements/{id}` artık `NOT_FOUND` ("Duyuru bulunamadı").
+  `GetMyNotificationsQuery` yalnız `UserId` + `IsRead` süzüyor, **hedefin hâlâ yayında olup
+  olmadığına bakmıyor**. Kullanıcı bildirimi görür, dokunur, boş sayfaya düşer.
+  Düzeltme seçenekleri: (a) silme komutunda ilgili bildirimleri de sil, (b) sorguda "hedefi
+  yaşayan" süzgeci. **Aynı sınıf risk vefat/etkinlik/kampanya silmelerinde de var — hepsi kontrol edilmeli.**
+- [ ] 🟡 **Süresi geçmiş ilan uyarısız onaylanıyor ve panel ile vatandaş farklı şey görüyor.**
+  Canlı: `expired` bir ilana "Onayla" → "İlan başarıyla onaylandı." Ama `expires_at` geçmişte
+  (2026-08-02), yani **mobilde hiç görünmüyor** (`GET /v1/ads` boş döndü) ve `ExpireAdsJob` bir
+  saat içinde durumu sessizce geri `expired` yapacak. Panelde **süre uzatma aksiyonu yok**
+  (`POST /v1/ads/{id}/extend` ucu duruyor, panelde karşılığı yok). Onay ekranı ya süreyi
+  uzatmalı ya da "bu ilanın süresi dolmuş, onaylasanız da görünmez" demeli.
+- [ ] 🟡 **Dashboard "Aktif İlanlar" süreyi yok sayıyor.** `GetDashboardStatsQueryHandler:30`
+  yalnız `Status == "approved"` sayıyor; `expires_at` süzgeci yok. Canlı: panel **1** derken
+  public uç **0** döndürdü. Aynı satırda "Toplam Duyuru" da yayınlanmamış/zamanlanmışları sayıyor.
+- [ ] 🟡 **`AdsAdmin` tablosu işlem sütununu ekran dışına itiyor.** 1470 px'lik pencerede tablo
+  1437 px, içerik alanı 1102 px → "Onayla / Reddet / Düzenle / Sil" **yatay kaydırma olmadan
+  görünmüyor**. (`overflow-x-auto` var, yani erişilemez değil ama görünmüyor.) Ayrıca bu tek liste
+  **metin butonlu**, diğer 15 liste **ikon butonlu** → panel içi tasarım tutarsızlığı.
+- [ ] 🟡 **`StaffAdmin` izin rozetleri ham modül anahtarı basıyor** (`deaths`, `announcements`).
+  Türkçe karşılıkları **`PanelMenu.Items`'ta zaten var** (11.15b'de yazıldı) — tek satırlık eşleme.
+- [ ] 🟡 **404 gövdesiz.** `Program.cs`'te `UseStatusCodePages*` yok; `/BuBirSayfaDegil` → **404,
+  0 bayt**, bembeyaz sayfa. Markalı "Sayfa bulunamadı" + panele dönüş bağlantısı gerek.
+  (`UseExceptionHandler("/Home/Error")` yalnız 500 için ve yalnız non-Development'ta.)
+
+**B. "Gerçek bir yönetim panelinde olur, burada yok" (yayın sonrası ilk bakım turu)**
+
+- [ ] 🔴 **Denetim izi ekranı yok.** `AuditBehavior` her yazma komutunu `audit_logs`'a yazıyor
+  (canlı DB'de 6 satır var) ama **onu okuyan tek bir ekran, tek bir uç yok** — `KadirliApp.Web`
+  ve `KadirliApp.Api/Controllers` içinde `AuditLog` geçen tek satır bile yok. "Bu ilanı kim, ne
+  zaman sildi?" sorusu bugün ancak `psql` ile cevaplanıyor. Moderatör rolü artık gerçekten
+  çalıştığına göre (11.15b) bu **kaçınılmaz** oldu. Not: `audit_logs.details` **jsonb** →
+  LINQ `.Contains()` `like_escape` hatası verir, belleğe alıp süzmek gerekir (11.15b tuzağı).
+- [ ] 🔴 **Şehirlerarası ulaşım panelden hiç yönetilemiyor.** `TransportAdminController` (panel)
+  baştan sona **yalnız `Intracity`** komut/sorgularını çağırıyor. Oysa `Application/Features/Transport`
+  içinde `CreateIntercityRouteCommand`, `CreateIntercityScheduleCommand`, `DeleteIntercityScheduleCommand`,
+  `CreateIntracityStopCommand`, `DeleteIntracityStopCommand` **hazır** ve yalnız `/v1/admin/transport/*`
+  uçlarından erişilebiliyor — **onları çağıran hiçbir istemci yok** (11.15b'de tespit edilen
+  "karşılığı olmayan yetki" deseninin ikinci örneği). Sonuç: mobildeki **"Şehirlerarası" sekmesi,
+  kalkış saatleri ve şehir içi durak zaman çizelgesi** panelden ne oluşturulabiliyor ne düzenlenebiliyor.
+  🔑 Bu, listedeki **tek gerçek işlevsel boşluk** — diğer 11 modülün tamamı panelden yönetilebiliyor.
+- [ ] 🔴 **Silinen kayıt geri getirilemiyor.** Soft delete (`deleted_at`) her modülde var, ama
+  panelde **ne çöp kutusu ne geri alma** var. Yanlışlıkla silinen duyuru/ilan/vefat kaydı
+  yönetici için kaybolmuş durumda. (`GuideItem` `ISoftDeletable` değil — silme fiziksel,
+  onun için geri alma **mümkün değil**, bu ayrıca not edilmeli.)
+- [ ] 🟡 **Tek onay kuyruğu yok, üstelik verisi zaten hesaplanıyor.** Dashboard "Bekleyen Onaylar"
+  bir `<div>`, tıklanamıyor. `GetDashboardStatsQueryHandler` **`PendingBreakdown`**'ı
+  (ilan/vefat/etkinlik/kampanya/şikayet ayrı ayrı) hesaplıyor ama `PendingBreakdown` kelimesi
+  `KadirliApp.Web` ve `KadirliApp.Api` içinde **hiç geçmiyor** → hesaplanıp çöpe atılıyor.
+  En küçük düzeltme: kırılımı Dashboard'da göstermek ve her satırı ilgili modülün
+  `?status=pending` filtresine bağlamak.
+- [ ] 🟡 **Toplu işlem yok.** Hiçbir listede satır seçimi (checkbox) yok → 40 bekleyen ilan
+  tek tek onaylanıyor.
+- [ ] 🟡 **Dışa aktarma yok.** Hiçbir ekranda CSV/Excel çıktısı yok (kaynakta `csv`/`excel`/
+  `Dışa Aktar` geçen tek satır bile yok). Belediyeye rapor verilecek en basit senaryo bile
+  elle kopyalamaya kalıyor.
+- [ ] 🟡 **Bağımsız bildirim/push ekranı yok ve gönderim sonucu görünmüyor.** Push yalnız
+  duyuruya iliştirilebiliyor (`Bildirim (Push) Gönder` kutusu). "Kaç cihaza gitti, kaç hata
+  aldı, `fcm_sent` oldu mu" panelde hiç görünmüyor — canlıda 9 bildirim üretildi, panel bunu
+  hiçbir yerde söylemedi. `Notifications` modülünün `ARCHITECTURE.md` tablosunda panel sütunu
+  zaten *(yok)*; artık bilinçli bir eksik olarak mı kalacağı karara bağlanmalı.
+- [ ] 🟡 **Sütun sıralaması yalnız İlanlar'da** (ve o da bir açılır liste). Diğer 15 listede
+  başlığa tıklayarak sıralama yok — tarih/görüntülenme/ad sıralaması yapılamıyor.
+- [ ] 🟡 **Elektrik Kesintileri ekranında hiç arama/filtre yok** — mahalle, tarih aralığı,
+  süren/planlanan ayrımı yok; oysa mobil bu ayrımı gösteriyor (11.6, istemcide hesaplıyor).
+  Neredeyse tüm diğer listelerde en az bir arama kutusu var.
+- [ ] 🟡 **Global arama yok** (üst çubukta "her yerde ara"). Bir telefon numarasını bulmak için
+  yönetici hangi modülde olduğunu önceden bilmek zorunda.
+
+**C. Güvenlik / yayın — bunlar 11.16'nın içine alınmalı**
+
+- [ ] 🔴 **Giriş sayfası varsayılan yönetici parolasını KOŞULSUZ yazıyor.**
+  `Views/Account/Login.cshtml:51` → `Varsayılan Yönetici: admin / Admin123!`; `IsDevelopment()`
+  koşulu **yok**, yani üretimde de basılır. Aynı değerler `DbSeeder.cs:16-18`'de sabit.
+  Yayında: satırı ortama bağla **ve** ilk açılışta parola değiştirmeye zorla.
+- [ ] 🔴 **Oturum iptal edilemiyor.** Cookie `ExpireTimeSpan = 8 saat` (`Program.cs:41`) ve
+  `OnValidatePrincipal` **yok** → personel silinse, banlansa veya rolü düşürülse bile
+  **elindeki oturum 8 saat boyunca çalışmaya devam eder**; şifre değişimi de açık oturumları
+  düşürmez. (Bu oturumda gözlemlendi: önceki oturumdan kalan moderatör cookie'si panele hâlâ
+  giriyordu.) Düzeltme: `OnValidatePrincipal`'da kullanıcıyı DB'den tazele (aktif mi, silinmiş mi,
+  rolü ne) — panelin izin filtresi zaten her istekte DB'ye gidiyor, maliyet marjinal.
+- [ ] 🟡 **Panel parola politikası zayıf:** "en az 6 karakter" (`Account/ChangePassword`), 2FA yok,
+  başarısız denemede hesap kilidi yok (giriş **hız sınırı** var — o taraf iyi).
+- [ ] 🟡 **Silme onayı tarayıcının `confirm()`'i** (21 yerde) ve **neyin silindiğini yazmıyor**
+  ("Duyuruyu silmek istediğinize emin misiniz?"). Kayıt adını yazan bir modal, yanlış satırı
+  silmeyi zorlaştırır.
+
+- **Bitti kriteri:** (a) A grubunun tamamı düzeltilmiş ve **her biri için kuralı bozunca kırmızıya
+  dönen bir test** yazılmış (11.14/11.15b ölçütü — özellikle "ham İngilizce durum sızmıyor" ve
+  "menü <1024 px'de açılıyor" yapısal olarak denetlenebilir); (b) B grubundan hangilerinin
+  yapılacağı **karara bağlanmış**, yapılmayanlar `ARCHITECTURE.md` §7'ye *bilinçli eksik* olarak
+  yazılmış (sessizce unutulmamış); (c) C grubu 11.16 kontrol listesine taşınmış.
+- **Konumu bilinçli:** 11.15b'nin hemen ardından — panelin **testi** yazıldı ama panelin
+  **kendisi** bir yöneticinin gözüyle daha hiç denetlenmemişti. Sıralama olarak A → 11.16 → B.
+
 ### 11.16 — Yayına hazırlık (release) — [ ] (1 oturum)
 - [ ] App ikonu (yeşil 🌿 marka), splash, mağaza görselleri/açıklama; sürümleme; **flavor** dev/prod (base URL prod'a).
 - [ ] İzinler (bildirim, kamera/galeri) + gizlilik açıklamaları; **hesap silme mağaza zorunluluğu** karşılandı (`DELETE /v1/users/me` — Ayarlar'da görünür).
 - [ ] Android imzalama + Play internal test; iOS TestFlight; gizlilik politikası linki.
 - [ ] **Backend prod bağımlılıkları kontrol listesi (mobil yayın engelleri):** gerçek SMS sağlayıcısı (`Sms:Provider` + `Otp:DevMode=false`) · Firebase service-account (`Fcm:Provider=Firebase`) · Hangfire dashboard auth (10.14/2) · uploads kalıcı volume (10.14/3) · `FileStorage:BaseUrl` prod domain · CORS (yalnız web hedeflenirse).
+- [ ] 🔴 **Panel güvenlik kapanışı (11.15c C grubu — canlıya çıkarken açık kalamaz):** giriş sayfasındaki `admin / Admin123!` satırı ortama bağlanacak + ilk girişte parola değişimi zorunlu (`Views/Account/Login.cshtml:51`, `DbSeeder.cs:16-18`) · `OnValidatePrincipal` ile oturum tazeleme (silinen/banlanan personelin cookie'si 8 saat yaşıyor, `Program.cs:41`) · panel parola politikası 6 karakterden yukarı.
 - **Bitti kriteri:** İmzalı prod build; internal test kanalında çalışan uygulama; yayın engeli listesi işaretli.
 
-> **AKTİF SIRADAKİ: 11.16 — Yayına hazırlık.** 11.15b'den devralınanlar: **panel testi yazarken `[Collection("panel")]`** (kendi fixture'ını açan sınıf süiti dakikalarca uzatır) · **yeni panel controller'ı = `[Authorize(...,moderator)]` + `[PanelPermission("<modül>")]` + `PanelMenu.Items` satırı** (rol listesine moderator yazıp özniteliği unutmak moderatöre **sınırsız** yetki verir) · **yeni cache'lenen sorgu = `CacheGroups` sabiti + en az bir invalidator** · **tarih gösteren yeni karta `now` enjekte edilebilmeli** (yoksa golden her gün kırılır) · ⚠️ **`mobile/tool/ios_sim.sh` koordinat eşlemesi iPhone 17'de hâlâ bozuk** · ⚠️ iOS push APNs `.p8` bekliyor.
+> **AKTİF SIRADAKİ: 11.15c — Panel canlı denetimi bulguları (A grubu) → sonra 11.16 — Yayına hazırlık.**
+> 11.15c, 3 Ağustos 2026 (3. oturum) **canlı Chrome + `super_admin`** gezisiyle açıldı: 18 panel
+> sayfası + form/alt ekranlar gezildi, gerçek yazma denemeleri yapıldı (ilan onayı, push'lu duyuru
+> oluştur→sil, kategori özellikleri). **Kod yazılmadı** — bulgular 11.15c başlığına işlendi.
+> En kritik üçü: **dar ekranda hamburger ölü → panelde hiç menü yok** · **silinen duyurunun
+> bildirimleri kalıyor → mobilde boş sayfaya götüren bildirim** · **şehirlerarası ulaşım
+> panelden hiç yönetilemiyor** (komutlar `Application`'da hazır, ekran yok).
+> Ayrıca C grubu (giriş sayfasındaki varsayılan parola + oturum iptalinin olmaması) **11.16'ya bağlandı**.
+>
+> ~~AKTİF SIRADAKİ: 11.16~~ (11.15c araya girdi) — **11.16 — Yayına hazırlık.** 11.15b'den devralınanlar: **panel testi yazarken `[Collection("panel")]`** (kendi fixture'ını açan sınıf süiti dakikalarca uzatır) · **yeni panel controller'ı = `[Authorize(...,moderator)]` + `[PanelPermission("<modül>")]` + `PanelMenu.Items` satırı** (rol listesine moderator yazıp özniteliği unutmak moderatöre **sınırsız** yetki verir) · **yeni cache'lenen sorgu = `CacheGroups` sabiti + en az bir invalidator** · **tarih gösteren yeni karta `now` enjekte edilebilmeli** (yoksa golden her gün kırılır) · ⚠️ **`mobile/tool/ios_sim.sh` koordinat eşlemesi iPhone 17'de hâlâ bozuk** · ⚠️ iOS push APNs `.p8` bekliyor.
 >
 > ~~AKTİF SIRADAKİ: 11.15b~~ (tamamlandı) — **11.15b — Emniyet ağı 2. tur (panel + önbellek + moderasyon).** 11.15'ten devralınanlar: **`PagedListFooter`** (yeni sayfalı liste bunu kullanmalı, kendi altbilgisini yazmamalı) · **`ScrollableStateBody`** (boş/hata görünümleri kendiliğinden kaydırılabilir — çağrı yerinde sarmalamayın, iç içe kaydırma olur) · **`connectivityStatusProvider`** (şerit `AppScaffold`ta otomatik; `offline:` yalnız test/stil kılavuzu için) · **`test/golden/` altyapısı** (yeni ortak bileşen/liste kartı eklerken oraya bir senaryo düşün, **uzun Türkçe metinle**) · **`accessibility_test.dart`** (48 dp + kontrast + 1.4 ölçekte taşma) · ⚠️ golden'lar `@Tags(['golden'])`, CI'da **macOS işinde** koşuyor ve **asla üretmiyor** · ⚠️ **`mobile/tool/ios_sim.sh` koordinat eşlemesi iPhone 17'de bozuk** (11.16'da düzeltilmeli).
 >
