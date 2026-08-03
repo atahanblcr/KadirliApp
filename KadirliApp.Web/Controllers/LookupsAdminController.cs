@@ -1,4 +1,5 @@
 using System;
+using KadirliApp.Web.Authorization;
 using System.Threading.Tasks;
 using KadirliApp.Application.Common.Exceptions;
 using KadirliApp.Application.Features.Lookups;
@@ -16,7 +17,8 @@ namespace KadirliApp.Web.Controllers;
 /// 5 akordiyon bölüm. Tüm mutasyonlar Application command'leri üzerinden (Faz 9.4 kuralı) ve
 /// `lookups` cache grubunu invalidate eder → mobil lookup uçları taze döner.
 /// </summary>
-[Authorize(Roles = "admin,super_admin")]
+[Authorize(Roles = "admin,super_admin,moderator")]
+[PanelPermission("lookups")]
 public class LookupsAdminController : Controller
 {
     private readonly ISender _sender;

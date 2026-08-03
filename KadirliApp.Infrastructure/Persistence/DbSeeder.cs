@@ -184,18 +184,12 @@ public static class DbSeeder
         return property;
     }
 
+    /// <summary>
+    /// Faz 11.15b: buradaki kopya gerçekleme kaldırıldı. Seeder ile çalışma zamanı **aynı**
+    /// slug kuralını kullanmalı; ayrıştıklarında (10.9-11.15b arası olduğu gibi) seed'lenen
+    /// kayıtla panelden eklenen kayıt farklı slug alır ve fark hiçbir yerde görünmez.
+    /// Kuralın tek sahibi: <see cref="KadirliApp.Application.Common.Utils.SlugHelper"/>.
+    /// </summary>
     internal static string Slugify(string value)
-    {
-        var map = new Dictionary<char, string>
-        {
-            ['ç'] = "c", ['ğ'] = "g", ['ı'] = "i", ['ö'] = "o", ['ş'] = "s", ['ü'] = "u",
-            ['Ç'] = "c", ['Ğ'] = "g", ['İ'] = "i", ['Ö'] = "o", ['Ş'] = "s", ['Ü'] = "u"
-        };
-        var chars = value.Trim().ToLowerInvariant()
-            .Select(ch => map.TryGetValue(ch, out var r) ? r : ch.ToString())
-            .Select(s => s.Length == 1 && !char.IsLetterOrDigit(s[0]) ? "-" : s);
-        var slug = string.Concat(chars);
-        while (slug.Contains("--")) slug = slug.Replace("--", "-");
-        return slug.Trim('-');
-    }
+        => KadirliApp.Application.Common.Utils.SlugHelper.Slugify(value);
 }

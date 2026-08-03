@@ -89,6 +89,7 @@ void main() {
         GoldenScenario(
           'Acil (uzun başlık)',
           AnnouncementTile(
+            now: now,
             announcement: announcement(
               title: 'Savrun ve Cumhuriyet mahallelerinde su kesintisi yapılacaktır',
               priority: 3,
@@ -99,6 +100,7 @@ void main() {
         GoldenScenario(
           'Normal',
           AnnouncementTile(
+            now: now,
             announcement: announcement(title: 'Pazar yeri düzenlemesi', priority: 1),
             onTap: () {},
           ),
@@ -123,8 +125,14 @@ void main() {
       name: 'notification_tile',
       height: 1300,
       scenarios: [
-        GoldenScenario('Okunmamış', NotificationTile(notification: notification(isRead: false), onTap: () {})),
-        GoldenScenario('Okunmuş', NotificationTile(notification: notification(isRead: true), onTap: () {})),
+        GoldenScenario(
+          'Okunmamış',
+          NotificationTile(notification: notification(isRead: false), onTap: () {}),
+        ),
+        GoldenScenario(
+          'Okunmuş',
+          NotificationTile(notification: notification(isRead: true), onTap: () {}),
+        ),
       ],
     );
   });
@@ -163,13 +171,15 @@ void main() {
         GoldenScenario(
           'Çözüldü + yetkili yanıtı',
           ComplaintCard(
+            now: now,
             complaint: Complaint(
               id: 'c-1',
               subject: 'Sokak lambaları akşam saatlerinde yanmıyor',
               message: 'Savrun mahallesi 4. sokakta lambalar bir haftadır yanmıyor.',
               type: 'complaint',
               status: 'resolved',
-              adminNotes: 'Ekiplerimiz bölgeye yönlendirildi, arıza giderilmiştir. İlginiz için teşekkürler.',
+              adminNotes:
+                  'Ekiplerimiz bölgeye yönlendirildi, arıza giderilmiştir. İlginiz için teşekkürler.',
               createdAt: now.subtract(const Duration(days: 3)),
               resolvedAt: now.subtract(const Duration(days: 1)),
             ),
@@ -178,6 +188,7 @@ void main() {
         GoldenScenario(
           'Bekliyor',
           ComplaintCard(
+            now: now,
             complaint: Complaint(
               id: 'c-2',
               subject: 'Pazar yerine bank talebi',

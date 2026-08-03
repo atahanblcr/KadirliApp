@@ -1,4 +1,5 @@
 using System;
+using KadirliApp.Web.Authorization;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using KadirliApp.Application.Common.Exceptions;
@@ -13,7 +14,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace KadirliApp.Web.Controllers;
 
 /// <summary>Faz 10.9(b): işletme yönetimi paneli — kampanya formu artık gerçek işletmelerle çalışabilir.</summary>
-[Authorize(Roles = "admin,super_admin")]
+[Authorize(Roles = "admin,super_admin,moderator")]
+[PanelPermission("businesses")]
 public class BusinessesAdminController : Controller
 {
     private readonly ISender _sender;

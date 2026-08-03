@@ -11,10 +11,14 @@ import '../../data/models/announcement.dart';
 /// Öncelik rengi metinle birlikte verilir ("Acil" etiketi): renk körü kullanıcı
 /// için tek başına renk yeterli değil (MOBILE_UX_PLAN §0 erişilebilirlik).
 class AnnouncementTile extends StatelessWidget {
-  const AnnouncementTile({super.key, required this.announcement, this.onTap});
+  const AnnouncementTile({super.key, required this.announcement, this.onTap, this.now});
 
   final Announcement announcement;
   final VoidCallback? onTap;
+
+  /// Yalnız test için: "3 saat önce" hesabının dayandığı an. Üretimde null → gerçek saat.
+  /// (`EventCard` deseni. Golden testinde sabitlenmezse referans görüntü HER GÜN kırılır.)
+  final DateTime? now;
 
   @override
   Widget build(BuildContext context) {
@@ -82,10 +86,7 @@ class AnnouncementTile extends StatelessWidget {
                 ],
                 if (published != null) ...[
                   AppSpacing.gapSm,
-                  Text(
-                    AppDate.relative(published),
-                    style: theme.textTheme.labelSmall,
-                  ),
+                  Text(AppDate.relative(published, now: now), style: theme.textTheme.labelSmall),
                 ],
               ],
             ),
@@ -113,20 +114,14 @@ class _PriorityChip extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xxs),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
         borderRadius: AppRadius.rPill,
       ),
       child: Text(
         label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
+        style: theme.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w700),
       ),
     );
   }

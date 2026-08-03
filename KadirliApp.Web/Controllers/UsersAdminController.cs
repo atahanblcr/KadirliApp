@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using KadirliApp.Web.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using KadirliApp.Application.Common.Interfaces;
@@ -17,7 +18,8 @@ using System.Security.Claims;
 
 namespace KadirliApp.Web.Controllers;
 
-[Authorize(Roles = "admin,super_admin")]
+[Authorize(Roles = "admin,super_admin,moderator")]
+[PanelPermission("users")]
 public class UsersAdminController : Controller
 {
     private readonly IUnitOfWork _uow;

@@ -8,7 +8,7 @@
 > öğretici bir rehber değil (o `DOTNET_MASTERCLASS.md`), istemci kontratı değil
 > (o `Memory_Bank/API_CONTRACT.md`). Burası **harita**: bugün neyin nerede olduğu.
 >
-> Son güncelleme: 2 Ağustos 2026 (Faz 11.13 — bildirimler/push).
+> Son güncelleme: 3 Ağustos 2026 (Faz 11.15b — panel emniyet ağı + izin matrisi).
 
 ## Hangi dokümanı ne zaman okumalı
 
@@ -159,6 +159,24 @@ kaynağıdır**: ızgara kartları, "yakında" ekranları ve (11.13'te) push dee
 buradan türer. `app_modules_test.dart` her kartın açılabilir bir ekrana gittiğini
 denetler — **"işlevsiz buton yok" şartı test edilebilir hâlde**.
 
+### Panelde roller ve izinler (Faz 11.15b)
+
+| Rol | Panelde ne görür |
+|---|---|
+| `super_admin` / `admin` | Her şey. İzin matrisi bu roller için **atlanır**. |
+| `moderator` | Yalnız `admin_permissions`'ta **okuma izni** verilmiş modüller + Dashboard. Yazma/silme/onaylama ayrı bayraklara tabi. **Personel yönetimi ve örnek veri basma kapalı.** |
+| diğer roller | Panele hiç giremez (`AccountController` girişte reddeder). |
+
+Uygulama noktaları — üçü aynı modül anahtarını kullanır:
+`KadirliApp.Web/Authorization/PanelPermissionAttribute.cs` (controller kapısı) ·
+`KadirliApp.Web/Common/PanelMenu.cs` (menü, tek liste) ·
+`StaffAdminController.Modules` (matris arayüzü).
+
+⚠️ Yeni panel controller'ı eklerken: sınıfa `[Authorize(Roles = "admin,super_admin,moderator")]`
+**ve** `[PanelPermission("<modül>")]` yazın, `PanelMenu.Items`'a satır ekleyin. Rol listesine
+"moderator" yazıp özniteliği unutursanız moderatör o modülde **sınırsız** yetki kazanır —
+`PanelModeratorPermissionTests` bunu yakalar.
+
 ### Arka plan işleri (Hangfire)
 
 | İş | Ne yapar | Sıklık |
@@ -204,6 +222,8 @@ Sırayla; her adım bir öncekine dayanır. (Örnek: "Kayıp Eşya" modülü.)
 9. **Panel** — `KadirliApp.Web/Controllers/LostItemsAdminController.cs` +
    `Views/LostItemsAdmin/{Index,Create,Edit}.cshtml`. Mevcut bir modülün view'larını
    kopyalayıp uyarlamak en hızlısı (tablo + filtre + form deseni sabittir).
+   Sınıfa **`[Authorize(Roles = "admin,super_admin,moderator")]` + `[PanelPermission("lost-items")]`**
+   yazın ve **`PanelMenu.Items`'a bir satır ekleyin** (§3 "Panelde roller ve izinler").
 10. **Kontrat** — `Memory_Bank/API_CONTRACT.md`'ye uçları ve DTO alanlarını yaz;
     `docs/openapi.json`'ı yenile.
 11. **Testler** — en az:
@@ -335,6 +355,10 @@ mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 | 16 | Push `data` sözlüğü **tam olarak** `notificationId` (her zaman) + `type` + `relatedId` + `relatedType` taşır ve hepsi **metin**tir (`SendPushNotificationsJob.BuildData`) | Anahtar adı değişirse deep-link **sessizce ölür**: bildirime dokunan kullanıcı hiçbir yere gitmez, hata da görmez |
 | 17 | `GET /v1/notifications` `unreadCount`'u **sayfalı gövdenin İÇİNE** koyar (zarf `meta`'sı filtreyle sabitlendiği için) ve bu sayı **filtreden bağımsız** toplamdır | `unreadOnly=true` isteğinde de rozet doğru kalsın diye; `meta`'ya taşınırsa istemci sayacı kaybeder |
 | 18 | `relatedType` değerleri mobilde **rota üretir** (`announcement`→`/duyurular/:id` …); tanınmayan tür ve GUID olmayan kimlik **gezinmeyi iptal eder** | Sunucu yeni bir `relatedType` üretmeye başlarsa mobil onu sessizce yok sayar → `app_notification.dart` eşlemesine eklenmeli |
+| 19 | Panelde izin eylemi **aksiyon adından türetilir** (`PanelPermissionFilter.ActionFor`): `Approve/Reject/Verify/Ban/UpdateStatus…` → `approve`, `Delete…` → `delete`, `Create/Add…` → `create`, `Update/Edit…` → `update`, geri kalan GET → `read`, geri kalan POST → `update` | Aksiyon **yeniden adlandırılırsa** izin sessizce değişir. Örnek: `UpdateStatus` → `SetStatus` yapılsa şikayet sonuçlandırma `approve` yerine `update` iznine düşer ve düzenleme yetkisi olan moderatör moderasyon kararı verebilir hâle gelir |
+| 20 | Panel menüsü (`PanelMenu.Items`), izin matrisi (`StaffAdminController.Modules`) ve `[PanelPermission("…")]` **aynı modül anahtarını** kullanır | Ayrışırlarsa yöneticinin matriste verdiği yetkinin panelde karşılığı olmaz (ya da tersi) ve sebep hiçbir yerde görünmez |
+| 21 | Slug üretiminin tek sahibi `SlugHelper`; `DbSeeder.Slugify` ona delege eder | İkinci bir gerçekleme yazılırsa seed'lenen kayıtla panelden eklenen kayıt farklı slug alır. 10.9–11.15b arasında tam olarak bu oldu: `'İ'` (U+0130) `ToLowerInvariant()` ile küçülmediği için slug'a ham giriyordu ("İstasyon" ≠ "istasyon" → mükerrer mahalle) |
+| 22 | Cache grup adları **yalnız `CacheGroups` sabitleri** olabilir; her cache'lenen grubun en az bir invalidate eden komutu vardır (**tek istisna `dashboard`** — bilinçli olarak 60 sn TTL'e dayanır) | Serbest metin grup adı invalidation'ı **sessizce** kapatır: panelde güncellenen veri mobilde 15 dakika eski kalır, ne log düşer ne istisna |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 
@@ -369,6 +393,11 @@ mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 | Yetki (yapısal) | `Integration/Security/EndpointAuthorizationSweepTests.cs` | `EndpointDataSource`'tan **tüm** uçlar — yeni uç kendiliğinden kapsanır |
 | Görünürlük | `Integration/Security/ModuleVisibilitySweepTests.cs` | Liste seviyesinde "gizli kayıt sızmıyor" |
 | Doküman tutarlılığı | `Integration/Architecture/ArchitectureDocTests.cs` | **Bu dosya** ↔ gerçek klasörler/modüller |
+| **Panel (Razor/MVC)** | `Integration/Panel/` | Gerçek panel + Postgres + Redis: oturum/yetki, her sayfanın render'ı, form yazımı + audit izi, moderatör izin matrisi |
+| **Önbellek sözleşmesi** | `Unit/Application/Caching/CacheContractTests.cs` | Grup adları sabit mi, her grubun invalidator'ı var mı, anahtar filtreyle değişiyor mu |
+| **Önbellek davranışı** | `Integration/Panel/CacheInvalidationTests.cs` | Gerçek Redis: önce **bayat veri döndüğü** gösterilir, sonra mutasyonun temizlediği |
+| **Moderasyon** | `Integration/Panel/ModerationStateMachineTests.cs` | Vefat/etkinlik/kampanya/işletme onay-red geçişleri, soft-delete etkileşimi |
+| **Arka plan işleri** | `Integration/Panel/BackgroundJobTests.cs` | Sınır tarihleri + "iki kez koşarsa mükerrer üretmez" |
 | Mobil saf mantık | `mobile/test/core/**`, `features/*/…_test.dart` | `departure_times`, `paged_feed`, `AppDate`, `AppMoney`… |
 | Mobil ekran | `mobile/test/features/*/…_screen_test.dart` | Boş/yükleniyor/hata durumları, filtre, taşma |
 | Mobil **görsel regresyon** | `mobile/test/golden/` | Ortak bileşenler + liste kartları; 360 dp × (1.0 ve 1.4 ölçek) × açık/koyu |
@@ -408,6 +437,21 @@ cd mobile && flutter test --update-goldens test/golden   # ⚠️ CI ASLA üretm
 
 **Backend**
 - Testcontainers → **Docker açık olmalı**, ilk koşu imaj indirir.
+- **Panel testleri** (`Integration/Panel/`): `extern alias WebPanel` **şart** — Api ve Web'in
+  ikisi de global namespace'te `Program` üretir. Tüm panel sınıfları `[Collection("panel")]`
+  ile **tek** container çiftini paylaşır; kendi `IClassFixture`'ını açan sınıf süiti dakikalarca
+  uzatır.
+- `WebApplicationFactory.CreateClient()` bir **örnek metottur** — aynı adla uzantı metodu
+  yazarsanız hiç çağrılmaz (yönlendirmeler sessizce izlenir). Panelde `CreatePanelClient()`.
+- `ConfigureAppConfiguration` ile verilen ayar, `Program.cs`'te **erken** (`builder.Build()`
+  öncesi) okunan değerlere **yetişmez** — hız sınırı gibi. Onlar ortam değişkeniyle verilir.
+  (Bağlantı dizeleri yetişiyor çünkü DbContext çözülürken, yani Build sonrası okunuyor.)
+- Panelde model/ViewBag'den gelen Türkçe metin **HTML varlığına çevrilir**
+  (`hatalı` → `hatal&#x131;`); gövdeyi `ReadDecodedBodyAsync()` ile okuyun.
+- `audit_logs.details` **jsonb** — LINQ'te `.Contains()` yazmak `like_escape(jsonb, unknown)`
+  hatası verir; süzmeyi belleğe alın.
+- Hangfire işleri yalnız `KadirliApp.Api`'de kayıtlı → panel scope'unda
+  `ActivatorUtilities.CreateInstance` ile kurulur.
 - Test veritabanı yalnız `DbSeeder`'ın **lookup** verisiyle gelir (kategori, mahalle,
   mezarlık, admin). Modül kayıtları **yok** → testin kendi verisini kurması ve
   temizlemesi gerekir (`IAsyncLifetime` + benzersiz marker deseni).
@@ -426,6 +470,10 @@ cd mobile && flutter test --update-goldens test/golden   # ⚠️ CI ASLA üretm
 - Provider testlerinde sabit `Future.delayed` **flaky**; `waitUntil(condition)` kullan.
 - Tarih fixture'larında `DateTime.now().toUtc()` **yalnız geceleri** patlar →
   `AppDate.nowInTurkey`.
+- **Golden'da göreli tarih**: "3 saat önce" yazan bir kart gerçek saate bakıyorsa referans
+  görüntü **her gün** kırılır ve insan `--update-goldens`'ı refleks hâline getirir — testin
+  değeri sıfırlanır. Tarih gösteren her karta `now` enjekte edilebilmeli
+  (`EventCard`/`AnnouncementTile`/`ComplaintCard` deseni) ve golden senaryosunda sabitlenmeli.
 
 ---
 

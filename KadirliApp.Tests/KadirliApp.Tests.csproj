@@ -34,6 +34,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\KadirliApp.Api\KadirliApp.Api.csproj" />
+    <!--
+      Faz 11.15b: panel testleri. `Aliases` ŞART — Api ve Web'in ikisi de global
+      namespace'te `Program` tipi üretir; alias olmadan derleyici hangisini kastettiğimizi
+      bilemez. Panel factory'si `extern alias WebPanel;` ile bu tarafı seçer.
+    -->
+    <ProjectReference Include="..\KadirliApp.Web\KadirliApp.Web.csproj" Aliases="WebPanel" />
     <ProjectReference Include="..\KadirliApp.Application\KadirliApp.Application.csproj" />
     <ProjectReference Include="..\KadirliApp.Infrastructure\KadirliApp.Infrastructure.csproj" />
     <ProjectReference Include="..\KadirliApp.Domain\KadirliApp.Domain.csproj" />

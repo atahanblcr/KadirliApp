@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using KadirliApp.Web.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MediatR;
@@ -11,7 +12,8 @@ using System.Security.Claims;
 
 namespace KadirliApp.Web.Controllers;
 
-[Authorize(Roles = "admin,super_admin")]
+[Authorize(Roles = "admin,super_admin,moderator")]
+[PanelPermission("deaths")]
 public class DeathsAdminController : Controller
 {
     private readonly ISender _sender;

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using KadirliApp.Web.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using KadirliApp.Application.Features.PowerOutages.Queries.GetPowerOutages;
@@ -12,7 +13,8 @@ using System;
 
 namespace KadirliApp.Web.Controllers;
 
-[Authorize(Roles = "admin,super_admin")]
+[Authorize(Roles = "admin,super_admin,moderator")]
+[PanelPermission("power-outages")]
 public class PowerOutagesAdminController : Controller
 {
     private readonly ISender _sender;

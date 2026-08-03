@@ -7,7 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace KadirliApp.Web.Controllers;
 
-[Authorize(Roles = "admin,super_admin")]
+/// <summary>
+/// Faz 11.15b: Dashboard, giriş sonrası **iniş sayfası**dır — moderatöre de açıktır.
+/// Kapalı olsaydı moderatör panele girer girmez "Yetkiniz yok" ekranına düşer ve
+/// izin verilen modüllerine hiç ulaşamazdı (çıkmaz sokak). Gösterdiği şey toplu sayaç;
+/// modül içeriği değil.
+/// </summary>
+[Authorize(Roles = "admin,super_admin,moderator")]
 public class DashboardController : Controller
 {
     private readonly ISender _sender;
@@ -48,7 +54,12 @@ public class DashboardController : Controller
         return View(model);
     }
 
+    /// <summary>
+    /// ⚠️ Örnek veri basar — moderatöre KAPALI. İzin matrisinde karşılığı olmayan,
+    /// veritabanına toplu yazan tek panel aksiyonu.
+    /// </summary>
     [HttpGet]
+    [Authorize(Roles = "admin,super_admin")]
     public async Task<IActionResult> Seed()
     {
         try

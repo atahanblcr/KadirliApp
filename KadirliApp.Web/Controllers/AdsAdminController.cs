@@ -1,4 +1,5 @@
 using System;
+using KadirliApp.Web.Authorization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -12,7 +13,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace KadirliApp.Web.Controllers;
 
-[Authorize(Roles = "admin,super_admin")]
+[Authorize(Roles = "admin,super_admin,moderator")]
+[PanelPermission("ads")]
 public class AdsAdminController : Controller
 {
     private readonly ISender _sender;

@@ -47,6 +47,8 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<KadirliApp.Application.Common.Auditing.IAuditContext, KadirliApp.Web.Common.HttpAuditContext>();
+// Faz 11.15b: menüyü kullanıcının izinlerine göre süzer (scoped — istek başına tek sorgu).
+builder.Services.AddScoped<KadirliApp.Web.Common.IPanelMenuProvider, KadirliApp.Web.Common.PanelMenuProvider>();
 
 // Faz 9.2: panel login'ine IP bazlı Brute-Force koruması (AccountController POST Login'de
 // [EnableRateLimiting("panel-login")]). Limitler appsettings "RateLimiting:PanelLogin" bölümünden.
@@ -112,3 +114,9 @@ app.MapControllerRoute(
 app.MapInfrastructureHealthEndpoints();
 
 app.Run();
+
+// Faz 11.15b: paneli WebApplicationFactory ile ayağa kaldırabilmek için. Üst düzey
+// deyimlerin ürettiği Program sınıfı varsayılan olarak `internal`'dır; test projesinin
+// generic tip argümanı olarak kullanabilmesi için public'e açılıyor
+// (KadirliApp.Api/Program.cs'te de aynı satır var).
+public partial class Program { }

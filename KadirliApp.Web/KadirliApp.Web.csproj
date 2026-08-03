@@ -6,6 +6,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      Faz 11.15b: panel izin türetmesi (PanelPermissionFilter.ActionFor) `internal` —
+      panel dışından çağrılmamalı — ama davranışı birim testle kilitlenmeli.
+      KadirliApp.Application'da 11.14'te kurulan desenin aynısı.
+    -->
+    <InternalsVisibleTo Include="KadirliApp.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.Seq" Version="9.1.0" />

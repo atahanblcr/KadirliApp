@@ -1,4 +1,5 @@
 using System;
+using KadirliApp.Web.Authorization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,7 +17,8 @@ namespace KadirliApp.Web.Controllers;
 /// öncesinde bu veriler YALNIZ DbSeeder'dan geliyordu. Tüm mutasyonlar Application
 /// command'leri üzerinden (Faz 9.4 kuralı) ve ads-lookup cache'ini invalidate eder.
 /// </summary>
-[Authorize(Roles = "admin,super_admin")]
+[Authorize(Roles = "admin,super_admin,moderator")]
+[PanelPermission("ads")]
 public class AdCategoriesAdminController : Controller
 {
     private readonly ISender _sender;

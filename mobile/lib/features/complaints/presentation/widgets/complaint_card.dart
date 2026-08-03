@@ -12,9 +12,12 @@ import '../../data/models/complaint.dart';
 /// kullanıcı için renk tek başına yetmez — 11.9 `AdStatus` kararı) ve varsa
 /// yönetici notu ayrı bir kutuda öne çıkar; kullanıcının beklediği cevap odur.
 class ComplaintCard extends StatelessWidget {
-  const ComplaintCard({super.key, required this.complaint});
+  const ComplaintCard({super.key, required this.complaint, this.now});
 
   final Complaint complaint;
+
+  /// Yalnız test için: "2 saat önce" hesabının dayandığı an. Üretimde null → gerçek saat.
+  final DateTime? now;
 
   @override
   Widget build(BuildContext context) {
@@ -46,15 +49,11 @@ class ComplaintCard extends StatelessWidget {
               if (complaint.typeLabel != null)
                 Text(
                   complaint.typeLabel!,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: palette.muted,
-                  ),
+                  style: theme.textTheme.labelSmall?.copyWith(color: palette.muted),
                 ),
               Text(
-                AppDate.relative(complaint.createdAt),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: palette.muted,
-                ),
+                AppDate.relative(complaint.createdAt, now: now),
+                style: theme.textTheme.labelSmall?.copyWith(color: palette.muted),
               ),
             ],
           ),
@@ -144,23 +143,14 @@ class _StatusBadge extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .12),
-        borderRadius: AppRadius.rPill,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xxs),
+      decoration: BoxDecoration(color: color.withValues(alpha: .12), borderRadius: AppRadius.rPill),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(status.icon, size: 12, color: color),
           AppSpacing.wGapXs,
-          Text(
-            status.label,
-            style: theme.textTheme.labelSmall?.copyWith(color: color),
-          ),
+          Text(status.label, style: theme.textTheme.labelSmall?.copyWith(color: color)),
         ],
       ),
     );

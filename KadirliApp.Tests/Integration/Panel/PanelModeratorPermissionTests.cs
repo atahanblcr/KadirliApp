@@ -1,0 +1,291 @@
+extern alias WebPanel;
+
+using System.Net;
+using System.Reflection;
+using FluentAssertions;
+using KadirliApp.Domain.Entities;
+using KadirliApp.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Xunit;
+
+using PanelMenu = WebPanel::KadirliApp.Web.Common.PanelMenu;
+using PanelPermissionAttribute = WebPanel::KadirliApp.Web.Authorization.PanelPermissionAttribute;
+using PanelPermissionFilter = WebPanel::KadirliApp.Web.Authorization.PanelPermissionFilter;
+using StaffAdminController = WebPanel::KadirliApp.Web.Controllers.StaffAdminController;
+
+namespace KadirliApp.Tests.Integration.Panel;
+
+/// <summary>
+/// Faz 11.15b — **moderatörün izin matrisi panelde gerçekten geçerli mi?**
+///
+/// <para>🐛 Bu testlerin varlık sebebi gerçek bir hataydı: panel 10.9(e)'den beri
+/// "Moderatör (izin matrisine tabi)" rolüyle personel açıyor ve 16 modüllük bir izin
+/// matrisi sunuyordu, ama panelin <b>tüm</b> controller'ları
+/// <c>[Authorize(Roles = "admin,super_admin")]</c> taşıdığı için oluşturulan moderatör
+/// giriş yapabiliyor ve <b>hiçbir sayfayı açamıyordu</b> — açılışta yönlendirildiği
+/// Dashboard dâhil. Matris yalnız <c>/v1/admin/*</c> uçlarını etkiliyordu; onları da
+/// bugün hiçbir istemci çağırmıyor. Yani panel, karşılığı olmayan bir yetki dağıtıyordu
+/// ve moderatör hesabı **çıkmaz sokaktı**.</para>
+///
+/// <para>11.13'teki Android bildirim izni hatasıyla aynı sınıf: kullanıcıya bir düğme
+/// gösteriliyor, düğme hiçbir şey yapmıyor, hata da verilmiyor.</para>
+/// </summary>
+[Collection(PanelCollection.Name)]
+public class PanelModeratorPermissionTests : IAsyncLifetime
+{
+    private readonly WebPanelApplicationFactory _factory;
+    private const string Username = "moderator-test";
+    private const string Password = "Moderator123!";
+    private Guid _moderatorId;
+
+    public PanelModeratorPermissionTests(WebPanelApplicationFactory factory) => _factory = factory;
+
+    public async Task InitializeAsync()
+    {
+        var moderator = await _factory.EnsureModeratorAsync(Username, Password);
+        _moderatorId = moderator.Id;
+        // Yalnız "duyurular" modülünde okuma+güncelleme; onay ve diğer modüller kapalı.
+        await SetPermissionsAsync(new AdminPermission
+        {
+            UserId = _moderatorId, Module = "announcements",
+            CanRead = true, CanCreate = true, CanUpdate = true, CanDelete = false, CanApprove = false
+        });
+    }
+
+    public async Task DisposeAsync() => await SetPermissionsAsync();
+
+    private async Task SetPermissionsAsync(params AdminPermission[] permissions)
+    {
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            await db.Set<AdminPermission>().Where(p => p.UserId == _moderatorId).ExecuteDeleteAsync();
+            if (permissions.Length > 0) db.Set<AdminPermission>().AddRange(permissions);
+            await db.SaveChangesAsync();
+        });
+    }
+
+    private async Task<HttpClient> ModeratorClientAsync()
+    {
+        var client = _factory.CreatePanelClient();
+        await client.LoginAsync(Username, Password);
+        return client;
+    }
+
+    // ─────────────────────── Aksiyon → izin eylemi türetmesi ───────────────────────
+
+    /// <summary>
+    /// Panelde izin eylemi aksiyon adından türetiliyor (18 controller × ~8 aksiyona elle
+    /// etiket yazılsaydı biri mutlaka unutulurdu). Türetme kuralı burada kilitli.
+    /// </summary>
+    [Theory]
+    [InlineData("Index", "GET", "read")]
+    [InlineData("Calendar", "GET", "read")]
+    [InlineData("Create", "GET", "create")]
+    [InlineData("Create", "POST", "create")]
+    [InlineData("CategoryCreate", "POST", "create")]
+    [InlineData("Edit", "POST", "update")]
+    [InlineData("NeighborhoodUpdate", "POST", "update")]
+    [InlineData("Delete", "POST", "delete")]
+    [InlineData("PropertyDelete", "POST", "delete")]
+    [InlineData("Approve", "POST", "approve")]
+    [InlineData("Reject", "POST", "approve")]
+    [InlineData("Verify", "POST", "approve")]
+    [InlineData("Unverify", "POST", "approve")]
+    [InlineData("Ban", "POST", "approve")]
+    [InlineData("Unban", "POST", "approve")]
+    // ⚠️ "UpdateStatus" moderasyon kararıdır — "Update" öneki olarak eşleşirse
+    // düzenleme yetkisi olan moderatör şikayet SONUÇLANDIRABİLİR hâle gelir.
+    [InlineData("UpdateStatus", "POST", "approve")]
+    // Adı hiçbir şey söylemeyen aksiyon: yazma her zaman dar tarafa düşer.
+    [InlineData("Bilinmeyen", "POST", "update")]
+    [InlineData("Bilinmeyen", "GET", "read")]
+    public void ActionName_MapsToTheExpectedPermission(string actionName, string method, string expected)
+        => PanelPermissionFilter.ActionFor(actionName, method).Should().Be(expected);
+
+    // ─────────────────────── Yapısal denetimler ───────────────────────
+
+    /// <summary>
+    /// Moderatöre açılan her controller <c>[PanelPermission]</c> taşımalı. Rol listesine
+    /// "moderator" eklenip öznitelik unutulursa moderatör o modülde **sınırsız** yetki
+    /// kazanır — sessiz ve tehlikeli.
+    /// </summary>
+    [Fact]
+    public void EveryControllerOpenToModerators_CarriesAPermissionAttribute()
+    {
+        var leaking = typeof(WebPanel::Program).Assembly.GetTypes()
+            .Where(t => t is { IsAbstract: false, IsClass: true }
+                        && typeof(Controller).IsAssignableFrom(t)
+                        && t.Name.EndsWith("Controller", StringComparison.Ordinal))
+            .Where(t => t.GetCustomAttribute<AuthorizeAttribute>()?.Roles?.Contains("moderator") == true)
+            .Where(t => t.Name != "DashboardController")   // iniş sayfası — bilinçli olarak matris dışı
+            .Where(t => t.Name != "AccountController")     // şifre değiştirme/çıkış herkese açık
+            .Where(t => t.GetCustomAttribute<PanelPermissionAttribute>() is null)
+            .Select(t => t.Name)
+            .ToList();
+
+        leaking.Should().BeEmpty(
+            "moderatöre açık ama [PanelPermission] taşımayan controller'lar: {0}",
+            string.Join(", ", leaking));
+    }
+
+    /// <summary>
+    /// Menüdeki modül anahtarları, personel ekranındaki izin matrisiyle birebir aynı
+    /// olmalı. Ayrışırlarsa yönetici matriste işaretlediği modülü menüde göremez
+    /// (ya da tersi) ve sebebini hiçbir yerde bulamaz.
+    /// </summary>
+    [Fact]
+    public void MenuModules_MatchThePermissionMatrixModules()
+    {
+        var menuModules = PanelMenu.Items
+            .Where(i => i.RequiresPermission)
+            .Select(i => i.Module!)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var matrixModules = StaffAdminController.Modules.Select(m => m.Key).ToHashSet(StringComparer.Ordinal);
+
+        menuModules.Except(matrixModules).Should().BeEmpty(
+            "menüde olup izin matrisinde olmayan modül — yöneticiye asla yetki veremezsiniz");
+        matrixModules.Except(menuModules).Should().BeEmpty(
+            "izin matrisinde olup menüde olmayan modül — verilen yetkinin panelde karşılığı yok");
+    }
+
+    // ─────────────────────── Davranış (uçtan uca) ───────────────────────
+
+    /// <summary>
+    /// 🔑 Hatanın kendisi: moderatör panele girebiliyor ama iniş sayfası kapalıydı.
+    /// Bu test kırmızıya dönerse moderatör hesabı yeniden çıkmaz sokağa düşmüş demektir.
+    /// </summary>
+    [Fact]
+    public async Task Moderator_CanReachTheLandingPage()
+    {
+        var client = await ModeratorClientAsync();
+
+        var response = await client.GetAsync("/Dashboard/Index");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            "moderatör giriş yaptıktan sonra bir yere varabilmeli — aksi hâlde hesap işlevsizdir");
+    }
+
+    [Fact]
+    public async Task Moderator_CanOpenAPermittedModule()
+    {
+        var client = await ModeratorClientAsync();
+
+        var response = await client.GetAsync("/AnnouncementsAdmin/Index");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "izin verilen modül açılmalı");
+    }
+
+    [Fact]
+    public async Task Moderator_CannotOpenAModuleWithoutPermission()
+    {
+        var client = await ModeratorClientAsync();
+
+        var response = await client.GetAsync("/UsersAdmin/Index");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect, "yetkisiz sayfa engellenmeli");
+        response.Headers.Location!.ToString().Should().Contain("/account/denied",
+            "yetkisiz erişim açıklayıcı sayfaya gitmeli, boş 403'e değil");
+    }
+
+    /// <summary>
+    /// Okuma izni verilen modülde bile **onaylama** ayrı bir yetkidir: moderasyon kararı
+    /// içeriği yayına alır, düzenlemekten farklı bir güven gerektirir.
+    /// </summary>
+    [Fact]
+    public async Task Moderator_WithoutApprovePermission_CannotModerate()
+    {
+        var client = await ModeratorClientAsync();
+
+        var response = await client.PostFormAsync("/AnnouncementsAdmin/Delete",
+            new Dictionary<string, string> { ["id"] = Guid.NewGuid().ToString() },
+            // Token, moderatörün açabildiği bir formdan alınır: liste sayfasında hiç
+            // duyuru yoksa silme formu da basılmaz, dolayısıyla token da bulunmaz.
+            tokenFromPath: "/AnnouncementsAdmin/Create");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.Location!.ToString().Should().Contain("/account/denied",
+            "silme izni olmayan moderatör silme aksiyonuna ulaşmamalı");
+    }
+
+    /// <summary>Personel yönetimi matrisin dışında: izin dağıtan ekran moderatöre kapalı.</summary>
+    [Fact]
+    public async Task Moderator_CannotReachStaffManagement()
+    {
+        var client = await ModeratorClientAsync();
+
+        var response = await client.GetAsync("/StaffAdmin/Index");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.Location!.ToString().Should().Contain("/account/denied",
+            "moderatör kendi izinlerini yazabilecek ekrana ulaşmamalı");
+    }
+
+    /// <summary>⚠️ Örnek veri basan aksiyon moderatöre kapalı kalmalı.</summary>
+    [Fact]
+    public async Task Moderator_CannotSeedMockData()
+    {
+        var client = await ModeratorClientAsync();
+
+        var response = await client.GetAsync("/Dashboard/Seed");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.Location!.ToString().Should().Contain("/account/denied");
+    }
+
+    /// <summary>
+    /// Menü, ulaşılamayacak bağlantı göstermemeli. Aksi hâlde moderatör 17 satır görür,
+    /// bir tanesi çalışır — mobildeki "işlevsiz buton yok" kuralının panel karşılığı.
+    /// </summary>
+    [Fact]
+    public async Task ModeratorMenu_ShowsOnlyReachableModules()
+    {
+        var client = await ModeratorClientAsync();
+        var html = await (await client.GetAsync("/Dashboard/Index")).ReadDecodedBodyAsync();
+
+        html.Should().Contain("Duyurular", "izin verilen modül menüde olmalı");
+        html.Should().NotContain("Kullanıcılar", "izin verilmeyen modül menüde çizilmemeli");
+        html.Should().NotContain("Personel", "personel yönetimi moderatöre hiç gösterilmemeli");
+        html.Should().Contain("Dashboard", "iniş sayfası her zaman görünür");
+    }
+
+    /// <summary>
+    /// 🐛 Canlı testte yakalandı: Dashboard moderatöre açılınca **"Paneli Test Verileriyle
+    /// Doldur"** butonu da görünür oldu, ama o aksiyon admin'e kilitli — moderatör tıklayıp
+    /// "Yetkiniz yok" sayfasına düşüyordu. Mobildeki "işlevsiz buton yok" kuralının
+    /// panel karşılığı: gösterilen her düğme çalışmalı.
+    /// </summary>
+    [Fact]
+    public async Task ModeratorDashboard_HidesActionsItCannotPerform()
+    {
+        var client = await ModeratorClientAsync();
+        var html = await (await client.GetAsync("/Dashboard/Index")).ReadDecodedBodyAsync();
+
+        html.Should().NotContain("/Dashboard/Seed",
+            "moderatöre ulaşamayacağı bir düğme gösterilmemeli");
+        html.Should().Contain("Sistem Durumu", "sayfanın kendisi yine açılmalı");
+    }
+
+    [Fact]
+    public async Task SuperAdminDashboard_KeepsTheSeedAction()
+    {
+        var client = await _factory.SuperAdminAsync();
+        var html = await (await client.GetAsync("/Dashboard/Index")).ReadDecodedBodyAsync();
+
+        html.Should().Contain("/Dashboard/Seed", "admin için düğme kaybolmamalı");
+    }
+
+    [Fact]
+    public async Task SuperAdminMenu_ShowsEveryModule()
+    {
+        var client = await _factory.SuperAdminAsync();
+        var html = await (await client.GetAsync("/Dashboard/Index")).ReadDecodedBodyAsync();
+
+        foreach (var item in PanelMenu.Items)
+            html.Should().Contain(item.Label, "süper admin {0} modülünü menüde görmeli", item.Label);
+    }
+}

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using KadirliApp.Web.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +19,8 @@ namespace KadirliApp.Web.Controllers;
 /// telefon/adres bilgilerini tutan kent rehberi. Ana ekran REHBER KAYITLARINI yönetir;
 /// kategoriler (Sağlık, Resmi Kurumlar vb.) ayrı "Kategoriler" ekranından yönetilir.
 /// </summary>
-[Authorize(Roles = "admin,super_admin")]
+[Authorize(Roles = "admin,super_admin,moderator")]
+[PanelPermission("guide")]
 public class GuideAdminController : Controller
 {
     private readonly ISender _sender;

@@ -1,4 +1,5 @@
 using System;
+using KadirliApp.Web.Authorization;
 using System.Linq;
 using System.Threading.Tasks;
 using KadirliApp.Application.Common.Interfaces;
@@ -15,7 +16,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KadirliApp.Web.Controllers;
 
-[Authorize(Roles = "admin,super_admin")]
+[Authorize(Roles = "admin,super_admin,moderator")]
+[PanelPermission("places")]
 public class PlacesAdminController : Controller
 {
     private readonly ISender _sender;

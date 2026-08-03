@@ -1,4 +1,5 @@
 using System;
+using KadirliApp.Web.Authorization;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using KadirliApp.Application.Features.Complaints.Commands;
@@ -9,7 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace KadirliApp.Web.Controllers;
 
-[Authorize(Roles = "admin,super_admin")]
+[Authorize(Roles = "admin,super_admin,moderator")]
+[PanelPermission("complaints")]
 public class ComplaintsAdminController : Controller
 {
     private readonly ISender _sender;

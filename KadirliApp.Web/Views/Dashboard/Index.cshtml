@@ -5,9 +5,15 @@
 
 <div class="mb-4 flex justify-between items-center">
     <h2 class="text-2xl font-bold text-gray-800">Sistem Durumu</h2>
-    <a href="/Dashboard/Seed" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors">
-        <i class="fas fa-database mr-2"></i> Paneli Test Verileriyle Doldur
-    </a>
+    @* Faz 11.15b: Dashboard artık moderatöre de açık, ama örnek veri basma aksiyonu
+       yalnız admin'e. Buton herkese çizilseydi moderatör tıklar ve "Yetkiniz yok"
+       sayfasına düşerdi — panelde işlevsiz buton bırakmıyoruz. *@
+    @if (User.IsInRole("admin") || User.IsInRole("super_admin"))
+    {
+        <a href="/Dashboard/Seed" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors">
+            <i class="fas fa-database mr-2"></i> Paneli Test Verileriyle Doldur
+        </a>
+    }
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">

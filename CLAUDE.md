@@ -4,9 +4,9 @@
 ilanlar, vefat, etkinlik, kampanya, taksi, ulaşım, elektrik kesintisi, şehir rehberi,
 mekanlar, şikayet/istek. Üç parça: **.NET 8 API** + **Razor admin paneli** + **Flutter mobil**.
 
-**Durum:** Backend ve panel bitti (Faz 0–10). Mobil 11.15'e kadar bitti — 12 modülün
-tamamı gerçek, push canlı, golden + erişilebilirlik testleri ayakta. Sırada backend
-emniyet ağı 2. tur (11.15b) ve yayın (11.16).
+**Durum:** Backend ve panel bitti (Faz 0–10). Mobil 11.15b'ye kadar bitti — 12 modülün
+tamamı gerçek, push canlı, golden + erişilebilirlik testleri ayakta, panel/önbellek/moderasyon
+emniyet ağı kuruldu (327 backend + 669 mobil test). **Sırada yalnız yayın (11.16).**
 
 ## Çalıştır
 
@@ -56,7 +56,9 @@ davranır. Hepsi `InvisibleContractsTests.cs` ile kilitli.
 3. **Public uç yalnız yayınlanmış içerik döndürür**: onaylı + aktif + silinmemiş + süresi
    geçmemiş. Filtreyi controller'da zorla, DTO'dan gelene güvenme.
 4. **Panel uçları** `AdminApiControllerBase`'den türer ve `[RequirePermission(modül, eylem)]`
-   taşır. (Yapısal test bunu denetliyor.)
+   taşır. (Yapısal test bunu denetliyor.) **Razor panelinde** karşılığı
+   `[Authorize(Roles = "admin,super_admin,moderator")]` + `[PanelPermission("<modül>")]` +
+   `PanelMenu.Items` satırıdır — üçü aynı modül anahtarını kullanır.
 5. **"İşlevsiz buton yok"** — mobilde her buton bir uca ya da bir ekrana gider.
    Modül kaydı tek yerde: `mobile/lib/core/navigation/app_modules.dart`.
 6. **Arayüz Türkçe**, kod ve kimlikler İngilizce. Kullanıcıya teknik/İngilizce hata
