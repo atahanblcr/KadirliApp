@@ -48,9 +48,8 @@ public class GetDeathNoticesQueryHandler : IRequestHandler<GetDeathNoticesQuery,
         // DeathNotice → File navigation'ı yok (FK kısıtı da yok); URL correlated subquery ile çekiliyor.
         var files = _uow.Repository<Domain.Entities.File>().Query();
 
-        var items = await query
-            .OrderByDescending(x => x.FuneralDate)
-            .ThenByDescending(x => x.CreatedAt)
+        // Faz 11.18: panel sütun sıralaması (boş Sort → eski davranışın birebir aynısı).
+        var items = await Common.Sorting.PanelSorts.Deaths.Apply(query, dto.Sort)
             .Skip((page - 1) * limit)
             .Take(limit)
             .Select(x => new DeathNoticeResponseDto(

@@ -73,6 +73,11 @@
 | Silme/onay gibi geri alınamaz aksiyonlarda onay **neyi sildiğini yazıyor mu**? | `onsubmit="return confirm(...)"` **yazılmaz** → `data-confirm="…"` özniteliği (dinleyici `_Layout`'ta tek yerde). Kaydın adını yaz. ⚠️ Adı inline JS dizesine gömmek kırılgandır: Razor öznitelikleri HTML-encode ettiği için tırnaklı bir başlık (`Ali'nin arabası`) dizeyi bozar; öznitelikte taşınırsa bu sorun yok. | 11.15c |
 | Dar ekranda (< 1024px) bu sayfaya ulaşmanın bir yolu var mı? | Panelin kenar çubuğu `hidden lg:flex`; dar ekranda menü tamamen kayboluyor — yeni ekran eklerken bu boşluğu büyütme. | Active_Context.md |
 | Varsayılan admin şifresi / hassas bilgi `IsDevelopment()` koşulu **olmadan** ekrana basılıyor mu? | Login sayfasındaki satır 11.15c'de koşula bağlandı (`@inject IWebHostEnvironment Env`); yeni debug/yardım metni eklerken tekrarlama. | 11.15c |
+| ⚠️ **TEKRARLAYAN** Yeni **toplu işlem** aksiyonunun adı `…Selected` ile mi bitiyor? | İzin eylemi aksiyon adının **önekinden** türetilir (§7 madde 19). `BulkApprove` hiçbir moderasyon önekiyle eşleşmez ve sessizce **`update`**'e düşer — yalnız düzenleme yetkisi olan moderatör toplu ONAY yapabilir hâle gelir. Bu, 11.15b'nin "karşılığı olmayan yetki" hatasının üçüncü biçimi. | ARCHITECTURE.md §7 madde 29, `PanelBulkActionTests` |
+| Toplu işlem, modülün **tek-kayıt komutunu** mu çağırıyor? | Toplu SQL `UPDATE` yazılırsa denetim izi (komut başına düşer), önbellek geçersizleştirmesi ve iş kuralları (ör. onayın süresi dolmuş ilana taze pencere vermesi, §7 madde 25) **hiç çalışmaz**: panel "42 ilan onaylandı" der, mobil hiçbirini göstermez. Kayıt başına hata partiyi durdurmamalı, sayılıp mesajda söylenmeli. | ARCHITECTURE.md §7 madde 29, `PanelBulkActionTests` |
+| Yeni **sıralama anahtarı** benzersiz bir ayraçla (`ThenBy(Id)`) bitiyor mu? | Eşit değerli satırlarda Postgres sırayı garanti etmez → sayfalı listede aynı kayıt iki sayfada görünüp bir başkası hiç görünmez (**sessiz veri kaybı**). "Bir ikincil anahtar koymak" yetmez, ayracın benzersiz olması gerekir. Varsayılan anahtar da modülün **eski sırasıyla birebir aynı** kalmalı — değişirse mobil liste sessizce ters döner. | ARCHITECTURE.md §7 madde 30, `PanelSortingTests` |
+| Yeni parola girişi/denetimi `PanelPasswordPolicy`'den mi geçiyor? | Kural 11.18 öncesi **üç ayrı handler'da** elle `Length < 6` olarak kopyalanmıştı; politikayı sıkılaştıran biri birini atlarsa o kapıdan zayıf parola girmeye devam eder. Parolayı **sahibi değil yönetici** belirlediyse (`CreateStaff`, `ResetStaffPassword`, seed) `MustChangePassword` işaretlenmeli. | `PanelPasswordSecurityTests` |
+| Yetki-hassas bir alan (rol, aktiflik, ban, parola) değiştiren yeni bir yol açtın mı? | Açık oturumlar `OnValidatePrincipal` (`PanelPrincipalValidator`) ile her istekte DB'den tazeleniyor; yeni alan oraya da yansımalı. ⚠️ Parola damgası karşılaştırması **saniyeye yuvarlanır** — çerezin `IssuedUtc`'si RFC1123 ile saklandığı için saniye altını taşımaz; ham karşılaştırma, parolasını değiştiren kişiyi kendi oturumundan atar. | `PanelPasswordSecurityTests` |
 | Dar ekranda menü hâlâ açılıyor mu? | Kenar çubuğu `hidden lg:flex`; dar ekranın tek gezinme yolu üstteki `<details>` menüsü. 11.15c öncesinde o buton **bir kabuktu** (`id`/`onclick`/JS yoktu) ve <1024 px'de panelde hiç menü yoktu. | `PanelUsabilityTests` |
 
 ---
@@ -175,7 +180,10 @@ Test kırıldığında yapılacak şey testi gevşetmek değil, **checklist'i g�
    satırı silme — bileşenin adını yazarak bırak; yeni gelen "neden böyle" sorusunun
    cevabı burada.
 
-Son gözden geçirme: **4 Ağustos 2026 (Faz 11.17)** — panelin dört yeni ekranı bu listeyle
+Son gözden geçirme: **4 Ağustos 2026 (Faz 11.18)** — §4'e beş satır daha eklendi (toplu
+işlem ad kuralı ↔ izin türetmesi, toplu işlemin tek-kayıt komutunu çağırması, sıralama
+ayracının benzersizliği, parola politikasının tek sahibi, oturum tazeleme).
+Önceki: **4 Ağustos 2026 (Faz 11.17)** — panelin dört yeni ekranı bu listeyle
 yazıldı; §4'e dört satır eklendi (yalnız-admin ekran deseni, panel↔istemci zaman tanımı
 paritesi, `IgnoreQueryFilters` + geri getirmenin `status`'e dokunmaması, denetim eylemi sözlüğü).
 

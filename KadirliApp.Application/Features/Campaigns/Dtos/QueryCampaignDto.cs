@@ -16,4 +16,11 @@ public class QueryCampaignDto
 
     /// <summary>true ise yalnızca tarih aralığı geçerli (aktif) kampanyalar döner.</summary>
     public bool OnlyActive { get; set; }
+
+    /// <summary>
+    /// Faz 11.18 — panel sütun sıralaması. **Additive** alan (ARCHITECTURE.md §5): boş
+    /// geldiğinde 11.18 öncesindeki varsayılan sıra birebir korunur, bilinmeyen anahtar
+    /// varsayılana düşer (istemci hatası listeyi bozmaz).
+    /// </summary>
+    public string? Sort { get; set; }
 }

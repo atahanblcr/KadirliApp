@@ -1,6 +1,7 @@
 using KadirliApp.Application.Common.Auditing;
 using KadirliApp.Application.Common.Exceptions;
 using KadirliApp.Application.Common.Interfaces;
+using KadirliApp.Application.Common.Security;
 using KadirliApp.Domain.Entities;
 using KadirliApp.Domain.Enums;
 using MediatR;
@@ -34,8 +35,6 @@ public sealed class ChangeMyPasswordCommandHandler : IRequestHandler<ChangeMyPas
 
     public async Task<bool> Handle(ChangeMyPasswordCommand request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
-            throw new AppException("Yeni şifre en az 6 karakter olmalıdır.", "VALIDATION_ERROR");
         if (request.NewPassword == request.CurrentPassword)
             throw new AppException("Yeni şifre mevcut şifreyle aynı olamaz.", "VALIDATION_ERROR");
 
@@ -46,10 +45,19 @@ public sealed class ChangeMyPasswordCommandHandler : IRequestHandler<ChangeMyPas
         if (user.Password == null || user.Role == UserRole.User)
             throw new AppException("Bu hesabın panel şifresi bulunmuyor.", "VALIDATION_ERROR");
 
+        // Faz 11.18: politika artık tek sahipten geliyor (elle "< 6" denetimi kaldırıldı).
+        // Kullanıcı adı/telefon burada veriliyor ki "parola kullanıcı adıyla aynı" da elensin.
+        PanelPasswordPolicy.Enforce(request.NewPassword, user.Username, user.Phone);
+
         if (!_hasher.VerifyPassword(request.CurrentPassword, user.Password))
             throw new AppException("Mevcut şifreniz hatalı.", "INVALID_PASSWORD");
 
         user.Password = _hasher.HashPassword(request.NewPassword);
+        // Faz 11.18: kendi seçtiği parola → zorunlu değişim borcu kapandı.
+        user.MustChangePassword = false;
+        // ⚠️ Bu damga OnValidatePrincipal'ın oturum düşürme ölçütü: parola değişimi,
+        // bu andan ÖNCE düzenlenmiş bütün çerezleri geçersiz kılar.
+        user.PasswordChangedAt = DateTime.UtcNow;
         repo.Update(user);
         await _uow.SaveChangesAsync(ct);
         return true;

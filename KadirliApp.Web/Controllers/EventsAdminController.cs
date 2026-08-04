@@ -185,4 +185,36 @@ public class EventsAdminController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+
+    // Faz 11.18 — toplu işlem. ⚠️ Ad "…Selected" ile bitmeli, "Bulk…" ile başlamamalı:
+    // izin eylemi aksiyon adının önekinden türetilir (görünmez sözleşme #19).
+    [HttpPost]
+    public async Task<IActionResult> ApproveSelected(Guid[] ids, [FromQuery] string? returnUrl)
+    {
+        var adminId = GetAdminId();
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(new ApproveEventCommand(id, adminId)));
+        outcome.Report(TempData, "etkinlik", "onaylandı");
+        return BackToList(returnUrl);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RejectSelected(Guid[] ids, [FromQuery] string? returnUrl)
+    {
+        var adminId = GetAdminId();
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(new RejectEventCommand(id, adminId)));
+        outcome.Report(TempData, "etkinlik", "reddedildi");
+        return BackToList(returnUrl);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> DeleteSelected(Guid[] ids, [FromQuery] string? returnUrl)
+    {
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(new DeleteEventCommand(id)));
+        outcome.Report(TempData, "etkinlik", "silindi");
+        return BackToList(returnUrl);
+    }
+
+    /// <summary>Toplu işlemden sonra filtrelenmiş listeye geri döner (süzgeç kaybolmasın).</summary>
+    private IActionResult BackToList(string? returnUrl) =>
+        Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl!) : RedirectToAction(nameof(Index));
 }

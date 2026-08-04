@@ -1,0 +1,14 @@
+@*
+    Faz 11.18 — tablo başlığındaki "tümünü seç" kutusu.
+    Davranışı _Layout'taki TEK dinleyici yürütür (11.15c'nin data-confirm dersi:
+    her listeye kendi satır içi JS'ini yazmak, 21 kopya demekti).
+
+    ⚠️ Yalnız SAYFADAKİ satırları seçer, "tüm sonuçları" değil. Sayfalı bir listede
+    "tümünü seç" ifadesi, görülmeyen kayıtları da kapsıyormuş gibi okunur; kutunun
+    yanındaki başlık bu yüzden yok — anlam satır sayacından okunuyor.
+*@
+<th scope="col" class="px-4 py-3 w-10">
+    <input type="checkbox" data-bulk-select-all
+           aria-label="Bu sayfadaki tüm satırları seç"
+           class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+</th>

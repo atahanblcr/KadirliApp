@@ -1,0 +1,13 @@
+@model KadirliApp.Web.Models.BulkRowViewModel
+@*
+    Faz 11.18 — satır seçim kutusu.
+
+    Alan adı `ids`: controller aksiyonları `Guid[] ids` bağlar.
+    `form` özniteliği kutuyu, tablonun DIŞINDAKİ hedef forma bağlar — satırlardaki
+    tek-kayıt formlarıyla iç içe geçmemek için (bkz. _BulkToolbar açıklaması).
+*@
+<td class="px-4 py-4 w-10">
+    <input type="checkbox" name="ids" value="@Model.Id" form="@Model.FormId" data-bulk-row
+           aria-label="Bu satırı seç"
+           class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+</td>

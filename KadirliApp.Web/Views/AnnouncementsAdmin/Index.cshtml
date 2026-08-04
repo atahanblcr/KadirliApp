@@ -5,6 +5,13 @@
     // Faz 10.10-A: duyuru başına görüntülenme/tıklama/tekil-erişim (mobil view/click uçlarından beslenir)
     var stats = ViewBag.Stats as Dictionary<Guid, AnnouncementAdminStatsDto>
                 ?? new Dictionary<Guid, AnnouncementAdminStatsDto>();
+
+    // Faz 11.18 — toplu işlem çubuğu ve satır kutuları tek yerden kurulur.
+    var bulkController = "AnnouncementsAdmin";
+    var bulkToolbar = KadirliApp.Web.Models.BulkToolbarViewModel.DeleteOnly("AnnouncementsAdmin", "duyuru");
+
+    // Faz 11.18 — tıklanabilir sütun başlıkları etkin sıralamayı buradan okur.
+    var currentSort = Context.Request.Query["sort"].ToString();
 }
 
 <div class="mb-6 flex justify-between items-center">
@@ -19,12 +26,15 @@
     </div>
 </div>
 
-<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm" data-bulk-scope>
+    @* Faz 11.18: toplu işlem — satır seçimi + toplu eylem. *@
+    <partial name="_BulkToolbar" model="bulkToolbar" />
     <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-gray-500">
             <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
                 <tr>
-                    <th scope="col" class="px-6 py-3 font-medium">Duyuru</th>
+                    <partial name="_BulkSelectAll" />
+                    <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Duyuru", "title_asc", "title_desc", currentSort)' />
                     <th scope="col" class="px-6 py-3 font-medium">Tür</th>
                     <th scope="col" class="px-6 py-3 font-medium">Hedef</th>
                     <th scope="col" class="px-6 py-3 font-medium">Yayın</th>
@@ -40,6 +50,7 @@
                     foreach (var item in Model.Items)
                     {
                         <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                            <partial name="_BulkRowCheckbox" model="KadirliApp.Web.Models.BulkRowViewModel.For(bulkController, item.Id)" />
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-3">
                                     @if (!string.IsNullOrEmpty(item.ImageUrl))
@@ -137,7 +148,7 @@
                 else
                 {
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
                                 <p>Kayıt bulunamadı.</p>

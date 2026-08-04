@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using KadirliApp.Application.Common.Auditing;
 using KadirliApp.Application.Common.Exceptions;
 using KadirliApp.Application.Common.Interfaces;
+using KadirliApp.Application.Common.Security;
 using KadirliApp.Application.Features.Staff.DTOs;
 using KadirliApp.Domain.Entities;
 using MediatR;
@@ -45,8 +46,8 @@ public class CreateStaffCommandHandler : IRequestHandler<CreateStaffCommand, Gui
     {
         if (string.IsNullOrWhiteSpace(request.Phone))
             throw new AppException("Telefon numarası zorunludur.", "VALIDATION_ERROR");
-        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
-            throw new AppException("Şifre en az 6 karakter olmalıdır.", "VALIDATION_ERROR");
+        // Faz 11.18: politika tek sahipten (elle "< 6" denetimi kaldırıldı).
+        PanelPasswordPolicy.Enforce(request.Password, request.Username, request.Phone);
 
         var role = StaffRole.Parse(request.Role);
         var phone = request.Phone.Trim();
@@ -69,6 +70,10 @@ public class CreateStaffCommandHandler : IRequestHandler<CreateStaffCommand, Gui
             Password = _hasher.HashPassword(request.Password),
             Role = role,
             IsActive = request.IsActive,
+            // Faz 11.18: parolayı personelin kendisi değil YÖNETİCİ belirledi — yönetici
+            // onu bir yere yazmış/iletmiş olabilir. Personel kendi parolasını seçene kadar
+            // panelde hiçbir sayfa açılmaz.
+            MustChangePassword = true,
             AdminPermissions = request.Permissions.Select(p => new AdminPermission
             {
                 Module = p.Module,

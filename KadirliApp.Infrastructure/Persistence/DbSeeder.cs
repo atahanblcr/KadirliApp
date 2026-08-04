@@ -34,8 +34,32 @@ public static class DbSeeder
                 Email = "admin@kadirli.app",
                 Password = hasher.HashPassword(AdminPassword),
                 Role = UserRole.SuperAdmin,
-                IsActive = true
+                IsActive = true,
+                // 🔑 Faz 11.18: varsayılan parola KAYNAKTA yazılı ve herkese açık bir depoda
+                // duruyor. 11.15c giriş ekranındaki sızıntıyı kapattı ama parolanın kendisi
+                // zayıf kalmıştı. Bu bayrak sayesinde varsayılan parola artık yalnızca
+                // "parolanı değiştir" ekranını açan bir anahtar — panelde başka hiçbir
+                // kapıyı açmıyor. Bayrağı `ChangeMyPasswordCommand` temizler.
+                MustChangePassword = true
             });
+        }
+        else
+        {
+            // 🔑 Faz 11.18 — **zaten kurulmuş** sistemlerin boşluğu. Yukarıdaki blok yalnız
+            // hiç super_admin yokken çalışır; bugüne kadar kurulmuş her panelde admin
+            // varsayılan parolayla yaşamaya devam ederdi ve bayrağı hiç almazdı.
+            //
+            // ⚠️ Ölçüt "super_admin'dir" DEĞİL, **"hâlâ varsayılan parolayı kullanıyor"**:
+            // parolasını çoktan güçlü bir şeyle değiştirmiş bir yöneticiyi her açılışta
+            // parola ekranına düşürmek, kapatmaya çalıştığımız riski kapatmadan yalnızca
+            // gürültü üretirdi. Doğrulama hash üzerinden yapılır — parola karşılaştırması
+            // düz metinle yapılmaz.
+            var admins = await db.Users
+                .Where(u => u.Role == UserRole.SuperAdmin && !u.MustChangePassword && u.Password != null)
+                .ToListAsync();
+
+            foreach (var admin in admins.Where(a => hasher.VerifyPassword(AdminPassword, a.Password!)))
+                admin.MustChangePassword = true;
         }
 
         if (!await db.Neighborhoods.AnyAsync())

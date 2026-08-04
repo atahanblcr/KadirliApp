@@ -160,4 +160,32 @@ public class DeathsAdminController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+
+    // Faz 11.18 — toplu işlem. ⚠️ Ad "…Selected" ile bitmeli (görünmez sözleşme #19).
+    [HttpPost]
+    public async Task<IActionResult> ApproveSelected(System.Guid[] ids, [FromQuery] string? returnUrl)
+    {
+        var adminId = CurrentAdminId();
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(
+            new KadirliApp.Application.Features.Deaths.Commands.ApproveDeathNoticeCommand(id, adminId)));
+        outcome.Report(TempData, "vefat kaydı", "onaylandı");
+        return BackToList(returnUrl);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> DeleteSelected(System.Guid[] ids, [FromQuery] string? returnUrl)
+    {
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(
+            new KadirliApp.Application.Features.Deaths.Commands.DeleteDeathNoticeCommand(id)));
+        outcome.Report(TempData, "vefat kaydı", "silindi");
+        return BackToList(returnUrl);
+    }
+
+    private System.Guid CurrentAdminId() =>
+        System.Guid.TryParse(User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier), out var id)
+            ? id : System.Guid.Empty;
+
+    /// <summary>Toplu işlemden sonra filtrelenmiş listeye geri döner (süzgeç kaybolmasın).</summary>
+    private IActionResult BackToList(string? returnUrl) =>
+        Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl!) : RedirectToAction(nameof(Index));
 }

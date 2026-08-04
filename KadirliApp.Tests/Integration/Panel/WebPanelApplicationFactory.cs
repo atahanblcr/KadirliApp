@@ -72,7 +72,19 @@ public class WebPanelApplicationFactory : WebApplicationFactory<WebPanel::Progra
         await _loginLock.WaitAsync();
         try
         {
-            return _superAdmin ??= await this.LoginAsSuperAdminAsync();
+            if (_superAdmin is not null) return _superAdmin;
+
+            // 🔑 Faz 11.18: seed'lenen süper admin artık `MustChangePassword = true` ile doğuyor
+            // (varsayılan parola kaynakta yazılı olduğu için). O bayrak açıkken panelin HİÇBİR
+            // sayfası açılmaz — paylaşılan oturum bayrağı burada temizler.
+            //
+            // ⚠️ Bu, davranışı test kapsamı dışına çıkarmaz: zorunlu değişim akışının kendisi
+            // `PanelPasswordSecurityTests`te, bayrağı bilerek AÇARAK denenir. Buradaki temizlik
+            // yalnızca "ilk giriş" ile hiç ilgisi olmayan 400+ testin, her istekte parola
+            // ekranına yönlendirilmemesi içindir.
+            await this.ClearMustChangePasswordAsync(KadirliApp.Infrastructure.Persistence.DbSeeder.AdminUsername);
+
+            return _superAdmin = await this.LoginAsSuperAdminAsync();
         }
         finally
         {

@@ -3,7 +3,7 @@
 > **Amaç:** Flutter mobil istemcisinin tek referansı. Zarf şeması, hata kodları, auth akışı, sayfalama, tarih/görsel kuralları ve public uç envanteri.
 > **Makine-okur şema:** `docs/openapi.json` (OpenAPI 3.0; `openapi_generator`/`dio` ile kod üretimi için). Bu doküman insan rehberi, openapi.json kesin şema — **çeliştiğinde openapi.json + mevcut kod kazanır.**
 > Son güncelleme: 4 Ağustos 2026 (Faz 11.17). Kapsam: 10.1–10.12'nin public yüzeyi + mobil fazlarının
-> additive eklemeleri (11.10 `?sort=date_asc` · 11.11 `/v1/places/categories` · 11.15c bildirimlerde
+> additive eklemeleri (11.10 `?sort=date_asc` · **11.18 `?sort=` duyuru/vefat/kampanya uçlarında ve etkinlikte yeni anahtarlar — hepsi isteğe bağlı, verilmezse eski sıra birebir korunur** · 11.11 `/v1/places/categories` · 11.15c bildirimlerde
 > "hedefi yaşayan" süzgeci ve `/v1/ads`'in public'te yok sayılan `?status=` parametresi ·
 > **11.17 `schedules[].isActive`**). 11.17 **yeni public uç eklemedi** (denetim izi ve çöp kutusu
 > yalnız paneldedir); uç sayısı **136**'da kaldı, `docs/openapi.json` bu oturumda yenilendi.
@@ -204,18 +204,18 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
   süzgeçten **muaf** kalır (silinmez, ama ölü bağlantı olabilir).
 
 ### Duyurular / Kesintiler
-- `GET /v1/announcements` (sayfalı, `?typeId=`), `GET /v1/announcements/types`, `GET /v1/announcements/{id}` (⚠️ 200+success:false quirk)
+- `GET /v1/announcements` (sayfalı, `?typeId=`, **`?sort=created_desc|created_asc|title_asc|title_desc`** — 11.18, varsayılan `created_desc`, bilinmeyen değer varsayılana düşer), `GET /v1/announcements/types`, `GET /v1/announcements/{id}` (⚠️ 200+success:false quirk)
 - `POST /v1/announcements/{id}/view`, `/click` — anonim (sayaç)
 - `GET /v1/power-outages`, `GET /v1/power-outages/{id}`
 
 ### Etkinlik / Kampanya / İşletme
-- `GET /v1/events` (sayfalı; `?search=` başlık+mekan, `?categoryId=`, `?startDate=`/`?endDate=` (`yyyy-MM-dd`, gün dahil), `?isFree=`, **`?sort=date_asc|date_desc`** — varsayılan `date_desc`, bilinmeyen değer varsayılana düşer). ⚠️ **Yalnız `approved` döner** (`status` parametresi public uçta yok sayılır); `eventDate` "TR günü 00:00 UTC", `eventTime` ayrı `"HH:mm:ss"` alanı → **saat dilimi kaydırılmaz**.
+- `GET /v1/events` (sayfalı; `?search=` başlık+mekan, `?categoryId=`, `?startDate=`/`?endDate=` (`yyyy-MM-dd`, gün dahil), `?isFree=`, **`?sort=date_asc|date_desc|title_asc|title_desc`** — varsayılan `date_desc`, bilinmeyen değer varsayılana düşer; `title_*` Faz 11.18'de panel sütun sıralaması için eklendi). ⚠️ **Yalnız `approved` döner** (`status` parametresi public uçta yok sayılır); `eventDate` "TR günü 00:00 UTC", `eventTime` ayrı `"HH:mm:ss"` alanı → **saat dilimi kaydırılmaz**.
 - `GET /v1/events/{id}`, `/events/categories` (sayfasız `{id,name,slug}` listesi), `/events/calendar?year=&month=` (sayfasız, o ayın onaylı etkinlikleri — ince DTO)
-- `GET /v1/campaigns` (sayfalı; `?search=` kampanya başlığı + işletme adı). ⚠️ Public uç **yalnız onaylı VE tarihi geçerli** kampanyaları döner (`OnlyActive` sabit) → süresi dolan kampanya listede de detayda da yok (`{id}` **404**). ⚠️ `discountCode` gövdede geliyor ama mobil onu göstermez; kod `view-code` ile açılır (sayaç esnafın ölçümü).
+- `GET /v1/campaigns` (sayfalı; `?search=` kampanya başlığı + işletme adı, **`?sort=created_desc|created_asc|title_asc|title_desc|end_asc|end_desc`** — 11.18, varsayılan `created_desc`). ⚠️ Public uç **yalnız onaylı VE tarihi geçerli** kampanyaları döner (`OnlyActive` sabit) → süresi dolan kampanya listede de detayda da yok (`{id}` **404**). ⚠️ `discountCode` gövdede geliyor ama mobil onu göstermez; kod `view-code` ile açılır (sayaç esnafın ölçümü).
 - `GET /v1/campaigns/{id}`; `POST /v1/campaigns/{id}/view-code` `[A]` → `{code, viewedAt}`; aynı kullanıcı ikinci kez isterse **aynı kayıt** döner (sayaç artmaz), **kodsuz kampanyada 400 VALIDATION_ERROR**
 
 ### Vefat / Eczane / Taksi / Mekan / Rehber / Ulaşım
-- `GET /v1/deaths`, `/deaths/{id}`, `/deaths/cemeteries`, `/deaths/mosques`; `POST /v1/deaths` `[A]` (moderasyona düşer)
+- `GET /v1/deaths` (**`?sort=funeral_desc|funeral_asc|name_asc|name_desc`** — 11.18, varsayılan `funeral_desc`), `/deaths/{id}`, `/deaths/cemeteries`, `/deaths/mosques`; `POST /v1/deaths` `[A]` (moderasyona düşer)
 - `GET /v1/pharmacies`, `/pharmacies/{id}`, `/pharmacies/on-duty?date=`, `/pharmacies/schedule?year=&month=`
 - `GET /v1/taxis/drivers`, `/taxis/drivers/{id}`; `POST /v1/taxis/drivers/{id}/call` `[A]` (telefon döner)
   - ⚠️ Arama parametresi **`searchTerm`** (diğer modüllerde `search`) — ad **ve plakada** arar; yanlış ad sessizce yok sayılır.

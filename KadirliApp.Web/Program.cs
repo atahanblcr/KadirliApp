@@ -32,13 +32,22 @@ builder.Configuration["FileStorage:UploadDirectory"] = uploadsDir;
 // 10.9 denetimi: antiforgery artık GLOBAL — tüm POST'lar token ister (eski aksiyonların çoğunda
 // [ValidateAntiForgeryToken] eksikti; form tag helper'ları token'ı zaten bastığı için görünüm değişmez).
 builder.Services.AddControllersWithViews(o =>
-    o.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute()));
+{
+    o.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
+    // Faz 11.18: parolası yönetici tarafından belirlenmiş kullanıcı, kendi parolasını
+    // seçene kadar panelin hiçbir ekranını açamaz (bkz. RequirePasswordChangeFilter).
+    o.Filters.Add<KadirliApp.Web.Common.RequirePasswordChangeFilter>();
+});
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(o => {
         o.LoginPath = "/account/login";
         o.AccessDeniedPath = "/account/denied";
         o.ExpireTimeSpan = TimeSpan.FromHours(8);
+        // 🔴 Faz 11.18 (11.15c C grubu): oturum artık HER istekte DB'den tazeleniyor.
+        // Bu satır olmadan silinen/banlanan/rolü düşürülen personelin çerezi 8 saat
+        // boyunca çalışmaya devam ediyordu ve parola değişimi de onu düşürmüyordu.
+        o.Events.OnValidatePrincipal = KadirliApp.Web.Common.PanelPrincipalValidator.ValidateAsync;
     });
 builder.Services.AddAuthorization(o => {
     o.AddPolicy("AdminPanel", p => p.RequireRole("admin","super_admin","moderator"));

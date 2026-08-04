@@ -1,6 +1,13 @@
 @model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Events.Dtos.EventResponseDto>
 @{
     ViewData["Title"] = "Etkinlik Yönetimi";
+
+    // Faz 11.18 — toplu işlem çubuğu ve satır kutuları tek yerden kurulur.
+    var bulkController = "EventsAdmin";
+    var bulkToolbar = KadirliApp.Web.Models.BulkToolbarViewModel.Moderation("EventsAdmin", "etkinlik");
+
+    // Faz 11.18 — tıklanabilir sütun başlıkları etkin sıralamayı buradan okur.
+    var currentSort = Context.Request.Query["sort"].ToString();
 }
 
 <div class="mb-6 flex justify-between items-center">
@@ -18,7 +25,7 @@
     </div>
 </div>
 
-<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm" data-bulk-scope>
     <div class="p-4 border-b border-gray-200">
         <form action="" method="get" class="relative w-full md:w-64">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -28,13 +35,16 @@
         </form>
     </div>
 
+    @* Faz 11.18: toplu işlem — satır seçimi + toplu eylem. *@
+    <partial name="_BulkToolbar" model="bulkToolbar" />
     <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-gray-500">
             <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
                 <tr>
-                    <th scope="col" class="px-6 py-3 font-medium">Başlık</th>
+                    <partial name="_BulkSelectAll" />
+                    <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Başlık", "title_asc", "title_desc", currentSort)' />
                     <th scope="col" class="px-6 py-3 font-medium">Kategori</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Tarih / Saat</th>
+                    <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Tarih / Saat", "date_asc", "date_desc", currentSort)' />
                     <th scope="col" class="px-6 py-3 font-medium">Mekan</th>
                     <th scope="col" class="px-6 py-3 font-medium">Ücret</th>
                     <th scope="col" class="px-6 py-3 font-medium">Durum</th>
@@ -47,6 +57,7 @@
                     foreach (var item in Model.Items)
                     {
                         <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                            <partial name="_BulkRowCheckbox" model="KadirliApp.Web.Models.BulkRowViewModel.For(bulkController, item.Id)" />
                             <td class="px-6 py-4 font-medium text-gray-900">@item.Title</td>
                             <td class="px-6 py-4">@(item.CategoryName ?? "—")</td>
                             <td class="px-6 py-4">
@@ -106,7 +117,7 @@
                 else
                 {
                     <tr>
-                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="fas fa-calendar-times text-4xl text-gray-300 mb-3"></i>
                                 <p>Kayıt bulunamadı.</p>

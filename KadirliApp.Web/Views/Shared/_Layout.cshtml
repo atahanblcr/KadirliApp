@@ -98,6 +98,77 @@
                 e.preventDefault();
             }
         });
+
+        // ————————————————————————————————————————————————————————————
+        // Faz 11.18 — TOPLU İŞLEM: tek dinleyici, bütün listeler.
+        //
+        // Aynı ders, ikinci kez: her listeye kendi satır içi JS'ini yazmak 11.15c'de
+        // 21 kopya confirm() üretmişti. Toplu işlem 5 listeye geliyor; kod tek yerde
+        // duruyor ve yeni bir liste özelliği kazanırken JS YAZMIYOR — yalnız üç
+        // partial'ı (_BulkToolbar, _BulkSelectAll, _BulkRowCheckbox) yerleştiriyor.
+        // ————————————————————————————————————————————————————————————
+        // ⚠️ Kapsam "form" DEĞİL "[data-bulk-scope]" bölümüdür: kutular tablonun içinde
+        // ama hedef formun DIŞINDA durur (iç içe form olmasın diye HTML5 `form=`
+        // özniteliğiyle bağlanırlar). closest('form') aransaydı satırdaki tek-kayıt
+        // formunu bulur ve seçim sayacı hep 0 kalırdı.
+        function bulkRows(scope) {
+            return Array.prototype.slice.call(scope.querySelectorAll('[data-bulk-row]'));
+        }
+
+        function bulkRefresh(scope) {
+            var count = bulkRows(scope).filter(function (c) { return c.checked; }).length;
+
+            // Butonlar hiçbir şey seçilmeden çalışmaz: boş POST atıp "Hiçbir kayıt
+            // seçilmedi" hatası almak, yöneticiye hiçbir şey öğretmeyen bir tur olurdu.
+            scope.querySelectorAll('[data-bulk-submit]').forEach(function (b) { b.disabled = count === 0; });
+
+            var wrapper = scope.querySelector('[data-bulk-count-wrapper]');
+            var empty = scope.querySelector('[data-bulk-empty]');
+            var counter = scope.querySelector('[data-bulk-count]');
+            if (counter) counter.textContent = String(count);
+            if (wrapper) wrapper.classList.toggle('hidden', count === 0);
+            if (empty) empty.classList.toggle('hidden', count > 0);
+
+            // "Tümünü seç" kutusu satırlarla senkron kalır; kısmi seçimde belirsiz görünür.
+            var all = scope.querySelector('[data-bulk-select-all]');
+            if (all) {
+                var total = bulkRows(scope).length;
+                all.checked = total > 0 && count === total;
+                all.indeterminate = count > 0 && count < total;
+            }
+        }
+
+        document.addEventListener('change', function (e) {
+            var el = e.target;
+            if (!el || !el.closest) return;
+            var scope = el.closest('[data-bulk-scope]');
+            if (!scope) return;
+
+            if (el.hasAttribute('data-bulk-select-all')) {
+                bulkRows(scope).forEach(function (c) { c.checked = el.checked; });
+            } else if (!el.hasAttribute('data-bulk-row')) {
+                return;
+            }
+
+            bulkRefresh(scope);
+        });
+
+        // Onay metnindeki {count} yer tutucusunu tıklanan butonun kendi sayısıyla doldur.
+        // Toplu silmede asıl risk "yanlış satır" değil, KAÇ satır olduğunu fark etmemektir.
+        document.addEventListener('click', function (e) {
+            var button = e.target && e.target.closest ? e.target.closest('[data-bulk-submit]') : null;
+            if (!button || !button.getAttribute('data-confirm')) return;
+
+            var scope = button.closest('[data-bulk-scope]');
+            if (!scope) return;
+
+            var count = bulkRows(scope).filter(function (c) { return c.checked; }).length;
+            if (!window.confirm(button.getAttribute('data-confirm').replace('{count}', String(count)))) {
+                e.preventDefault();
+            }
+        });
+
+        document.querySelectorAll('[data-bulk-scope]').forEach(bulkRefresh);
     </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

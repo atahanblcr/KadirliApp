@@ -29,8 +29,14 @@
             <input name="email" type="email" maxlength="100" value="@Model?.Email" class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm py-2 px-3 border" />
         </div>
         <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-1">Şifre <span class="text-red-500">*</span> <span class="text-gray-400 font-normal">(en az 6 karakter)</span></label>
-            <input name="password" type="password" required minlength="6" class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm py-2 px-3 border" />
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Şifre <span class="text-red-500">*</span></label>
+            <input name="password" type="password" required minlength="@KadirliApp.Application.Common.Security.PanelPasswordPolicy.MinLength" class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm py-2 px-3 border" />
+            @* Faz 11.18: kural metni tek sahipten (PanelPasswordPolicy) — elle yazılan
+               "en az 6 karakter" cümlesi politikadan bağımsız yaşıyordu. *@
+            <p class="text-xs text-gray-500 mt-1">
+                @KadirliApp.Application.Common.Security.PanelPasswordPolicy.Description
+                Personel ilk girişinde bu şifreyi değiştirmek zorunda kalacak.
+            </p>
         </div>
         <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">Rol <span class="text-red-500">*</span></label>

@@ -1,0 +1,59 @@
+@model KadirliApp.Web.Models.BulkToolbarViewModel
+@*
+    Faz 11.18 — ortak toplu işlem çubuğu (11.15c B grubu).
+
+    Kullanım (liste kartının İÇİNDE, tablodan hemen önce):
+
+        <div class="bg-white rounded-lg shadow" data-bulk-scope>
+            <partial name="_BulkToolbar" model="BulkToolbarViewModel.Moderation("AdsAdmin", "ilan")" />
+            <table>
+                <thead><tr><partial name="_BulkSelectAll" /> … </tr></thead>
+                <tbody>… <partial name="_BulkRowCheckbox" model="ad.Id" /> …</tbody>
+            </table>
+        </div>
+
+    🔑 **Neden boş bir <form> ve `form="…"` öznitelikleri?**
+    Liste satırlarında zaten tek-kayıt işlem formları var (Onayla/Sil). Tabloyu bir
+    forma sarsaydık **iç içe form** doğardı — HTML'de geçersiz; tarayıcı iç formu
+    kapatır ve satır butonları sessizce çalışmaz hâle gelirdi. Bunun yerine boş bir
+    hedef form açılıyor; kutular ve butonlar ona `form` özniteliğiyle bağlanıyor.
+    Böylece iç içe geçme hiç oluşmuyor ve satır formları olduğu gibi kalıyor.
+
+    ⚠️ Antiforgery token bu boş formun içine Razor tarafından otomatik basılır
+    (panelde `AutoValidateAntiforgeryToken` global — tokensız POST 400 alır).
+
+    🔑 Çubuk hiçbir şey seçilmemişken **görünür ama edilgen** durur ("Toplu işlem için
+    satır seçin"). Tümüyle gizlense özelliğin varlığı keşfedilemezdi.
+*@
+@{
+    // Toplu işlemden sonra yöneticiyi FİLTRELENMİŞ listeye geri döndürmek için mevcut
+    // adres aynen taşınır; yoksa her partiden sonra "bekleyenler" süzgeci sıfırlanır.
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    var formId = Model.FormId;
+}
+
+<form id="@formId" method="post" data-bulk-form class="hidden"></form>
+
+<div class="flex flex-wrap items-center gap-3 px-4 py-3 bg-gray-50 border-b border-gray-200">
+    <span class="text-sm text-gray-600">
+        <span data-bulk-count-wrapper class="hidden">
+            <span class="font-semibold text-gray-900" data-bulk-count>0</span> kayıt seçildi
+        </span>
+        <span data-bulk-empty>Toplu işlem için satır seçin</span>
+    </span>
+
+    <div class="flex flex-wrap items-center gap-2">
+        @foreach (var action in Model.Actions)
+        {
+            <button type="submit"
+                    form="@formId"
+                    formaction="@Url.Action(action.Action, Model.Controller, new { returnUrl })"
+                    disabled
+                    data-bulk-submit
+                    data-confirm="@(action.Destructive ? action.ConfirmText : null)"
+                    class="@action.CssClass px-3 py-1.5 text-sm font-medium rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <i class="@action.Icon mr-1"></i>@action.Label
+            </button>
+        }
+    </div>
+</div>

@@ -103,6 +103,25 @@ public static class PanelClient
     }
 
     /// <summary>
+    /// Faz 11.18: verilen kullanıcının "ilk girişte parola değiştir" borcunu siler.
+    /// Zorunlu değişim akışıyla ilgilenmeyen testler bunu kullanır — bayrak açıkken
+    /// panelin hiçbir sayfası açılmaz, her istek <c>/Account/ChangePassword</c>'e döner.
+    /// </summary>
+    public static async Task ClearMustChangePasswordAsync(
+        this WebPanelApplicationFactory factory, string username)
+    {
+        await factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (user is null || !user.MustChangePassword) return;
+
+            user.MustChangePassword = false;
+            await db.SaveChangesAsync();
+        });
+    }
+
+    /// <summary>
     /// Panelde oturum açabilen ama hiçbir izni olmayan bir <c>moderator</c> üretir.
     /// Aynı telefon numarası varsa yeniden kullanılır (testler arası idempotent).
     /// </summary>

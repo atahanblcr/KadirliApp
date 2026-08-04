@@ -53,8 +53,8 @@ public class GetCampaignsQueryHandler : IRequestHandler<GetCampaignsQuery, Paged
         var totalCount = await query.CountAsync(cancellationToken);
         var (page, limit) = Pagination.Clamp(dto.Page, dto.Limit, Pagination.AdminMaxLimit);
 
-        var items = await query
-            .OrderByDescending(x => x.CreatedAt)
+        // Faz 11.18: panel sütun sıralaması. Boş Sort → "created_desc" = eski davranışın aynısı.
+        var items = await Common.Sorting.PanelSorts.Campaigns.Apply(query, dto.Sort)
             .Skip((page - 1) * limit)
             .Take(limit)
             .Select(x => new CampaignResponseDto

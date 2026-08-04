@@ -177,4 +177,35 @@ public class CampaignsAdminController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+
+    // Faz 11.18 — toplu işlem. ⚠️ Ad "…Selected" ile bitmeli (görünmez sözleşme #19).
+    [HttpPost]
+    public async Task<IActionResult> ApproveSelected(Guid[] ids, [FromQuery] string? returnUrl)
+    {
+        var adminId = GetAdminId();
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(new ApproveCampaignCommand(id, adminId)));
+        outcome.Report(TempData, "kampanya", "onaylandı");
+        return BackToList(returnUrl);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RejectSelected(Guid[] ids, [FromQuery] string? returnUrl)
+    {
+        var adminId = GetAdminId();
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(new RejectCampaignCommand(id, adminId)));
+        outcome.Report(TempData, "kampanya", "reddedildi");
+        return BackToList(returnUrl);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> DeleteSelected(Guid[] ids, [FromQuery] string? returnUrl)
+    {
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(new DeleteCampaignCommand(id)));
+        outcome.Report(TempData, "kampanya", "silindi");
+        return BackToList(returnUrl);
+    }
+
+    /// <summary>Toplu işlemden sonra filtrelenmiş listeye geri döner (süzgeç kaybolmasın).</summary>
+    private IActionResult BackToList(string? returnUrl) =>
+        Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl!) : RedirectToAction(nameof(Index));
 }

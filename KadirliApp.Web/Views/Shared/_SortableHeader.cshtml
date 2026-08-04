@@ -1,0 +1,35 @@
+@model KadirliApp.Web.Models.SortableHeaderViewModel
+@*
+    Faz 11.18 — tıklanabilir sütun başlığı.
+
+    Kullanım:
+        <partial name="_SortableHeader"
+                 model="new SortableHeaderViewModel("Başlık", "title_asc", "title_desc", currentSort)" />
+
+    ⚠️ Adres üretimi `_Pagination.cshtml` ile AYNI kuralı izler: mevcut query string
+    korunur, yalnız `sort` değişir. Ek olarak `page` düşürülür — 7. sayfadayken
+    sıralamayı değiştirmek, artık bambaşka kayıtların olduğu 7. sayfaya düşmek demektir.
+*@
+@{
+    var preserved = Context.Request.Query
+        .Where(q => !string.Equals(q.Key, "sort", StringComparison.OrdinalIgnoreCase)
+                 && !string.Equals(q.Key, "page", StringComparison.OrdinalIgnoreCase))
+        .SelectMany(q => q.Value.Where(v => !string.IsNullOrEmpty(v)).Select(v => (Key: q.Key, Value: v!)))
+        .ToList();
+
+    var query = string.Join("&", preserved
+        .Select(p => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value)}")
+        .Append($"sort={Uri.EscapeDataString(Model.NextSort)}"));
+
+    var url = $"{Context.Request.Path}?{query}";
+}
+
+<th scope="col" aria-sort="@Model.AriaSort"
+    class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+    title="@(Model.Title ?? "Sıralamak için tıklayın")">
+    <a href="@url" data-sortable-header
+       class="inline-flex items-center gap-1.5 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded">
+        <span>@Model.Label</span>
+        <i class="@Model.Icon" aria-hidden="true"></i>
+    </a>
+</th>

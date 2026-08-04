@@ -1,6 +1,13 @@
 @model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Deaths.Dtos.DeathNoticeResponseDto>
 @{
     ViewData["Title"] = "Vefat İlanları Yönetimi";
+
+    // Faz 11.18 — toplu işlem çubuğu ve satır kutuları tek yerden kurulur.
+    var bulkController = "DeathsAdmin";
+    var bulkToolbar = KadirliApp.Web.Models.BulkToolbarViewModel.Moderation("DeathsAdmin", "vefat kaydı", includeReject: false);
+
+    // Faz 11.18 — tıklanabilir sütun başlıkları etkin sıralamayı buradan okur.
+    var currentSort = Context.Request.Query["sort"].ToString();
 }
 
 <div class="mb-6 flex justify-between items-center">
@@ -15,7 +22,7 @@
     </div>
 </div>
 
-<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm" data-bulk-scope>
     <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <!-- Search -->
         <div class="relative w-full md:w-64">
@@ -35,13 +42,16 @@
         </div>
     </div>
 
+    @* Faz 11.18: toplu işlem — satır seçimi + toplu eylem. *@
+    <partial name="_BulkToolbar" model="bulkToolbar" />
     <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-gray-500">
             <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
                 <tr>
-                    <th scope="col" class="px-6 py-3 font-medium">Merhum / Merhume</th>
+                    <partial name="_BulkSelectAll" />
+                    <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Merhum / Merhume", "name_asc", "name_desc", currentSort)' />
                     <th scope="col" class="px-6 py-3 font-medium">Cami / Mezarlık</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Cenaze Tarihi</th>
+                    <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Cenaze Tarihi", "funeral_asc", "funeral_desc", currentSort)' />
                     <th scope="col" class="px-6 py-3 font-medium">Durum</th>
                     <th scope="col" class="px-6 py-3 text-right font-medium">İşlemler</th>
                 </tr>
@@ -52,6 +62,7 @@
                     foreach (var item in Model.Items)
                     {
                         <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                            <partial name="_BulkRowCheckbox" model="KadirliApp.Web.Models.BulkRowViewModel.For(bulkController, item.Id)" />
                             <td class="px-6 py-4 font-medium text-gray-900">
                                 <div class="flex items-center gap-2">
                                     @item.DeceasedName
@@ -102,7 +113,7 @@
                 else
                 {
                     <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
                                 <p>Kayıt bulunamadı.</p>

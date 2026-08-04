@@ -188,4 +188,53 @@ public class AdsAdminController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+
+    // ————————————————————————————————————————————————————————————————
+    // Faz 11.18 — toplu işlem. Onay kuyruğundaki 40 ilanı tek tek onaylamanın sonu.
+    //
+    // ⚠️ Aksiyon adları BİLEREK "…Selected" ile bitiyor, "Bulk…" ile BAŞLAMIYOR:
+    // panelin izin eylemi aksiyon adının ÖNEKİNDEN türetilir (görünmez sözleşme #19,
+    // `PanelPermissionFilter.ActionFor`). "BulkApprove" hiçbir moderasyon önekiyle
+    // eşleşmez ve sessizce "update" iznine düşerdi — yani yalnız düzenleme yetkisi olan
+    // bir moderatör toplu ONAY yapabilir hâle gelirdi. `PanelBulkActionTests` bunu kilitliyor.
+    // ————————————————————————————————————————————————————————————————
+
+    [HttpPost]
+    public async Task<IActionResult> ApproveSelected(Guid[] ids, [FromQuery] string? returnUrl)
+    {
+        var adminId = CurrentAdminId();
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(new ApproveAdCommand(id, adminId)));
+        outcome.Report(TempData, "ilan", "onaylandı");
+        return RedirectBack(returnUrl);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RejectSelected(Guid[] ids, string? reason, [FromQuery] string? returnUrl)
+    {
+        var adminId = CurrentAdminId();
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(
+            new KadirliApp.Application.Features.Ads.Commands.RejectAd.RejectAdCommand(id, adminId, reason)));
+        outcome.Report(TempData, "ilan", "reddedildi");
+        return RedirectBack(returnUrl);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> DeleteSelected(Guid[] ids, [FromQuery] string? returnUrl)
+    {
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(
+            new KadirliApp.Application.Features.Ads.Commands.DeleteAd.DeleteAdCommand(id)));
+        outcome.Report(TempData, "ilan", "silindi");
+        return RedirectBack(returnUrl);
+    }
+
+    private Guid CurrentAdminId() =>
+        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
+
+    /// <summary>
+    /// Toplu işlemden sonra yöneticiyi **filtrelenmiş listeye geri** götürür.
+    /// Düz <c>Index</c>'e dönseydi "bekleyenler" süzgeci kaybolur ve yönetici her
+    /// partiden sonra filtreyi yeniden kurmak zorunda kalırdı.
+    /// </summary>
+    private IActionResult RedirectBack(string? returnUrl) =>
+        Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl!) : RedirectToAction(nameof(Index));
 }

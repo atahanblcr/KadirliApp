@@ -45,11 +45,13 @@ public class AnnouncementsAdminController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index([FromQuery] int page = 1)
+    public async Task<IActionResult> Index([FromQuery] int page = 1, [FromQuery] string? sort = null)
     {
         // Faz 10.8'de query PagedResult'a geçmişti ama panel sayfalama UI'ı olmadığı için
         // tek sayfada 200 kayıt çekiliyordu; UI geldi, sayfalı okumaya dönüldü.
-        var result = await _sender.Send(new GetAnnouncementsQuery { Page = page, Limit = 20 });
+        // Faz 11.18: sütun sıralaması (bu aksiyon query nesnesini elle kurduğu için
+        // parametre açıkça geçirilmeli — diğer listelerde [FromQuery] DTO kendiliğinden bağlıyor).
+        var result = await _sender.Send(new GetAnnouncementsQuery { Page = page, Limit = 20, Sort = sort });
         // Faz 10.10-A: görüntülenme/tıklama/tekil-erişim panel-only ayrı query'den (public DTO'ya sızdırılmaz)
         ViewBag.Stats = await _sender.Send(new KadirliApp.Application.Features.Announcements.Queries.GetAnnouncementAdminStats.GetAnnouncementAdminStatsQuery());
         return View(result);
@@ -180,5 +182,23 @@ public class AnnouncementsAdminController : Controller
         }
 
         return RedirectToAction(nameof(Index));
+    }
+
+    // Faz 11.18 — toplu silme. ⚠️ Ad "…Selected" ile bitmeli (görünmez sözleşme #19).
+    // 🔑 Tek-kayıt komutu çağrılıyor: `DeleteAnnouncementCommand` duyuruya bağlı
+    // bildirimleri de fiziksel siliyor (görünmez sözleşme #24). Toplu bir SQL silme
+    // yazılsaydı mobilde **ölü bildirimler** kalırdı — 11.15c'de tam olarak bu yaşandı.
+    [HttpPost]
+    public async Task<IActionResult> DeleteSelected(System.Guid[] ids, [FromQuery] string? returnUrl)
+    {
+        var outcome = await Common.PanelBulk.RunAsync(ids, async id =>
+        {
+            var result = await _sender.Send(
+                new KadirliApp.Application.Features.Announcements.Commands.DeleteAnnouncement.DeleteAnnouncementCommand { Id = id });
+            return result.Success;
+        });
+
+        outcome.Report(TempData, "duyuru", "silindi");
+        return Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl!) : RedirectToAction(nameof(Index));
     }
 }

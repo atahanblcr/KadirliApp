@@ -58,10 +58,11 @@ public class GetEventsQueryHandler : IRequestHandler<GetEventsQuery, PagedResult
         var totalCount = await query.CountAsync(cancellationToken);
         var (page, limit) = Pagination.Clamp(dto.Page, dto.Limit, Pagination.AdminMaxLimit);
 
-        // Faz 11.10: yalnız iki sıralama var; bilinmeyen değer varsayılana (en ileri tarih önce) düşer.
-        query = dto.Sort == "date_asc"
-            ? query.OrderBy(x => x.EventDate).ThenBy(x => x.EventTime)
-            : query.OrderByDescending(x => x.EventDate).ThenByDescending(x => x.EventTime);
+        // Faz 11.18: elle yazılmış iki dallı sıra ortak SortMap'e taşındı (başlık sıralaması
+        // için title_asc/title_desc de eklendi). ⚠️ Davranış korundu: varsayılan hâlâ
+        // "en ileri tarih önce" ve bilinmeyen değer hâlâ varsayılana düşüyor (11.10 sözleşmesi,
+        // QueryEventDto'da yazılı) — SortMap'in rejectUnknown'ı bu modülde bilerek KAPALI.
+        query = Common.Sorting.PanelSorts.Events.Apply(query, dto.Sort);
 
         var items = await query
             .Skip((page - 1) * limit)

@@ -1402,6 +1402,113 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
   yapılmayan ikisi yukarıda **11.18**'e gerekçesiyle bağlandı ve `Notifications` paneli
   `ARCHITECTURE.md`'de *bilinçli eksik* olarak yazılı kaldı.
 
+### 11.18 — Panel güvenlik kapanışı + toplu işlem + sıralama — [x] 4/4 madde (4 Ağustos 2026, 2. oturum)
+
+> **Neden bu faz var:** 11.15c'nin C grubundan (güvenlik) iki madde ve B grubundan
+> (yönetim paneli eksikleri) iki madde açık kalmıştı. Kullanıcı, kalanları tespit edip
+> sıraya koymamı istedi; sıralama **"sessiz risk → günlük işi tıkayan → rahatlık"**
+> ölçütüyle kuruldu ve ilk dört madde birlikte onaylandı.
+>
+> 📌 Doküman karmaşasının kendisi de bir bulguydu: 11.15c B grubu maddeleri Progress.md'de
+> hâlâ `[ ]` işaretliydi ama beşi 11.17'de yapılmıştı. Bu faz kapanırken **her madde tek
+> yerde** işaretlendi.
+
+- [x] 🔴 **Oturum iptali (`OnValidatePrincipal`).** Çerez 8 saatlikti ve doğrulayıcı yoktu:
+  personel **silinse, banlansa, pasife alınsa, rolü düşürülse bile elindeki oturum 8 saat
+  çalışmaya devam ediyordu**; parola değişimi de açık oturumları düşürmüyordu. 11.15c'de
+  canlıda gözlenmişti (önceki oturumdan kalan moderatör çerezi hâlâ giriyordu) — yani
+  "yetkiyi geri aldım" diyen yönetici aslında hiçbir şey geri almamış oluyordu.
+  `PanelPrincipalValidator` artık her istekte kullanıcıyı DB'den tazeliyor.
+  🔑 **Rol değişimi oturumu düşürmez, TAZELER** (`ReplacePrincipal`): rolü düşürülen kişi
+  çalışmaya devam eder ama artık *yeni* rolüyle. Atsaydık rol **yükseltmesi** de kullanıcıyı
+  sebepsizce dışarı atardı.
+  ⚠️ **`IgnoreQueryFilters()` bilerek YOK**: silinmiş kullanıcı zaten bulunamaz ve oturum
+  düşer; eklenseydi silinmiş personelin oturumu ayakta kalırdı — tam ters sonuç.
+  🐛 **Testin yakaladığı gerçek hata:** parola damgası ile çerezin düzenlenme anı ham
+  karşılaştırılınca **parolasını değiştiren kişi kendi oturumundan atılıyordu**. Sebep:
+  `IssuedUtc` bilete RFC1123 (`"r"`) biçiminde yazılıyor ve o biçim **saniye altını
+  taşımıyor** → damga 12:00:00.750, okunan an 12:00:00.000. Karşılaştırma iki tarafı da
+  saniyeye yuvarlayacak şekilde düzeltildi.
+- [x] 🔴 **İlk girişte parola değişimi + parola politikası + hesap kilidi.**
+  `User.MustChangePassword` eklendi (migration `PanelPasswordSecurity`): parolayı **sahibi
+  değil başkası** belirlediyse (seed · `CreateStaffCommand` · `ResetStaffPasswordCommand`)
+  işaretlenir ve kişi kendi parolasını seçene kadar **panelin hiçbir sayfası açılmaz**.
+  🔑 **Seed'de ölçüt "super_admin" DEĞİL, "hâlâ varsayılan parolayı kullanıyor"**: zaten
+  kurulmuş sistemlerde de bayrak geriye dönük atılıyor (hash doğrulanarak), ama parolasını
+  çoktan değiştirmiş yönetici her açılışta parola ekranına düşürülmüyor.
+  🔑 **Politikanın tek sahibi `PanelPasswordPolicy`**: kural 11.18 öncesi **üç ayrı
+  handler'da** elle `Length < 6` olarak kopyalanmıştı — sıkılaştıran biri birini atlarsa
+  o kapıdan zayıf parola girmeye devam ederdi (`SlugHelper`/`PanelDisplay` ile aynı ders).
+  Yeni kural: **en az 10 karakter + en az bir harf + en az bir rakam**, kullanıcı adı/telefonla
+  aynı olamaz. Form yardım metni de aynı sabitten geliyor (elle yazılan "en az 6 karakter"
+  cümlesi kuraldan bağımsız yaşıyordu).
+  🔑 **Hesap kilidi** (`PanelLockoutPolicy`, 5 deneme → 15 dk): 9.2'deki hız sınırı **IP**'yi
+  kısıtlıyordu, **hesabı** değil. ⚠️ Kilitliyken **doğru parola da reddedilir** — sonra
+  gelseydi kilit yalnız yanlış tahminleri yavaşlatır, doğru tahmini hiç engellemezdi.
+  ⚠️ Kapının **yetkilendirme filtresi** olması şart (ilk hâli `IActionFilter`'dı): aksiyon
+  filtreleri izin filtresinden sonra koştuğu için izni olmayan moderatör parola ekranına
+  değil "yetkiniz yok"a düşüyordu. `Order = int.MinValue` ile öne alındı.
+- [x] 🟡 **Toplu işlem** (ilan · etkinlik · kampanya · vefat · duyuru). Satır seçimi +
+  toplu onay/red/silme; hiçbir liste satır seçimi sunmuyordu, onay kuyruğundaki 40 ilan
+  tek tek onaylanıyordu.
+  🔴 **En kritik karar — aksiyon adı:** `ApproveSelected`, **`BulkApprove` DEĞİL**. Panelin
+  izin eylemi aksiyon adının **önekinden** türetilir (görünmez sözleşme #19); `BulkApprove`
+  hiçbir moderasyon önekiyle eşleşmez ve sessizce **`update`**'e düşerdi → yalnız *düzenleme*
+  yetkisi olan moderatör **toplu onay** yapabilir hâle gelirdi. 11.15b'nin "karşılığı olmayan
+  yetki" bulgusunun üçüncü biçimi; testle kilitlendi (**#29**).
+  🔑 **Toplu işlem yeni iş mantığı yazmaz**: her kayıt için modülün **tek-kayıt komutu**
+  çağrılır. Toplu SQL yazılsaydı denetim izi (komut başına düşer), önbellek geçersizleştirmesi
+  ve **görünmez sözleşme #25'in onay penceresi** hiç çalışmazdı — panel "42 ilan onaylandı"
+  der, mobil hiçbirini göstermezdi.
+  ⚠️ **İç içe form tuzağı:** satırlarda zaten tek-kayıt formları var; tabloyu forma sarmak
+  HTML'de geçersiz iç içe form üretir ve satır butonları sessizce ölür. Kutular HTML5
+  `form="…"` özniteliğiyle dışarıdaki **boş hedef forma** bağlandı.
+  ⚠️ Bir kaydın başarısızlığı partiyi durdurmaz (41 kaydı 1'i yüzünden geri çevirmek
+  yöneticiyi "hangisiydi?" diye aramaya bırakır); başarısızlar sayılıp mesajda söylenir.
+  📌 JS **tek dinleyicide** (`_Layout`), 11.15c'nin `data-confirm` dersinin aynısı — yeni
+  bir liste toplu işlem kazanırken JS yazmaz, üç partial'ı yerleştirir.
+- [x] 🟡 **Sütun sıralaması** (ilan · etkinlik · kampanya · vefat · duyuru). Sıralama yalnız
+  İlanlar'da vardı, o da bir açılır listeydi. Başlığa tıklayınca artan/azalan; ok + `aria-sort`.
+  🔑 Tanımlar tek dosyada (`PanelSorts`), motor ortak (`SortMap<T>`).
+  🐛 **Testin yakaladığı gerçek hata:** `title_asc`'in ikincil sırası `CreatedAt`'ti ve
+  **başlığı VE tarihi aynı** iki kayıtta o da eşitti → sıra kararsız. Kararsız sırada
+  Postgres sayfalı listede **aynı kaydı iki sayfada gösterip bir başkasını hiç
+  göstermeyebilir** (sessiz veri kaybı). Her anahtar artık `ThenBy(Id)` ile bitiyor (**#30**).
+  ⚠️ **Varsayılan sıra hiçbir modülde değişmedi** — değişseydi mobil liste sessizce ters
+  dönerdi (checklist §1). Her modülün varsayılanı ayrı testle kilitli.
+  ⚠️ **Bilinmeyen anahtarda davranış modülün mevcut sözleşmesidir, tercih değil:** İlanlar
+  10.8'den beri 400 döndürüyor, Etkinlikler ise DTO'sunda açıkça "bilinmeyen değer
+  varsayılana düşer" diyor. `SortMap` bu ayrımı `rejectUnknown` bayrağıyla koruyor;
+  tekleştirmek iki modülden birinin yayındaki istemcilerini kırardı.
+- 🐛 **Test altyapısı bulgusu:** `AppDbContext.SaveChanges`, `State == Added` olan her
+  varlığın `CreatedAt`'ini `UtcNow` ile **ezer** — kurucuda verilen tarih hiç yaşamaz.
+  Sıralama testi bu yüzden rastgele sonuç veriyordu; tarihler ikinci bir geçişte yazılıyor.
+- **Testler: 464 → 534 (+70).** `PanelPasswordSecurityTests` (27), `PanelBulkActionTests` (27),
+  `PanelSortingTests` (16).
+- **"Kuralı bilerek boz" ölçütü uygulandı:** oturum tazeleme devre dışı · politika 6 karaktere
+  düşsün · `ApproveSelected` → `BulkApprove` · duyuru varsayılan sırası ters çevrilsin ·
+  `title_asc`'in `ThenBy(Id)` ayracı silinsin → **15 test kırmızıya döndü (3 sınıfın hepsinde)**,
+  geri alınınca 534/534 yeşil.
+- **Doğrulama:** `dotnet test` **534/534** · `flutter analyze` **0** · `flutter test` **669/669**.
+- **Canlı (Chrome + panel + API + Postgres + Android emülatörü):** `admin/Admin123!` ile giriş →
+  **302 `/Account/ChangePassword`**; `/AdsAdmin/Index` ve `/Dashboard/Index` de aynı yere düştü,
+  parola ekranının kendisi 200 açıldı (sonsuz döngü yok) · zayıf parola (`abc123`) **reddedildi**,
+  güçlü parola kabul edildi ve **kendi oturumu düşmedi** · İlanlar listesinde çubuk
+  "Toplu işlem için satır seçin" dedi, iki satır seçilince **"2 kayıt seçildi"** ve butonlar
+  aktifleşti · **"2 ilan onaylandı."** → rozet "Süresi Doldu" → "Onaylandı" ·
+  🔑 toplu onay **taze pencere verdi** (`expires_at` 2026-08-02 → **2026-09-03**, dokunulmayanlar
+  eski tarihte kaldı) → `GET /v1/ads` **0'dan 2'ye** çıktı → **Android emülatöründe
+  "Toplam 2 ilan"** göründü (panel → API → telefon halkası toplu yolda da kapandı) ·
+  denetim izinde **komut başına ayrı satır** (2 `approve`). Geçici veri temizlendi
+  (iki ilan `expired`'a ve eski `expires_at`'ine geri alındı).
+- ⚠️ **Yerel geliştirme notu:** canlı doğrulama sırasında panel admin parolası
+  `Admin123!` → **`KadirliPanel2026`** olarak değiştirildi (özelliğin kendisi bunu zorunlu
+  kılıyor). Varsayılan parolaya dönülürse `DbSeeder` bayrağı tekrar atar ve ilk girişte
+  yine değişim ister — bu tasarımın kendisi.
+- ⏭️ **11.18'in kalan iki maddesi devam ediyor:** CSV dışa aktarma · global arama ·
+  bağımsız push ekranı (şema değişikliği gerektiriyor: "kaç cihaza gitti" için FCM
+  yanıtının saklanması).
+
 > **AKTİF SIRADAKİ: 11.16 — Yayına hazırlık.** (11.17'nin 4 maddesi 4 Ağustos 2026'da bitti —
 > **kullanıcı isteğiyle 11.16'dan ÖNCE**: "panel ve uygulama arası API bağlantılarını sorunsuz
 > hale getirelim". Kalan iki 🟡 madde **11.18**'e alındı.)

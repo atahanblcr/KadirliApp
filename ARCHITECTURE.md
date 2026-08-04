@@ -343,7 +343,9 @@ Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıkla
 **testle kilitli** — 1–22 `KadirliApp.Tests/Integration/Contracts/InvisibleContractsTests.cs`,
 **23–26 (Faz 11.15c)** `Integration/Panel/PanelBusinessRuleTests.cs`, **27 (Faz 11.17)**
 `Integration/Panel/PanelPowerOutageFilterTests.cs`, **28 (Faz 11.17)**
-`Integration/Panel/PanelTrashTests.cs` içinde (panelin canlı denetiminde bulundular ve
+`Integration/Panel/PanelTrashTests.cs`, **29 (Faz 11.18)**
+`Integration/Panel/PanelBulkActionTests.cs`, **30 (Faz 11.18)**
+`Integration/Panel/PanelSortingTests.cs` içinde (panelin canlı denetiminde bulundular ve
 gerçek Postgres isterler). Biri kırmızıya dönerse ya sözleşme
 bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 
@@ -377,6 +379,8 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | 26 | `QueryAdDto.Status` **yalnız panel/admin yolunda** okunur; public uç (`OnlyPublished=true`) onu yok sayar | `else if` `if`'e çevrilirse `GET /v1/ads?status=pending` onaylanmamış ilanları **iletişim telefonlarıyla** herkese açar (10.5'te bir kez yaşandı) |
 | 27 | Panelin kesinti **süren/planlı/bitti** tanımı (`PowerOutagePhaseRules`) mobildeki `PowerOutage.isActive/isUpcoming/isPast` ile **birebir** aynı olmak zorunda: başlangıç anı **dâhil**, bitiş anı **hariç** | `GET /v1/power-outages` bilinçli olarak sayfalamaz ve tarih süzmez (madde 1); ayrım tümüyle istemcide. Tanımlar ayrışırsa yönetici "sürüyor" derken vatandaş "planlı" görür ve **kimse hata almaz** (madde 23'ün aynı sınıfı) |
 | 28 | **Geri getirme, yayına alma DEĞİLDİR:** `RestoreRecordCommand` yalnız `deleted_at`'i temizler, `status`'e dokunmaz | Dokunsaydı çöp kutusu moderasyonun arka kapısı olurdu: reddedilmiş bir ilan silinip geri getirilerek yayına sokulabilirdi. Kapsam `TrashModules.Supported`'da **tek listede** — sorgu ve komut ayrı `switch` yazarsa "listede görünen ama geri getirilemeyen kayıt" doğar |
+| 29 | Toplu işlem aksiyonları **`…Selected` ile biter** (`ApproveSelected`, `DeleteSelected`), `Bulk…` ile **başlamaz** | İzin eylemi aksiyon adının **önekinden** türetilir (madde 19). `BulkApprove` hiçbir moderasyon önekiyle eşleşmez, POST olduğu için sessizce **`update`**'e düşer → yalnız *düzenleme* yetkisi olan moderatör **toplu onay** yapabilir hâle gelir. Ayrıca toplu işlem her kayıt için modülün **tek-kayıt komutunu** çağırmalıdır: toplu SQL yazılırsa denetim izi, önbellek geçersizleştirmesi ve madde 25'in onay penceresi hiç çalışmaz — panel "42 ilan onaylandı" der, mobil hiçbirini göstermez |
+| 30 | Her sıralama anahtarı **benzersiz bir ayraçla** (`ThenBy(Id)`) biter (`PanelSorts`) | Eşit değerli satırlarda Postgres sırayı garanti etmez: sayfalı listede **aynı kayıt iki sayfada birden görünür, bir başkası hiç görünmez** — hata vermeyen veri kaybı. ⚠️ "Bir ikincil anahtar koymak" yetmez, ayracın **benzersiz** olması gerekir (`title_asc`'in ikincili `CreatedAt`'ti ve başlığı+tarihi aynı iki kayıtta o da eşitti). Ayrıca **varsayılan anahtar** modülün eski sırasıyla birebir aynı kalmalıdır; değişirse mobil liste sessizce ters döner |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 

@@ -2,6 +2,10 @@
 
 @{
     ViewData["Title"] = "İlan Yönetimi";
+
+    // Faz 11.18 — toplu işlem çubuğu ve satır kutuları tek yerden kurulur.
+    var bulkController = "AdsAdmin";
+    var bulkToolbar = KadirliApp.Web.Models.BulkToolbarViewModel.Moderation("AdsAdmin", "ilan");
 }
 
 <div class="p-6 max-w-7xl mx-auto space-y-6">
@@ -110,17 +114,20 @@
         }
     </form>
 
-    <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="bg-white rounded-lg shadow overflow-hidden" data-bulk-scope>
+        @* Faz 11.18: toplu onay/red/silme. Onay kuyruğundaki 40 ilan artık tek tek onaylanmıyor. *@
+        <partial name="_BulkToolbar" model="bulkToolbar" />
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        <partial name="_BulkSelectAll" />
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">İlan Başlığı</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fiyat</th>
+                        <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Fiyat", "price_asc", "price_desc", q?.Sort)' />
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telefon</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase" title="Mobil detay açılışı">Görüntülenme</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tarih</th>
+                        <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Tarih", "oldest", "newest", q?.Sort, "Eskiden yeniye / yeniden eskiye")' />
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">İşlemler</th>
                     </tr>
                 </thead>
@@ -130,6 +137,7 @@
                         foreach (var ad in Model.Items)
                         {
                             <tr>
+                                <partial name="_BulkRowCheckbox" model="KadirliApp.Web.Models.BulkRowViewModel.For(bulkController, ad.Id)" />
                                 <td class="px-4 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         @if (ad.ImageUrls != null && ad.ImageUrls.Any())
@@ -222,7 +230,7 @@
                     else
                     {
                         <tr>
-                            <td colspan="6" class="px-6 py-10 text-center text-sm text-gray-500">
+                            <td colspan="8" class="px-6 py-10 text-center text-sm text-gray-500">
                                 Kayıtlı ilan bulunamadı.
                             </td>
                         </tr>

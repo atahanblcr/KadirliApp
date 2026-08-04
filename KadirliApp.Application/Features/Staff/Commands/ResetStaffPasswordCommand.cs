@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using KadirliApp.Application.Common.Auditing;
 using KadirliApp.Application.Common.Exceptions;
 using KadirliApp.Application.Common.Interfaces;
+using KadirliApp.Application.Common.Security;
 using KadirliApp.Domain.Entities;
 using KadirliApp.Domain.Enums;
 using MediatR;
@@ -36,15 +37,22 @@ public class ResetStaffPasswordCommandHandler : IRequestHandler<ResetStaffPasswo
 
     public async Task<bool> Handle(ResetStaffPasswordCommand request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
-            throw new AppException("Şifre en az 6 karakter olmalıdır.", "VALIDATION_ERROR");
-
         var repo = _uow.Repository<User>();
         var user = await repo.Query(tracking: true)
             .FirstOrDefaultAsync(u => u.Id == request.Id && u.Role != UserRole.User, ct);
         if (user == null) return false;
 
+        // Faz 11.18: politika tek sahipten (elle "< 6" denetimi kaldırıldı).
+        PanelPasswordPolicy.Enforce(request.NewPassword, user.Username, user.Phone);
+
         user.Password = _hasher.HashPassword(request.NewPassword);
+        // Faz 11.18: parolayı sahibi değil yönetici belirledi → ilk girişte değiştirmek zorunda.
+        user.MustChangePassword = true;
+        // Parola sıfırlandı → o hesabın açık panel oturumları düşer (OnValidatePrincipal).
+        // Sıfırlamanın asıl amacı çoğu zaman tam olarak budur: hesabı ele geçirenin oturumunu kesmek.
+        user.PasswordChangedAt = DateTime.UtcNow;
+        // Sıfırlama aynı zamanda kilidi de açar — yönetici "hesabım kilitlendi" çağrısını böyle çözer.
+        PanelLockoutPolicy.RegisterSuccess(user);
         repo.Update(user);
         await _uow.SaveChangesAsync(ct);
 

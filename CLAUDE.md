@@ -8,8 +8,10 @@ mekanlar, şikayet/istek. Üç parça: **.NET 8 API** + **Razor admin paneli** +
 tamamı gerçek, push canlı, golden + erişilebilirlik testleri ayakta, panel/önbellek/moderasyon
 emniyet ağı kuruldu, panelin canlı denetiminde bulunan hataların tamamı (11.15c A grubu)
 düzeltildi. **11.17 ile panel gerçek bir yönetim paneli oldu**: şehirlerarası ulaşım (tek
-işlevsel boşluktu), denetim izi, çöp kutusu, kesinti filtresi (464 backend + 669 mobil test).
-**Sırada yayın (11.16); 11.18'de toplu işlem/dışa aktarma + bağımsız push ekranı.**
+işlevsel boşluktu), denetim izi, çöp kutusu, kesinti filtresi. **11.18 ile panelin güvenlik
+kapanışı yapıldı** (oturum iptali · ilk girişte zorunlu parola değişimi · parola politikası ·
+hesap kilidi) **ve toplu işlem + sütun sıralaması geldi** (534 backend + 669 mobil test).
+**Sırada yayın (11.16); 11.18'den kalan: CSV dışa aktarma · global arama · bağımsız push ekranı.**
 
 ## Çalıştır
 
@@ -48,9 +50,10 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 28 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 30 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
-27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`.
+27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
+29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`.
 
 ## Değişmez kurallar
 

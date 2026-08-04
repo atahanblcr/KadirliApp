@@ -1,5 +1,6 @@
 using KadirliApp.Application.Common.Exceptions;
 using KadirliApp.Application.Common.Interfaces;
+using KadirliApp.Application.Common.Security;
 using KadirliApp.Application.Features.Users.Commands.ChangeMyPassword;
 using KadirliApp.Domain.Entities;
 using KadirliApp.Domain.Enums;
@@ -52,13 +53,40 @@ public class AccountController : Controller
             return View();
         }
 
-        var user = await _uow.Repository<User>().Query()
+        // Faz 11.18: kilit sayacını yazabilmek için izlenen (tracking) varlık gerekiyor.
+        var user = await _uow.Repository<User>().Query(tracking: true)
             .FirstOrDefaultAsync(u =>
                 (u.Username == username || u.Phone == username) && u.Password != null);
 
-        if (user == null || !_passwordHasher.VerifyPassword(password, user.Password!))
+        if (user == null)
         {
+            // ⚠️ Var olmayan kullanıcı ile hatalı parola AYNI mesajı alır — aksi hâlde
+            // giriş ekranı bir "kullanıcı adı var mı?" sorgulama aracına dönüşür.
             ViewBag.Error = "Kullanıcı adı veya şifre hatalı!";
+            return View();
+        }
+
+        var now = DateTime.UtcNow;
+
+        // 🔴 Faz 11.18: hesap kilidi parola denetiminden ÖNCE gelir — kilitliyken
+        // doğru parola da kabul edilmez. Sonra gelseydi kilit yalnızca yanlış tahminleri
+        // yavaşlatır, doğru tahmini hiç engellemezdi.
+        if (PanelLockoutPolicy.IsLockedOut(user, now))
+        {
+            ViewBag.Error = $"Hesabınız çok fazla hatalı denemeden dolayı geçici olarak kilitlendi. " +
+                            $"Lütfen {PanelLockoutPolicy.RemainingMinutes(user, now)} dakika sonra tekrar deneyin.";
+            return View();
+        }
+
+        if (!_passwordHasher.VerifyPassword(password, user.Password!))
+        {
+            PanelLockoutPolicy.RegisterFailure(user, now);
+            await _uow.SaveChangesAsync();
+
+            ViewBag.Error = PanelLockoutPolicy.IsLockedOut(user, now)
+                ? $"Kullanıcı adı veya şifre hatalı! Çok fazla hatalı deneme yaptığınız için hesabınız " +
+                  $"{PanelLockoutPolicy.RemainingMinutes(user, now)} dakika kilitlendi."
+                : "Kullanıcı adı veya şifre hatalı!";
             return View();
         }
 
@@ -74,6 +102,28 @@ public class AccountController : Controller
             return View();
         }
 
+        // Doğru parola → sayaç ve kilit temizlenir (kısmi denemeler birikip sonradan patlamasın).
+        PanelLockoutPolicy.RegisterSuccess(user);
+        await _uow.SaveChangesAsync();
+
+        await SignInPanelUserAsync(user);
+
+        // Faz 11.18: parolası yönetici tarafından belirlenmişse doğrudan parola ekranına.
+        // (Filtre zaten her sayfada aynı yönlendirmeyi yapar; buradaki, kullanıcıyı
+        // "neden buradayım?" sorusuyla baş başa bırakmamak için doğrudan ve açık yol.)
+        if (user.MustChangePassword)
+            return RedirectToAction(nameof(ChangePassword));
+
+        return Redirect(returnUrl ?? "/Dashboard/Index");
+    }
+
+    /// <summary>
+    /// Panel çerezini kurar. Faz 11.18'de ayrı bir metoda alındı: parola değişiminden
+    /// sonra çerezin **yeniden** düzenlenmesi gerekiyor (yoksa <c>OnValidatePrincipal</c>
+    /// kullanıcının kendi oturumunu, kendi yaptığı parola değişimi yüzünden düşürür).
+    /// </summary>
+    private async Task SignInPanelUserAsync(User user)
+    {
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -86,6 +136,7 @@ public class AccountController : Controller
         var authProperties = new AuthenticationProperties
         {
             IsPersistent = true, // Beni hatırla
+            IssuedUtc = DateTimeOffset.UtcNow,
             ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
         };
 
@@ -93,8 +144,6 @@ public class AccountController : Controller
             CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(claimsIdentity),
             authProperties);
-
-        return Redirect(returnUrl ?? "/Dashboard/Index");
     }
 
     // Faz 10.9(f): admin kendi şifresini panelden değiştirebilir (öncesinde yalnız seed şifresiyle yaşıyordu)
@@ -102,6 +151,10 @@ public class AccountController : Controller
     [Authorize(Roles = "admin,super_admin,moderator")]
     public IActionResult ChangePassword()
     {
+        // Faz 11.18: ekran iki bağlamda açılır — kullanıcı kendi isteğiyle geldiğinde ve
+        // filtre onu buraya ZORLADIĞINDA. İkincisinde görünüm bunu açıkça söyler, yoksa
+        // kullanıcı menüsüz bir sayfada ne olduğunu anlamadan kalır.
+        ViewBag.Forced = HttpContext.Items[Common.PanelPrincipalValidator.MustChangePasswordItemKey] is true;
         return View();
     }
 
@@ -110,6 +163,9 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangePassword(string currentPassword, string newPassword, string newPasswordConfirm)
     {
+        var forced = HttpContext.Items[Common.PanelPrincipalValidator.MustChangePasswordItemKey] is true;
+        ViewBag.Forced = forced;
+
         if (string.IsNullOrWhiteSpace(currentPassword) || string.IsNullOrWhiteSpace(newPassword))
         {
             ViewBag.Error = "Tüm alanlar zorunludur.";
@@ -131,11 +187,20 @@ public class AccountController : Controller
         {
             await _sender.Send(new ChangeMyPasswordCommand(userId, currentPassword, newPassword));
         }
-        catch (AppException ex) // hatalı mevcut şifre / validasyon
+        catch (AppException ex) // hatalı mevcut şifre / parola politikası
         {
             ViewBag.Error = ex.Message;
             return View();
         }
+
+        // 🔑 Faz 11.18: parola değişimi TÜM açık oturumları düşürür (PasswordChangedAt >
+        // çerezin düzenlenme anı). Kullanıcının KENDİ oturumu da bu kurala takılırdı;
+        // çerez burada yeniden düzenlenerek o istisna açıkça veriliyor — parolasını
+        // değiştiren kişinin dışarı atılması için hiçbir sebep yok, başkalarınınki için var.
+        var refreshed = await _uow.Repository<User>().Query()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        if (refreshed is not null)
+            await SignInPanelUserAsync(refreshed);
 
         TempData["Success"] = "Şifreniz başarıyla değiştirildi.";
         return RedirectToAction("Index", "Dashboard");
