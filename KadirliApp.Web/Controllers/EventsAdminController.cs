@@ -47,6 +47,41 @@ public class EventsAdminController : Controller
         return View(result);
     }
 
+    /// <summary>Faz 11.16b — filtrelenmiş listeyi CSV olarak indirir (bkz. AdsAdmin.ExportCsv).</summary>
+    [HttpGet]
+    public async Task<IActionResult> ExportCsv([FromQuery] QueryEventDto query)
+    {
+        query ??= new QueryEventDto();
+
+        var (rows, total) = await Common.PanelCsv.CollectAsync<EventResponseDto>((page, size) =>
+        {
+            query.Page = page;
+            query.Limit = size;
+            return _sender.Send(new GetEventsQuery(query));
+        });
+
+        if (Common.PanelCsv.RejectIfTooLarge(total) is { } tooLarge)
+        {
+            TempData["Error"] = tooLarge;
+            return RedirectToAction(nameof(Index));
+        }
+
+        return Common.PanelCsv.File(rows, EventCsvColumns, "etkinlikler");
+    }
+
+    private static readonly IReadOnlyList<Common.PanelCsv.Column<EventResponseDto>> EventCsvColumns =
+    [
+        new("Başlık", x => x.Title),
+        new("Kategori", x => x.CategoryName),
+        new("Durum", x => Common.PanelDisplay.Status(x.Status).Label),
+        new("Tarih", x => x.EventDate.ToString("dd.MM.yyyy")),
+        new("Saat", x => x.EventTime.ToString(@"hh\:mm")),
+        new("Yer", x => x.VenueName),
+        new("Düzenleyen", x => x.Organizer),
+        new("Bilet", x => x.IsFree ? "Ücretsiz" : Common.PanelCsv.Number(x.TicketPrice)),
+        new("Oluşturulma", x => Common.PanelCsv.Date(x.CreatedAt)),
+    ];
+
     /// <summary>Aylık takvim görünümü; bir güne tıklayınca o güne etkinlik eklenir.</summary>
     [HttpGet]
     public async Task<IActionResult> Calendar(int? year, int? month)

@@ -57,6 +57,35 @@ public class AnnouncementsAdminController : Controller
         return View(result);
     }
 
+    /// <summary>Faz 11.16b — filtrelenmiş listeyi CSV olarak indirir (bkz. AdsAdmin.ExportCsv).</summary>
+    [HttpGet]
+    public async Task<IActionResult> ExportCsv([FromQuery] string? sort = null)
+    {
+        var (rows, total) = await Common.PanelCsv.CollectAsync<AnnouncementDto>(
+            (page, size) => _sender.Send(new GetAnnouncementsQuery { Page = page, Limit = size, Sort = sort }));
+
+        if (Common.PanelCsv.RejectIfTooLarge(total) is { } tooLarge)
+        {
+            TempData["Error"] = tooLarge;
+            return RedirectToAction(nameof(Index), new { sort });
+        }
+
+        return Common.PanelCsv.File(rows, AnnouncementCsvColumns, "duyurular");
+    }
+
+    private static readonly IReadOnlyList<Common.PanelCsv.Column<AnnouncementDto>> AnnouncementCsvColumns =
+    [
+        new("Başlık", x => x.Title),
+        new("Tür", x => x.TypeName),
+        new("Durum", x => Common.PanelDisplay.Status(x.Status).Label),
+        new("Öncelik", x => x.Priority.ToString()),
+        new("Yayın zamanı", x => Common.PanelCsv.Date(x.SentAt)),
+        new("Planlanan", x => Common.PanelCsv.Date(x.ScheduledFor)),
+        new("Görünürlük sonu", x => Common.PanelCsv.Date(x.VisibleUntil)),
+        new("Kaynak", x => x.Source),
+        new("Oluşturulma", x => Common.PanelCsv.Date(x.CreatedAt)),
+    ];
+
     [HttpGet]
     public async Task<IActionResult> Create()
     {

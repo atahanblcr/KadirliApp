@@ -150,6 +150,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | 20 | **Panel istatistik** | `Dashboard/` | *(public uç yok)* | `Dashboard` | `dashboard` | *(yok)* | — |
 | 21 | **Denetim izi** | `Audit/` | *(public uç yok)* | `AuditLogsAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
 | 22 | **Çöp kutusu** | `Trash/` | *(public uç yok)* | `TrashAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
+| 23 | **Global arama** | `Search/` | *(public uç yok)* | `GlobalSearch` | *(matris dışı — **sonucu süzer**, aşağıya bak)* | *(yok)* | — |
 
 **Mobilde ayrıca ekran taşıyan ama backend modülü olmayan klasörler:** `home/` (hub),
 `common/`, `dev/` (yalnız debug: `/gelistirici/tasarim`, `/gelistirici/ag`).
@@ -178,6 +179,15 @@ Uygulama noktaları — üçü aynı modül anahtarını kullanır:
 **ve** `[PanelPermission("<modül>")]` yazın, `PanelMenu.Items`'a satır ekleyin. Rol listesine
 "moderator" yazıp özniteliği unutursanız moderatör o modülde **sınırsız** yetki kazanır —
 `PanelModeratorPermissionTests` bunu yakalar.
+
+⚠️ **Tek modüle ait olmayan bir ekran** ekliyorsanız (Faz 11.16b: `GlobalSearch`) üçüncü bir
+desen var: `[Authorize(Roles = "admin,super_admin,moderator")]` + `[PanelPermission]` **yok** +
+controller adı `PanelMenu.PermissionFilteredControllers`'ta. Burada izin **ekranın kapısında
+değil sorgunun içinde** uygulanır: aranacak modüller `IPanelMenuProvider`'dan gelir, yani
+moderatör menüde göremediği bir modülden **tek sonuç bile** almaz.
+🔑 Bu istisna yalnız *kanıtlanabildiği* için güvenli: listeye ad yazmak yapısal testi
+susturmaya yetmez — `GlobalSearchTests` süzmenin gerçekten çalıştığını ayrıca denetler,
+`PanelModeratorPermissionTests` de listenin muafiyet çöplüğüne dönmesini engeller.
 
 ⚠️ **Yalnız admin'e açık bir ekran** ekliyorsanız (Faz 11.17: `AuditLogsAdmin`, `TrashAdmin`)
 desen farklıdır: `[Authorize(Roles = "admin,super_admin")]` + `[PanelPermission]` **yok** +

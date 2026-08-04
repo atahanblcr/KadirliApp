@@ -174,6 +174,12 @@
 | İmzalama anahtarı olmadan **mağaza artefaktı** üretilebiliyor mu? | Üretilememeli. `bundleRelease` anahtarsız **derlenmez**; `assembleRelease` (APK) debug imzasıyla çalışmaya devam eder (yerel deneme + CI). ⚠️ Gradle'ın `logger.warn`'ı **`flutter build` tarafından yutuluyor** — uyarıya güvenme, kapı koy. | `mobile/android/app/build.gradle.kts`, `secrets/README.md` |
 | Marka görseli elle mi düzenlendi? | Düzenlenmemeli — ikon/splash `tool/generate_branding.py` ile **türetiliyor** (renkler tasarım token'larından, harf uygulamanın yazı tipinden). ⚠️ Açılış ekranı ikonla **aynı görsel olamaz**: ikonun zemini marka yeşili, açılış ekranınınki tema rengi → beyaz mark açık zeminde görünmez oldu. Ayrıca Android 12+ logoyu **dairesel maskeye** oturtur, kenardaki öge kesilir. | `tool/generate_branding.py` |
 
+| Yeni **dışa aktarma** ekledin mi? | Dört ayrıntının hepsi `PanelCsv`'de: **UTF-8 BOM** (yoksa Excel Türkçe karakteri bozar), **noktalı virgül ayraç** (yoksa Türkçe yerelde her satır tek sütuna düşer), **formül enjeksiyonu kaçışı** (`=`/`+`/`-`/`@` ile başlayan hücreyi Excel çalıştırır — başlıkları *vatandaş* yazıyor), **tavan aşımında sessiz kırpma değil ret**. Kendi CSV'ni yazma, `PanelCsv`'yi kullan. | `PanelCsvExportTests` |
+| ⚠️ Dışa aktarma **tek istekle** mi veri çekiyor? | Çekmemeli. `Pagination.Clamp` panel sorgularını **200 satıra kırpıyor** ve bunu sessizce yapıyor: `Limit = 5000` demek 200 satırlık bir dosyayı "tüm liste" sanmaktır. `PanelCsv.CollectAsync` sayfaları dolaşır. Clamp'i gevşetmek **çözüm değil** (10.7 DoS koruması). | `PanelCsvExportTests.Export_IncludesRowsBeyondTheSinglePageLimit` |
+| Dışa aktarma **ekrandaki filtreyi** mi kullanıyor? | Aynı sorgu nesnesi gönderilmeli ve buton mevcut sorgu dizesini **aynen taşımalı** (`_ExportCsvButton` bunu `RouteData`+`Query`'den kendi kurar; controller adını model olarak geçmeyin — kopyala-yapıştırla yanlış modülün listesi indirilir). Ayrı bir sorgu yazılırsa "ekranda 12 satır var, dosyada 400" ayrışması doğar. | `PanelCsvExportTests.Export_RespectsTheCurrentFilter` |
+| Tek modüle ait **olmayan** bir ekran mı ekledin? | O zaman `[PanelPermission]` takılamaz; izin **sorgunun içinde** uygulanır ve controller adı `PanelMenu.PermissionFilteredControllers`'a **bildirilir**. ⚠️ Listeye ad yazmak yapısal testi susturmaya yetmez: her ad için süzmenin gerçekten çalıştığını kanıtlayan bir davranış testi şart, yoksa "içeride süzüyorum" çürüyen bir yorum satırı olur. | `GlobalSearchTests`, `PanelModeratorPermissionTests` |
+| Yeni bir çapraz-modül sorgusu **soft-delete**'i düşündü mü? | Global arama silinen kaydı **göstermez** (`IgnoreQueryFilters` yok) — silinen kaydın yeri Çöp Kutusu. Gösterseydi hem "silmiştim ama çıkıyor" karmaşası doğardı hem de sonuçtan düzenleme ekranına giden bağlantı boş sayfaya götürürdü. | `GlobalSearchTests.DeletedRecords_DoNotAppearInSearch` |
+
 ---
 
 ## Bakım
@@ -200,7 +206,10 @@ Test kırıldığında yapılacak şey testi gevşetmek değil, **checklist'i g�
    satırı silme — bileşenin adını yazarak bırak; yeni gelen "neden böyle" sorusunun
    cevabı burada.
 
-Son gözden geçirme: **4 Ağustos 2026 (Faz 11.16)** — **§11 (Yayın / Platform
+Son gözden geçirme: **4 Ağustos 2026 (Faz 11.16b)** — §11'e beş satır (CSV'nin dört
+sessiz tuzağı, tek-istek kırpması, dışa aktarmanın ekran filtresiyle aynı olması,
+"sonucu süzen" controller deseni, çapraz-modül sorgusunda soft-delete).
+Önceki: **4 Ağustos 2026 (Faz 11.16)** — **§11 (Yayın / Platform
 yapılandırması)** eklendi: platform izinleri, dolaylı izne güvenmek, dev rotalarının
 sızması, production ayar kapısı, `FileStorage:BaseUrl`'ün boş kalması, imzasız mağaza
 artefaktı ve türetilen marka görselleri.

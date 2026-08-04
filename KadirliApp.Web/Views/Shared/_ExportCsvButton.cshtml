@@ -1,0 +1,34 @@
+@*
+    Faz 11.16b — "CSV indir" butonu, TEK yerde.
+
+    🔑 Butonun tek işi doğru bağlantıyı üretmek: dışa aktarma **ekranda görünen
+    filtrenin aynısını** kullanmalı. Bu yüzden adres, her listenin kendi filtre
+    alanlarını elle sayması yerine **mevcut sorgu dizesi aynen taşınarak** kuruluyor.
+    Elle sayılsaydı yeni bir filtre eklendiğinde onu buraya yazmak unutulur ve dosya
+    sessizce ekrandakinden farklı bir kümeyi içerirdi.
+
+    ⚠️ Tek istisna `page`: dışa aktarma TÜM sayfaları kapsadığı için sayfa numarası
+    taşınmaz — taşınsaydı "2. sayfadayken indir" yalnız o sayfayı indiriyormuş
+    izlenimi verirdi (oysa uç zaten hepsini topluyor).
+
+    🔑 Model ALMIYOR: hedef controller'ı çağıran söylemez, partial kendi
+    `RouteData`'sından okur. Model olarak geçseydi yanlış ad yazmak mümkün olurdu
+    (ör. kopyala-yapıştırla "AdsAdmin" kalması) ve buton sessizce BAŞKA bir modülün
+    listesini indirirdi — bağlantı çalışır, dosya yanlış olurdu.
+*@
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+
+    var carried = Context.Request.Query
+        .Where(kv => !string.Equals(kv.Key, "page", StringComparison.OrdinalIgnoreCase))
+        .SelectMany(kv => kv.Value.Where(v => !string.IsNullOrEmpty(v))
+                                  .Select(v => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(v!)}"))
+        .ToList();
+
+    var href = Url.Action("ExportCsv", controller) + (carried.Count > 0 ? "?" + string.Join("&", carried) : "");
+}
+<a href="@href"
+   class="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 shadow-sm"
+   title="Ekrandaki filtreye uyan tüm kayıtları CSV olarak indirir">
+    <i class="fas fa-file-csv mr-2"></i> CSV indir
+</a>

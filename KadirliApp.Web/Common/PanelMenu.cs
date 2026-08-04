@@ -62,6 +62,29 @@ public static class PanelMenu
     /// <summary>Yalnız admin/super_admin'in görebileceği satırlar.</summary>
     public static readonly IReadOnlySet<string> AdminOnlyControllers =
         new HashSet<string>(StringComparer.Ordinal) { "StaffAdmin", "AuditLogsAdmin", "TrashAdmin" };
+
+    /// <summary>
+    /// Faz 11.16b — <b>ekranı değil SONUCU süzen</b> controller'lar.
+    /// </summary>
+    /// <remarks>
+    /// Panelin kuralı nettir: moderatöre açık her controller <c>[PanelPermission("&lt;modül&gt;")]</c>
+    /// taşır (görünmez sözleşme #20, <c>PanelModeratorPermissionTests</c>). Ama global arama
+    /// <b>tek bir modüle ait değil</b> — dokuz modülde birden arıyor, dolayısıyla takabileceği
+    /// tek bir modül anahtarı yok.
+    ///
+    /// 🔑 Bu durumda yetki, ekranın kapısında değil <b>sorgunun içinde</b> uygulanır: kullanıcının
+    /// okuma izni olan modüller <c>IPanelMenuProvider</c>'dan alınır ve arama yalnız o kümede koşar.
+    /// Yani moderatör arama ekranını açabilir, ama göremeyeceği bir modülden **tek sonuç bile**
+    /// dönmez.
+    ///
+    /// ⚠️ "Merak etmeyin, içeride süzüyor" bir belge cümlesi olarak çürür. Bu yüzden bu liste
+    /// <b>bildirilmiş</b> olmak zorunda: yapısal test, <c>[PanelPermission]</c> taşımayan bir
+    /// controller'ı ancak burada adı geçiyorsa hoş görür — ve buradaki her ad için ayrıca
+    /// süzmenin gerçekten çalıştığını kanıtlayan bir davranış testi vardır. Böylece özniteliği
+    /// unutan biri testi "listeye ekleyerek" susturamaz; süzmeyi de yazmak zorunda kalır.
+    /// </remarks>
+    public static readonly IReadOnlySet<string> PermissionFilteredControllers =
+        new HashSet<string>(StringComparer.Ordinal) { "GlobalSearch" };
 }
 
 /// <summary>Görünümün "bu kullanıcı neyi görebilir?" sorusunu tek sorguyla cevaplar.</summary>

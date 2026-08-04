@@ -43,6 +43,29 @@
                                 </nav>
                             </details>
                         </div>
+                        @*
+                            Faz 11.16b — GLOBAL ARAMA kutusu.
+                            Menüde satırı yok, giriş noktası burası: yöneticinin elindeki ipucu
+                            genelde modülü değil kaydı tarif eder ("Yılmaz diye bir şey vardı"),
+                            önce doğru listeyi bulmak zorunda kalmak panelin en sık tekrarlanan
+                            gereksiz adımıydı.
+                            ⚠️ Üst çubukta olması dar ekranda da erişilebilir olmasını sağlıyor
+                            (kenar çubuğu <1024 px'de gizli — 11.15c'nin dersi).
+                        *@
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <form asp-controller="GlobalSearch" asp-action="Index" method="get"
+                                  class="flex-1 max-w-md mx-4" role="search">
+                                <label for="panel-global-search" class="sr-only">Panelde ara</label>
+                                <div class="relative">
+                                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true"></i>
+                                    <input id="panel-global-search" type="search" name="q"
+                                           value="@(Context.Request.Query["q"])"
+                                           placeholder="Panelde ara…"
+                                           class="w-full rounded-lg border border-gray-300 bg-gray-50 py-1.5 pl-9 pr-3 text-sm focus:border-indigo-500 focus:bg-white focus:ring-indigo-500" />
+                                </div>
+                            </form>
+                        }
                         <div class="flex items-center space-x-3">
                             @if (User.Identity?.IsAuthenticated == true)
                             {

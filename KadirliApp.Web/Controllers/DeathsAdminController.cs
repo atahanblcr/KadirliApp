@@ -38,6 +38,36 @@ public class DeathsAdminController : Controller
         var result = await _sender.Send(new GetDeathNoticesQuery(dto ?? new QueryDeathNoticeDto(null, null, null, 1, 20)));
         return View(result);
     }
+
+    /// <summary>Faz 11.16b — filtrelenmiş listeyi CSV olarak indirir (bkz. AdsAdmin.ExportCsv).</summary>
+    [HttpGet]
+    public async Task<IActionResult> ExportCsv([FromQuery] QueryDeathNoticeDto dto)
+    {
+        var query = dto ?? new QueryDeathNoticeDto(null, null, null, 1, 20);
+
+        var (rows, total) = await Common.PanelCsv.CollectAsync<KadirliApp.Application.Features.Deaths.Dtos.DeathNoticeResponseDto>(
+            (page, size) => _sender.Send(new GetDeathNoticesQuery(query with { Page = page, Limit = size })));
+
+        if (Common.PanelCsv.RejectIfTooLarge(total) is { } tooLarge)
+        {
+            TempData["Error"] = tooLarge;
+            return RedirectToAction(nameof(Index));
+        }
+
+        return Common.PanelCsv.File(rows, DeathCsvColumns, "vefat-ilanlari");
+    }
+
+    private static readonly IReadOnlyList<Common.PanelCsv.Column<KadirliApp.Application.Features.Deaths.Dtos.DeathNoticeResponseDto>> DeathCsvColumns =
+    [
+        new("Vefat eden", x => x.DeceasedName),
+        new("Durum", x => Common.PanelDisplay.Status(x.Status).Label),
+        new("Cenaze tarihi", x => x.FuneralDate.ToString("dd.MM.yyyy")),
+        new("Cenaze saati", x => x.FuneralTime.ToString(@"hh\:mm")),
+        new("Cami", x => x.MosqueName),
+        new("Mezarlık", x => x.CemeteryName),
+        new("Taziye adresi", x => x.CondolenceAddress),
+        new("Oluşturulma", x => Common.PanelCsv.Date(x.CreatedAt)),
+    ];
     [HttpGet]
     public async Task<IActionResult> Create()
     {

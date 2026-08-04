@@ -1613,6 +1613,72 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
   bağımsız push ekranı (şema değişikliği gerektiriyor: "kaç cihaza gitti" için FCM
   yanıtının saklanması).
 
+### 11.16b — CSV dışa aktarma + global arama (11.18'den kalanlar) — [x] 2/3 (4 Ağustos 2026, 3. oturum)
+
+> **Neden ayrı başlık:** 11.18 dört maddesini bitirip üç madde bırakmıştı. Kullanıcı
+> yayın hazırlığından sonra bu ikisini istedi; üçüncüsü (bağımsız push ekranı) **şema
+> değişikliği** gerektirdiği için hâlâ açık.
+
+- [x] 🟡 **CSV dışa aktarma** (ilan · duyuru · etkinlik · kampanya · vefat).
+  Ortak çekirdek `PanelCsv`; her liste kendi sütunlarını söyler, biçimlendirme tek yerde.
+  🔑 **Dört ayrıntının hepsi "sessiz hasar" sınıfı** — dosya indirilir, açılır ve *yanlış*
+  görünür: **UTF-8 BOM** (yoksa Excel Türkçe Windows'ta "İstanbul" → "Ä°stanbul" yapar) ·
+  **noktalı virgül ayraç** (Türkçe yerelde ondalık ayracı virgül olduğu için Excel `;`
+  bekler; virgülle yazılan dosya **tek sütuna** düşer) · **formül enjeksiyonu kaçışı**
+  (`=`/`+`/`-`/`@` ile başlayan hücreyi Excel **çalıştırır**; ilan başlıklarını *vatandaş*
+  yazdığı için bu gerçek bir saldırı yüzeyi — `=HYPERLINK(...)` başlıklı bir ilan
+  yöneticinin Excel'inde canlı bağlantıya dönüşür) · **tavan aşımında ret**
+  (kırpma değil: yarım bir dosyayı tam sanmak, dosyayı hiç alamamaktan kötü).
+  🐛 **Yazarken düşülen ve testle yakalanan tuzak:** dışa aktarma ilk hâlinde tek istekle
+  `Limit = 5000` gönderiyordu. Ama `Pagination.Clamp` (10.7, DoS koruması) panel
+  sorgularını **`AdminMaxLimit = 200`'e kırpıyor ve bunu sessizce yapıyor**: istek 200
+  satır döner, `TotalCount` yine 4.000 der, dosya inilir ve yönetici 200 satırı "tüm
+  liste" sanır. Çözüm clamp'i gevşetmek **değil** — `PanelCsv.CollectAsync` sayfa boyunu
+  clamp'in izin verdiği azami değere sabitleyip sayfaları dolaşıyor.
+  🔑 **Buton controller adını model olarak ALMIYOR**, `RouteData`'dan okuyor: model
+  geçseydi kopyala-yapıştırla yanlış ad kalabilir ve buton sessizce **başka bir modülün**
+  listesini indirirdi. Mevcut sorgu dizesi aynen taşınıyor (yalnız `page` düşüyor) →
+  dosya **ekranda görünen filtrenin** aynısı.
+  ⚠️ Aksiyon adı `ExportCsv`: hiçbir yazma önekiyle eşleşmediği için GET olarak
+  **`read`** iznine düşer (görünmez sözleşme #19) — dışa aktarma toplu bir okumadır.
+- [x] 🟡 **Global arama.** Üst çubukta her sayfada duran kutu → `GlobalSearch/Index`.
+  Dokuz modülde arar (ilan · duyuru · etkinlik · kampanya · vefat · mekan · rehber ·
+  işletme · kullanıcı), sonuçlar modül modül gruplanır, modül başına 5 sonuç + toplam
+  sayı + "tümünü gör".
+  🔑 **YENİ KALICI DESEN — sonucu süzen controller.** Global arama tek modüle ait
+  olmadığı için `[PanelPermission]` **takamaz**. Yapısal testi gevşetmek yerine üçüncü
+  bir desen tanımlandı: izin **ekranın kapısında değil sorgunun içinde** uygulanır
+  (aranacak modüller `IPanelMenuProvider`'dan gelir — menüyü çizen sağlayıcının aynısı,
+  ikinci bir izin mantığı yazılmadı) ve controller adı
+  `PanelMenu.PermissionFilteredControllers`'a **bildirilir**.
+  ⚠️ **Listeye ad yazmak testi susturmaya yetmiyor:** `GlobalSearchTests` süzmenin
+  gerçekten çalıştığını kanıtlıyor (aynı terim hem duyuruda hem ilanda geçiyor,
+  moderatöre yalnız duyuru izni veriliyor → ilan sonucu **görünmemeli**), ikinci bir
+  yapısal test de listenin "muafiyet çöplüğü"ne dönmesini engelliyor.
+  ⚠️ **Silinen kayıt aramada görünmez** (`IgnoreQueryFilters` yok): yeri Çöp Kutusu
+  (11.17). Görünseydi hem "silmiştim ama çıkıyor" karmaşası doğardı hem de sonuçtan
+  düzenleme ekranına giden bağlantı boş sayfaya götürürdü. Boş sonuç ekranı bu yüzden
+  Çöp Kutusu'nu hatırlatıyor.
+  ⚠️ **`EF.Functions.ILike` KULLANILAMADI:** Npgsql'e özel ve `Application` katmanı
+  sağlayıcıyı tanımaz (katman kuralı). Projenin her yerindeki `ToLower().Contains()`
+  deseni kullanıldı — tek yerde farklı arama semantiği, modül listesiyle global aramanın
+  aynı terimde farklı sonuç vermesi demek olurdu.
+  ⚠️ Menüye satır **konmadı**: giriş noktası üst çubuktaki kutu (dar ekranda da görünür).
+- ⏭️ 🟡 **Bağımsız push ekranı** → hâlâ açık. "Kaç cihaza gitti" FCM yanıtının
+  saklanmasını gerektiriyor: **şema değişikliği**, tek ekranlık iş değil.
+
+#### 11.16b kapanış notları
+
+- **Testler: 545 → 567 (+22).** `PanelCsvExportTests` (13), `GlobalSearchTests` (8),
+  `PanelModeratorPermissionTests`'e 1 yapısal test.
+- **`ARCHITECTURE.md` modül tablosuna satır 23 (`Search/`) eklendi** — `ArchitectureDocTests`
+  bunu **gerçekten kırmızıya döndürerek** hatırlattı (doküman bilerek çürüyemiyor).
+  §3'e üçüncü panel deseni ("sonucu süzen ekran") yazıldı.
+- **"Kuralı bilerek boz" ölçütü uygulandı:** sayfa dolaşımı tek sayfaya indirildi ·
+  BOM kaldırıldı · global aramanın izin süzgeci atlandı → **4 test kırmızıya döndü**
+  (ikisi CSV, ikisi yetki), geri alınınca 567/567 yeşil.
+- **Checklist §11'e beş satır** eklendi.
+
 > **AKTİF SIRADAKİ: 11.16 — Yayına hazırlık.** (11.17'nin 4 maddesi 4 Ağustos 2026'da bitti —
 > **kullanıcı isteğiyle 11.16'dan ÖNCE**: "panel ve uygulama arası API bağlantılarını sorunsuz
 > hale getirelim". Kalan iki 🟡 madde **11.18**'e alındı.)

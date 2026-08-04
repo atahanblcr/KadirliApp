@@ -50,6 +50,41 @@ public class CampaignsAdminController : Controller
         return View(result);
     }
 
+    /// <summary>Faz 11.16b — filtrelenmiş listeyi CSV olarak indirir (bkz. AdsAdmin.ExportCsv).</summary>
+    [HttpGet]
+    public async Task<IActionResult> ExportCsv([FromQuery] QueryCampaignDto query)
+    {
+        query ??= new QueryCampaignDto();
+
+        var (rows, total) = await Common.PanelCsv.CollectAsync<CampaignResponseDto>((page, size) =>
+        {
+            query.Page = page;
+            query.Limit = size;
+            return _sender.Send(new GetCampaignsQuery(query));
+        });
+
+        if (Common.PanelCsv.RejectIfTooLarge(total) is { } tooLarge)
+        {
+            TempData["Error"] = tooLarge;
+            return RedirectToAction(nameof(Index));
+        }
+
+        return Common.PanelCsv.File(rows, CampaignCsvColumns, "kampanyalar");
+    }
+
+    private static readonly IReadOnlyList<Common.PanelCsv.Column<CampaignResponseDto>> CampaignCsvColumns =
+    [
+        new("Başlık", x => x.Title),
+        new("İşletme", x => x.BusinessName),
+        new("Durum", x => Common.PanelDisplay.Status(x.Status).Label),
+        new("İndirim (%)", x => Common.PanelCsv.Number(x.DiscountPercentage)),
+        new("Kod", x => x.DiscountCode),
+        new("Başlangıç", x => x.StartDate.ToString("dd.MM.yyyy")),
+        new("Bitiş", x => x.EndDate.ToString("dd.MM.yyyy")),
+        new("Kod görüntülenme", x => x.CodeViewCount.ToString()),
+        new("Oluşturulma", x => Common.PanelCsv.Date(x.CreatedAt)),
+    ];
+
     [HttpGet]
     public async Task<IActionResult> Create()
     {

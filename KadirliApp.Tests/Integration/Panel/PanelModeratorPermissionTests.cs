@@ -113,6 +113,15 @@ public class PanelModeratorPermissionTests : IAsyncLifetime
     /// "moderator" eklenip öznitelik unutulursa moderatör o modülde **sınırsız** yetki
     /// kazanır — sessiz ve tehlikeli.
     /// </summary>
+    /// <remarks>
+    /// Faz 11.16b: tek istisna sınıfı eklendi — <b>ekranı değil sonucu süzen</b>
+    /// controller'lar (global arama gibi tek modüle ait olmayanlar). Bunlar
+    /// <c>PanelMenu.PermissionFilteredControllers</c>'da <b>bildirilmiş</b> olmak zorunda;
+    /// ⚠️ listeye ad eklemek testi susturmaya yetmez, çünkü o adlar için süzmenin
+    /// gerçekten çalıştığını kanıtlayan ayrı davranış testleri var
+    /// (<c>GlobalSearchTests</c>). Aksi hâlde "içeride süzüyorum" iddiası çürüyen bir
+    /// yorum satırı olurdu.
+    /// </remarks>
     [Fact]
     public void EveryControllerOpenToModerators_CarriesAPermissionAttribute()
     {
@@ -123,6 +132,8 @@ public class PanelModeratorPermissionTests : IAsyncLifetime
             .Where(t => t.GetCustomAttribute<AuthorizeAttribute>()?.Roles?.Contains("moderator") == true)
             .Where(t => t.Name != "DashboardController")   // iniş sayfası — bilinçli olarak matris dışı
             .Where(t => t.Name != "AccountController")     // şifre değiştirme/çıkış herkese açık
+            .Where(t => !PanelMenu.PermissionFilteredControllers.Contains(
+                t.Name.Replace("Controller", "", StringComparison.Ordinal)))
             .Where(t => t.GetCustomAttribute<PanelPermissionAttribute>() is null)
             .Select(t => t.Name)
             .ToList();
@@ -130,6 +141,42 @@ public class PanelModeratorPermissionTests : IAsyncLifetime
         leaking.Should().BeEmpty(
             "moderatöre açık ama [PanelPermission] taşımayan controller'lar: {0}",
             string.Join(", ", leaking));
+    }
+
+    /// <summary>
+    /// "Sonucu süzen" istisnası <b>dar</b> kalmalı: listeye yazılan her ad gerçekten
+    /// var olan, moderatöre açık ve bilinçli olarak <c>[PanelPermission]</c>'sız bir
+    /// controller'a karşılık gelmeli.
+    /// </summary>
+    /// <remarks>
+    /// Bu test olmasaydı liste bir "muafiyet çöplüğü"ne dönüşebilirdi: özniteliği unutan
+    /// biri adı buraya ekleyip devam eder, kimse fark etmezdi. Şimdi ad eklemek
+    /// <b>bilinçli</b> bir eylem: karşılığı olmayan ad testi kırar.
+    /// </remarks>
+    [Fact]
+    public void PermissionFilteredControllers_OnlyListsRealAttributeFreeControllers()
+    {
+        var controllers = typeof(WebPanel::Program).Assembly.GetTypes()
+            .Where(t => t is { IsAbstract: false, IsClass: true }
+                        && typeof(Controller).IsAssignableFrom(t)
+                        && t.Name.EndsWith("Controller", StringComparison.Ordinal))
+            .ToDictionary(t => t.Name.Replace("Controller", "", StringComparison.Ordinal));
+
+        foreach (var name in PanelMenu.PermissionFilteredControllers)
+        {
+            controllers.Should().ContainKey(name,
+                "listedeki '{0}' karşılığı olmayan bir controller adı", name);
+
+            var type = controllers[name];
+
+            type.GetCustomAttribute<AuthorizeAttribute>()?.Roles.Should().Contain("moderator",
+                "'{0}' moderatöre kapalıysa bu listede olmasının bir anlamı yok — " +
+                "istisna dar kalmalı", name);
+
+            type.GetCustomAttribute<PanelPermissionAttribute>().Should().BeNull(
+                "'{0}' hem [PanelPermission] taşıyor hem muafiyet listesinde; " +
+                "ikisinden biri yanlış", name);
+        }
     }
 
     /// <summary>

@@ -119,6 +119,18 @@ public static class PanelDisplay
     public static string ModuleLabel(string moduleKey) =>
         PanelMenu.Items.FirstOrDefault(i => i.Module == moduleKey)?.Label ?? moduleKey;
 
+    /// <summary>
+    /// İzin modülü anahtarını panel controller adına çevirir (<c>deaths</c> → <c>DeathsAdmin</c>).
+    /// Faz 11.16b: global arama sonucundan kaydın düzenleme ekranına bağlantı kurmak için.
+    /// Kaynak yine <see cref="PanelMenu.Items"/> — eşleme ikinci bir yerde tutulmaz.
+    /// </summary>
+    public static string? ModuleController(string moduleKey) =>
+        PanelMenu.Items.FirstOrDefault(i => i.Module == moduleKey)?.Controller;
+
+    /// <summary>Modülün menüdeki ikonu (arama sonuçlarını gruplarken kullanılıyor).</summary>
+    public static string ModuleIcon(string moduleKey) =>
+        PanelMenu.Items.FirstOrDefault(i => i.Module == moduleKey)?.Icon ?? "fa-circle";
+
     // ── Denetim izi eylemleri (Faz 11.17) ───────────────────────────────────────
     //
     // audit_logs.action ham değerleri komutların IAuditableCommand.AuditAction'ından gelir

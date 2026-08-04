@@ -41,6 +41,47 @@ public class AdsAdminController : Controller
         ViewBag.Query = query;
         return View(result);
     }
+    /// <summary>
+    /// Faz 11.16b — filtrelenmiş listeyi CSV olarak indirir.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Aksiyon adı bilerek <c>ExportCsv</c>: izin eylemi aksiyon adının önekinden
+    /// türetilir (görünmez sözleşme #19) ve bu ad hiçbir yazma önekiyle eşleşmediği için
+    /// GET olarak <b>"read"</b>e düşer — doğrusu da bu, dışa aktarma toplu bir okumadır.
+    /// 🔑 Dışa aktarma <b>Index ile AYNI sorguyu</b> gönderir: ekranda görünen filtre neyse
+    /// dosyada o vardır. Ayrı bir sorgu yazılsaydı "ekranda 12 satır görüyorum ama dosyada
+    /// 400 var" sınıfı bir ayrışma doğardı.
+    /// </remarks>
+    [HttpGet]
+    public async Task<IActionResult> ExportCsv([FromQuery] QueryAdDto query)
+    {
+        var (rows, total) = await Common.PanelCsv.CollectAsync<AdResponseDto>(
+            (page, size) => _sender.Send(new GetAdsQuery(query with { Page = page, Limit = size })));
+
+        if (Common.PanelCsv.RejectIfTooLarge(total) is { } tooLarge)
+        {
+            TempData["Error"] = tooLarge;
+            return RedirectToAction(nameof(Index), query);
+        }
+
+        return Common.PanelCsv.File(rows, AdCsvColumns, "ilanlar");
+    }
+
+    /// <summary>
+    /// Dışa aktarılan sütunlar. ⚠️ Durum <c>PanelDisplay.Status()</c>'ten geçiyor —
+    /// ham <c>expired</c>/<c>pending</c> basmak değişmez kural 6'nın ihlali olurdu
+    /// (arayüz Türkçe), ve CSV de kullanıcıya giden bir çıktıdır.
+    /// </summary>
+    private static readonly IReadOnlyList<Common.PanelCsv.Column<AdResponseDto>> AdCsvColumns =
+    [
+        new("Başlık", x => x.Title),
+        new("Durum", x => Common.PanelDisplay.Status(x.Status).Label),
+        new("Fiyat", x => Common.PanelCsv.Number(x.Price)),
+        new("İletişim", x => x.ContactPhone),
+        new("Görüntülenme", x => x.ViewCount.ToString()),
+        new("Oluşturulma", x => Common.PanelCsv.Date(x.CreatedAt)),
+    ];
+
     [HttpGet]
     public async Task<IActionResult> Create()
     {

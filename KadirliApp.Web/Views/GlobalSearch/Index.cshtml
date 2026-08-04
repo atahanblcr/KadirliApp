@@ -1,0 +1,121 @@
+@using KadirliApp.Web.Common
+@model KadirliApp.Application.Features.Search.Dtos.GlobalSearchResult
+@{
+    ViewData["Title"] = "Arama";
+    var minLength = (int)(ViewBag.MinTermLength ?? 2);
+    var perModule = (int)(ViewBag.PerModuleLimit ?? 5);
+    var termTooShort = Model.Term.Length > 0 && Model.Term.Length < minLength;
+}
+
+<div class="p-6 max-w-5xl mx-auto space-y-6">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Arama sonuçları</h2>
+        @if (Model.Term.Length > 0 && !termTooShort)
+        {
+            <p class="text-sm text-gray-500 mt-1">
+                <span class="font-medium">“@Model.Term”</span> için
+                <span class="font-medium">@Model.TotalCount</span> sonuç bulundu.
+            </p>
+        }
+    </div>
+
+    @* Arama kutusu sonuç sayfasında da var: terimi düzeltmek için üst çubuğa dönmek gerekmesin. *@
+    <form asp-action="Index" method="get" class="flex gap-2">
+        <input type="search" name="q" value="@Model.Term" autofocus
+               placeholder="İlan, duyuru, kişi, mekan ara…"
+               class="flex-1 rounded-lg border-gray-300 shadow-sm text-sm px-4 py-2 border focus:ring-indigo-500 focus:border-indigo-500" />
+        <button type="submit"
+                class="inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow">
+            <i class="fas fa-search mr-2"></i> Ara
+        </button>
+    </form>
+
+    @if (Model.Term.Length == 0)
+    {
+        <div class="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
+            <i class="fas fa-search text-3xl text-gray-300 mb-3"></i>
+            <p class="text-sm">Aramak istediğiniz kaydın adını yazın.</p>
+            <p class="text-xs text-gray-400 mt-1">
+                İlanlar, duyurular, etkinlikler, kampanyalar, vefat ilanları, mekanlar,
+                rehber kayıtları, işletmeler ve kullanıcılar aranır.
+            </p>
+        </div>
+    }
+    else if (termTooShort)
+    {
+        @* Sessizce "sonuç yok" demek yanıltıcı olurdu: arama koşmadı, terim kısa. *@
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+            <i class="fas fa-circle-info mr-1.5"></i>
+            Arama için en az @minLength karakter yazın.
+        </div>
+    }
+    else if (Model.IsEmpty)
+    {
+        <div class="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
+            <i class="fas fa-inbox text-3xl text-gray-300 mb-3"></i>
+            <p class="text-sm">“@Model.Term” için sonuç bulunamadı.</p>
+            @*
+                ⚠️ Silinen kayıtlar aramada GÖRÜNMEZ (soft-delete süzgeci). Kullanıcı
+                "ama vardı" derse doğru yeri bilsin diye çöp kutusu burada hatırlatılıyor —
+                aksi hâlde "arama bozuk" sanılırdı.
+            *@
+            <p class="text-xs text-gray-400 mt-2">
+                Silinmiş kayıtlar burada listelenmez; onlar için
+                <a asp-controller="TrashAdmin" asp-action="Index" class="text-indigo-600 hover:underline">Çöp Kutusu</a>'na bakın.
+            </p>
+        </div>
+    }
+    else
+    {
+        foreach (var group in Model.Groups)
+        {
+            var controller = PanelDisplay.ModuleController(group.Module);
+            <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
+                    <h3 class="text-sm font-semibold text-gray-700">
+                        <i class="fas @PanelDisplay.ModuleIcon(group.Module) mr-2 text-gray-400"></i>
+                        @PanelDisplay.ModuleLabel(group.Module)
+                        <span class="ml-1 text-gray-400 font-normal">(@group.TotalCount)</span>
+                    </h3>
+                    @*
+                        Modül başına yalnız ilk birkaç sonuç gösteriliyor. Toplam bundan
+                        büyükse "hepsini gör" bağlantısı ŞART: yoksa yönetici 5 sonucu
+                        "hepsi" sanır ve kaydını bulamadığında aramaya güvenmeyi bırakır.
+                    *@
+                    @if (group.TotalCount > perModule && controller is not null)
+                    {
+                        <a asp-controller="@controller" asp-action="Index" asp-route-search="@Model.Term"
+                           class="text-xs text-indigo-600 hover:underline">
+                            Tümünü gör (@group.TotalCount)
+                        </a>
+                    }
+                </div>
+                <ul class="divide-y divide-gray-100">
+                    @foreach (var hit in group.Hits)
+                    {
+                        <li>
+                            <a asp-controller="@controller" asp-action="Edit" asp-route-id="@hit.Id"
+                               class="flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50">
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-medium text-gray-800 truncate">@hit.Title</span>
+                                    @if (!string.IsNullOrWhiteSpace(hit.Subtitle))
+                                    {
+                                        <span class="block text-xs text-gray-500 truncate">@hit.Subtitle</span>
+                                    }
+                                </span>
+                                <span class="flex items-center gap-3 shrink-0">
+                                    @if (!string.IsNullOrWhiteSpace(hit.Status))
+                                    {
+                                        @* Değişmez kural 6: durum ASLA ham basılmaz. *@
+                                        <partial name="_StatusBadge" model="PanelDisplay.Status(hit.Status)" />
+                                    }
+                                    <span class="text-xs text-gray-400">@hit.CreatedAt.AddHours(3).ToString("dd.MM.yyyy")</span>
+                                </span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    }
+</div>
