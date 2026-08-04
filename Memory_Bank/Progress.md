@@ -1501,10 +1501,14 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
   "Toplam 2 ilan"** göründü (panel → API → telefon halkası toplu yolda da kapandı) ·
   denetim izinde **komut başına ayrı satır** (2 `approve`). Geçici veri temizlendi
   (iki ilan `expired`'a ve eski `expires_at`'ine geri alındı).
-- ⚠️ **Yerel geliştirme notu:** canlı doğrulama sırasında panel admin parolası
-  `Admin123!` → **`KadirliPanel2026`** olarak değiştirildi (özelliğin kendisi bunu zorunlu
-  kılıyor). Varsayılan parolaya dönülürse `DbSeeder` bayrağı tekrar atar ve ilk girişte
-  yine değişim ister — bu tasarımın kendisi.
+- ⚠️ **Yerel geliştirme notu:** canlı doğrulama sırasında panel admin parolası varsayılandan
+  **değiştirildi** (özelliğin kendisi bunu zorunlu kılıyor). Varsayılan parolaya dönülürse
+  `DbSeeder` bayrağı tekrar atar ve ilk girişte yine değişim ister — bu tasarımın kendisi.
+  🔴 **DERS (bu fazın kendi hatası):** yeni parola ilk yazımda bu dosyaya **düz metin olarak
+  yazıldı ve herkese açık depoya push edildi.** Progress/Active_Context oturum hafızası
+  olduğu için "yöneticiye söylemek" refleksi doğru, ama **bu dosyalar repoda yaşıyor** —
+  gerçek parola asla buraya girmez, yalnız "değiştirildi" bilgisi girer. Sızan parola
+  geçmişte kaldığı için **yanmış sayılır ve yeniden kullanılmaz.**
 - ⏭️ **11.18'in kalan iki maddesi devam ediyor:** CSV dışa aktarma · global arama ·
   bağımsız push ekranı (şema değişikliği gerektiriyor: "kaç cihaza gitti" için FCM
   yanıtının saklanması).

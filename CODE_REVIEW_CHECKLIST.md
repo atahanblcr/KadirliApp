@@ -117,6 +117,7 @@
 | Kural | Açıklama | Referans |
 |---|---|---|
 | Yeni admin/panel aksiyonu **rol + izin** ikisini birden mi kontrol ediyor? | Bkz. §4 — tek başına rol kontrolü moderatöre sınırsız yetki verebilir. | Active_Context.md |
+| ⚠️ **Gerçek parola/anahtar `Memory_Bank/*.md` dosyalarına yazılmış mı?** | Progress.md ve Active_Context.md oturum hafızası gibi kullanılıyor ama **repoda yaşıyorlar ve depo herkese açık.** 11.18'de canlı doğrulamada değiştirilen panel parolası bu dosyalara düz metin yazılıp push edildi. Yazılacak tek şey "değiştirildi" bilgisidir; parolanın kendisi **hiçbir dokümana** girmez. Sızan bir parola geçmişte kalır → **yanmış sayılır, yeniden kullanılmaz.** | 11.18 |
 | Hassas veri (telefon, adres, TC vb.) loglanmıyor mu? | `AuditBehavior`/Serilog çıktısına PII sızdırmamaya dikkat. | Orijinal enterprise checklist maddesi, hâlâ geçerli |
 | Yeni public yazma ucu rate-limit'e tabi mi? | Anonim POST uçları (complaints, announcements/view gibi) public-write rate limit kullanıyor — yeni anonim uç eklerken aynısını uygula. | Progress.md Faz 10.12 |
 | Oturum/cookie iptali düşünüldü mü? | Panel cookie'si 8 saat sabit, `OnValidatePrincipal` yok — silinen/banlanan personelin oturumu hâlâ çalışabilir. Yeni yetki-hassas aksiyon eklerken bu boşluğu büyütme, mümkünse kapatmaya katkı ver. | Active_Context.md güvenlik notları |

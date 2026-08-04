@@ -10,7 +10,7 @@
 >
 > **Doğrulama:** `dotnet test` **534/534** · `flutter analyze` **0** · `flutter test` **669/669**. **Kuralı bilerek boz ölçütü:** 5 bozma → **15 test kırmızı (3 sınıfın hepsinde)**. **Canlı:** `admin/Admin123!` → **302 `/Account/ChangePassword`** (Dashboard ve İlanlar da), parola ekranı 200 (döngü yok) · zayıf parola reddedildi, güçlü parola sonrası **kendi oturumu düşmedi** · İlanlar'da 2 satır seçildi → "2 kayıt seçildi" → **"2 ilan onaylandı."** → `expires_at` 2026-08-02 → **2026-09-03** (taze pencere) → `GET /v1/ads` 0→2 → **Android emülatöründe "Toplam 2 ilan"** · denetim izinde **komut başına ayrı satır**. Geçici veri temizlendi.
 >
-> ⚠️ **Yerel not:** canlı doğrulamada panel admin parolası `Admin123!` → **`KadirliPanel2026`** oldu (özelliğin kendisi zorunlu kıldı).
+> ⚠️ **Yerel not:** canlı doğrulamada panel admin parolası varsayılandan **değiştirildi** (özelliğin kendisi zorunlu kıldı). 🔑 **Yeni parola bu depoya YAZILMAZ** — repo herkese açık; parolalar Progress/Active_Context'e de girmez. Varsayılana dönülürse `DbSeeder` bayrağı tekrar atar ve ilk girişte yine değişim ister; bu tasarımın kendisi.
 >
 > ⏭️ **SIRADAKİ: 11.16 yayına hazırlık.** 11.18'in kalan üç maddesi: CSV dışa aktarma · global arama · bağımsız push ekranı (şema değişikliği gerektiriyor). Devralınanlar: **yeni toplu aksiyon `…Selected` ile bitmeli** · **yeni sıralama anahtarı `ThenBy(Id)` ile bitmeli** · **yeni parola kapısı `PanelPasswordPolicy`'den geçmeli** · **yetki-hassas yeni alan `PanelPrincipalValidator`'a yansımalı** · ⚠️ `AppDbContext.SaveChanges` `CreatedAt`'i ekleme sırasında **ezer** (test fixture'ında tarih ikinci geçişte yazılmalı) · ⚠️ `mobile/tool/ios_sim.sh` koordinat eşlemesi iPhone 17'de hâlâ bozuk · ⚠️ iOS push APNs `.p8` bekliyor.
 >
