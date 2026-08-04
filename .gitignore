@@ -37,3 +37,11 @@ secrets/*
 # Firebase istemci yapılandırmaları (API anahtarı + proje kimliği taşır)
 mobile/android/app/google-services.json
 mobile/ios/Runner/GoogleService-Info.plist
+
+# Android yayın imzalama (Faz 11.16) — anahtar deposu ve parolaları.
+# ⚠️ Bu anahtar kaybolursa uygulama Play Store'da BİR DAHA güncellenemez;
+# sızarsa başkası sizin uygulamanız adına güncelleme yayınlayabilir.
+# Örnek dosya ve üretme adımları: mobile/android/key.properties.example
+mobile/android/key.properties
+*.jks
+*.keystore

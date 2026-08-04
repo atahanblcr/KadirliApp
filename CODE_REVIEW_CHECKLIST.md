@@ -157,6 +157,25 @@
 
 ---
 
+## 11. Yayın / Platform yapılandırması (Faz 11.16)
+
+> Bu bölümün ortak özelliği: **hataları `flutter run` ile görünmez.** Debug
+> build'in kuralları farklı olduğu için buradaki her madde ilk kez *mağazadan inen*
+> uygulamada ortaya çıkar. `ARCHITECTURE.md` §7'nin "bayrakla kapalı yol = hiç test
+> edilmemiş yol" maddesinin yapılandırma dosyalarındaki karşılığı.
+
+| Kural | Açıklama | Referans |
+|---|---|---|
+| Yeni bir platform izni gerektiren API kullandın mı? | `image_picker`, konum, mikrofon… her biri **iki yere** dokunur: Android `AndroidManifest.xml`, iOS `Info.plist` kullanım açıklaması. ⚠️ iOS'ta açıklama **yoksa** izin diyaloğu bile görünmeden uygulama **anında çöker** — 11.16'da `NSCameraUsageDescription` tam olarak böyle eksikti (kamera iki ekranda kullanılıyordu). Metin Türkçe ve "neden" sorusunu cevaplamalı; Apple gerekçesiz metni reddediyor. | `release_config_test.dart` |
+| Bir izne **dolaylı** mı güveniyorsun? | `INTERNET` ana manifestte yoktu, release'e `firebase_messaging`in manifestinden birleşerek giriyordu. Uygulamanın can damarı bir eklentinin iç detayına bağlıysa, eklenti değişince release **ağa hiç çıkamaz** ve debug'da bu asla fark edilmez. Gereken izni **açıkça** bildir. | `release_config_test.dart` |
+| Yeni bir geliştirici/tanılama ekranı eklediysen **rotası** da koşullu mu? | Menü girişini `Env.showDevTools` ile gizlemek **yetmez** — rota tablosunda kayıtlı kaldığı sürece yayın yapısında da açılabilir (deep-link ya da elle adres). 11.16'da `/gelistirici/ag` böyleydi: yedi gerçek uca istek atıp `traceId` basan bir ekran. `GoRoute` kaydının kendisi `if (Env.showDevTools)` bloğunda olmalı. | `release_config_test.dart` |
+| Yeni bir **production ayarı** eklediysen kapıya yazıldı mı? | Yayın ayarları bir *kontrol listesi* değil **açılış kapısı**: `ProductionReadinessGuard` Production'da güvensiz ayar bulursa uygulamayı açmaz. Yanlış ayarların ortak özelliği **sessiz** olmaları — uygulama açılır, loglar temiz, uçlar 200 döner. En tehlikelisi `Otp:DevMode`: açık kalırsa login ucu OTP'yi **yanıtta** döndürür ve herkes istediği numarayla girer. | `ProductionReadinessGuardTests` |
+| ⚠️ Görsel URL'i **mutlaklaştırma** — `FileStorage:BaseUrl` boş kalmalı | Sezgiye ters olduğu için ayrı satır: görünmez sözleşme #9 görsel URL'lerinin **göreli** dönmesini şart koşuyor, origin'i istemci ekliyor. "Prod domain'i yaz" refleksi mobilde `http://…http://…` üretir ve **hiçbir görsel açılmaz**. Kapı BaseUrl *dolu* ise engelliyor. | `ProductionReadinessGuardTests`, ARCHITECTURE.md §7 madde 9 |
+| İmzalama anahtarı olmadan **mağaza artefaktı** üretilebiliyor mu? | Üretilememeli. `bundleRelease` anahtarsız **derlenmez**; `assembleRelease` (APK) debug imzasıyla çalışmaya devam eder (yerel deneme + CI). ⚠️ Gradle'ın `logger.warn`'ı **`flutter build` tarafından yutuluyor** — uyarıya güvenme, kapı koy. | `mobile/android/app/build.gradle.kts`, `secrets/README.md` |
+| Marka görseli elle mi düzenlendi? | Düzenlenmemeli — ikon/splash `tool/generate_branding.py` ile **türetiliyor** (renkler tasarım token'larından, harf uygulamanın yazı tipinden). ⚠️ Açılış ekranı ikonla **aynı görsel olamaz**: ikonun zemini marka yeşili, açılış ekranınınki tema rengi → beyaz mark açık zeminde görünmez oldu. Ayrıca Android 12+ logoyu **dairesel maskeye** oturtur, kenardaki öge kesilir. | `tool/generate_branding.py` |
+
+---
+
 ## Bakım
 
 Bu dosyanın **referansları** `CodeReviewChecklistDocTests` ile kilitlidir
@@ -181,7 +200,11 @@ Test kırıldığında yapılacak şey testi gevşetmek değil, **checklist'i g�
    satırı silme — bileşenin adını yazarak bırak; yeni gelen "neden böyle" sorusunun
    cevabı burada.
 
-Son gözden geçirme: **4 Ağustos 2026 (Faz 11.18)** — §4'e beş satır daha eklendi (toplu
+Son gözden geçirme: **4 Ağustos 2026 (Faz 11.16)** — **§11 (Yayın / Platform
+yapılandırması)** eklendi: platform izinleri, dolaylı izne güvenmek, dev rotalarının
+sızması, production ayar kapısı, `FileStorage:BaseUrl`'ün boş kalması, imzasız mağaza
+artefaktı ve türetilen marka görselleri.
+Önceki: **4 Ağustos 2026 (Faz 11.18)** — §4'e beş satır daha eklendi (toplu
 işlem ad kuralı ↔ izin türetmesi, toplu işlemin tek-kayıt komutunu çağırması, sıralama
 ayracının benzersizliği, parola politikasının tek sahibi, oturum tazeleme).
 Önceki: **4 Ağustos 2026 (Faz 11.17)** — panelin dört yeni ekranı bu listeyle

@@ -23,6 +23,15 @@ abstract final class Env {
 
   static const int apiPort = 5005;
 
+  /// Gizlilik politikası adresi — **mağaza zorunluluğu**.
+  ///
+  /// Hem Play Console hem App Store Connect yayın formunda bu bağlantıyı ister,
+  /// ayrıca uygulamanın **içinden** de erişilebilir olmalı (Ayarlar → Hakkında).
+  /// ⚠️ Faz 11.16: adres burada tek yerde tutuluyor; yayından önce sayfanın
+  /// gerçekten yayında olduğu doğrulanmalı — 404 veren bir politika bağlantısı
+  /// inceleme reddi sebebidir.
+  static const String privacyPolicyUrl = 'https://kadirli.app/gizlilik';
+
   static AppFlavor get flavor => _flavorName == 'prod' ? AppFlavor.prod : AppFlavor.dev;
 
   static bool get isDev => flavor == AppFlavor.dev;

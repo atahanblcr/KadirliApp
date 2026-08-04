@@ -182,6 +182,14 @@ app.UseSerilogRequestLogging();
 // Hataları {success:false, error:{code,message}, meta} kontratına çevirir
 app.UseMiddleware<ExceptionMiddleware>();
 
+// Faz 11.16 — yayın yapılandırması kapısı. Production'da güvensiz ayar varsa
+// uygulama BURADA durur (bkz. ProductionReadinessGuard). Veritabanına
+// dokunmadan önce koşuyor: yanlış yapılandırılmış bir sistem seed bile etmemeli.
+ProductionReadinessGuard.Validate(
+    app.Configuration,
+    app.Environment,
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(ProductionReadinessGuard)));
+
 // Migration + idempotent başlangıç verisi (super_admin ve lookup tabloları)
 await DbSeeder.SeedAsync(app.Services);
 

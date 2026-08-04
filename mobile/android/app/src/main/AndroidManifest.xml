@@ -1,4 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Faz 11.16 — Ağ izni. Flutter şablonu bunu YALNIZ debug/profile
+         manifestlerine koyar; release'e bugün `firebase_messaging`in kendi
+         manifestinden birleşerek giriyor. Yani uygulamanın can damarı olan izin
+         bir eklentinin iç detayına bağlı: push kaldırılsa ya da eklenti manifestini
+         daraltsa release build ağa hiç çıkamaz ve HER ekran "İnternet bağlantısı
+         kurulamadı" der — debug'da fark edilmez, çünkü orada izin zaten var.
+         Bu yüzden açıkça bildiriyoruz. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Faz 11.13 — Android 13 (API 33) ve üstünde bildirim göstermek için
          çalışma zamanı izni şart. İzin, kullanıcı giriş yaptığında isteniyor
          (açılışta değil): boşluğa sorulan izin reddediliyor. -->

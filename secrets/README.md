@@ -36,6 +36,37 @@ Kontrol: API açılış logunda
 
 ---
 
+## Android yayın imzalama anahtarı (Faz 11.16)
+
+**Ne işe yarar:** Play Store'a yüklenen `.aab` dosyasını imzalar. Google Play,
+bir uygulamanın **her güncellemesinin aynı anahtarla** imzalanmasını şart koşar.
+
+> 🔴 **Bu anahtar kaybolursa uygulama bir daha güncellenemez.** Kullanıcılar
+> mağazadaki sürümde çakılı kalır; yeni sürüm ancak **yeni bir uygulama kimliğiyle**
+> (yani sıfırdan, mevcut kullanıcı kitlesi olmadan) yayınlanabilir. Anahtarı
+> parola yöneticisinde ya da şifreli bir yedekte **iki ayrı yerde** saklayın.
+> Sızarsa: başkası sizin uygulamanız adına güncelleme yayınlayabilir.
+
+**Nasıl üretilir** (bir kez, sonra asla değişmez):
+```bash
+keytool -genkey -v -keystore ~/kadirli-release.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias kadirli
+```
+`-validity 10000` (≈27 yıl) bilinçli: Play, anahtarın 2033'ten sonra da geçerli
+olmasını istiyor.
+
+**Bağlanışı:** `mobile/android/key.properties` (örnek dosya:
+`mobile/android/key.properties.example`). Hem `key.properties` hem `*.jks`
+`.gitignore`'da.
+
+**Yoksa ne olur:**
+| Komut | Davranış |
+|---|---|
+| `flutter build apk --release` | Çalışır, **debug anahtarıyla** imzalar + uyarı basar. Yerel deneme için uygundur. |
+| `flutter build appbundle --release` | **Derleme durur** ve ne yapılacağını yazar. Mağazaya yalnız `.aab` yüklendiği için kapı tam oraya konuldu — sessizce imzasız bir yayın paketi üretilmesindense derlemenin durması tercih edildi. |
+
+---
+
 ## Bu klasörde OLMAYAN ama gereken diğer gizli dosyalar
 
 | Dosya | Yeri | Ne için | Nasıl |

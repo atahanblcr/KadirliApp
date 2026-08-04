@@ -63,11 +63,49 @@ dev_dependencies:
   freezed: ^3.2.4
   json_serializable: ^6.11.1
 
+  # --- Yayın görselleri (Faz 11.16) ---
+  # Kaynak görseller `assets/branding/` altında ve `tool/generate_branding.py`
+  # ile ÜRETİLİYOR; bu iki paket yalnız platform boyutlarını türetir.
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
+
+# ── Uygulama ikonu (Faz 11.16) ───────────────────────────────────────────────
+# Üretmek için: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/branding/icon.png
+  # Android adaptive: ön plan + düz marka rengi zemin. Sistem maskeyi kendi
+  # uyguladığı için ön plan görselinin içeriği güvenli alanda duruyor.
+  adaptive_icon_background: "#2C7A57"
+  adaptive_icon_foreground: assets/branding/icon_foreground.png
+  # ⚠️ iOS ikonları ALFA KANALI KABUL ETMEZ — saydamlık içeren ikon App Store
+  # yüklemesinde reddedilir. Kaynak zaten RGB ama emniyet için açık bırakıldı.
+  remove_alpha_ios: true
+
+# ── Açılış ekranı (Faz 11.16) ────────────────────────────────────────────────
+# Üretmek için: dart run flutter_native_splash:create
+# Renkler MOBILE_UX_PLAN token'ları: açık bg #FAF9F6, koyu bg #121815.
+flutter_native_splash:
+  color: "#FAF9F6"
+  color_dark: "#121815"
+  image: assets/branding/splash.png
+  image_dark: assets/branding/splash_dark.png
+  android_12:
+    color: "#FAF9F6"
+    color_dark: "#121815"
+    # ⚠️ Android 12+ logoyu DAİRESEL maskeye oturtur: 1152 px tuvalde güvenli
+    # alan yalnız ortadaki 768 px çaplı daire. Normal splash görseli
+    # kullanıldığında filiz maskenin dışında kalıp kesiliyordu — ayrı görsel.
+    image: assets/branding/splash_android12.png
+    image_dark: assets/branding/splash_android12_dark.png
+
 flutter:
   uses-material-design: true
 
   assets:
     - assets/images/
+    - assets/branding/
 
   fonts:
     # Nunito (SIL OFL 1.1 — lisans: assets/fonts/OFL.txt).

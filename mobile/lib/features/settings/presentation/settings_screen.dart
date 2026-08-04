@@ -223,6 +223,15 @@ class _AboutCard extends ConsumerWidget {
             expand: true,
             onPressed: () => context.push(AppRoutes.complaints),
           ),
+          AppSpacing.gapSm,
+          // Mağaza zorunluluğu (Faz 11.16): gizlilik politikasına uygulamanın
+          // İÇİNDEN de erişilebilmeli — yalnız mağaza sayfasında olması yetmez.
+          AppButton.ghost(
+            label: 'Gizlilik Politikası',
+            icon: Icons.privacy_tip_outlined,
+            expand: true,
+            onPressed: () => AppLinks.web(Env.privacyPolicyUrl),
+          ),
         ],
       ),
     );

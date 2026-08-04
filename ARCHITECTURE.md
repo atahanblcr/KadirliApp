@@ -434,6 +434,8 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | Mobil **erişilebilirlik** | `mobile/test/core/accessibility_test.dart` | WCAG AA kontrast, 48 dp dokunma hedefi, ekran okuyucu etiketi, 1.4 ölçekte taşma yok |
 | Mobil **hareket** | `mobile/test/core/reduced_motion_test.dart` | "Hareketi azalt" ayarına saygı |
 | Mobil **Türkçe sözleşmesi** | `mobile/test/core/turkish_ui_test.dart` | Her hata kodunun Türkçe karşılığı var, teknik/İngilizce mesaj sızmıyor |
+| **Yayın yapılandırması** (Faz 11.16) | `mobile/test/release/release_config_test.dart` | Platform dosyaları (`AndroidManifest.xml`, `Info.plist`) — hataları `flutter run` ile **görünmeyen**, ilk kez mağazadan inen uygulamada çıkan sınıf. İzin gerektiren kullanım `lib/` **taranarak** bulunur (elle liste yok); dev rotalarının yayına sızmadığı da burada kilitli |
+| **Production ayar kapısı** (Faz 11.16) | `Unit/Api/ProductionReadinessGuardTests.cs` | `ProductionReadinessGuard` — Production'da güvensiz ayar varsa uygulama açılmaz. Kapının "yanmış JWT sırrı" listesi `appsettings.json` ile **eşitlenmiş** durumda (dosya değişip liste değişmezse koruma sessizce kaybolurdu) |
 
 ### Nasıl koşulur
 

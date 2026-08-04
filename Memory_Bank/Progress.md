@@ -1302,18 +1302,118 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 > *hataları* kapattı; B grubu **eksikler**dir ve hiçbiri vatandaşın gördüğü uygulamayı
 > etkilemiyor. Yayın (11.16) önce gelir; 11.17 yayın sonrası ilk bakım turudur.
 
-### 11.16 — Yayına hazırlık (release) — [ ] (1 oturum)
-- [ ] App ikonu (yeşil 🌿 marka), splash, mağaza görselleri/açıklama; sürümleme; **flavor** dev/prod (base URL prod'a).
-- [ ] İzinler (bildirim, kamera/galeri) + gizlilik açıklamaları; **hesap silme mağaza zorunluluğu** karşılandı (`DELETE /v1/users/me` — Ayarlar'da görünür).
-- [ ] Android imzalama + Play internal test; iOS TestFlight; gizlilik politikası linki.
-- [ ] **Backend prod bağımlılıkları kontrol listesi (mobil yayın engelleri):** gerçek SMS sağlayıcısı (`Sms:Provider` + `Otp:DevMode=false`) · Firebase service-account (`Fcm:Provider=Firebase`) · Hangfire dashboard auth (10.14/2) · uploads kalıcı volume (10.14/3) · `FileStorage:BaseUrl` prod domain · CORS (yalnız web hedeflenirse).
-- [ ] 🔴 **Panel güvenlik kapanışı (11.15c C grubu — canlıya çıkarken açık kalamaz):**
-  ~~giriş sayfasındaki `admin / Admin123!` satırı ortama bağlanacak~~ ✅ **11.15c'de yapıldı**
-  (`Env.IsDevelopment()` koşulu) · **kalan:** ilk girişte parola değişimi zorunlu
-  (`DbSeeder.cs:16-18`) · `OnValidatePrincipal` ile oturum tazeleme (silinen/banlanan
-  personelin cookie'si 8 saat yaşıyor, `Program.cs:41`) · panel parola politikası 6 karakterden yukarı.
-  ~~silme onayları neyi sildiğini yazmıyor~~ ✅ **11.15c'de yapıldı** (`data-confirm`).
-- **Bitti kriteri:** İmzalı prod build; internal test kanalında çalışan uygulama; yayın engeli listesi işaretli.
+### 11.16 — Yayına hazırlık (release) — [x] Apple'sız kısım BİTTİ (4 Ağustos 2026, 3. oturum)
+
+> **Kapsam kararı:** Apple Developer aboneliği **henüz alınmadı** → iOS imzalama /
+> TestFlight / App Store kaydı bu oturumda **yapılamaz**. Kullanıcı isteğiyle
+> Apple gerektirmeyen her madde tamamlandı; iOS'un *koda dokunan* kısmı
+> (`Info.plist` izin açıklamaları) da **şimdiden** kapatıldı çünkü abonelikle
+> ilgisi yok ve bir çökme sebebiydi.
+
+- [x] **App ikonu + açılış ekranı.** `tool/generate_branding.py` — ikon bir "sanat
+  dosyası" değil **türetilen** çıktı: renkler `MOBILE_UX_PLAN` token'larından, harf
+  uygulamanın kendi yazı tipinden (Nunito). Marka rengi değişirse betik yeniden koşar.
+  `flutter_launcher_icons` + `flutter_native_splash` yalnız boyutları türetiyor.
+  🐛 **Canlıda yakalanan iki hata:** (1) açılış logosu ikonla aynı **beyaz** marktı,
+  açılış zemini ise açık tema rengi (#FAF9F6) → **logo neredeyse görünmüyordu**;
+  tema başına ayrı renkli görsel üretildi. (2) Android 12+ splash logoyu **dairesel
+  maskeye** oturtuyor (1152 px tuvalde güvenli alan ortadaki 768 px çaplı daire) →
+  filiz kesilip ekranda "K + havada duran turuncu sap" kalıyordu; `android_12` için
+  daireye sığan ayrı görsel üretildi.
+  ⚠️ Tasarımın kendisi de üç turda oturdu: yaprak önce K'nın koluyla birleşip
+  "roket" gibi okundu, sonra harfle yarışıp 48 px'te silueti bozdu. Kural yazıldı:
+  **yaprak açıkça ikincil** — küçük boyutta zarifçe kaybolması normal, silueti
+  bozması değil.
+- [x] **Sürümleme + flavor.** `version: 1.0.0+1`; `Env.showDevTools = isDev && kDebugMode`
+  zaten iki emniyet kemeri taşıyordu (yanlış flavor'la alınan release'te bile dev
+  araçları kapalı).
+  🐛 **Ama gerçek bir sızıntı vardı:** `/gelistirici/tasarim` ve `/gelistirici/ag`
+  rotaları **koşulsuz** kayıtlıydı. Menü girişleri gizlendiği için "yalnız debug"
+  sanılıyordu; oysa rota tablosunda durdukları sürece **yayın yapısında da
+  açılabiliyorlardı**. `/gelistirici/ag` yedi gerçek uca istek atıp `traceId`
+  basan bir tanılama ekranı — vatandaşın elindeki uygulamada bulunmamalı.
+  Kayıt artık `if (Env.showDevTools)` bloğunda.
+- [x] **İzinler + gizlilik.** 🔴 **iOS'ta gerçek çökme:** `image_picker` iki yerde
+  `ImageSource.camera` kullanıyor (profil fotoğrafı 11.5, vefat bildirimi 11.11) ama
+  `Info.plist`'te **`NSCameraUsageDescription` yoktu** → iOS'ta kamera açılır açılmaz
+  uygulama **anında çöker** (izin diyaloğu bile görünmez) ve App Store incelemesi de
+  reddeder. `NSPhotoLibraryUsageDescription` ile birlikte eklendi, metinler Türkçe
+  ve "neden" sorusunu cevaplıyor.
+  Gizlilik politikası bağlantısı Ayarlar → Hakkında'ya eklendi (`Env.privacyPolicyUrl`,
+  tek yer). ⚠️ Testi bilinçli olarak **misafir** oturumla yazıldı: bağlantı yanlışlıkla
+  oturum gerektiren bir bloğa konursa mağazanın istediği kullanıcı onu hiç göremez.
+  **Hesap silme** zaten karşılanmıştı (11.5).
+  📌 **Ağ izni:** `INTERNET` ana manifestte yoktu — ama release'e `firebase_messaging`in
+  kendi manifestinden **birleşerek giriyor** (release APK'sı dökülerek doğrulandı),
+  yani bugün bir engel *değildi*. Uygulamanın can damarı bir eklentinin iç detayına
+  bağlı kalmasın diye açıkça bildirildi.
+- [x] **Android imzalama.** `key.properties` tabanlı `signingConfig` + R8 küçültme
+  (`isMinifyEnabled`/`isShrinkResources` + `proguard-rules.pro`; FCM sınıfları
+  korunuyor, yoksa push **sessizce** çalışmazdı). `key.properties`/`*.jks` `.gitignore`'da,
+  örnek dosya + `secrets/README.md`'de anahtar üretme adımları.
+  🔑 **Kapı nereye konuldu, neden:** ilk denemede anahtar yoksa yalnız `logger.warn`
+  yazılmıştı — **`flutter build` Gradle uyarılarını yutuyor, uyarı hiç görünmedi.**
+  Yani "sessizce debug anahtarıyla imzalanmış yayın yapısı" riski duruyordu. Artık
+  `bundleRelease` (mağazaya yüklenen **tek** artefakt) anahtarsız **derlenmiyor**;
+  `assembleRelease` (APK) çalışmaya devam ediyor — yerel yayın denemesi ve
+  CI'ın `--debug` derlemesi kırılmasın diye. Yüklenemeyecek bir APK zarar veremez.
+  ⏭️ **Play internal test yüklemesi:** anahtar üretimi + Play Console hesabı
+  kullanıcıda; altyapı hazır, yükleme adımı bekliyor.
+- [x] **Backend prod bağımlılıkları — kontrol listesi *kapıya* çevrildi.**
+  Listedeki her ayarın kodda gerçekten okunduğu doğrulandı, sonra
+  `ProductionReadinessGuard` yazıldı: `ASPNETCORE_ENVIRONMENT=Production` iken
+  güvensiz ayar varsa uygulama **açılmıyor** ve hepsini tek seferde yazıyor.
+  🔴 **En tehlikelisi `Otp:DevMode`:** açık kalırsa `POST /v1/auth/login` OTP'yi
+  **yanıtın içinde** döndürür → herkes istediği numarayla giriş yapar ve bu
+  hiçbir yerde hata olarak görünmez. Diğerleri: `Sms:Provider=Dev` (uç "OTP
+  gönderildi" der, kimse kod almaz) · **commit edilmiş JWT sırları** (depo herkese
+  açık → üçüncü kişi geçerli jeton üretebilir) · Hangfire panosu kimliksiz
+  (reverse-proxy arkasında "yerel istek" kontrolü çöker).
+  🐛 **Listenin kendisinde bir hata bulundu:** madde "`FileStorage:BaseUrl` prod
+  domain" diyordu — **yanlış.** Görünmez sözleşme #9 görsel URL'lerinin **göreli**
+  dönmesini şart koşuyor, origin'i istemci ekliyor; doldurulursa mobil
+  `http://…http://…` üretir ve **hiçbir görsel açılmaz.** Kapı artık BaseUrl
+  *dolu* ise engelliyor, madde de düzeltildi.
+  ⚠️ `Fcm:Provider=None` **engelleyici değil** (push'suz yayın meşru tercih) —
+  yalnız uyarı loglanıyor.
+  ⏭️ Kalan, koda dokunmayan operasyon maddeleri: gerçek SMS sağlayıcı sözleşmesi ·
+  uploads kalıcı volume (10.14/3) · CORS (yalnız web hedeflenirse).
+- [x] 🔴 **Panel güvenlik kapanışı** — ✅ **tamamı 11.18'de yapıldı** (oturum iptali ·
+  ilk girişte parola değişimi · parola politikası · hesap kilidi).
+- ⏭️ **Apple bekleyen maddeler** (abonelik alınınca): iOS imzalama sertifikaları ·
+  TestFlight · App Store Connect kaydı · **APNs `.p8`** (iOS push hâlâ bunu bekliyor) ·
+  mağaza görselleri/açıklama metni.
+- **Bitti kriteri:** ✅ Apple'sız kısım için karşılandı — imzalama altyapısı kurulu ve
+  anahtarsız `.aab` üretimi **engelleniyor**; yayın engeli listesi artık doküman
+  değil **açılış kapısı**; iki gerçek yayın hatası (iOS kamera çökmesi, dev
+  rotalarının sızması) kapatıldı. ⏭️ "İnternal test kanalında çalışan uygulama"
+  maddesi Play Console hesabı + anahtar üretimine bağlı.
+
+#### 11.16 kapanış notları
+
+- **Testler: backend 534 → 545 (+11), mobil 669 → 678 (+9).** Yeni:
+  `ProductionReadinessGuardTests` (11), `test/release/release_config_test.dart` (8),
+  Ayarlar'a gizlilik bağlantısı testi (1).
+- 🔑 **Yeni test sınıfı: platform yapılandırması.** `AndroidManifest.xml` ve
+  `Info.plist` bugüne kadar hiçbir testin uğramadığı bir kör noktaydı; oradaki
+  hatalar `flutter run` ile **görünmüyor** ve ilk kez mağazadan inen uygulamada
+  ortaya çıkıyor. `release_config_test.dart` bunları kaynağı tarayarak kilitliyor:
+  izin gerektiren kullanım (`ImageSource.camera`) `lib/` taranarak bulunuyor, elle
+  liste tutulmuyor → yeni bir kamera çağrısı yapılandırma eksikse test kendiliğinden
+  kırmızıya döner.
+- **"Kuralı bilerek boz" ölçütü uygulandı:** `INTERNET` izni silindi ·
+  `NSCameraUsageDescription` silindi · `appsettings.json`'daki JWT sırrı değiştirildi
+  (kapının yanmış-sır listesi dosyayla ayrışsın diye) → **3 test kırmızıya döndü**,
+  geri alınınca 545/545 + 678/678 yeşil.
+- **Canlı (Chrome + panel + API + Postgres + Android emülatörü + iOS simülatörü):**
+  ikon Android çekmecesinde **yeşil K** olarak göründü · açılış ekranı açık ve koyu
+  temada **ayrı ayrı** doğrulandı (marka rengi zeminle uyumlu, filiz kesilmiyor) ·
+  release APK dökülüp **`INTERNET` izni** ve **debug imzası** teyit edildi ·
+  anahtarsız `bundleRelease` **durdu** ve Türkçe yönergeyi bastı · uygulama
+  emülatörde açıldı, oturum korundu ve gerçek duyuru API'den geldi.
+- ⚠️ **Devralınan:** emülatörde eski paket kimliğinden kalma bir **`kadirliapp`
+  kurulumu** duruyor (Flutter varsayılan ikonuyla) — 11.1'deki paket adı
+  sadeleştirmesinin kalıntısı, repoyla ilgisi yok, elle kaldırılabilir.
 
 ### 11.17 — Panel "gerçek yönetim paneli" eksikleri (11.15c B grubu) — [x] 4/6 (4 Ağustos 2026)
 

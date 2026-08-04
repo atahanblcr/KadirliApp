@@ -371,16 +371,24 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
 
       // --- Geliştirici (yalnız debug) ---
-      GoRoute(
-        path: AppRoutes.designPreview,
-        name: 'designPreview',
-        builder: (context, state) => const DesignPreviewScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.networkProbe,
-        name: 'networkProbe',
-        builder: (context, state) => const NetworkProbeScreen(),
-      ),
+      // ⚠️ Faz 11.16: bu rotalar eskiden KOŞULSUZ kayıtlıydı. Menü girişleri
+      // `Env.showDevTools` ile gizlendiği için "yalnız debug" sanılıyordu, ama
+      // rota tablosunda durdukları sürece yayın yapısında da **açılabiliyorlardı**
+      // (deep-link ya da elle yazılan adres). `/gelistirici/ag` yedi gerçek uca
+      // istek atıp traceId basan bir tanılama ekranı — vatandaşın elindeki
+      // uygulamada bulunmamalı. Artık kayıt da koşullu.
+      if (Env.showDevTools) ...[
+        GoRoute(
+          path: AppRoutes.designPreview,
+          name: 'designPreview',
+          builder: (context, state) => const DesignPreviewScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.networkProbe,
+          name: 'networkProbe',
+          builder: (context, state) => const NetworkProbeScreen(),
+        ),
+      ],
     ],
     errorBuilder: (context, state) => AppScaffold(
       title: 'Sayfa bulunamadı',

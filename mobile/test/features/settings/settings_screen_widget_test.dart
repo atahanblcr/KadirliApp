@@ -92,4 +92,18 @@ void main() {
     // Sürüm satırı her zaman var (test ortamında platform kanalı yok → "—").
     expect(find.textContaining('Sürüm'), findsOneWidget);
   });
+
+  testWidgets('gizlilik politikası bağlantısı MİSAFİRE DE görünür', (tester) async {
+    // Mağaza zorunluluğu (Faz 11.16): politikaya uygulamanın içinden
+    // erişilebilmeli. ⚠️ Bilinçli olarak **misafir** oturumla test ediliyor:
+    // bağlantı yanlışlıkla "Hesap işlemleri" gibi oturum gerektiren bir bloğa
+    // konursa giriş yapmamış kullanıcı politikayı hiç göremez — ki mağazanın
+    // istediği tam olarak o kullanıcının da görebilmesi.
+    await openSettings(tester, signedIn: false);
+
+    await tester.scrollUntilVisible(find.text('Gizlilik Politikası'), 200);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Gizlilik Politikası'), findsOneWidget);
+  });
 }

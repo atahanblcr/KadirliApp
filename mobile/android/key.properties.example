@@ -1,0 +1,19 @@
+# Android yayın imzalama — ÖRNEK dosya (Faz 11.16)
+#
+# Bu dosyayı `key.properties` adıyla kopyalayın ve gerçek değerleri yazın.
+# ⚠️ `key.properties` ve `.jks` dosyası **git'e girmez** (.gitignore).
+# ⚠️ Anahtarı KAYBETMEYİN: Play Store'da bir uygulamayı güncelleyebilmek için
+#    aynı anahtarla imzalamak zorunludur. Kaybolursa uygulama yeni bir kimlikle
+#    baştan yayınlanmak zorunda kalır — kullanıcılar güncelleme alamaz.
+#
+# Anahtar üretme (bir kez):
+#   keytool -genkey -v -keystore ~/kadirli-release.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias kadirli
+#
+# Ayrıntı ve saklama önerisi: secrets/README.md
+
+storePassword=<anahtar deposu parolası>
+keyPassword=<anahtar parolası>
+keyAlias=kadirli
+# `android/` dizinine göre göreli ya da mutlak yol:
+storeFile=/Users/<kullanıcı>/kadirli-release.jks
