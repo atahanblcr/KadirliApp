@@ -1724,8 +1724,8 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 
 | # | Alt-faz | Katman | Şema | Tahmini test artışı |
 |---|---|---|---|---|
-| 12.1 | Hata günlüğü modülü | backend + panel + mobil (raporlayıcı) | ✔ | ~25 backend, ~8 mobil |
-| 12.2 | Şüpheli giriş günlüğü + e-posta raporlama (+ `ForwardedHeaders`) | backend + panel | ✔ | ~30 backend |
+| 12.1 | Hata günlüğü modülü ✅ | backend + panel + mobil (raporlayıcı) | ✔ | **+38 backend, +7 mobil** |
+| 12.2 | Şüpheli giriş günlüğü + e-posta raporlama (+ `ForwardedHeaders` + `StaffAdmin` izin tutarsızlığı) | backend + panel | ✔ | ~35 backend |
 | 12.2b | Bildirim teslim panosu + bağımsız push ekranı *(11.18'den kalan son madde)* | backend + panel | ✔ | ~25 backend |
 | 12.3 | Kesinti mahalle referansı + mahalle bazlı bildirim | backend + panel + mobil | ✔ | ~25 backend, ~5 mobil |
 | 12.4 | Etkinlik konumu (il/ilçe) | backend + panel + mobil | ✔ | ~20 backend, ~10 mobil |
@@ -1859,7 +1859,7 @@ denetim izinde **"Hata Kayıtları / Hatayı çözdü"** (ham İngilizce yok).
 
 ---
 
-### 12.2 — Şüpheli giriş günlüğü + e-posta raporlama — [ ]
+### 12.2 — Şüpheli giriş günlüğü + e-posta raporlama + `StaffAdmin` izin tutarsızlığı — [ ]
 
 **Hedef:** "Kim, nereden, ne zaman girmeye çalıştı" sorusunun cevabı + süper admin'e uyarı.
 
@@ -1940,7 +1940,48 @@ tek eksik gerçek gerçekleme.
 - **R1 eşiği `PanelLockoutPolicy` eşiğiyle aynı olmak zorundadır** — ayrışırsa hesap kilitlenir
   ama kimseye haber gitmez (görünmez sözleşme #23'ün aynı sınıfı: iki taraf farklı gerçeklik görür).
 
+#### Ek madde — `StaffAdmin`'in "karşılığı olmayan yetki"si (12.1'de bulundu)
+
+🐛 **Bulgu:** `ARCHITECTURE.md` §3 ve `CLAUDE.md` Değişmez Kural #4, yalnız-admin ekranların
+menü satırındaki `Module`'ün **`null`** olmasını şart koşuyor. `AuditLogsAdmin`, `TrashAdmin`
+ve (12.1'de eklenen) `ErrorLogsAdmin` bu kurala uyuyor. Ama **`StaffAdmin` uymuyor**: hem
+`AdminOnlyControllers`'ta hem de `Module = "staff"` taşıyor.
+
+**Neden önemli:** `StaffAdminController.Modules` menüden türüyor
+(`PanelMenu.Items.Where(i => i.RequiresPermission)`) → **"staff" izin matrisinde bir satır olarak
+görünüyor.** Yönetici moderatöre "Personel: okuma" yetkisi verebiliyor, kutu işaretleniyor,
+kaydediliyor — ama rol kapısı (`[Authorize(Roles = "admin,super_admin")]`) yüzünden o yetki
+**asla çalışmıyor.** Bu tam olarak 11.15b'nin kapattığı **"karşılığı olmayan yetki"** hatasının
+hâlâ ayakta duran örneği: yöneticiye verdiğini sandığı bir yetki, sessizce hiçbir şey yapmıyor.
+
+**Neden 12.1'de düzeltilmedi:** düzeltme izin matrisini ve **seed'lenmiş `admin_permissions`
+satırlarını** etkiliyor (mevcut kurulumlarda "staff" izni verilmiş moderatörler olabilir);
+hata günlüğü modülüyle aynı commit'e sıkıştırılacak bir iş değil.
+
+**Yapılacak:**
+1. `PanelMenu.Items`'taki `StaffAdmin` satırının `Module`'ü **`null`** yapılır
+   (`AuditLogsAdmin`/`TrashAdmin`/`ErrorLogsAdmin` deseni).
+2. `StaffAdminController` üzerindeki `[PanelPermission("staff")]` varsa kaldırılır —
+   rol kapısı zaten tek başına yeterli.
+3. `PanelDisplay.NonMatrixModules`'a `["staff"] = "Personel"` eklenir; aksi hâlde denetim
+   izi ekranı `AuditModule => "staff"` yazan komutlarda **ham İngilizce** basar
+   (12.1'de `error-logs` için tam bu sebeple açılan kapı).
+4. **Migration:** `admin_permissions` tablosundan `module = 'staff'` satırları temizlenir —
+   duran satırlar matriste görünmeyen ama DB'de olan ölü izinlere dönüşür.
+5. `permissions` tablosunda "staff" varsa aynı şekilde ele alınır.
+
+**Yeni test (yapısal, tekrarı engeller):** `AdminOnlyControllers`'taki **her** controller'ın
+menü satırının `Module`'ü `null` olmalı. Bu tek iddia bugün `StaffAdmin` yüzünden kırmızıdır
+ve düzeltmeden sonra deseni kalıcı olarak kilitler — üç ekranın uyup dördüncünün uymaması
+tam da testle yakalanması gereken şey.
+
+⚠️ **Dikkat:** `PanelDisplayTests.StaffPermissionMatrix_DerivesFromPanelMenu` ve
+`PanelDisplayTests.ModuleLabel_CoversEveryPermissionModule` bu değişiklikle **bilinçli olarak**
+etkilenir; testleri gevşetmek değil, beklentiyi güncellemek gerekir.
+
 **Bitti kriteri:** 5 hatalı panel girişi → 5 kayıt + kilit + **şüpheli işareti** ·
+`AdminOnlyControllers`'ın tamamı `Module = null` (yapısal test yeşil), "staff" izin matrisinden
+kalktı, denetim izi "Personel" yazıyor ·
 `Email:Provider=Smtp` + yerel SMTP yakalayıcı ile **gerçek e-posta düştü** · aynı saldırı
 ikinci kez → **ikinci e-posta gitmedi** (kısma çalıştı) · geçersiz OTP mobil kanalda kayıtlı ·
 `Identifier` maskeli · Production'da `Dev` sağlayıcıyla uygulama **açılmıyor** ·

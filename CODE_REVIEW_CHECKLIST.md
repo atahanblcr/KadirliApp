@@ -1,7 +1,7 @@
  # KadirliApp — Code Review Checklist
 
 > Bu liste jenerik bir kurumsal şablon değil; `ARCHITECTURE.md`, `Memory_Bank/API_CONTRACT.md`,
-> `Memory_Bank/Active_Context.md` ve `Memory_Bank/Progress.md`'den (Faz 10–11.15c) çıkarılmıştır.
+> `Memory_Bank/Active_Context.md` ve `Memory_Bank/Progress.md`'den (Faz 10–12.1) çıkarılmıştır.
 > Özellikle **"Görünmez Sözleşmeler" (§7)** ve **tekrarlayan hata sınıfları** buraya birebir
 > taşınmıştır — bu proje aynı hatayı birden fazla kez üretmiş ve her seferinde not düşülmüş,
 > bu checklist o dersleri PR aşamasına çekmek için var.

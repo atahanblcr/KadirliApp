@@ -88,7 +88,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | `KadirliApp.Domain/Entities/` | 50+ EF varlığı (`Ad`, `Announcement`, `Place`…) |
 | `KadirliApp.Domain/Enums/` | `AdStatus`, `UserRole`, `PropertyType`… |
 | `KadirliApp.Domain/Common/` | `BaseEntity` (Id/CreatedAt/UpdatedAt), `ISoftDeletable` |
-| `KadirliApp.Application/Features/<Modül>/` | **20 modül**, her biri `Commands/`, `Queries/`, `Dtos/` |
+| `KadirliApp.Application/Features/<Modül>/` | **24 modül**, her biri `Commands/`, `Queries/`, `Dtos/` |
 | `KadirliApp.Application/Common/` | `IUnitOfWork`, `IRepository<T>`, istisnalar, davranışlar |
 | `KadirliApp.Infrastructure/Persistence/` | `AppDbContext`, `Configurations/`, `DbSeeder`, `MockDataSeeder` |
 | `KadirliApp.Infrastructure/Migrations/` | EF migration'ları |
@@ -98,7 +98,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | `KadirliApp.Api/Controllers/` | **18 public controller** (`/v1/*`) |
 | `KadirliApp.Api/Controllers/Admin/` | **18 admin controller** (`/v1/admin/*`) + ortak taban |
 | `KadirliApp.Api/Authorization/` | `RequirePermissionAttribute` + policy sağlayıcı |
-| `KadirliApp.Web/Controllers/` + `Views/` | **20 panel controller** + Razor görünümleri |
+| `KadirliApp.Web/Controllers/` + `Views/` | **24 panel controller** + Razor görünümleri |
 | `KadirliApp.Tests/` | `Unit/` + `Integration/` (aşağıda test haritası) |
 | `secrets/` | **git'e girmez**; `secrets/README.md` neyin nasıl edinileceğini anlatır |
 
@@ -119,7 +119,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | `lib/features/<modül>/data/` | Model + repository (yalnız burası Dio görür) |
 | `lib/features/<modül>/application/` | Provider'lar, denetleyiciler, saf mantık |
 | `lib/features/<modül>/presentation/` | Ekranlar + `widgets/` |
-| `test/` | 613 test; klasör yapısı `lib/`'i aynalar |
+| `test/` | **685 test** (69 dosya); klasör yapısı `lib/`'i aynalar |
 
 ---
 

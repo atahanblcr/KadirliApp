@@ -16,7 +16,7 @@
 >
 > **Doğrulama:** `dotnet test` **605/605** · `flutter analyze` **0** · `flutter test` **685/685**. **Kuralı bilerek boz:** normalize edici maskelemeyi bıraktı · maskeleyiciden `phone`/`token` çıkarıldı · menü satırına modül anahtarı verildi · görünüm `@Html.Raw`'a çevrildi → **10 test kırmızı**, geri alınınca yeşil. **Canlı (Chrome + curl):** 3 farklı mesaj → **tek satır adet 3** · `phone=+90…` → **`phone=***&page=2`** · `source` gönderilmeden kayıt **`mobile`** düştü · Türkçe rozetler · çözüldü işaretlendi → **aynı hata tekrar → kendiliğinden yeniden açıldı (3→4, çözüm izi temizlendi)** · dashboard rozeti · denetim izinde **"Hata Kayıtları / Hatayı çözdü"**.
 >
-> ⏭️ **SIRADAKİ: 12.2** — şüpheli giriş günlüğü + e-posta raporlama. 🔴 `ForwardedHeaders` **ön koşul** (bugün yalnız yorum satırı; proxy arkasında `LoginAttempt.IpAddress` herkeste aynı olur → R2 herkeste yanar, R3 hiç yanmaz). `IEmailService` + `Email:Smtp` 9.2'den beri hazır bekliyor, tek eksik `SmtpEmailService`.
+> ⏭️ **SIRADAKİ: 12.2** — şüpheli giriş günlüğü + e-posta raporlama **+ `StaffAdmin` izin tutarsızlığı** (kullanıcı isteğiyle 12.2'ye alındı; yapılacaklar ve migration adımı planda yazılı). 🔴 `ForwardedHeaders` **ön koşul** (bugün yalnız yorum satırı; proxy arkasında `LoginAttempt.IpAddress` herkeste aynı olur → R2 herkeste yanar, R3 hiç yanmaz). `IEmailService` + `Email:Smtp` 9.2'den beri hazır bekliyor, tek eksik `SmtpEmailService`.
 >
 > ---
 >

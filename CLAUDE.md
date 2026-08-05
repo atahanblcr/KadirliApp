@@ -4,14 +4,19 @@
 ilanlar, vefat, etkinlik, kampanya, taksi, ulaşım, elektrik kesintisi, şehir rehberi,
 mekanlar, şikayet/istek. Üç parça: **.NET 8 API** + **Razor admin paneli** + **Flutter mobil**.
 
-**Durum:** Backend ve panel bitti (Faz 0–10). Mobil 11.15c'ye kadar bitti — 12 modülün
-tamamı gerçek, push canlı, golden + erişilebilirlik testleri ayakta, panel/önbellek/moderasyon
-emniyet ağı kuruldu, panelin canlı denetiminde bulunan hataların tamamı (11.15c A grubu)
-düzeltildi. **11.17 ile panel gerçek bir yönetim paneli oldu**: şehirlerarası ulaşım (tek
-işlevsel boşluktu), denetim izi, çöp kutusu, kesinti filtresi. **11.18 ile panelin güvenlik
-kapanışı yapıldı** (oturum iptali · ilk girişte zorunlu parola değişimi · parola politikası ·
-hesap kilidi) **ve toplu işlem + sütun sıralaması geldi** (534 backend + 669 mobil test).
-**Sırada yayın (11.16); 11.18'den kalan: CSV dışa aktarma · global arama · bağımsız push ekranı.**
+**Durum:** **Faz 11 bitti.** Backend + panel + mobil ayakta: 12 mobil modülün tamamı gerçek,
+push canlı, golden + erişilebilirlik testleri var; panel gerçek bir yönetim paneli
+(denetim izi · çöp kutusu · toplu işlem · sütun sıralaması · CSV dışa aktarma · global arama)
+ve güvenlik kapanışı yapılmış (oturum iptali · zorunlu parola değişimi · parola politikası ·
+hesap kilidi). Yayın hazırlığının Apple gerektirmeyen kısmı tamam.
+
+**Şimdi Faz 12** — gözlem, alan modeli ve giriş kolaylığı; 9 alt-faz, **hepsi additive**
+(hiçbir DTO alanı silinmiyor, hiçbir tablo düşürülmüyor). **12.1 bitti:** hata günlüğü modülü —
+sunucu/panel/mobil hataları artık panelden görülüyor (`ErrorLogsAdmin`).
+**605 backend + 685 mobil test, 33 görünmez sözleşme.**
+
+**⏭️ Sırada 12.2:** şüpheli giriş günlüğü + e-posta raporlama (`ForwardedHeaders` ön koşul) ·
+`StaffAdmin` izin matrisi tutarsızlığı. Plan: `Memory_Bank/Progress.md` → "FAZ 12".
 
 ## Çalıştır
 
@@ -50,10 +55,11 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 30 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 33 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
-29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`.
+29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
+31–33 `PanelErrorLogTests.cs` + `Unit/Application/Observability/`.
 
 ## Değişmez kurallar
 
@@ -67,10 +73,13 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
    taşır. (Yapısal test bunu denetliyor.) **Razor panelinde** karşılığı
    `[Authorize(Roles = "admin,super_admin,moderator")]` + `[PanelPermission("<modül>")]` +
    `PanelMenu.Items` satırıdır — üçü aynı modül anahtarını kullanır.
-   **Yalnız admin'e açık ekranda** (Personel, Denetim İzi, Çöp Kutusu) desen farklıdır:
-   rol listesinde `moderator` **yok**, `[PanelPermission]` **yok**, menü satırının `Module`'ü
-   **`null`** ve controller adı `AdminOnlyControllers`'ta — aksi hâlde izin matrisinde
+   **Yalnız admin'e açık ekranda** (Personel, Denetim İzi, Çöp Kutusu, Hata Kayıtları) desen
+   farklıdır: rol listesinde `moderator` **yok**, `[PanelPermission]` **yok**, menü satırının
+   `Module`'ü **`null`** ve controller adı `AdminOnlyControllers`'ta — aksi hâlde izin matrisinde
    *karşılığı olmayan* bir yetki belirir (`ARCHITECTURE.md` §3).
+   ⚠️ **Bilinen ihlal:** `StaffAdmin` bu kurala uymuyor (`Module = "staff"` taşıyor) →
+   "staff" izin matrisinde görünüyor ama rol kapısı yüzünden asla çalışmıyor. **12.2'de
+   düzeltilecek** (`Memory_Bank/Progress.md` → 12.2 "Ek madde").
 5. **"İşlevsiz buton yok"** — mobilde her buton bir uca ya da bir ekrana gider.
    Modül kaydı tek yerde: `mobile/lib/core/navigation/app_modules.dart`.
 6. **Arayüz Türkçe**, kod ve kimlikler İngilizce. Kullanıcıya teknik/İngilizce hata
