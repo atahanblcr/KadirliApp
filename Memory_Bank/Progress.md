@@ -62,102 +62,52 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 8. **Dashboard tamamen sahteydi:** hardcoded "1,245 kullanıcı / 324 ilan / 18 onay / 8,432 ziyaretçi" + "Paneli Test Verileriyle Doldur" butonu sadece "yakında" toast'ı basıyordu.
 9. AdsAdmin Create formunda kategori alanı "Kategori ID (Geçici)" adında ham GUID text input'uydu; DeathsAdmin Create'te mezarlık/cami/mahalle dropdown'ları yoktu.
 
-## ✅ / ⬜ FAZ 6 ÇALIŞMA PLANI (sıralı checklist — kaldığın yerden devam et)
+## ✅ FAZ 6 ÇALIŞMA PLANI (A–K) — hepsi tamamlandı (4 Temmuz 2026)
 
-### A. Stub Handler'ların Gerçek EF Core İmplementasyonuyla Doldurulması — [x] TAMAMLANDI (build doğrulandı)
-Değişen dosyalar (hepsi `IUnitOfWork` + gerçek sorgu/yazma kullanıyor artık):
-- `Ads/Queries/GetAdsQueryHandler.cs` — filtre (kategori/min-maxfiyat/arama) + sayfalama + Images→FileId listesi.
-- `Deaths/Commands/CreateDeathNoticeCommand.cs` imzası genişletildi: `(Dto, Guid? AddedBy = null, bool AutoApprove = false)` — pozisyonel eski çağrılar derlenmeye devam eder. Handler: AutoApprove ise status=approved+ApprovedBy/At; AutoArchiveAt=cenaze+7gün. Update/Delete(soft)/GetById/GetDeathNotices (Cemetery/Mosque adlarıyla join) gerçek yazıldı.
-- `Pharmacies`: Create/Update/Delete/GetPharmacies(arama+IsActive filtre)/GetPharmacyById gerçek yazıldı.
-- `Guide`: CreateGuideCategory/UpdateGuideCategory/GetGuideCategories/GetGuideCategoryById gerçek yazıldı. `GetGuideCategoryByIdQuery` dönüş tipi `GuideCategoryResponseDto?` (nullable) yapıldı.
-- `Places`: Create/GetPlaces/GetPlaceById gerçek yazıldı + YENİ `UpdatePlaceCommand(+Handler)` ve `DeletePlaceCommand(+Handler aynı dosyada)` eklendi.
-- `Taxis`: Create/GetTaxiDrivers/GetTaxiDriverById gerçek yazıldı + YENİ `UpdateTaxiDriverCommand`, `VerifyTaxiDriverCommand(Id, AdminId)`, `DeleteTaxiDriverCommand` (üçü de handler'ıyla aynı dosyada). `GetTaxiDriverByIdQuery` dönüşü nullable yapıldı.
-- `Transport`: GetIntracityRoutes/GetIntercityRoutes/CreateIntercityRoute gerçek yazıldı (CreateIntracity/UpdateIntracity zaten gerçekti).
-- `Auth`: YENİ `Application/Common/Interfaces/IOtpService.cs` + `Infrastructure/Identity/RedisOtpService.cs` (Redis "otp:{phone}" TTL:300s, saatlik rate limit "otp_count:{phone}", tek kullanımlık). LoginCommandHandler OTP üretip Redis'e yazıyor; VerifyOtpCommandHandler OTP'yi doğrulayıp `users` tablosunda telefonla kullanıcı buluyor (yoksa oluşturuyor), ban/pasif kontrolü yapıp GERÇEK user.Id ile JWT dönüyor.
-- YENİ `Domain/Enums/UserRoleExtensions.cs`: `ToRoleString()` → SuperAdmin→"super_admin" vb. (policy'lerle uyum).
-- `Users/Commands/CreateUser`: şifre artık `IPasswordHasher.HashPassword` ile hash'leniyor.
-- `Ads/Commands/CreateAd`: command'e `UserId` eklendi, handler set ediyor (Web controller'dan claim ile geçilecek — bkz. madde D).
-- `Infrastructure/DependencyInjection.cs`: `IConnectionMultiplexer` (singleton, ConnectionStrings:Redis) + `IOtpService→RedisOtpService` kayıtları eklendi.
-- NOT: `EF.Functions.ILike` Application'da derlenmedi (Npgsql referansı yok) → tüm aramalar `x.Alan.ToLower().Contains(term.ToLower())` desenine çevrildi.
+> Adım adım uygulama talimatları (hangi dosyaya ne yazılacağı) kaldırıldı — iş bitti, kod
+> `ARCHITECTURE.md`'deki modül tablosundan okunuyor. Kalıcı olan **kararlar** aşağıda.
 
-### B. Seed Altyapısı — [x] TAMAMLANDI (4 Tem: canlı doğrulandı — admin kullanıcısı ve tüm lookup verileri DB'de)
-- YENİ `Infrastructure/Persistence/DbSeeder.cs`: `SeedAsync(IServiceProvider)` — `db.Database.MigrateAsync()` + idempotent (her blok tablo boşsa çalışır): super_admin kullanıcı (**username: `admin`, şifre: `Admin123!`, telefon: +905000000001, e-posta: admin@kadirli.app**, BCrypt hash'li), 10 mahalle, 5 duyuru türü, 8 ilan kategorisi, 6 etkinlik kategorisi, 6 işletme kategorisi, 5 mekan kategorisi, 6 rehber kategorisi, 3 mezarlık, 4 cami. Türkçe karakter destekli `Slugify` helper'ı içeriyor (internal static — MockDataSeeder da kullanabilir).
-- `Web/Program.cs` ve `Api/Program.cs`'e `await DbSeeder.SeedAsync(app.Services);` eklendi (builder.Build() sonrası).
-- [x] **DOĞRULANDI (4 Tem):** `SELECT username, role FROM users` → admin/SuperAdmin mevcut; login çalışıyor.
+- **A. Stub handler'lar gerçek EF Core'a bağlandı** (Ads/Deaths/Pharmacies/Guide/Places/Taxis/Transport/Auth).
+  ⚠️ Buradan çıkan ve **hâlâ geçerli** olan kural: `EF.Functions.ILike` Application katmanında
+  derlenmez (Npgsql'e özel, katman kuralı) → projenin her yerinde arama deseni
+  `x.Alan.ToLower().Contains(term.ToLower())`. Tek bir yerde farklı semantik kullanmak,
+  modül listesiyle global aramanın aynı terimde farklı sonuç vermesi demektir (bkz. 11.16b).
+- **B. Seed altyapısı** — `Infrastructure/Persistence/DbSeeder.cs`, `SeedAsync` idempotent
+  (her blok kendi tablosu boşsa çalışır): super_admin + 10 mahalle + duyuru/ilan/etkinlik/işletme/mekan/rehber
+  kategorileri + mezarlık + cami. Türkçe karakterli `Slugify` **`SlugHelper`'a delege eder**
+  (görünmez sözleşme #21 — ikinci bir slug gerçeklemesi yazılmaz).
+  ⚠️ Varsayılan panel parolası `Admin123!`'tür ve **11.18'de zorunlu parola değişimi kapısı geldi**:
+  parolayı sahibi değil sistem belirlediyse panel hiçbir sayfayı açmaz.
+- **C. Gerçek panel girişi** — `admin/admin` hardcoded bloğu silindi; `IPasswordHasher` doğrulaması +
+  rol kapısı + `NameIdentifier = gerçek user.Id`. Öncesinde her girişte rastgele GUID claim'i
+  yazıldığı için `approved_by` kolonu anlamsız değerlerle doluyordu.
+- **D–H. Eksik dikey kesitler yazıldı** — Events / Campaigns / Complaints modülleri (Application+Api+Web),
+  Places + Taxi panel controller/view'ları, Ads ve Deaths formlarındaki ham GUID input'ları dropdown'a çevrildi.
+- **I. Dashboard'daki uydurma metrikler kaldırıldı** — hardcoded "1,245 kullanıcı / 8,432 ziyaretçi"
+  gerçek `Count` sorgularına bağlandı; **ölçülmeyen metrik gösterilmez** kuralıyla "Günlük Ziyaretçi"
+  kartı "Toplam Duyuru" oldu (telemetri yok, yalan metrik bırakılmadı). `MockDataSeeder` yazıldı.
+- **J. Canlı smoke test** — detay `Live_Test_Report.md`. ⚠️ Buradan çıkan kalıcı ders:
+  **eski process yeni kodu yansıtmaz** — test etmeden önce porttaki önceki `dotnet run`
+  öldürülmeli (bugün API `:5005`, panel `:5203`; ikisi **aynı anda** `dotnet run` edilmez,
+  ref-assembly dosya kilidi yüzünden önce `build`, sonra `--no-build`).
+- **K. Memory Bank gerçek duruma göre yeniden yazıldı** — "kusursuz / production-ready"
+  abartıları kaldırıldı. Bu fazın asıl dersi zaten buydu: **doküman kendini denetlemiyorsa
+  çürür.** Bugün `ArchitectureDocTests` + `CodeReviewChecklistDocTests` bunu mekanik olarak engelliyor.
 
-### C. Gerçek Panel Girişi (AccountController) — [x] TAMAMLANDI (canlı doğrulandı: admin/Admin123! → 302, gerçek user.Id claim'i)
-- `Web/Controllers/AccountController.cs` POST Login: `admin/admin` sahte bloğu SİL. Yerine: `IUnitOfWork` ile `users` tablosunda `Username == username || Phone == username` VE `Password != null` kullanıcıyı bul; `IPasswordHasher.VerifyPassword(password, user.Password)` doğrula; `IsActive && !IsBanned` kontrol et; rol `UserRole.Admin/SuperAdmin/Moderator` değilse reddet. Claims: `NameIdentifier = user.Id.ToString()` (GERÇEK id), `Name = user.Username ?? user.Phone`, `Role = user.Role.ToRoleString()`.
-- `Views/Account/Login.cshtml` içindeki "admin / admin kullanınız" metnini `admin / Admin123!` olarak güncelle.
+## ✅ FAZ 7 - Admin Panel İyileştirmeleri (5 Temmuz 2026) — TAMAMLANDI
 
-### D. AdsAdmin/DeathsAdmin Form İyileştirmeleri — [x] TAMAMLANDI (kategori/mezarlık/cami/mahalle dropdown'ları + UserId claim'den)
-- `AdsAdminController.Create [HttpPost]`: `command.UserId = adminId` (claim'den, Approve'daki desenle aynı). GET Create ve POST hata dönüşünde `ViewBag.Categories = AdCategory listesi`.
-- `Views/AdsAdmin/Create.cshtml` ve `Edit.cshtml`: "Kategori ID (Geçici)" ham GUID input'unu `<select asp-for="CategoryId">` dropdown'a çevir (AnnouncementsAdmin/Create.cshtml'deki ViewBag.Types deseni örnek).
-- `DeathsAdminController`: Create/Edit GET+POST'ta `ViewBag.Cemeteries/Mosques/Neighborhoods` doldur; Create POST'ta `new CreateDeathNoticeCommand(dto, adminId, AutoApprove: true)` geç. View'lara 3 dropdown ekle.
+> Eklenen alanların tek tek listesi kaldırıldı (bugünkü hâli `ARCHITECTURE.md` modül tablosunda
+> ve panel view'larında zaten görünüyor). Kalıcı olan **kararlar**:
 
-### E. Events Modülü (tam dikey kesit) — [x] TAMAMLANDI (Application+Api+Web katmanları, Index 200)
-- `Application/Features/Events/`: Dtos (`EventResponseDto`, `QueryEventDto(Search,CategoryId,Status,Page,Limit)`), Queries (`GetEventsQuery+Handler` — Category.Name join'li, `GetEventByIdQuery+Handler`), Commands (`CreateEventCommand` [Title, Description, CategoryId, EventDate, EventTime, VenueName, Address, Organizer, TicketPrice, IsFree, CreatedBy], `UpdateEventCommand`, `DeleteEventCommand` (soft), `ApproveEventCommand(Id, AdminId)` → status="approved", `RejectEventCommand(Id, AdminId, Reason?)` → status="rejected"). Status değerleri Ad modülüyle tutarlı küçük harf: "pending"/"approved"/"rejected".
-- `Api/Controllers/EventsController.cs`: `[Route("v1/events")]` GET (public: yalnız approved), GET {id}, POST.
-- `Web/Controllers/EventsAdminController.cs` + `Views/EventsAdmin/Index|Create|Edit.cshtml`: AdsAdmin desenini birebir izle (Onayla/Reddet/Düzenle/Sil butonları, kategori dropdown'u ViewBag.Categories). EventDate için `type="date"`, EventTime için `type="time"` input.
-- DİKKAT: `Event.EventDate` timestamptz — `DateTime.SpecifyKind(..., DateTimeKind.Utc)` şart (Deaths handler'ındaki desen). `Event.CreatedBy` Guid non-null → admin id geç.
+- **Duyuru:** planlanan yayın zamanı boş bırakılırsa **anında yayınlanır** — bu davranış
+  formda açıkça yazılı olmalı (sessiz varsayılan, kullanıcıyı şaşırtan sınıf).
+- **Vefat:** cami ve mahalle **opsiyonel** (her cenaze camiden kalkmıyor, zorunlu alan
+  yöneticiyi uydurmaya zorluyordu). **Yaş alanı kaldırıldı** — kişisel veri, gösterim değeri yok.
+- **Mekan:** açılış/kapanış saati serbest metinden saat seçiciye çevrildi (serbest metin
+  saat = istemcide ayrıştırılamayan veri; aynı ders 11.17'de ulaşım saatlerinde tekrarlandı).
+- **Etkinlik / Kampanya / Mekan / Duyuru:** görsel ve konum alanları bu fazda geldi.
 
-### F. Campaigns Modülü (tam dikey kesit) — [x] TAMAMLANDI (Application+Api+Web katmanları, Index 200)
-- `Application/Features/Campaigns/`: Dtos + Queries (GetCampaigns — Business.BusinessName join'li, GetCampaignById) + Commands (Create [BusinessId, Title, Description, DiscountPercentage, DiscountCode, Terms, StartDate, EndDate], Update, Delete (soft), Approve(Id, AdminId), Reject(Id, AdminId, Reason?)).
-- `Api/Controllers/CampaignsController.cs`: GET (public: approved + EndDate >= now), GET {id}, POST.
-- `Web/Controllers/CampaignsAdminController.cs` + view'lar: Business dropdown'u için `ViewBag.Businesses` (Business tablosu boşsa MockDataSeeder işletme ekliyor olacak — bkz. H). StartDate/EndDate UTC SpecifyKind!
-- `Views/Shared/_Sidebar.cshtml`'e "Kampanyalar" linki.
-
-### G. Complaints Modülü — [x] TAMAMLANDI (Application+Api+Web katmanları, Index 200)
-- `Application/Features/Complaints/`: `ComplaintResponseDto` (User.Username/Phone join'li), `GetComplaintsQuery(Status?, Page, Limit)+Handler`, `CreateComplaintCommand(UserId?, Type, RelatedModule?, RelatedId?, Subject, Message)+Handler`, `ResolveComplaintCommand(Id, AdminId, Status["in_progress"|"resolved"|"rejected"], AdminNotes?)+Handler` (resolved/rejected'ta ResolvedBy/ResolvedAt set et).
-- `Api/Controllers/ComplaintsController.cs`: POST (anonim serbest — Complaint.UserId nullable), `[Authorize]` GET my.
-- `Web/Controllers/ComplaintsAdminController.cs` + `Views/ComplaintsAdmin/Index.cshtml`: status filtresi sekmeleri (Bekleyen/İşlemde/Çözüldü), satırda "İşleme Al"/"Çözüldü"/"Reddet" POST butonları + AdminNotes girme (satır içi küçük form ya da Edit sayfası).
-- Sidebar'a "Şikayetler" linki.
-
-### H. Places + Taxi Admin Panel — [x] TAMAMLANDI (4 Tem: TaxiAdmin Create/Edit view'ları yazıldı — önceki oturum tam burada kesilmişti; sidebar'a Etkinlikler/Kampanyalar/Taksiciler/Mekanlar/Şikayetler linkleri eklendi, "Ulaşım & Taksi"→"Ulaşım")
-- `Web/Controllers/PlacesAdminController.cs`: Index (GetPlacesQuery), Create/Edit (ViewBag.Categories=PlaceCategories; UpdatePlaceCommand mevcut), Delete (DeletePlaceCommand mevcut). Views: PharmaciesAdmin deseni.
-- `Web/Controllers/TaxiAdminController.cs`: Index (GetTaxiDriversQuery), Create (CreateTaxiDriverCommand), Edit (UpdateTaxiDriverCommand), Verify POST (VerifyTaxiDriverCommand — admin claim id), Delete POST (DeleteTaxiDriverCommand). Index satırında doğrulanmamışsa yeşil "Onayla" butonu (AdsAdmin Approve deseni).
-- Sidebar: "Mekanlar" + "Taksiciler" linkleri ekle; mevcut "Ulaşım & Taksi" etiketini "Ulaşım" yap.
-
-### I. Dashboard Gerçek Veri + Çalışan Seed Butonu — [x] TAMAMLANDI (4 Tem: DashboardViewModel + gerçek Count sorguları + Son Aktiviteler listesi; MockDataSeeder.cs yazıldı, Seed butonu çağırıyor; "Günlük Ziyaretçi" kartı "Toplam Duyuru" oldu)
-- `Web/Controllers/DashboardController.cs` Index: gerçek sayılar — `Users.Count`, `Ads.Count(status=="approved")`, bekleyen onaylar (`Ads pending + DeathNotices pending + Events pending + Campaigns pending + Complaints pending` toplamı), `Announcements.Count`. ViewModel ya da ViewBag ile geçir. "Son Aktiviteler" bölümüne son 8 kayıt (ör. son ilanlar+duyurular UNION, tip+başlık+tarih).
-- `Seed()` aksiyonu: "yakında" TempData'sını SİL → YENİ `Infrastructure/Persistence/MockDataSeeder.cs` çağır. MockDataSeeder (idempotent, her blok kendi tablosu boşsa): 3-4 normal kullanıcı, 5 ilan (2 pending + 3 approved, kategorili, UserId'li), 3 duyuru (typeId'li), 2 vefat ilanı (mezarlık/cami bağlı, AutoArchiveAt dolu), 3 eczane + bugün için nöbet kaydı, 2 elektrik kesintisi, 2 şehir içi + 2 şehirlerarası hat, 2 işletme (kategorili) + 2 kampanya (1 pending 1 approved, tarihleri geçerli), 3 etkinlik (1 pending 2 approved), 3 mekan (kategorili), 3 taksici (1'i doğrulanmamış), 2 şikayet (pending). TÜM DateTime'lar UTC!
-- `Views/Dashboard/Index.cshtml`: hardcoded 1,245/324/18/8,432 değerlerini model verisine bağla; "Günlük Ziyaretçi" kartını "Toplam Duyuru" yap (ziyaretçi telemetrisi yok — yalan metrik bırakma).
-
-### J. Build + Canlı Smoke Test — [x] TAMAMLANDI (4 Tem — tüm adımlar geçti, detay: Live_Test_Report.md)
-1. `dotnet build KadirliApp.sln` → 0 hata.
-2. Port 5002'deki ESKİ process'i öldür (`lsof -nP -iTCP:5002 -sTCP:LISTEN` → kill PID) — eski binary yeni kodu yansıtmaz!
-3. `cd KadirliApp.Web && dotnet run --urls http://localhost:5002` (arka plan). Loglarda seed hatası var mı bak.
-4. curl ile: POST /Account/Login (admin / Admin123!) → 302; /Dashboard, tüm modül Index'leri → 200; bir Create POST'u (ör. duyuru) → 302 + DB'de satır; AdsAdmin'de mock pending ilanı Approve → DB'de status=approved + approved_by=gerçek admin id.
-5. Api tarafı: `cd KadirliApp.Api && dotnet run` → POST /api/Auth/login {"phone":"+905001112233"} → OTP dönmeli; verify-otp ile token alınmalı; DB'de user oluşmalı. *(NOT 8 Tem: route artık `/v1/auth/*`.)*
-
-### K. Memory Bank Güncelle — [x] TAMAMLANDI (4 Tem)
-- Bu dosyadaki checklist'i işaretle, `Active_Context.md`'yi gerçek duruma göre yeniden yaz ("kusursuz/production-ready" abartılarını kaldır), `Live_Test_Report.md`'ye gerçek smoke test çıktısını ekle.
-
-## ✅ FAZ 7 - Admin Panel İyileştirmeleri ve Eksiklerin Giderilmesi (5 Temmuz 2026) — TAMAMLANDI
-
-> **DURUM (5 Temmuz 2026):** Claude tarafından yapılan panel modülü (Duyurular, Etkinlikler, Kampanyalar, Vefat, Mekanlar, Şehir Rehberi) mantıksal düzeltmeleri ve iyileştirmeleri build edilip canlı doğrulandı.
-
-1. **Duyurular Modülü:**
-   - Yeni duyuru türü ekleme butonu eklendi (Modal/Panel üzerinden hızlıca eklenebiliyor).
-   - Planlanan yayın zamanı doldurulmadığında anında yayınlanacağına dair uyarı/bilgi mesajı UI'a eklendi.
-   - Belirli mahalleler seçildiğinde mahallelerin çoklu seçimine izin veren UI düzeltildi.
-   - Opsiyonel Konum (LocationName, Latitude, Longitude) ve Fotoğraf (ImageFileId) özellikleri eklendi.
-2. **Etkinlik Modülü:**
-   - Opsiyonel Fotoğraf (CoverImageId) ve Konum (Latitude, Longitude) bilgileri için eklemeler yapıldı.
-   - Admin tarafına takvim/takvim bazlı etkinlik yönetimi altyapısı getirildi (FullCalendar vb.).
-3. **Kampanyalar Modülü:**
-   - Kampanya kapak fotoğrafı / görsel yükleme altyapısı eklendi.
-4. **Vefat İlanları Modülü:**
-   - Cami ve Mahalle bilgileri zorunlu alan olmaktan çıkarılıp opsiyonel (nullable) hale getirildi.
-   - Taziye yeri için konum butonu/harita (Latitude, Longitude) entegre edildi.
-   - Kişisel veri olan Yaş bilgisi gereksiz görüldüğü için formdan ve modelden kaldırıldı/gizlendi.
-5. **Mekanlar Modülü:**
-   - Fotoğraf ekleme desteği getirildi.
-   - Açılış-Kapanış saatleri manuel metin girişinden seçmeli saate (time picker) çevrildi.
-   - Temel gereksinimler (WC, Wifi, Klima var/yok checkbox'ları) eklendi ve düzenlenebilir yapıldı.
-6. **Şehir Rehberi Modülü:**
-   - Şehir rehberi modülündeki kategorizasyon ve UX mantıksızlıkları giderildi. Gerekli açıklamalar ve UI düzenlemeleri yapıldı.
-
-**Sonuç:** `dotnet build` başarıyla tamamlandı. Docker üzerinde API ve Web containerları/processleri ayağa kaldırılarak `Live Test` ile sayfaların düzgün renderlandığı ve 200/302 döndüğü teyit edildi. Memory Bank güncellendi.
+**Doğrulama:** build 0 hata; sayfalar canlıda 200/302 (`Live_Test_Report.md`).
 
 ## ✅ FAZ 8 - Admin API (JSON Endpoints) + Response Zarfı Kontratı (7 Temmuz 2026) — TAMAMLANDI
 
@@ -220,13 +170,6 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
 5. **`UploadFileCommandHandler` bug'ı (mevcut kod):** `new Uri(fileUrl).LocalPath` göreli URL'de (`/uploads/...`) fırlatıyordu → API'den `POST /v1/files/upload` baştan beri 500 veriyordu (Web çalışıyordu çünkü `FileStorage:BaseUrl` dolu). `Path.GetFileName(fileUrl)` yapıldı.
 
 **Bilinen davranış notu (bug değil ama dikkat):** yanıt serileştirmesinde hata olsa bile kayıt DB'ye yazılıyor (SaveChanges yanıttan önce) — 4. bug'ın canlı testinde 500 dönen ilk duyuru isteği DB'ye mükerrer satır bırakmıştı (temizlendi).
-
-## 📌 Oturum Ortam Notları (3 Temmuz 2026)
-- Docker Desktop çalışıyor; `kadirliapp_db` (Postgres :5432, postgres/postgres, db: kadirliapp) ve `kadirliapp_redis` (:6379) konteynerleri ayakta (`docker compose up -d` KadirliApp/ dizininden).
-- Port 5002'de ÖNCEKİ oturumdan kalma eski bir KadirliApp.Web process'i çalışıyor (PID değişebilir) — yeni kodu test etmeden önce mutlaka öldürülmeli.
-- `dotnet ef` global tool v10.0.9 kurulu, EF Core 8 projesiyle `database update` sorunsuz çalıştı.
-- Migration'lar zaten uygulanmış durumda (InitialSchema + AddTrgmExtension); DbSeeder.SeedAsync içindeki MigrateAsync idempotent.
-- Solution build: 0 hata (yalnızca Hangfire UsePostgreSqlStorage deprecated uyarısı — davranışı etkilemiyor).
 
 ---
 
@@ -582,13 +525,10 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
 ### 10.14 — 🔎 SUNUM DOKÜMANI DENETİMİ BULGULARI (20 Temmuz 2026) — YAPILACAK
 > **Bağlam:** `SUNUM.MD` hazırlanırken kod tabanı 4 bağımsız ajanla baştan tarandı (mimari / API+güvenlik / ürün+panel / yol haritası). Geliştirme YAPILMADI, yalnız tespit. Aşağıdaki 3 madde **kod düzeyinde doğrulanmış** bulgulardır; tamamı `SUNUM.MD` Bölüm VI'da da listelidir. Diğer bulgular (CORS, Swagger JWT, FluentValidation/AutoMapper/Dapper ölü kod) zaten 10.13 kapsamındadır, buraya tekrarlanmadı.
 
-- [x] **(1) 🔴 `RejectAdCommandHandler` red sebebini KAYDETMİYOR — ✅ TAMAMLANDI (25 Temmuz 2026).**
-  - **Yapıldı:** `RejectAdCommand`'e opsiyonel `Reason` + `AuditDetails` (RejectCampaign deseni) eklendi; handler artık `RejectedReason`/`RejectedAt` yazıyor, `ApprovedBy`/`ApprovedAt`'i **null'lıyor** (bir ilan aynı anda onaylı+reddedilmiş olamaz; "kim reddetti" izi zaten `IAuditableCommand`'da). Web `AdsAdminController.Reject(id, reason?)` + Index'te ban-sebep deseninde JS'siz `<details>` popover'ıyla sebep girişi; Admin API `POST /v1/admin/ads/{id}/reject?reason=` opsiyonel query. **BAĞLANTILI YAN DÜZELTME:** `ApproveAdCommandHandler` artık `RejectedReason`/`RejectedAt`'i null'lıyor — yoksa reddet→onayla akışında bayat red gerekçesi kalırdı (bu düzeltmeyle red alanları ilk kez dolduğundan artık ulaşılabilir bir durumdu). `ApprovedBy`/`ApprovedAt` view/DTO'da hiç OKUNMUYOR (grep'le doğrulandı; yalnız yazılıyordu + audit), temizleme güvenli. xUnit **63/63** (yeni `Reject_StoresReason_ClearsApprovalTrail_And_VisibleInMyAds`). Build 0 hata.
-  - **Tespit (orijinal):** Handler ilanı reddederken `RejectedReason`/`RejectedAt` yerine `ApprovedBy`/`ApprovedAt` alanlarını dolduruyor ("kim reddetti izlensin" yorumuyla). Sonuç: `RejectedReason` kolonu HİÇ dolmuyor.
-  - **Etki:** `MyAdDto` kullanıcıya `rejectedReason` alanını döndürüyor (Faz 10.6'da bilinçli eklendi) ama alan daima NULL → **kullanıcı ilanının neden reddedildiğini göremiyor**. `UpdateMyAdCommand` ise yeniden moderasyona düşürürken `RejectedReason`'ı temizliyor — yani alanın dolu olması bekleniyor, tasarım tutarsız.
-  - **Karşılaştırma:** Kampanya (`RejectCampaignCommand`) ve etkinlik (`RejectEventCommand`) reddi DOĞRU alanları kullanıyor. Tutarsızlık yalnızca Ads modülünde.
-  - **Yapılacak:** `RejectAdCommandHandler`'da `RejectedReason` + `RejectedAt` set edilsin; "kim reddetti" izi gerekiyorsa `ApprovedBy`'ı ezmek yerine ayrı bir alan/audit izi kullanılsın (`IAuditableCommand` zaten Ads reject'te işaretli — aktör oradan okunabilir). Mevcut `ApprovedBy` yazma davranışı kaldırılınca panelde/DTO'da kırılan yer var mı kontrol edilmeli.
-  - **Doğrulama:** Panelden bir ilanı sebep girerek reddet → psql'de `rejected_reason`/`rejected_at` dolu, `approved_by`/`approved_at` NULL → sahibi `GET /v1/users/me/ads?status=rejected` çağırınca `rejectedReason` alanı dolu geliyor. xUnit'e regresyon testi eklenmeli.
+- [x] **(1) 🔴 `RejectAdCommandHandler` red sebebini KAYDETMİYORDU — ✅ TAMAMLANDI (25 Temmuz 2026).**
+  - **Neydi:** Handler reddederken `RejectedReason`/`RejectedAt` yerine `ApprovedBy`/`ApprovedAt`'i dolduruyordu → `MyAdDto.rejectedReason` daima NULL, **kullanıcı ilanının neden reddedildiğini göremiyordu.** Kampanya ve etkinlik reddi doğru alanları kullanıyordu; tutarsızlık yalnız Ads'teydi.
+  - **Kalıcı kural:** bir kayıt aynı anda onaylı+reddedilmiş olamaz — `Reject` onay izini, `Approve` da red gerekçesini **null'lar**. Bu kural sonradan kampanyada da eksik çıktı (11.15b) ve `CODE_REVIEW_CHECKLIST` §2'ye madde olarak girdi. "Kim reddetti" izi `IAuditableCommand`'dan okunur, onay alanları ezilerek değil.
+  - **Doğrulama:** panelden sebep girerek reddet → `rejected_reason`/`rejected_at` dolu, `approved_by`/`approved_at` NULL → sahibi `GET /v1/users/me/ads?status=rejected` çağırınca gerekçeyi görüyor. Regresyon testi: `Reject_StoresReason_ClearsApprovalTrail_And_VisibleInMyAds`.
 
 - [ ] **(2) 🟠 `/hangfire` dashboard'unda yetkilendirme filtresi YOK — production fazında zorunlu.**
   - **Tespit:** `UseHangfireDashboard` çağrısında `IDashboardAuthorizationFilter` verilmemiş. Hangfire'ın varsayılan davranışı yalnız **yerel (localhost) isteklere** izin vermek olduğundan bugün dev ortamında sorun görünmüyor.
@@ -1732,3 +1672,505 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 > ~~AKTİF SIRADAKİ: 11.5~~ (tamamlandı) — 11.4'ten devralınanlar: **iskeletler yerinde** — `features/settings/presentation/settings_screen.dart` (Hesap · Görünüm · Hakkında · Geliştirici bölümleri var; içine profil düzenleme, **6 bildirim anahtarı** `PATCH /v1/users/me/notifications` ve **hesabı sil** `DELETE /v1/users/me` girecek) ve `features/profile/presentation/profile_screen.dart` (avatar+ad+telefon+mahalle; "İlanlarım"/"Favorilerim" satırları bugün "Yakında" — 11.9'da bağlanacak). Profil fotoğrafı için **`AppNetworkImage`** hazır (`image_picker` → `POST /v1/files/upload` → dönen id → PATCH). ⚠️ `CurrentUser` modeli **kısmi** — `MyProfileDto`'nun bildirim tercihleri + `usernameChangedAt`/`neighborhoodChangedAt` alanları 11.5'te eklenecek (30 günlük kısıt mesajları `USERNAME_CHANGE_LIMIT`/`NEIGHBORHOOD_CHANGE_LIMIT`). Ağ hatalarında `apiRetry` politikası (`core/network/retry_policy.dart`) yeni provider'lara da verilmeli. Testlerde `homeStubs()` + `settleApp()`; korumalı aksiyonlar `ensureSignedIn` ile, sekme içi davetler `SignInPrompt` ile. Modül eklemek/rota vermek gerekirse **tek yer**: `core/navigation/app_modules.dart`.
 
 > **Sıra:** 11.1 → 11.2 → … → 11.14 → **11.15 → 11.15b** → 11.16 (sıralı; her biri öncekine dayanır). Büyük modül olan İlanlar bilerek 2'ye bölündü (11.8-11.9). FCM (11.13) Firebase config gerektirir — o oturuma girmeden kullanıcıdan istenir. İlk 5 alt-faz temel/iskelet, **11.6-11.13 modül dikey kesitleri**, **11.14 devir teslim** (mimari haritası + backend emniyet ağı + CI — 2 Ağustos 2026'da araya eklendi, bkz. o başlıktaki gerekçe), **11.15 cila (+golden test) → 11.15b emniyet ağı 2. tur → 11.16 yayın**.
+
+---
+
+# 🔭 FAZ 12 — GÖZLEM, ALAN MODELİ VE GİRİŞ KOLAYLIĞI (5 Ağustos 2026'da planlandı)
+
+> **Bu faz neden var?** Faz 11 bittiğinde panel "her modülü yönetebiliyor" durumuna geldi
+> (11.17 son işlevsel boşluğu kapattı). Ama üç ayrı eksen açık kaldı ve üçü de kullanıcının
+> canlı kullanımda göreceği sınıftan:
+>
+> 1. **Panel ne yapıldığını gösteriyor, ne olduğunu göstermiyor.** `AuditLog` yöneticinin
+>    *başarılı* yazma eylemlerini tutuyor; vatandaşın aldığı hata, mobilde oluşan çökme ve
+>    *başarısız* giriş denemeleri **hiçbir yerde kayıtlı değil**. Hatalar yalnız Seq'e akıyor
+>    (`localhost:5341`) — yani panelden bakan yöneticinin erişemediği bir yere.
+> 2. **Üç modülün alan modeli yarım kalmış** ve yarıda kalan parçalar kodda **boş çengel**
+>    olarak duruyor: `PowerOutage.AnnouncementId` (hiç doldurulmuyor), `Event.City` (panelde
+>    formu bile yok), `Event.IsLocal` (mobil parse ediyor, hiçbir widget kullanmıyor),
+>    `IntercityRoute` (araç tipi / kalkış noktası / sefer günü yok).
+> 3. **Girişte sürtünme var** — tek yol telefon + OTP.
+>
+> **Bu fazın ortak özelliği: hepsi ADDITIVE.** Hiçbir alt-fazda DTO alanı silinmiyor veya
+> yeniden adlandırılmıyor (`ARCHITECTURE.md` §5 kırıcı-değişiklik kuralı hiç devreye girmiyor),
+> hiçbir tablo düşürülmüyor (§6). Mağazadaki eski sürümler her adımdan sonra çalışmaya devam eder.
+
+## 📌 Faza girmeden bilinmesi gerekenler
+
+- **Sıra bilinçli:** gözlem katmanı (12.1–12.2) **önce** kuruluyor. Gerekçe: 12.3–12.8 arasında
+  altı migration + üç modülün şema değişikliği var; bunların ürettiği hatayı görebileceğimiz
+  bir ekranın **önceden** var olması gerekiyor. Kendi değişikliğimizi kendi kurduğumuz
+  aynayla izleyeceğiz.
+- **`ARCHITECTURE.md` ve `CODE_REVIEW_CHECKLIST.md` bu planla birlikte GÜNCELLENMEDİ** —
+  bilerek. İkisi de testle gerçeğe çivili (`ArchitectureDocTests`, `CodeReviewChecklistDocTests`);
+  henüz var olmayan bir modülü tabloya, henüz var olmayan bir test sınıfını checklist'e yazmak
+  `dotnet test`'i **bugün** kırardı. Her alt-faz kendi satırını **kendi oturumunda** ekler
+  (18 adımlı reçetenin son adımı).
+- **Her alt-faz bir oturumda bitecek boyuta bölündü.** Bitti kriteri her yerde aynı:
+  `dotnet test` + `flutter analyze` + `flutter test` yeşil · **kuralı bilerek boz → testin
+  kırmızıya döndüğü görüldü** · Memory Bank güncel · commit atıldı.
+- **Yeni görünmez sözleşmeler doğacak.** Her alt-fazın altında hangi maddelerin `ARCHITECTURE.md`
+  §7 tablosuna ekleneceği yazılı. Numaralar **30'dan devam eder**, alt-faz tamamlanınca kesinleşir.
+
+## ⚙️ Faz başında alınan kararlar (kullanıcı onayladı, 5 Ağustos 2026)
+
+| Karar | Seçim | Gerekçe |
+|---|---|---|
+| **Sosyal girişte telefon** | **Zorunlu kalır** | `User.Phone` required+unique ve **42 dosyanın** kimlik çıpası (JWT claim'i, OTP, ban, hesap silme, ilan iletişimi). Telefonsuz hesap ayrıca *doğrulanmamış* kullanıcıya ilan verme/taksi çağırma açardı → moderasyon riski. Sosyal giriş **kayıt formunu ön dolduran** bir kısayol olur; ikinci girişten sonra zaten tek buton. |
+| **Kesinti bildirimi** | **Otomatik duyuru üretilir** | `PowerOutage.AnnouncementId` alanı tam bunun için konmuş ve boş bırakılmış. Var olan `AnnouncementNotificationGenerator` + `SendPushNotificationsJob` + deep-link **aynen** çalışır → **mobilde sıfır değişiklik**, mağazadaki eski sürümler de bildirimi alır. Ayrı `relatedType` seçilseydi görünmez sözleşme #18 gereği eski sürümler bildirime dokunduğunda **sessizce hiçbir yere gitmezdi**. |
+| **Sıra** | Gözlem → alan modeli → sosyal giriş | Yukarıda. |
+
+## 🗺️ Alt-faz haritası
+
+| # | Alt-faz | Katman | Şema | Tahmini test artışı |
+|---|---|---|---|---|
+| 12.1 | Hata günlüğü modülü | backend + panel + mobil (raporlayıcı) | ✔ | ~25 backend, ~8 mobil |
+| 12.2 | Şüpheli giriş günlüğü + e-posta raporlama | backend + panel | ✔ | ~30 backend |
+| 12.3 | Kesinti mahalle referansı + mahalle bazlı bildirim | backend + panel + mobil | ✔ | ~25 backend, ~5 mobil |
+| 12.4 | Etkinlik konumu (il/ilçe) | backend + panel + mobil | ✔ | ~20 backend, ~10 mobil |
+| 12.5 | Ulaşım alan modeli (araç tipi · kalkış noktası · sefer günleri) | backend + panel | ✔ | ~30 backend |
+| 12.6 | Ulaşım mobil (ikili kalkış · gün rozetleri · "sıradaki sefer") | mobil | — | ~25 mobil |
+| 12.7 | Sosyal giriş — backend | backend + panel | ✔ | ~30 backend |
+| 12.8 | Sosyal giriş — mobil | mobil | — | ~20 mobil |
+
+---
+
+### 12.1 — Hata günlüğü modülü — [ ]
+
+**Hedef:** Vatandaşın ve yöneticinin aldığı hataların panelden görülebilmesi. Bugün 5xx
+yalnız Seq'e akıyor, mobilde oluşan hata **hiçbir yere** akmıyor.
+
+#### Backend
+
+- **Varlık `ErrorLog : BaseEntity`** (`error_logs`, snake_case):
+  `Source` (`api`|`web`|`mobile`) · `Level` (`error`|`fatal`) · `Code` · `Message` ·
+  `StackTrace text?` · `Path` · `Method` · `StatusCode int?` · **`TraceId`** ·
+  `UserId Guid?` · `IpAddress inet?` · `UserAgent` · `AppVersion` · `Platform` · `OsVersion` ·
+  **`Fingerprint`** · `OccurrenceCount int` · `FirstSeenAt` · `LastSeenAt` ·
+  `IsResolved` · `ResolvedBy Guid?` · `ResolvedAt` · `ResolvedNote`.
+  İndeks: `(Fingerprint)` unique, `(LastSeenAt desc)`, `(Source, Level)`, `(IsResolved)`.
+- **Tekilleştirme (`Fingerprint`) zorunlu.** Fingerprint = `SHA256(Source + Code + normalize(Message) + ilk yığın karesi)`.
+  Aynı fingerprint tekrar gelirse **yeni satır yazılmaz**, `OccurrenceCount++` ve `LastSeenAt`
+  güncellenir. 🔴 Bu opsiyonel bir iyileştirme değil: tek bir 500 döngüsü tekilleştirme
+  olmadan tabloyu **dakikada on binlerce satırla** doldurur ve `error_logs` projenin en büyük
+  tablosu hâline gelir. `normalize()` GUID/sayı/tarihleri maskeler (yoksa her istek ayrı
+  parmak izi üretir ve tekilleştirme hiç çalışmaz).
+- **Yazma yolu isteği DÜŞÜREMEZ.** `IErrorLogSink` → `Channel<ErrorLogEntry>` (sınırlı kapasite,
+  dolunca **en eskiyi düşürür**) + `ErrorLogWriterService : BackgroundService` toplu yazar.
+  🔴 Neden kanal: `ExceptionMiddleware`'in `catch` bloğunda **senkron DB yazmak** en tehlikeli
+  tasarım — veritabanı çöktüğünde hata yazma denemesi de patlar, `catch` içinde istisna oluşur
+  ve istemci **zarfsız** ham 500 alır (görünmez sözleşme #10 kırılır). Kanal ayrıca yanıt
+  süresini uzatmaz.
+- 🔴 **Kendi kendini besleyen döngü yasağı:** yazıcının kendi hatası **asla** `ErrorLog`'a
+  yazılmaz, yalnız `ILogger`'a düşer. Aksi hâlde DB hatası → hata kaydı denemesi → DB hatası…
+- 🔴 **PII maskeleme:** `Path`/`QueryString` saklanmadan önce `phone`, `otp`, `token`,
+  `password`, `email` anahtarları `***` ile maskelenir (`CODE_REVIEW_CHECKLIST` §7). OTP akışında
+  telefon query string'e düşebiliyor.
+- **Mobil raporlama ucu:** `POST /v1/client-errors` — **anonim serbest** (çökme oturum
+  açılmadan da olur), `public-write` rate limit politikası (§7 checklist maddesi), gövde
+  boyutu tavanlı (mesaj 2 KB, yığın 16 KB — aşan **kırpılmaz, reddedilir**),
+  `Source="mobile"` **sunucuda sabitlenir** (istemci `api` diyerek kendi kaydını sunucu hatası
+  gibi gösteremesin). `EndpointAuthorizationSweepTests`'in anonim yazma listesine **bilinçli**
+  eklenir.
+- **Saklama:** `PurgeErrorLogsJob` (Hangfire, günlük) — çözülmüş kayıtlar 30 gün, çözülmemişler
+  90 gün sonra silinir. Silinen satır sayısı loglanır. (Var olan job deseni: idempotent
+  `ExecuteUpdateAsync`/`ExecuteDeleteAsync` + `[AutomaticRetry]` + `[DisableConcurrentExecution]`.)
+
+#### Panel
+
+- **`ErrorLogsAdmin` — yalnız-admin deseni** (`ARCHITECTURE.md` §3): `[Authorize(Roles="admin,super_admin")]` ·
+  `[PanelPermission]` **YOK** · `PanelMenu.Items` satırının `Module`'ü **`null`** ·
+  controller adı **`AdminOnlyControllers`'a**. Modül anahtarı verilirse izin matrisinde
+  *karşılığı olmayan yetki* belirir (11.15b'nin en büyük bulgusu).
+- Liste: fingerprint bazında gruplu; sütunlar Kaynak · Seviye · Kod · Mesaj (kısaltılmış) ·
+  Adet · İlk/Son görülme · Durum. Filtre: kaynak, seviye, tarih aralığı, çözüldü/çözülmedi, arama.
+- Sıralama `PanelSorts` üzerinden, **her anahtar `ThenBy(Id)` ile biter** (görünmez sözleşme #30).
+- CSV dışa aktarma **`PanelCsv` ile** (kendi CSV'ni yazma — dört sessiz tuzak orada çözülü).
+- Detay: tam yığın + `TraceId` (kopyalanabilir → Seq'te arama) + kullanıcı/cihaz bilgisi.
+- "Çözüldü işaretle" (+ not) → `IAuditableCommand` → **`PanelDisplay.AuditAction` sözlüğüne
+  Türkçe satır** (yoksa `PanelAuditLogTests` kırılır, bilerek).
+- 🔴 **Mesaj ve yığın ekranda ham basılmaz** — içerik kısmen *istemciden* geliyor, HTML olarak
+  render edilirse panelde depolanmış XSS olur. Razor kaçışı varsayılan ama `@Html.Raw` yasak;
+  test bunu denetler.
+- Dashboard'a "son 24 saatte N yeni hata" kartı (yalnız admin görür).
+
+#### Mobil
+
+- `core/observability/error_reporter.dart`: `FlutterError.onError` +
+  `PlatformDispatcher.instance.onError` + `ApiClient` 5xx yakalayıcısı → uca gönderir.
+- **Ateşle-unut**, kuyruklu ve **kendi hatasını raporlamaz** (döngü yasağı mobilde de geçerli).
+- Cihaz bilgisi `package_info_plus` + `Platform` üzerinden; **kullanıcı kimliği yalnız
+  oturum açıksa** eklenir (id, telefon değil).
+- ⚠️ Yeni bir uç provider'ı değil, tek yönlü servis — `retry: apiRetry` **kullanılmaz**
+  (hata raporu yeniden denenmez, kuyruk şişer).
+
+#### Yeni görünmez sözleşmeler (§7 tablosuna eklenecek)
+
+- **Hata günlüğü yazımı isteği düşüremez** — sink hata yutar, yalnız `ILogger`'a düşer;
+  yazıcının kendi hatası **asla** tabloya gitmez.
+- **`Fingerprint` tekilleştirmesi zorunludur** ve normalize edici GUID/sayı maskeler —
+  kaldırılırsa tablo sessizce şişer, sorgular yavaşlar, kimse hata almaz.
+- **`Source` sunucuda sabitlenir** — istemcinin gönderdiği değere güvenilmez.
+
+**Bitti kriteri:** panelde bilerek üretilen bir 500 görünüyor · aynı hata 3 kez tetiklenince
+**tek satır, adet 3** · mobilden fırlatılan bir istisna panelde `mobile` kaynağıyla listeleniyor ·
+DB kapalıyken istek **normal hata zarfıyla** dönüyor (kayıt düşüyor, uygulama ayakta) ·
+telefon içeren bir yol maskeli saklanıyor.
+
+---
+
+### 12.2 — Şüpheli giriş günlüğü + e-posta raporlama — [ ]
+
+**Hedef:** "Kim, nereden, ne zaman girmeye çalıştı" sorusunun cevabı + süper admin'e uyarı.
+
+**Bugünkü durum:** `User.FailedLoginAttempts` + `LockedOutUntil` (11.18) yalnız **sayaç**
+tutuyor — deneme kaydı yok, IP yok, vatandaş tarafında (OTP) hiçbir şey yok.
+`IEmailService` soyutlaması + `Email:Smtp` config bloğu **9.2'den beri hazır bekliyor**,
+tek eksik gerçek gerçekleme.
+
+#### Backend
+
+- **Varlık `LoginAttempt : BaseEntity`** (`login_attempts`):
+  `Channel` (`panel`|`mobile_otp`) · `Identifier` · `UserId Guid?` · `Succeeded bool` ·
+  `FailureReason` (`bad_password`|`bad_otp`|`unknown_user`|`locked_out`|`otp_blocked`|`banned`|`inactive`|`role_denied`) ·
+  `IpAddress` · `UserAgent` · `IsSuspicious bool` · `SuspicionRule string?`.
+  İndeks: `(IpAddress, CreatedAt)`, `(UserId, CreatedAt)`, `(IsSuspicious, CreatedAt desc)`.
+- 🔴 **`Identifier` MASKELİ saklanır** (`+90500***0001`, `adm***`). Ham telefon bir güvenlik
+  tablosunda birikirse tablo kendisi bir sızıntı hedefi olur; `UserId` zaten kimliği taşıyor.
+  (`CODE_REVIEW_CHECKLIST` §7 "hassas veri loglanmıyor mu".)
+- **Bağlanma noktaları:** panel `AccountController.Login` (başarılı + başarısız + kilitli +
+  rol reddi), `VerifyOtpCommandHandler` (geçersiz OTP, banlı, pasif, başarılı),
+  `RedisOtpService` blok kararı. **Var olan kilit/hız-sınır mantığı değiştirilmez**, yalnız
+  gözlemlenir.
+- **`SuspiciousLoginRules` — saf sınıf, birim testli** (container gerekmez):
+  - **R1** aynı hesapta 15 dk içinde ≥5 başarısız (11.18 kilidini tetikleyen eşikle **aynı** olmalı — ayrışırsa kilitlenen giriş uyarı üretmez);
+  - **R2** aynı IP'den 15 dk içinde ≥3 **farklı** hesaba ≥20 başarısız (kimlik bilgisi doldurma);
+  - **R3** panel kullanıcısının **daha önce hiç görülmemiş** bir IP'sinden başarılı giriş;
+  - **R4** kilit süresi biter bitmez gelen başarılı giriş (kaba kuvvetin tuttuğu senaryo).
+  - Eşikler `appsettings` `Security:Suspicion:*` altından okunur; **varsayılanlar koda yazılı**
+    (yapılandırma boşsa kural kapanmaz — "bayrakla kapalı yol" tuzağı).
+- **`SmtpEmailService`** (`Infrastructure/Notifications/`) + `DependencyInjection` switch'ine
+  `case "smtp"`. Faz 9.2'nin "sağlayıcı bağlama talimatı" birebir uygulanır — **çağıran kod değişmez.**
+- **`SecurityAlertJob`** (Hangfire, 5 dakikalık): işlenmemiş şüpheli kayıtları toplar, **tek
+  e-postada gruplar**, `super_admin` rolündeki ve `Email`'i dolu kullanıcılara yollar.
+  - 🔴 **Kısma (throttle) zorunlu:** aynı kural + aynı hedef için Redis'te `security_alert:{hash}`
+    anahtarıyla **saatte en fazla 1** e-posta. Kısma olmadan bir kaba kuvvet saldırısı, yöneticinin
+    posta kutusuna **kendi kendimize yaptığımız DoS**'a dönüşür ve gerçek uyarı kaybolur.
+  - Alıcı yoksa (e-postası dolu super_admin yok) → **uyarı loglanır, iş patlamaz**.
+  - E-posta gövdesi Türkçe, kural adı + adet + IP + zaman aralığı + panel bağlantısı;
+    **parola/OTP/token içermez.**
+- **`ProductionReadinessGuard`'a madde:** `Security:AlertEmailEnabled=true` iken
+  `Email:Provider="Dev"` ise **uygulama açılmaz**. Sessiz başarısızlığın tam örneği:
+  uyarılar üretilir, log'a yazılır, kimseye gitmez.
+- **`secrets/README.md`'ye SMTP satırı** — kimlik bilgileri commit edilmez.
+- **Saklama:** `PurgeLoginAttemptsJob` — başarılı 90 gün, başarısız 180 gün.
+
+#### Panel
+
+- **`LoginAttemptsAdmin` — yalnız-admin deseni** (12.1'deki üç kuralın aynısı).
+- Liste + "Yalnız şüpheli" filtresi + IP/kullanıcı/tarih filtresi + `PanelCsv` dışa aktarma.
+- `UsersAdmin` ve `StaffAdmin` detayında "Son giriş denemeleri" kutusu.
+- `PanelDisplay`'e `LoginFailureReason()` ve `SuspicionRule()` Türkçe karşılıkları —
+  **ham İngilizce basılmaz** (değişmez kural #6, `PanelDisplayTests` denetler).
+
+#### Yeni görünmez sözleşmeler
+
+- **Giriş denemesinde tanımlayıcı maskelidir**; ham telefon/kullanıcı adı saklanmaz.
+- **Uyarı e-postası kısılır** — kısma kaldırılırsa saldırı posta bombasına döner ve
+  gerçek uyarı gürültüde kaybolur.
+- **R1 eşiği `PanelLockoutPolicy` eşiğiyle aynı olmak zorundadır** — ayrışırsa hesap kilitlenir
+  ama kimseye haber gitmez (görünmez sözleşme #23'ün aynı sınıfı: iki taraf farklı gerçeklik görür).
+
+**Bitti kriteri:** 5 hatalı panel girişi → 5 kayıt + kilit + **şüpheli işareti** ·
+`Email:Provider=Smtp` + yerel SMTP yakalayıcı ile **gerçek e-posta düştü** · aynı saldırı
+ikinci kez → **ikinci e-posta gitmedi** (kısma çalıştı) · geçersiz OTP mobil kanalda kayıtlı ·
+`Identifier` maskeli · Production'da `Dev` sağlayıcıyla uygulama **açılmıyor**.
+
+---
+
+### 12.3 — Kesinti mahalle referansı + mahalle bazlı bildirim — [ ]
+
+**Hedef:** Kesintinin sözlükteki mahalleye bağlanması ve o mahallenin sakinlerine bildirim gitmesi.
+
+**Bugünkü durum (koddan doğrulandı):** `PowerOutage.Neighborhood` **serbest metin**, FK yok →
+hedefleme imkânsız. `PowerOutage.AnnouncementId` alanı **var ama hiç doldurulmuyor**.
+`CreatePowerOutageCommandHandler` yalnız satır ekliyor — kesinti bugün **hiçbir bildirim üretmiyor.**
+Buna karşılık hedefleme altyapısı **tamamen hazır**: `Neighborhood` sözlüğü, `User.PrimaryNeighborhoodId`,
+`UserNeighborhood` (çoklu mahalle), `Announcement.TargetType="neighborhood"` +
+`AnnouncementNotificationGenerator` (bildirim tercihi ve idempotency dâhil).
+
+#### Backend
+
+- **`PowerOutage.NeighborhoodId Guid?`** FK → `neighborhoods` + **`AreaDetail string?`**
+  (sokak/bölge ayrıntısı — kesinti bazen mahallenin bir kısmını kapsıyor).
+- 🔴 **`Neighborhood` string kolonu KALIR ve DTO'da adı değişmez.** Artık **türetilmiş**:
+  `NeighborhoodId` doluysa değer sözlükten yazılır, elle düzenlenemez. Böylece mağazadaki
+  eski sürümler tek satır değişmeden çalışmaya devam eder (kontrat additive, §5).
+- **Geri doldurma (backfill):** mevcut satırlar `SlugHelper.Slugify` ile `neighborhoods.slug`'a
+  eşleştirilir. 🔴 **Migration içinde kör SQL ile yapılmaz** — idempotent bir başlangıç adımı
+  olarak koşar ve **eşleşmeyen satırları raporlar**; panel "mahallesi eşleşmemiş kesinti"
+  sayısını gösterir. Eşleşme `SlugHelper` üzerinden yapılmalı (görünmez sözleşme #21 — ikinci
+  bir normalleştirme yazılırsa `İ`/`ı` yüzünden sessizce yanlış eşleşir).
+- **Bildirim = duyuru** (karar tablosu): `CreatePowerOutageCommand`'e `SendNotification bool` +
+  `TargetNeighborhoodIds` (birden çok mahalleyi tek kesinti kapsayabilir):
+  1. `AnnouncementType` "Elektrik Kesintisi" `DbSeeder`'a idempotent blok olarak eklenir;
+  2. duyuru üretilir — `TargetType="neighborhood"`, `Status="active"`,
+     `SendPushNotification=true`, `VisibleUntil = outage.EndTime`;
+  3. `PowerOutage.AnnouncementId` doldurulur;
+  4. `AnnouncementNotificationGenerator` çağrılır (idempotency ve bildirim tercihi orada zaten var).
+- 🔴 **Bildirim yalnız `NeighborhoodId` doluyken gönderilebilir.** Serbest metinli kayıt
+  hedeflenemez; panel bunu **buton kapalı + açıklama** ile söyler ("işlevsiz buton yok"un panel karşılığı).
+- 🔴 **Güncelleme ikinci duyuru üretmez** — var olan duyuru güncellenir (saat değiştiyse
+  `VisibleUntil` de). 🔴 **Silme duyuruyu ve bildirimlerini de siler** — görünmez sözleşme #24
+  (silinen duyurunun bildirimleri ayakta kalırsa kullanıcı dokunup boş sayfaya düşer;
+  11.15c'de tam olarak bu yaşandı, 9 ölü bildirim bulundu).
+- Cache: `announcements` grubu geçersizleştirilmeli (kesinti yazımı artık duyuru yazımıdır).
+- DTO additive: `neighborhoodId`, `areaDetail`. **`neighborhood` alanı aynen kalır.**
+- ⚠️ Görünmez sözleşme #1 korunur: `GET /v1/power-outages` **sayfalamaz**, düz dizi döner.
+  Mahalle filtresi eklense bile bu değişmez.
+
+#### Panel
+
+- `Create`/`Edit` formunda serbest metin → **mahalle çoklu seçimi** (duyuru formundaki
+  checkbox deseninin aynısı) + ayrı "Bölge ayrıntısı" metin alanı.
+- "Bu kesinti için bildirim gönder" onay kutusu; yanında **tahmini alıcı sayısı**
+  ("Seçilen mahallelere kayıtlı 342 kullanıcı") — yönetici neyi tetiklediğini görmeden basmasın.
+- Index'e mahalle filtresi + "mahallesi eşleşmemiş" uyarı şeridi.
+- Zaman ayrımı (`PowerOutagePhaseRules`) **değişmez** — görünmez sözleşme #27 (başlangıç dâhil,
+  bitiş hariç; mobil tanımıyla birebir).
+
+#### Mobil
+
+- `PowerOutage` modeline `neighborhoodId` eklenir; ekrana **"Mahallem"** filtresi
+  (kullanıcının `PrimaryNeighborhoodId`'si). Oturum yoksa veya mahalle seçilmemişse filtre gizlenir.
+- Bildirim akışı için **değişiklik gerekmez** (karar gereği) — duyuru deep-link'i zaten çalışıyor.
+
+#### Yeni görünmez sözleşmeler
+
+- **`power_outages.neighborhood` metni `NeighborhoodId` doluyken sözlükten türetilir**, elle yazılmaz.
+- **Kesinti bildirimi bir duyurudur:** kesinti silinince duyurusu ve bildirimleri de silinir (#24 uzantısı).
+- **Bildirim yalnız FK dolu kesintide gönderilebilir.**
+
+**Bitti kriteri:** panelden mahalle seçilerek kesinti eklendi → `announcements` satırı +
+`power_outages.announcement_id` dolu → o mahalleye kayıtlı kullanıcıda bildirim satırı ·
+**başka mahalledeki kullanıcıda satır YOK** · kesinti silindi → duyuru + bildirimler gitti ·
+`GET /v1/power-outages` **hâlâ düz dizi** ve `neighborhood` alanı dolu · geri doldurma raporu doğru.
+
+---
+
+### 12.4 — Etkinlik konumu: il / ilçe — [ ]
+
+**Hedef:** "Bu etkinlik nerede?" sorusunun listede cevaplanması ve çevre il/ilçe etkinliklerinin
+görünür olması.
+
+**Bugünkü durum:** `Event.City` entity'de **var**, panelde formu **yok**, DTO'da **yok** →
+kolon her kayıtta `null`. `Event.IsLocal` DTO'da var, panel set etmiyor (hepsi `false`),
+mobil parse ediyor ama **hiçbir widget kullanmıyor**. Yani konum modeli yarım ve yarısı ölü kod.
+
+#### Backend
+
+- **Yeni sözlük `District : BaseEntity`** (`districts`): `Name` · `Slug` · `ProvinceName` ·
+  `IsCenter bool` · `IsActive` · `DisplayOrder`. Seed (idempotent): **Osmaniye'nin 7 ilçesi**
+  (Merkez, Kadirli, Düziçi, Bahçe, Hasanbeyli, Sumbas, Toprakkale) + **çevre il merkezleri**
+  (Adana, Hatay, Kahramanmaraş, Gaziantep). Panelden yönetilebilir (`LookupsAdmin`'e sekme).
+- **`Event.DistrictId Guid?`** FK.
+- **`Event.IsLocal` türetilir:** yazma anında `DistrictId == Kadirli` hesaplanır. Kolon **kalır**
+  (DTO'da var, mobil okuyor — silmek kırıcı olurdu, §5).
+- **`Event.City` kolonu düşürülmez ama artık okunmaz/yazılmaz** (§6: tablo/kolon düşürmüyoruz).
+  Bu dosyada ölü olduğu **yazılı** — yoksa bir sonraki oturum onu "gerçek" sanır.
+- **Geri doldurma:** mevcut tüm etkinlikler `DistrictId = Kadirli`, `IsLocal = true`.
+  Bu **doğru bir varsayım**: panelde başka seçenek hiç olmadı.
+- DTO additive: `districtId` · `districtName` · `provinceName` · **`locationLabel`**.
+  🔴 Etiket **sunucuda tek yerde** üretilir ("Kadirli" · "Osmaniye / Merkez" · "Adana") —
+  istemcide üretilirse panel ile mobil aynı etkinliği farklı yazar ve kimse hata almaz (#23 sınıfı).
+- Sorgu: `districtId` filtresi + `onlyLocal bool?`. Bilinmeyen değer **varsayılana düşer**
+  (§5: istemci hatası listeyi bozmaz). **Varsayılan sıralama değişmez** (#30).
+
+#### Panel
+
+- Etkinlik formuna ilçe dropdown'ı (il başlıklarına göre gruplu, `<optgroup>`).
+- Index'e ilçe filtresi + sütun + CSV kolonu (`PanelCsv`).
+- `PanelDisplay`'e `DistrictLabel()`.
+
+#### Mobil
+
+- `Event` modeline `locationLabel`/`districtName`/`provinceName`; `EventCard`'a **konum rozeti**.
+- Filtre şeridine "Kadirli · Osmaniye · Çevre iller".
+- 🔴 **Golden zorunlu, uzun Türkçe metinle ve 1.4 ölçekte.** `Row` içine yeni bir `Text`
+  girmesi bu projede **7+ kez** `RenderFlex overflow` üretti (`EventCard` dâhil) →
+  `Flexible`/`Expanded` + ellipsis.
+- Erişilebilirlik: rozet ekran okuyucuda anlamlı etiket taşımalı.
+
+**Bitti kriteri:** panelden "Osmaniye / Merkez" etkinliği eklendi → `GET /v1/events` `locationLabel`
+dolu → **emülatörde kartta göründü** · "Kadirli" filtresi çevre ilçe etkinliğini eliyor ·
+eski etkinlikler `IsLocal=true` · golden'lar güncellendi ve **PNG farkı gözle incelendi**.
+
+---
+
+### 12.5 — Ulaşım alan modeli: araç tipi · kalkış noktası · sefer günleri — [ ]
+
+**Hedef:** Otobüs/minibüs ayrımı, kalkış noktası bilgisi ve **her gün olmayan seferler**.
+
+**Bugünkü durum:** `IntercityRoute` yalnız `Destination`/`Price`/`DurationMinutes`/`Company`
+taşıyor; `IntercitySchedule` yalnız `DepartureTime`. Yani araç tipi, kalkış noktası ve gün
+bilgisi **hiç yok** — her sefer *her gün* varsayılıyor.
+
+#### Backend
+
+- **`TransportVehicleType`** enum (`Bus`, `Minibus`), DB'de **string** (`bus`/`minibus`) olarak
+  saklanır (DTO değeri sabit kalsın diye). `IntercityRoute.VehicleType` — mevcut satırlar için
+  varsayılan `bus`, panel bunları "gözden geçirilmeli" olarak işaretler.
+- **Yeni sözlük `TransportDeparturePoint : BaseEntity`**: `Name` ("Kadirli Otogar",
+  "Minibüs Garajı") · `Address` · `Latitude`/`Longitude` · `IsActive` · `DisplayOrder`.
+  Koordinat **isteğe bağlı değil, amaç bu**: mobilde "yol tarifi" butonu buradan beslenir.
+  `IntercityRoute.DeparturePointId Guid?`.
+- **`IntercitySchedule.OperatingDays int` — 7 bitlik maske**, Pazartesi=1 … Pazar=64.
+  🔴 **Mevcut tüm satırlar 127 (her gün) ile göç eder → davranış değişmez.**
+- 🔴 **Gün dönüşümünün tek sahibi `OperatingDays` değer nesnesi olur.** .NET `DayOfWeek`
+  **Pazar=0**'dan başlar, bizim maske **Pazartesi**'den — bu klasik bir sessiz kayma hatası
+  ve iki yerde ayrı yazılırsa "Salı seferi Pazartesi görünür". Tek dönüştürücü + birim testi.
+- 🔴 **`OperatingDays = 0` yasak** (doğrulama): hiçbir gün çalışmayan sefer, panelde duran ama
+  mobilde **hiç görünmeyen** bir kayıttır — kimse hata almaz.
+- DTO additive:
+  - hat → `vehicleType` · `departurePointName` · `departurePointLatitude`/`Longitude`;
+  - sefer → `days: ["mon","tue",…]` + `runsDaily: bool` (`ScheduleDto`'ya opsiyonel parametre).
+- Sorgu: `vehicleType` filtresi. Arama parametresi **`searchTerm` kalır** (görünmez sözleşme #4 —
+  ulaşım ve taksi bu adı kullanır, `search` yazılırsa **sessizce yok sayılır**).
+- ⚠️ Görünmez sözleşme #7 korunur: şehirlerarası saat biçimi **`"07:00"`**, şehir içi
+  **`"06:30:00"`**. Yeni alanlar bunu değiştirmez.
+- 🔴 **Uyumluluk kararı — yazılı olsun:** uç **tüm seferleri** döndürmeye devam eder (günleri
+  ayrı alanda bildirir), seferleri günlere göre **sunucuda elemez**. Mağazadaki eski sürümler
+  günleri bilmediği için Pazar günü de tüm saatleri gösterir — bu bugünkü doğruluk seviyesinin
+  aynısıdır, **regresyon değildir**; sunucuda elense eski sürümler için liste sebepsiz boşalırdı.
+
+#### Panel
+
+- `Intercity` ekranına araç tipi filtresi/sekmesi + kalkış noktası dropdown'ı.
+- Sefer satırında **7 gün onay kutusu** + "Her gün" kısayolu.
+- `PanelDisplay`'e `VehicleType()` ve `OperatingDays()` Türkçe karşılıkları
+  ("Otobüs"/"Minibüs", "Her gün"/"Hafta içi"/"Pzt·Çar·Cum") — **ham basılmaz** (kural #6).
+- `TransportDeparturePoint` yönetimi `LookupsAdmin` altında.
+
+**Bitti kriteri:** panelden minibüs hattı + "Minibüs Garajı" + yalnız hafta içi sefer eklendi →
+`GET /v1/transport/intercity-routes` `vehicleType`, `departurePointName`, `days` doğru ·
+mevcut hatlar `bus` + `runsDaily:true` (davranış değişmedi) · `OperatingDays=0` **reddedildi** ·
+gün dönüştürücüsü Pazar sınırında doğru.
+
+---
+
+### 12.6 — Ulaşım mobil: ikili kalkış · gün rozetleri · "sıradaki sefer" — [ ]
+
+**Hedef:** 12.5'in mobil karşılığı.
+
+- `TransportScreen` şehirlerarası sekmesi **Otobüs / Minibüs** olarak ikiye ayrılır
+  (segmented control; sekme değil — üst düzeyde zaten şehirlerarası/şehir içi sekmesi var).
+- Kartta kalkış noktası + **"Yol tarifi"** butonu (`AppLinks` + koordinat; koordinat yoksa
+  adres metniyle harita araması — `ContactActions` deseni).
+- Sefer saatlerinin yanında **gün rozeti** ("Her gün" / "Hafta içi" / "Pzt·Çar·Cum").
+- 🔴 **`departure_times.dart` `next()` mantığı günü hesaba katacak** — "bugün 07:00",
+  "yarın 06:30", "Pzt 07:00". Saf mantık, mevcut `departure_times_test.dart` genişler.
+  Gün hesabı **`AppDate.nowInTurkey`** üzerinden (sabit UTC+3; `DateTime.now().toUtc()`
+  fixture'ları bu projede **yalnız geceleri** patladı).
+- ⚠️ Ulaşımda **detay rotası yoktur ve olmayacak** (id ucu yok — kart yerinde açılıyor).
+  `go_router` iç içe rota tuzağına düşmemek için bu bilinçli.
+- Golden: yeni kart, **uzun Türkçe metin + 1.4 ölçek + açık/koyu**.
+- Erişilebilirlik: gün rozeti ve segmented control 48 dp dokunma hedefi + anlamlı etiket.
+
+**Bitti kriteri:** emülatörde otobüs/minibüs ayrı listeleniyor · hafta içi seferi **Pazar günü
+"yarın/Pzt"** olarak gösteriyor · yol tarifi butonu haritayı açıyor · golden + erişilebilirlik yeşil.
+
+---
+
+### 12.7 — Sosyal giriş: backend — [ ]
+
+**Karar gereği telefon çıpa olarak kalır.** Sosyal giriş, var olan kullanıcı için **tek buton**;
+yeni kullanıcı için **kayıt formunu ön dolduran kısayol** (telefon + OTP yine istenir).
+
+#### Backend
+
+- **Yeni tablo `UserIdentity : BaseEntity`** (`user_identities`): `UserId` · `Provider`
+  (`google`|`apple`) · `ProviderUserId` (`sub`) · `Email` · `EmailVerified bool` ·
+  `DisplayName` · `LinkedAt` · `LastUsedAt`. **Unique `(Provider, ProviderUserId)`.**
+  🔑 `User` tablosuna **hiç dokunulmuyor** → değişiklik tümüyle additive.
+- **`POST /v1/auth/social`** `{provider, idToken}`:
+  1. 🔴 **Token sunucuda doğrulanır** — istemciye asla güvenilmez. Google:
+     `GoogleJsonWebSignature.ValidateAsync` + **`aud` bizim client id'lerimizden biri olmalı**.
+     Apple: Apple JWKS ile imza + `iss=https://appleid.apple.com` + `aud`=bundle id + süre.
+     ⚠️ **`aud` doğrulanmazsa başka bir uygulamanın token'ıyla hesaba girilebilir** — bu, sosyal
+     girişin bir numaralı gerçek zafiyeti; ayrı testle kilitlenir.
+  2. Identity varsa → `IsBanned`/`IsActive`/silinmiş kontrolü → mevcut `GenerateTokens` ile JWT.
+  3. 🔴 **E-posta eşleşmesiyle OTOMATİK bağlama YAPILMAZ.** `User.Email` panelden elle
+     girilebiliyor ve doğrulanmış değil; otomatik bağlamak **hesap ele geçirme** yolu açar.
+  4. Identity yoksa → **geçici kayıt token'ı** (Faz 10.2'nin `GenerateTempToken` mekanizması,
+     sosyal taşıyıcı için genişletilir; eski imza korunur) → istemci `POST /v1/auth/register`'a
+     telefon + OTP + mahalle ile devam eder; kayıt bitince identity bağlanır.
+- **`POST /v1/users/me/identities`** (bağla) · **`DELETE /v1/users/me/identities/{provider}`** (çöz).
+  Son bağlantı çözülebilir — telefon çıpa olduğu için kullanıcı kilitlenmez. (Telefonsuz
+  modelde bu bir tuzak olurdu; kararın somut kazancı budur.)
+- `auth` rate-limit politikası bu uca da uygulanır.
+- 🔴 **Bayrakla kapalı yol = hiç test edilmemiş yol.** `Auth:Google:ClientIds` /
+  `Auth:Apple:*` boşken sağlayıcı kapalı olur; **her sağlayıcıya en az bir birim testi**
+  (10.11'de `FcmPushService` tam bu yüzden ilk gerçek anahtarda patladı).
+- **`ProductionReadinessGuard`:** sosyal giriş açık ama client id boşsa → uygulama açılmaz.
+- **Apple abonelik beklerken:** kod yazılır ve testlenir, sağlayıcı yapılandırmayla **kapalı** durur.
+- `secrets/README.md`'ye OAuth client id/secret satırları.
+
+#### Panel
+
+- `UsersAdmin` detayında **"Bağlı hesaplar"** rozetleri + "bağlantıyı kaldır" (audit izi +
+  `PanelDisplay.AuditAction` satırı).
+
+#### Yeni görünmez sözleşmeler
+
+- **`aud` doğrulaması zorunludur** — kaldırılırsa başka uygulamanın token'ı geçerli olur.
+- **E-posta eşleşmesiyle otomatik hesap bağlama yasaktır** (doğrulanmamış e-posta = hesap ele geçirme).
+- **Sosyal giriş telefonu ATLAMAZ** — yeni kullanıcı her hâlükârda OTP'den geçer.
+
+**Bitti kriteri:** sahte ama geçerli imzalı bir Google token'ıyla yeni kullanıcı akışı geçici
+token alıyor · **yanlış `aud`'lu token reddediliyor** · ikinci girişte doğrudan JWT · banlı
+kullanıcı sosyal girişle de giremiyor · bağla/çöz uçları çalışıyor · sağlayıcı kapalıyken uç
+anlamlı hata dönüyor.
+
+---
+
+### 12.8 — Sosyal giriş: mobil — [ ]
+
+- `google_sign_in` + `sign_in_with_apple` paketleri.
+- Giriş ekranında iki buton. 🔴 **Apple butonu iOS'ta zorunlu:** App Store, başka bir sosyal
+  giriş sunan uygulamada "Sign in with Apple"ı **şart koşuyor** — yoksa **uygulama reddedilir.**
+  Apple Developer aboneliği gelene kadar `Env` bayrağıyla kapalı kalır ve **yayın öncesi
+  açılması `Progress.md`'de yayın kontrol listesine yazılır.**
+- Akış: sağlayıcı token'ı → `POST /v1/auth/social` → ya oturum ya da **ön dolu kayıt ekranı**
+  (ad/e-posta/foto hazır, kullanıcı telefon + OTP + mahalle verir).
+- ⚠️ `context.push` ile açılan ekran router redirect'inin **üstünde kalır** — kayıt bitince
+  `addPostFrameCallback` içinde kapat (bu projede **3 gerçek hata** buradan çıktı).
+- Ayarlar → "Bağlı hesaplar" ekranı (bağla/çöz).
+- ⚠️ **Yeni platform izni/yeteneği = İKİ dosya** (`AndroidManifest.xml` + `Info.plist`);
+  Apple Sign In ayrıca **Xcode capability** ister. `release_config_test.dart` genişletilir.
+- ⚠️ OAuth client id'leri `google-services.json`/`GoogleService-Info.plist`'ten ayrı —
+  ikisi de commit edilmez.
+- Testler: başarı · **kullanıcı iptali** (sessizce geri dön, hata gösterme) · sağlayıcı hatası ·
+  ağ hatası · zaten bağlı hesap. Türkçe hata sözlüğüne yeni kodlar (`turkish_ui_test.dart` denetler).
+- Golden: giriş ekranının yeni hâli (açık/koyu, 1.4 ölçek).
+
+**Bitti kriteri:** emülatörde Google ile giriş → yeni kullanıcı ön dolu kayıt ekranına düşüyor →
+telefon+OTP ile kayıt tamamlanıyor → **ikinci girişte tek dokunuşla** oturum açılıyor ·
+iptal sessiz · Apple butonu bayrak kapalıyken görünmüyor.
+
+---
+
+## 🔚 Faz 12 dışında kalan, hâlâ açık maddeler
+
+Bunlar Faz 12'nin kapsamında **değil** ama unutulmaması gerekiyor:
+
+- 🍎 **Apple bekleyenler** (abonelik alınmadı): imzalama sertifikaları · TestFlight ·
+  App Store Connect kaydı · **APNs `.p8`** · mağaza görselleri. **12.8'in Apple ayağı buna bağlı.**
+- 🤖 **Play bekleyenler:** `keytool` ile yayın anahtarı + Play Console hesabı → internal test.
+- 🔓 **11.18'den kalan:** bağımsız push ekranı (şema değişikliği — FCM yanıtının saklanması,
+  "kaç cihaza gitti"). 12.1'in `ErrorLog` deseniyle akraba; istenirse 12.2'ye eklenebilir.
+- 🟠 **10.14/(2):** `/hangfire` dashboard'una yetkilendirme filtresi (bugün yalnız localhost
+  koruması var; reverse proxy arkasında **koruma tamamen kalkar**). `ProductionReadinessGuard`
+  uyarıyor ama filtre hâlâ yazılmadı.
+- 🔴 **10.14/(3):** `uploads/` için kalıcı Docker volume — yoksa `docker compose down` **tüm
+  yüklenmiş görselleri siler**.
+- 🧹 **Küçük borç:** `a165a62` commit'i `git add -A` yüzünden `uploads/` altına 35 test artığı almış.
