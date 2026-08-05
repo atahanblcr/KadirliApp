@@ -1725,7 +1725,8 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 | # | Alt-faz | Katman | Şema | Tahmini test artışı |
 |---|---|---|---|---|
 | 12.1 | Hata günlüğü modülü | backend + panel + mobil (raporlayıcı) | ✔ | ~25 backend, ~8 mobil |
-| 12.2 | Şüpheli giriş günlüğü + e-posta raporlama | backend + panel | ✔ | ~30 backend |
+| 12.2 | Şüpheli giriş günlüğü + e-posta raporlama (+ `ForwardedHeaders`) | backend + panel | ✔ | ~30 backend |
+| 12.2b | Bildirim teslim panosu + bağımsız push ekranı *(11.18'den kalan son madde)* | backend + panel | ✔ | ~25 backend |
 | 12.3 | Kesinti mahalle referansı + mahalle bazlı bildirim | backend + panel + mobil | ✔ | ~25 backend, ~5 mobil |
 | 12.4 | Etkinlik konumu (il/ilçe) | backend + panel + mobil | ✔ | ~20 backend, ~10 mobil |
 | 12.5 | Ulaşım alan modeli (araç tipi · kalkış noktası · sefer günleri) | backend + panel | ✔ | ~30 backend |
@@ -1859,9 +1860,28 @@ tek eksik gerçek gerçekleme.
   - Alıcı yoksa (e-postası dolu super_admin yok) → **uyarı loglanır, iş patlamaz**.
   - E-posta gövdesi Türkçe, kural adı + adet + IP + zaman aralığı + panel bağlantısı;
     **parola/OTP/token içermez.**
+- 🔴 **ÖN KOŞUL — `ForwardedHeaders` (10.14'ten devralındı, "iyi olur" değil ZORUNLU).**
+  Bugün `Api/Program.cs`'te yalnız **bir yorum satırı** olarak duruyor. Reverse proxy arkasında
+  `RemoteIpAddress` **her istek için proxy'nin IP'si** olur; bu tabloda `LoginAttempt.IpAddress`
+  demek, yani:
+  - **R2 herkeste yanar** (tüm denemeler tek IP'den görünür → "kimlik bilgisi doldurma" alarmı
+    her gün, her kullanıcı için),
+  - **R3 hiç yanmaz** (IP hep aynı → "hiç görülmemiş IP" diye bir şey kalmaz).
+  Yani ForwardedHeaders olmadan bu alt-fazın **ürettiği veri gürültüden ibarettir** ve üstüne
+  kurduğumuz e-posta uyarısı yanlış alarm makinesine döner. Ayrıca 10.7'nin IP bazlı hız
+  sınırı da tek partition'a düşer ve `HangfireDashboardAuthorizationFilter`'ın "yerel istek"
+  dalı da aynı sebeple çöker (filtrenin kendi belgesi bunu söylüyor).
+  ⚠️ `KnownProxies`/`KnownNetworks` **boş bırakılmaz** — açık bırakılırsa istemci kendi
+  `X-Forwarded-For` başlığını uydurup güvenlik kaydını **zehirler** (kendi IP'sini gizler,
+  başkasınınkini yazdırır). Ayar `appsettings`ten, boşsa **Production'da `ProductionReadinessGuard` engeller**.
 - **`ProductionReadinessGuard`'a madde:** `Security:AlertEmailEnabled=true` iken
   `Email:Provider="Dev"` ise **uygulama açılmaz**. Sessiz başarısızlığın tam örneği:
   uyarılar üretilir, log'a yazılır, kimseye gitmez.
+- ✅ **`/hangfire` yetkilendirme filtresi ZATEN VAR** (`HangfireDashboardAuthorizationFilter`) —
+  bu alt-fazda yalnız `ForwardedHeaders` ile tamamlanır. 12.1 + 12.2 panoya **üç yeni iş**
+  ekliyor (`PurgeErrorLogsJob`, `PurgeLoginAttemptsJob`, `SecurityAlertJob`); panoya erişen
+  biri `PurgeLoginAttemptsJob`'ı elle tetikleyerek **yeni topladığımız güvenlik kanıtını
+  silebilir** → panonun korumasının bu fazda gözden geçirilmesi tesadüf değil.
 - **`secrets/README.md`'ye SMTP satırı** — kimlik bilgileri commit edilmez.
 - **Saklama:** `PurgeLoginAttemptsJob` — başarılı 90 gün, başarısız 180 gün.
 
@@ -1884,7 +1904,84 @@ tek eksik gerçek gerçekleme.
 **Bitti kriteri:** 5 hatalı panel girişi → 5 kayıt + kilit + **şüpheli işareti** ·
 `Email:Provider=Smtp` + yerel SMTP yakalayıcı ile **gerçek e-posta düştü** · aynı saldırı
 ikinci kez → **ikinci e-posta gitmedi** (kısma çalıştı) · geçersiz OTP mobil kanalda kayıtlı ·
-`Identifier` maskeli · Production'da `Dev` sağlayıcıyla uygulama **açılmıyor**.
+`Identifier` maskeli · Production'da `Dev` sağlayıcıyla uygulama **açılmıyor** ·
+proxy başlığıyla gelen istekte **gerçek istemci IP'si** kaydediliyor, uydurma `X-Forwarded-For`
+**yok sayılıyor**.
+
+---
+
+### 12.2b — Bildirim gönderimi: teslim panosu + bağımsız push ekranı — [ ]
+
+> **Neden bu numarada:** 11.18'den kalan son madde buydu ve gözlem ailesine ait —
+> 12.1'in panel desenleri (yalnız-admin ekran, saklama işi, toplu liste) daha taze.
+> **12.3'ten ÖNCE** olmasının somut sebebi: 12.3, bir modülün push'u ilk kez **otomatik**
+> göndermeye başladığı yer. Gönderimin sonucunu göremeden otomatik göndermeye başlamak,
+> bu fazın kapatmaya çalıştığı "sessiz hasar" sınıfının ta kendisi olurdu.
+> 12.3'ün içine sıkıştırılmadı: o oturumda zaten migration + geri doldurma + duyuru üretimi
+> + panel + mobil var.
+
+> 🐛 **DEVRALINAN MADDENİN TARİFİ YANLIŞTI — 5 Ağustos'ta kodda doğrulandı.**
+> 11.16b notu "şema değişikliği: FCM yanıtının saklanması" diyordu. **FCM yanıtı mesaj
+> düzeyinde ZATEN saklanıyor:** `Notification.FcmSent` / `FcmSentAt` / `FcmError` var ve
+> `SendPushNotificationsJob` `TokenInvalid` gelince `User.FcmToken`'ı **temizliyor** (10.11).
+> Gerçek boşluk başka: **(a)** bildirimlerin panelde **hiçbir ekranı yok**
+> (`ARCHITECTURE.md` modül tablosu: Bildirimler → Panel *(yok)*), **(b)** serbest bir
+> gönderimi **gruplayacak anahtar yok** — duyuru bildirimleri `RelatedId` ile gruplanıyor,
+> ada hoc gönderimin tutunacağı bir şey yok, **(c)** bildirim satırı üreten tek şey
+> `AnnouncementNotificationGenerator`; yani yönetici tek seferlik bir push atmak için
+> **duyuru oluşturmak zorunda**.
+
+#### Backend
+
+- **Yeni varlık `PushCampaign : BaseEntity`** (`push_campaigns`): `Title` · `Body` ·
+  `TargetType` (`all`|`neighborhood`) · `TargetNeighborhoods` · `Source`
+  (`announcement`|`power_outage`|`manual`) · `SourceId Guid?` · `CreatedBy` ·
+  `RecipientCount` · `SentCount` · `FailedCount` · `InvalidTokenCount` · `CompletedAt`.
+  `Notification.CampaignId Guid?` FK ile bağlanır — **additive, mevcut satırlar `null` kalır.**
+- 🔑 **Toplam sayaç neden ayrı kolonda:** her açılışta 5.000 bildirim satırını `GROUP BY`
+  ile saymak panelin en büyük tablosunu tarar. `SendPushNotificationsJob` batch'i işlerken
+  sayaçları **zaten elinde olan** `sent/failed/invalidTokens` değerleriyle artırır (job bu
+  üçünü bugün de hesaplıyor, yalnız log'a yazıp atıyor).
+- 🔴 **`FcmSent=true` TERMİNALDİR — panel "yeniden gönder" TEKLİF ETMEZ.** Job'ın belgesi
+  açık: mesaj bazlı hatalar kalıcı sayılır ve satır bir daha alınmaz. Panelde yeniden gönder
+  butonu konursa **hiçbir şey yapmaz ve kimse hata almaz**; yeniden gönderim istenirse
+  **yeni kampanya** açılır (yeni satırlar üretilir).
+- **Bağımsız gönderim komutu** — hedefleme mantığı **kopyalanmaz**:
+  `AnnouncementNotificationGenerator`'daki mahalle süzgeci + `NotificationPreferences` +
+  idempotency ortak bir servise çıkarılır, hem duyuru hem manuel gönderim onu kullanır.
+  ⚠️ İkinci bir hedefleme gerçeklemesi yazılırsa duyuru ile manuel gönderim **aynı mahalleye
+  farklı kişi kümesi** yollar (görünmez sözleşme #23 sınıfı).
+- ⚠️ **Bildirim tercihi manuel gönderimde de geçerlidir** — `Announcements=false` diyen
+  kullanıcıya satır yazılmaz. Aksi hâlde "bildirimleri kapattım ama geliyor" doğar ve
+  10.3'ün tercih ekranı yalan söyler.
+- Saklama: `PurgeNotificationsJob` — okunmuş + 90 günden eski bildirimler; kampanya satırı
+  **kalır** (özet ucuz, tarihçe değerli).
+
+#### Panel
+
+- **`PushCampaignsAdmin` — yalnız-admin deseni** (12.1'deki üç kuralın aynısı: rol kapısı ·
+  `[PanelPermission]` YOK · menü `Module=null` · `AdminOnlyControllers`).
+- Liste: Başlık · Kaynak · Hedef · **Alıcı / Gönderildi / Başarısız / Geçersiz token** ·
+  Tarih · Durum. `PanelSorts` + `ThenBy(Id)` · `PanelCsv` dışa aktarma.
+- Detay: hata kodlarına göre kırılım (`FcmError` gruplu) — "188 başarısız"ın **neden**i.
+- **"Yeni bildirim gönder" formu:** başlık + metin + hedef (tümü / mahalle çoklu seçimi) +
+  **tahmini alıcı sayısı** + `data-confirm` ile "N kişiye gönderilecek" onayı.
+  🔴 Aksiyon adı izin eylemini belirler (görünmez sözleşme #19): `Send…` hiçbir önekle
+  eşleşmez ve POST olduğu için sessizce **`update`**'e düşer — ekran yalnız-admin olduğu için
+  bugün zararsız, ama **matris dışı olduğu `AdminOnlyControllers`'ta yazılı olmalı**.
+- `IAuditableCommand` + `PanelDisplay.AuditAction` Türkçe satırı (kime, ne zaman, kaç kişiye).
+- Dashboard'a "son gönderim: N/M teslim" satırı.
+
+#### Yeni görünmez sözleşmeler
+
+- **`FcmSent=true` terminaldir** — yeniden gönderim yeni kampanya açar, eski satır dokunulmaz.
+- **Hedefleme mantığının tek sahibi vardır** — duyuru ve manuel gönderim aynı servisten geçer.
+- **Kampanya sayaçları job tarafından artımlı yazılır**, sorgu anında `COUNT` ile hesaplanmaz.
+
+**Bitti kriteri:** panelden 2 mahalleye manuel push gönderildi → kampanya satırı + doğru alıcı
+sayısı · job koştu → **gönderildi/başarısız sayaçları doldu** · geçersiz token'lı kullanıcının
+`FcmToken`'ı temizlendi ve sayaca yansıdı · bildirimleri kapatmış kullanıcı **listede yok** ·
+**emülatörde push düştü** · aynı kampanya ikinci kez işlenince sayaç **artmadı** (idempotency).
 
 ---
 
@@ -2161,16 +2258,32 @@ iptal sessiz · Apple butonu bayrak kapalıyken görünmüyor.
 
 ## 🔚 Faz 12 dışında kalan, hâlâ açık maddeler
 
-Bunlar Faz 12'nin kapsamında **değil** ama unutulmaması gerekiyor:
+> 📌 **5 Ağustos, ikinci geçiş — bu liste denetlendi ve iki maddesi BAYAT çıktı.**
+> Devralınan açık madde listeleri sessizce çürüyor: madde kapanıyor, listeden düşmüyor,
+> bir sonraki plan onu "hâlâ açık" diye kopyalıyor. Aşağıdakiler **kaynak kodda** doğrulandı.
 
+- ✅ **10.14/(2) — ZATEN YAPILMIŞ, listeden düştü.** `HangfireDashboardAuthorizationFilter`
+  yazılmış ve `Api/Program.cs`'te bağlı: rol kapısı (`admin`/`super_admin`) → Basic auth
+  (`Hangfire:Dashboard:Username/Password`, **sabit süreli** karşılaştırmayla) → kimlik bilgisi
+  yapılandırılmamışsa yalnız gerçekten yerel istek. `ProductionReadinessGuard` da kimlik
+  bilgisi boşsa uyarıyor. **Kalan gerçek boşluk `ForwardedHeaders`** — filtrenin kendi
+  belgesi de bunu söylüyor → **12.2'ye alındı** (aşağıdaki gerekçe).
+- ⚠️ **10.14/(3) — riski YANLIŞ yazılmış, bugün geçerli DEĞİL.** `docker-compose.yml`
+  yalnız postgres · redis · seq içeriyor; **API compose'da hiç yok** (yerel `dotnet run` ile
+  koşuyor). Yani `uploads/` konteyner katmanında değil, repo yanında düz bir klasör —
+  `docker compose down` ona **dokunmuyor**. Madde, API'nin **konteynerleştirildiği gün**
+  doğacak bir risk; o güne kadar yapılacak bir şey yok, çünkü volume'ü bağlanacak servis yok.
+  **Deploy fazına ait, Faz 12'ye eklenemez.**
 - 🍎 **Apple bekleyenler** (abonelik alınmadı): imzalama sertifikaları · TestFlight ·
-  App Store Connect kaydı · **APNs `.p8`** · mağaza görselleri. **12.8'in Apple ayağı buna bağlı.**
+  App Store Connect kaydı · **APNs `.p8`** · mağaza görselleri.
+  🔴 **12.8'in Apple ayağı buna sert bağımlı:** "Sign in with Apple" yalnız paket değil,
+  developer portalında yapılandırılmış bir **App ID capability**'si ister. Abonelik haftalar
+  alabildiği ve 12.8 sekiz oturum sonra olduğu için **başvuru şimdi yapılmalı** — yoksa
+  faz sonunda tek blokaj o olur. Abonelik gelmezse 12.8 Apple butonunu **bayrak kapalı**
+  yazar ve yayın kontrol listesine "açılacak" maddesi düşer.
 - 🤖 **Play bekleyenler:** `keytool` ile yayın anahtarı + Play Console hesabı → internal test.
-- 🔓 **11.18'den kalan:** bağımsız push ekranı (şema değişikliği — FCM yanıtının saklanması,
-  "kaç cihaza gitti"). 12.1'in `ErrorLog` deseniyle akraba; istenirse 12.2'ye eklenebilir.
-- 🟠 **10.14/(2):** `/hangfire` dashboard'una yetkilendirme filtresi (bugün yalnız localhost
-  koruması var; reverse proxy arkasında **koruma tamamen kalkar**). `ProductionReadinessGuard`
-  uyarıyor ama filtre hâlâ yazılmadı.
-- 🔴 **10.14/(3):** `uploads/` için kalıcı Docker volume — yoksa `docker compose down` **tüm
-  yüklenmiş görselleri siler**.
-- 🧹 **Küçük borç:** `a165a62` commit'i `git add -A` yüzünden `uploads/` altına 35 test artığı almış.
+- 🧹 **Küçük borç:** `a165a62` commit'i `git add -A` yüzünden `uploads/` altına 35 test artığı
+  almış. Faza bağlı değil, herhangi bir oturumda `git rm --cached` ile temizlenebilir.
+
+**Faz 12'ye alınanlar:** `ForwardedHeaders` → **12.2** · bağımsız push ekranı → yeni **12.2b**
+(gerekçeleri kendi başlıklarında).
