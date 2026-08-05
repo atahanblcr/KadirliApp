@@ -56,12 +56,18 @@ public static class PanelMenu
         new("AuditLogsAdmin",     "fa-clipboard-list",  "Denetim İzi",          null),
         // Faz 11.17 — çöp kutusu. Aynı gerekçe: geri getirme, moderatörün silme kararını
         // tersine çevirmektir; silme yetkisiyle aynı güven değildir.
-        new("TrashAdmin",         "fa-trash-can",       "Çöp Kutusu",           null)
+        new("TrashAdmin",         "fa-trash-can",       "Çöp Kutusu",           null),
+        // Faz 12.1 — hata kayıtları. Module NULL, aynı gerekçe: kayıtlar yığın izi, istek
+        // yolu ve kullanıcı kimliği taşıyor; moderatöre dağıtılabilir bir yetki değil.
+        new("ErrorLogsAdmin",     "fa-triangle-exclamation", "Hata Kayıtları",  null)
     };
 
     /// <summary>Yalnız admin/super_admin'in görebileceği satırlar.</summary>
     public static readonly IReadOnlySet<string> AdminOnlyControllers =
-        new HashSet<string>(StringComparer.Ordinal) { "StaffAdmin", "AuditLogsAdmin", "TrashAdmin" };
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "StaffAdmin", "AuditLogsAdmin", "TrashAdmin", "ErrorLogsAdmin"
+        };
 
     /// <summary>
     /// Faz 11.16b — <b>ekranı değil SONUCU süzen</b> controller'lar.

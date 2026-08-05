@@ -32,6 +32,13 @@ public class DashboardController : Controller
         var stats = await _sender.Send(new GetDashboardStatsQuery());
         var recent = await _sender.Send(new GetRecentActivitiesQuery(8));
 
+        // Faz 12.1 — hata rozeti YALNIZ admin'e. Sayacı paylaşılan GetDashboardStatsQuery'ye
+        // eklemedik bilerek: o sorgu 60 sn Redis'te cache'leniyor ve moderatöre de dönüyor;
+        // eklenseydi moderatör göremeyeceği bir ekranın sayacını görürdü ("gizli buton"un tersi).
+        int? openErrors = User.IsInRole("admin") || User.IsInRole("super_admin")
+            ? await _sender.Send(new KadirliApp.Application.Features.ErrorLogs.Queries.GetOpenErrorCountQuery(24))
+            : null;
+
         var model = new DashboardViewModel
         {
             TotalUsers = stats.TotalUsers,
@@ -42,6 +49,7 @@ public class DashboardController : Controller
             TaxiCallsLast7Days = stats.TaxiCallsLast7Days,
             NewAdsLast7Days = stats.NewAdsLast7Days,
             TotalAnnouncementViews = stats.TotalAnnouncementViews,
+            OpenErrorCount = openErrors,
             // Faz 11.15c: kırılım artık ekrana çıkıyor; sıfır olan modül satırı çizilmez
             // ("0 bekliyor" satırı gürültü, tıklanınca boş liste açar).
             PendingQueue = new List<PendingQueueItem>

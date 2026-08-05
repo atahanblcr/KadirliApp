@@ -243,6 +243,32 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
 
 ---
 
+
+## Hata bildirimi (Faz 12.1)
+
+- `POST /v1/client-errors` — **anonim serbest**, `public-write` hız sınırına tabi (15/dk/IP).
+  Gövde: `{code, message, level?, stackTrace?, path?, appVersion?, platform?, osVersion?}`.
+  Yanıt her zaman **`202 Accepted`** + `{accepted: bool}`.
+
+  🔑 **`source` alanı YOKTUR ve gönderilmemelidir** — sunucuda `mobile` olarak sabitlenir.
+  İstemci `api` diyebilseydi kendi çökmesini sunucu hatası gibi gösterirdi.
+  Aynı sebeple `traceId`, IP ve kullanıcı kimliği de gövdeden değil **bağlamdan** alınır
+  (oturum varsa JWT'den).
+
+  ⚠️ **Neden anonim:** çökme çoğu zaman oturum açılmadan önce olur (açılış ekranı, giriş
+  akışı); `[Authorize]` konsaydı raporlanamayan hatalar tam da en kritik olanlar olurdu.
+
+  ⚠️ **Tavanlar aşılırsa istek REDDEDİLİR, kırpılmaz:** `message` 2.000, `stackTrace` 16.000
+  karakter. Sunucu kırpsaydı kesilen yığın farklı bir parmak izi üretir ve aynı hata iki ayrı
+  kayda düşerdi (tekilleştirme sessizce bozulur). İstemci kendi tarafında kırpar.
+
+  ⚠️ **İstemci bu ucu yeniden DENEMEZ** (`retry: apiRetry` bilinçli olarak yok) ve yanıtı
+  beklemez: hata raporu yeniden denenirse zaten sorunlu olan sistem daha çok yorulur.
+  Yanıtın `202` olması da bundan — istemci raporun akıbetiyle ilgilenmemeli.
+
+  📌 Sunucu aynı hatayı **parmak izine göre tekilleştirir**: aynı çökme yüz kez gönderilse
+  bile panelde tek satır, adet 100 olur. İstemcinin kusursuz bir kuyruk tutması gerekmez.
+
 ## 11. Görünürlük Kuralları (mobilin bilmesi gerekenler)
 
 - Public listelerde yalnız **onaylı/aktif + süresi geçmemiş** kayıtlar döner. Pending/pasif/süresi geçmiş kayıt public'e **404** (varlık sızıntısı yok).

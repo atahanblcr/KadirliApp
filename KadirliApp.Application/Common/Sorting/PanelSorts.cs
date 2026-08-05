@@ -78,4 +78,24 @@ public static class PanelSorts
             ("title_asc",  q => q.OrderBy(x => x.Title).ThenByDescending(x => x.EventDate).ThenBy(x => x.Id)),
             ("title_desc", q => q.OrderByDescending(x => x.Title).ThenByDescending(x => x.EventDate).ThenBy(x => x.Id)),
         });
+
+    // ————————————————————————————————————————————————————————————————
+    // Hata kayıtları (Faz 12.1) — YENİ modül, "eski sıra" kısıtı yok.
+    // Varsayılan "en son görülen önce": yönetici panele "şu an ne patlıyor?" diye bakar,
+    // "en eski hata neydi" diye değil.
+    // ⚠️ Sıralama LastSeenAt üzerinden — CreatedAt DEĞİL. Tekilleştirme yüzünden bir satır
+    //    aylar önce açılıp bugün hâlâ artıyor olabilir; CreatedAt'e göre sıralasaydık
+    //    şu anda patlayan hata listenin dibinde kalırdı.
+    // ————————————————————————————————————————————————————————————————
+    public static readonly SortMap<ErrorLog> ErrorLogs = new(
+        defaultKey: "last_seen_desc",
+        entries: new (string, Func<IQueryable<ErrorLog>, IOrderedQueryable<ErrorLog>>)[]
+        {
+            ("last_seen_desc",  q => q.OrderByDescending(x => x.LastSeenAt).ThenBy(x => x.Id)),
+            ("last_seen_asc",   q => q.OrderBy(x => x.LastSeenAt).ThenBy(x => x.Id)),
+            ("first_seen_desc", q => q.OrderByDescending(x => x.FirstSeenAt).ThenBy(x => x.Id)),
+            ("first_seen_asc",  q => q.OrderBy(x => x.FirstSeenAt).ThenBy(x => x.Id)),
+            ("count_desc",      q => q.OrderByDescending(x => x.OccurrenceCount).ThenByDescending(x => x.LastSeenAt).ThenBy(x => x.Id)),
+            ("count_asc",       q => q.OrderBy(x => x.OccurrenceCount).ThenByDescending(x => x.LastSeenAt).ThenBy(x => x.Id)),
+        });
 }

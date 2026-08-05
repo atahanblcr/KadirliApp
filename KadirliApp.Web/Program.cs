@@ -96,6 +96,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// Faz 12.1: panelde oluşan işlenmemiş hataları error_logs'a yazar.
+// ⚠️ Sıra kritik ve sezgiye ters: bu satır UseExceptionHandler'dan **SONRA** gelmeli.
+// Ara katmanlarda önce kaydedilen DIŞTA kalır; istisnayı ilk gören ise İÇTEKİdir.
+// Önce yazsaydık UseExceptionHandler istisnayı bizden önce yutar ve buraya hiç ulaşmazdı —
+// yani hata sayfası çalışır, kayıt sessizce hiç oluşmazdı.
+// Yanıt üretmez, yalnız kaydedip yeniden fırlatır (bkz. PanelErrorLoggingMiddleware).
+app.UseMiddleware<KadirliApp.Web.Common.PanelErrorLoggingMiddleware>();
+
 // Faz 11.15c: gövdesiz durum sayfalarının sonu. Bu satır olmadan panelde var olmayan
 // bir adres 404 + 0 BAYT (bembeyaz sayfa) dönüyordu; yönetici ne olduğunu anlamıyor ve
 // panele dönecek bir bağlantı bulamıyordu. UseExceptionHandler yalnız 500'ü ve yalnız

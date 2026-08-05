@@ -19,6 +19,9 @@ public class AppDbContext : DbContext
     public DbSet<AnnouncementType> AnnouncementTypes => Set<AnnouncementType>();
     public DbSet<AnnouncementView> AnnouncementViews => Set<AnnouncementView>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    // Faz 12.1 — AuditLog'un tamamlayıcısı: denetim izi BAŞARILI yazma eylemlerini tutar,
+    // bu tablo BAŞARISIZ olanı ("vatandaş ne gördü").
+    public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
     public DbSet<Business> Businesses => Set<Business>();
     public DbSet<BusinessCategory> BusinessCategories => Set<BusinessCategory>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();

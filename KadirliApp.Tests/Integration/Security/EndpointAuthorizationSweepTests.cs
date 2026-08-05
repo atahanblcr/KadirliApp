@@ -99,7 +99,13 @@ public class EndpointAuthorizationSweepTests : IClassFixture<CustomWebApplicatio
             "POST /v1/auth/refresh",
             "POST /v1/auth/register",
             "POST /v1/auth/verify-otp",
-            "POST /v1/complaints"                       // 10.7: hesapsız şikayet bildirimi
+            "POST /v1/complaints",                      // 10.7: hesapsız şikayet bildirimi
+            // Faz 12.1: mobil hata/çökme bildirimi. Anonim olması BİLİNÇLİ — çökme çoğu
+            // zaman oturum açılmadan önce olur (açılış ekranı, giriş akışı) ve [Authorize]
+            // konsaydı raporlanamayan hatalar tam da en kritik olanlar olurdu.
+            // Bedeli spam yüzeyi; karşılığı public-write hız sınırı + gövde tavanları +
+            // parmak izi tekilleştirmesi (aynı yalan bin kez gönderilse tabloda tek satır).
+            "POST /v1/client-errors"
         }.OrderBy(x => x, StringComparer.Ordinal).ToList();
 
         anonymousWrites.Should().BeEquivalentTo(expected,

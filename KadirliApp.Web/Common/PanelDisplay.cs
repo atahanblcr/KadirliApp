@@ -112,12 +112,27 @@ public static class PanelDisplay
     // ── İzin modülü etiketleri ──────────────────────────────────────────────────
 
     /// <summary>
+    /// Faz 12.1 — <b>izin matrisinde olmayan ama denetim izinde geçen</b> modül anahtarları.
+    ///
+    /// Yalnız-admin ekranların menü satırında <c>Module</c> <c>null</c>'dır (izin matrisinde
+    /// karşılığı olmayan yetki belirmesin diye), ama komutları <c>AuditModule</c> yazmak
+    /// zorunda. O anahtar burada karşılanmazsa denetim izi ekranı <b>ham İngilizce</b> basar
+    /// (Değişmez Kural #6) — durum rozetleriyle birebir aynı hata sınıfı.
+    /// </summary>
+    private static readonly Dictionary<string, string> NonMatrixModules = new(StringComparer.Ordinal)
+    {
+        ["error-logs"] = "Hata Kayıtları"
+    };
+
+    /// <summary>
     /// İzin matrisi anahtarını (<c>deaths</c>) Türkçe modül adına çevirir.
     /// Kaynak <see cref="PanelMenu.Items"/> — ikinci bir liste tutulmaz, ayrışamaz.
     /// (11.15c: StaffAdmin izin rozetleri ham anahtar basıyordu.)
+    /// Matris dışı anahtarlar için <see cref="NonMatrixModules"/>'a düşer.
     /// </summary>
     public static string ModuleLabel(string moduleKey) =>
-        PanelMenu.Items.FirstOrDefault(i => i.Module == moduleKey)?.Label ?? moduleKey;
+        PanelMenu.Items.FirstOrDefault(i => i.Module == moduleKey)?.Label
+        ?? (NonMatrixModules.TryGetValue(moduleKey, out var label) ? label : moduleKey);
 
     /// <summary>
     /// İzin modülü anahtarını panel controller adına çevirir (<c>deaths</c> → <c>DeathsAdmin</c>).
@@ -187,7 +202,49 @@ public static class PanelDisplay
         ["update-place-category"] = new("Mekan kategorisi güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
         ["delete-schedule"] = new("Kalkış saati sildi", "bg-red-100 text-red-800", "fa-trash"),
         ["delete-stop"] = new("Durak sildi", "bg-red-100 text-red-800", "fa-trash"),
+
+        // Hata kayıtları (Faz 12.1)
+        ["resolve-error"] = new("Hatayı çözdü", "bg-green-100 text-green-800", "fa-circle-check"),
+        ["reopen-error"] = new("Hatayı yeniden açtı", "bg-amber-100 text-amber-800", "fa-rotate-left"),
     };
+
+    // ── Hata kayıtları (Faz 12.1) ───────────────────────────────────────────────
+    //
+    // Kaynak ve seviye DB'de İngilizce sabit (api/web/mobile · error/fatal) — ekrana ham
+    // basılamaz. Durum rozetleriyle aynı kural, aynı gerekçe: panel Türkçe konuşur.
+
+    private static readonly Dictionary<string, PanelBadge> ErrorSources = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["api"] = new("Sunucu (API)", "bg-indigo-100 text-indigo-800", "fa-server"),
+        ["web"] = new("Panel", "bg-purple-100 text-purple-800", "fa-desktop"),
+        ["mobile"] = new("Mobil", "bg-teal-100 text-teal-800", "fa-mobile-screen")
+    };
+
+    private static readonly Dictionary<string, PanelBadge> ErrorLevels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["error"] = new("Hata", "bg-red-100 text-red-800", "fa-circle-exclamation"),
+        ["fatal"] = new("Çökme", "bg-red-200 text-red-900", "fa-skull-crossbones")
+    };
+
+    /// <summary>Hata kaynağını Türkçe rozete çevirir. Bilinmeyen değer <b>ham geçmez</b>.</summary>
+    public static PanelBadge ErrorSource(string? raw) => Lookup(ErrorSources, raw, "kaynak");
+
+    /// <summary>Hata seviyesini Türkçe rozete çevirir. Bilinmeyen değer <b>ham geçmez</b>.</summary>
+    public static PanelBadge ErrorLevel(string? raw) => Lookup(ErrorLevels, raw, "seviye");
+
+    public static IReadOnlyCollection<string> KnownErrorSources => ErrorSources.Keys;
+    public static IReadOnlyCollection<string> KnownErrorLevels => ErrorLevels.Keys;
+
+    private static PanelBadge Lookup(Dictionary<string, PanelBadge> map, string? raw, string what)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return new PanelBadge("—", "bg-gray-100 text-gray-500", "fa-minus");
+
+        return map.TryGetValue(raw, out var badge)
+            ? badge
+            // Sorun gizlenmez ama İngilizce de sızmaz — AuditAction'daki aynı karar.
+            : new PanelBadge($"Bilinmeyen {what} ({raw})", "bg-red-50 text-red-700", "fa-triangle-exclamation");
+    }
 
     /// <summary>
     /// Denetim izi eylemini Türkçe rozete çevirir. Bilinmeyen eylem <b>ham geçmez</b> —
@@ -236,6 +293,7 @@ public static class PanelDisplay
         "Cemetery" => "Mezarlık",
         "Mosque" => "Cami",
         "User" => "Kullanıcı",
+        "ErrorLog" => "Hata kaydı",
         "IntercityRoute" => "Şehirlerarası hat",
         "IntercitySchedule" => "Kalkış saati",
         "IntracityRoute" => "Şehir içi hat",

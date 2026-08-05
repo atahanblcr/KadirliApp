@@ -39,6 +39,14 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IPermissionService, PermissionService>();
 
+        // Faz 12.1 — hata günlüğü yazıcısı. Tek örnek iki rolü birden üstlenir: istek
+        // yolundaki IErrorLogSink (kuyruğa bırakır) ve arka plandaki BackgroundService
+        // (kuyruğu boşaltır). ⚠️ Üçü de AYNI örneği çözmeli — ayrı örnekler olsaydı
+        // yazılan kuyruk hiç okunmaz ve hata kayıtları sessizce kaybolurdu.
+        services.AddSingleton<Observability.ChannelErrorLogSink>();
+        services.AddSingleton<IErrorLogSink>(sp => sp.GetRequiredService<Observability.ChannelErrorLogSink>());
+        services.AddHostedService(sp => sp.GetRequiredService<Observability.ChannelErrorLogSink>());
+
         services.AddSingleton<IConnectionMultiplexer>(sp =>
             ConnectionMultiplexer.Connect(
                 sp.GetRequiredService<IConfiguration>().GetConnectionString("Redis") ?? "localhost:6379"));
@@ -115,5 +123,7 @@ public static class DependencyInjection
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.PublishScheduledAnnouncementsJob>("publish-scheduled-announcements", j => j.RunAsync(), Cron.Minutely);
         // Faz 10.11: fcm_sent=false bildirimleri gönderir. Fcm:Provider=None iken IsConfigured=false → no-op (boş koşar).
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.SendPushNotificationsJob>("send-push-notifications", j => j.RunAsync(), Cron.Minutely);
+        // Faz 12.1: hata kayıtlarının saklama süresi (çözülmüş 30 gün, çözülmemiş 90 gün).
+        RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.PurgeErrorLogsJob>("purge-error-logs", j => j.RunAsync(), Cron.Daily);
     }
 }

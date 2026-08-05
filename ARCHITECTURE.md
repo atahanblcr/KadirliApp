@@ -8,7 +8,7 @@
 > öğretici bir rehber değil (o `DOTNET_MASTERCLASS.md`), istemci kontratı değil
 > (o `Memory_Bank/API_CONTRACT.md`). Burası **harita**: bugün neyin nerede olduğu.
 >
-> Son güncelleme: 3 Ağustos 2026 (Faz 11.15b — panel emniyet ağı + izin matrisi).
+> Son güncelleme: 5 Ağustos 2026 (Faz 12.1 — hata günlüğü modülü).
 
 ## Hangi dokümanı ne zaman okumalı
 
@@ -94,6 +94,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | `KadirliApp.Infrastructure/Migrations/` | EF migration'ları |
 | `KadirliApp.Infrastructure/Jobs/` | Hangfire işleri (aşağıda) |
 | `KadirliApp.Infrastructure/{Caching,Files,Identity,Notifications,Health}/` | Redis, dosya depolama, JWT, FCM, health-check |
+| `KadirliApp.Infrastructure/Observability/` | 🔑 `ChannelErrorLogSink` — hata kaydının **isteği bloklamayan** yazıcısı (kuyruk + `BackgroundService`) |
 | `KadirliApp.Api/Controllers/` | **18 public controller** (`/v1/*`) |
 | `KadirliApp.Api/Controllers/Admin/` | **18 admin controller** (`/v1/admin/*`) + ortak taban |
 | `KadirliApp.Api/Authorization/` | `RequirePermissionAttribute` + policy sağlayıcı |
@@ -114,6 +115,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | `lib/core/push/` | 🔑 Push soyutlaması: `PushMessaging` arayüzü + `NoopPushMessaging` + Firebase gerçeklemesi. **Yapılandırma yoksa uygulama push'suz açılır, çökmez** |
 | `lib/core/widgets/` | `AppScaffold`, `AppButton`, `AppCard`, `ContactActions`, `LookupDropdown`, `MonthCalendar`… |
 | `lib/core/utils/` | `AppDate` (sabit UTC+3), `AppMoney`, `AppLinks`, `AppImage`, `AppShare`, `Debouncer` |
+| `lib/core/observability/` | `ErrorReporter` — çökme/hata bildirimi (ateşle-unut, yeniden denemez, kendi hatasını raporlamaz) |
 | `lib/features/<modül>/data/` | Model + repository (yalnız burası Dio görür) |
 | `lib/features/<modül>/application/` | Provider'lar, denetleyiciler, saf mantık |
 | `lib/features/<modül>/presentation/` | Ekranlar + `widgets/` |
@@ -151,6 +153,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | 21 | **Denetim izi** | `Audit/` | *(public uç yok)* | `AuditLogsAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
 | 22 | **Çöp kutusu** | `Trash/` | *(public uç yok)* | `TrashAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
 | 23 | **Global arama** | `Search/` | *(public uç yok)* | `GlobalSearch` | *(matris dışı — **sonucu süzer**, aşağıya bak)* | *(yok)* | — |
+| 24 | **Hata kayıtları** | `ErrorLogs/` | `POST client-errors` *(anonim)* | `ErrorLogsAdmin` | *(matris dışı — yalnız admin)* | *(ekran yok — `core/observability/`)* | — |
 
 **Mobilde ayrıca ekran taşıyan ama backend modülü olmayan klasörler:** `home/` (hub),
 `common/`, `dev/` (yalnız debug: `/gelistirici/tasarim`, `/gelistirici/ag`).
@@ -204,6 +207,7 @@ tam olarak buydu.
 | `ArchiveDeathsJob` | `auto_archive_at` geçen vefat ilanını arşivler | Günlük |
 | `PublishScheduledAnnouncementsJob` | Zamanlanmış duyuruyu yayınlar + bildirim satırı üretir | Dakikalık |
 | `SendPushNotificationsJob` | Gönderilmemiş bildirimleri FCM'e yollar | Dakikalık |
+| `PurgeErrorLogsJob` | Hata kaydı saklama süresi: çözülmüş 30 gün, çözülmemiş 90 gün | Günlük |
 
 ---
 
@@ -355,7 +359,8 @@ Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıkla
 `Integration/Panel/PanelPowerOutageFilterTests.cs`, **28 (Faz 11.17)**
 `Integration/Panel/PanelTrashTests.cs`, **29 (Faz 11.18)**
 `Integration/Panel/PanelBulkActionTests.cs`, **30 (Faz 11.18)**
-`Integration/Panel/PanelSortingTests.cs` içinde (panelin canlı denetiminde bulundular ve
+`Integration/Panel/PanelSortingTests.cs`, **31–33 (Faz 12.1)**
+`Integration/Panel/PanelErrorLogTests.cs` + `Unit/Application/Observability/` içinde (panelin canlı denetiminde bulundular ve
 gerçek Postgres isterler). Biri kırmızıya dönerse ya sözleşme
 bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 
@@ -391,6 +396,9 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | 28 | **Geri getirme, yayına alma DEĞİLDİR:** `RestoreRecordCommand` yalnız `deleted_at`'i temizler, `status`'e dokunmaz | Dokunsaydı çöp kutusu moderasyonun arka kapısı olurdu: reddedilmiş bir ilan silinip geri getirilerek yayına sokulabilirdi. Kapsam `TrashModules.Supported`'da **tek listede** — sorgu ve komut ayrı `switch` yazarsa "listede görünen ama geri getirilemeyen kayıt" doğar |
 | 29 | Toplu işlem aksiyonları **`…Selected` ile biter** (`ApproveSelected`, `DeleteSelected`), `Bulk…` ile **başlamaz** | İzin eylemi aksiyon adının **önekinden** türetilir (madde 19). `BulkApprove` hiçbir moderasyon önekiyle eşleşmez, POST olduğu için sessizce **`update`**'e düşer → yalnız *düzenleme* yetkisi olan moderatör **toplu onay** yapabilir hâle gelir. Ayrıca toplu işlem her kayıt için modülün **tek-kayıt komutunu** çağırmalıdır: toplu SQL yazılırsa denetim izi, önbellek geçersizleştirmesi ve madde 25'in onay penceresi hiç çalışmaz — panel "42 ilan onaylandı" der, mobil hiçbirini göstermez |
 | 30 | Her sıralama anahtarı **benzersiz bir ayraçla** (`ThenBy(Id)`) biter (`PanelSorts`) | Eşit değerli satırlarda Postgres sırayı garanti etmez: sayfalı listede **aynı kayıt iki sayfada birden görünür, bir başkası hiç görünmez** — hata vermeyen veri kaybı. ⚠️ "Bir ikincil anahtar koymak" yetmez, ayracın **benzersiz** olması gerekir (`title_asc`'in ikincili `CreatedAt`'ti ve başlığı+tarihi aynı iki kayıtta o da eşitti). Ayrıca **varsayılan anahtar** modülün eski sırasıyla birebir aynı kalmalıdır; değişirse mobil liste sessizce ters döner |
+| 31 | **Hata kaydı yazımı isteği DÜŞÜREMEZ**: `IErrorLogSink.TryWrite` asla fırlatmaz, asla beklemez; yazıcının kendi hatası **asla** `error_logs`'a gitmez, yalnız `ILogger`'a düşer | `ExceptionMiddleware`'in `catch` bloğunda **senkron DB yazmak** en tehlikeli tasarım: veritabanı çöktüğünde hata yazma denemesi de patlar, istisna `catch`'in İÇİNDE doğar, yanıt zarfı hiç yazılmaz ve istemci **zarfsız ham 500** alır → madde 10 tam da her şeyin kötü gittiği anda kırılır. Yazıcı kendi hatasını tabloya yazarsa: DB hatası → kayıt denemesi → DB hatası… sonsuz döngü |
+| 32 | **`Fingerprint` tekilleştirmesi zorunludur** ve `ErrorFingerprint.Normalize` GUID/sayı/tarihi maskeler; benzersiz indeks veritabanındadır | Normalize kalkarsa `"Ad {guid} bulunamadı"` her istekte ayrı parmak izi üretir → tekilleştirme **hiç** çalışmaz. Tekilleştirme kalkarsa tek bir 500 döngüsü tabloyu dakikada on binlerce satırla doldurur. İkisi de **hiçbir hata vermeden** olur; tek belirti tablonun sessizce şişmesi. Benzersiz indeks ayrıca Api/Web yarışını yakalar — olmasaydı iki süreç aynı yeni hatayı aynı anda görüp mükerrer satır üretirdi |
+| 33 | Hata kaydının `Source`'u **sunucuda sabitlenir** (`POST /v1/client-errors` gövdesinde `source` alanı yoktur); `Path` **maskelenir** (`SensitiveDataMasker`) | İstemci `api` diyebilseydi kendi çökmesini sunucu hatası gibi gösterip "sunucumuzda kaç hata var?" sorusunun cevabını zehirlerdi. Maskeleme kalkarsa OTP akışındaki telefon numarası tabloya girer — kayıtlar panelde görülüyor, **CSV olarak dışa aktarılıyor** ve 90 gün saklanıyor |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 
@@ -434,6 +442,8 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | **Denetim izi** | `Integration/Panel/PanelAuditLogTests.cs` | Gerçek bir silmenin ize düşmesi; eylem sözlüğü **kaynak taranarak** kilitli (`AuditAction => "…"`), menü satırı matris dışında mı |
 | **Çöp kutusu** | `Integration/Panel/PanelTrashTests.cs` | §7 madde **28**: geri getirme `status`'e dokunmuyor, `IgnoreQueryFilters` unutulmamış, ikinci geri getirme iz bırakmıyor |
 | **Kesinti süzgeci** | `Integration/Panel/PanelPowerOutageFilterTests.cs` | §7 madde **27**: süren/planlı/bitti sınır anları mobil tanımıyla birebir; tarih aralığı **kesişim** üzerinden |
+| **Hata günlüğü** | `Integration/Panel/PanelErrorLogTests.cs` | §7 madde **31–33**: tekilleştirme gerçekten tek satır üretiyor mu, çözülmüş hata tekrar edince kendiliğinden açılıyor mu, istemciden gelen metin panelde **kaçırılıyor** mu (depolanmış XSS), ekran matris dışında mı |
+| **Hata parmak izi / maskeleme** | `Unit/Application/Observability/` | Saf mantık: GUID/sayı/tarih normalize ediliyor mu (yoksa tekilleştirme hiç çalışmaz), yığın satır numarası atılıyor mu, hassas sorgu parametreleri maskeleniyor mu |
 | **Önbellek sözleşmesi** | `Unit/Application/Caching/CacheContractTests.cs` | Grup adları sabit mi, her grubun invalidator'ı var mı, anahtar filtreyle değişiyor mu |
 | **Önbellek davranışı** | `Integration/Panel/CacheInvalidationTests.cs` | Gerçek Redis: önce **bayat veri döndüğü** gösterilir, sonra mutasyonun temizlediği |
 | **Moderasyon** | `Integration/Panel/ModerationStateMachineTests.cs` | Vefat/etkinlik/kampanya/işletme onay-red geçişleri, soft-delete etkileşimi |

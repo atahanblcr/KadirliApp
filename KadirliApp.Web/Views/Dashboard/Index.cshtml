@@ -104,6 +104,31 @@
     </div>
 }
 
+@*
+    Faz 12.1 — HATA ROZETİ (yalnız admin).
+    Model.OpenErrorCount null ise kullanıcı bu ekranı göremez (moderatör) ve kart hiç
+    çizilmez. Sıfır ile null farklı: sıfırda "hata yok" yazar — sessizlik ile iyi haberi
+    ayırt edemeyen bir pano, gözlem panosu değildir.
+*@
+@if (Model.OpenErrorCount is { } openErrors)
+{
+    <a asp-controller="ErrorLogsAdmin" asp-action="Index" asp-route-resolved="false"
+       class="mb-6 flex items-center justify-between rounded-lg border @(openErrors > 0 ? "border-red-200 bg-red-50 hover:bg-red-100" : "border-green-200 bg-green-50 hover:bg-green-100") p-4 transition-colors">
+        <div class="flex items-center gap-3">
+            <i class="fas @(openErrors > 0 ? "fa-triangle-exclamation text-red-600" : "fa-circle-check text-green-600") text-xl" aria-hidden="true"></i>
+            <div>
+                <p class="text-sm font-medium @(openErrors > 0 ? "text-red-900" : "text-green-900")">
+                    @(openErrors > 0 ? $"Son 24 saatte {openErrors:N0} açık hata kaydı" : "Son 24 saatte açık hata kaydı yok")
+                </p>
+                <p class="text-xs @(openErrors > 0 ? "text-red-700" : "text-green-700")">
+                    Sunucu, panel ve mobil uygulamada oluşan hatalar
+                </p>
+            </div>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400" aria-hidden="true"></i>
+    </a>
+}
+
 <!-- Faz 10.10-A: Etkileşim satırı — üç 7-günlük nabız + duyuru erişim toplamı (mobil yayınla dolmaya başlar) -->
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6">
     <p class="text-xs text-gray-400 uppercase font-medium mb-3"><i class="fas fa-chart-line mr-1"></i>Etkileşim</p>

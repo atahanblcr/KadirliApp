@@ -1,0 +1,132 @@
+@model KadirliApp.Application.Features.ErrorLogs.Dtos.ErrorLogResponseDto
+@{
+    ViewData["Title"] = "Hata Ayrıntısı";
+    var sourceBadge = PanelDisplay.ErrorSource(Model.Source);
+    var levelBadge = PanelDisplay.ErrorLevel(Model.Level);
+    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+}
+
+<div class="mb-6">
+    <a asp-action="Index" class="text-sm text-gray-600 hover:text-gray-900">
+        <i class="fas fa-arrow-left mr-1"></i> Hata kayıtlarına dön
+    </a>
+    <h2 class="text-2xl font-semibold text-gray-800 mt-2 break-words">@Model.Message</h2>
+    <div class="mt-2 flex flex-wrap items-center gap-2">
+        <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @sourceBadge.Css">
+            <i class="fas @sourceBadge.Icon"></i> @sourceBadge.Label
+        </span>
+        <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @levelBadge.Css">
+            <i class="fas @levelBadge.Icon"></i> @levelBadge.Label
+        </span>
+        <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">
+            <i class="fas fa-repeat"></i> @Model.OccurrenceCount kez
+        </span>
+        @if (Model.IsResolved)
+        {
+            <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                <i class="fas fa-circle-check"></i> Çözüldü
+            </span>
+        }
+        else
+        {
+            <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
+                <i class="fas fa-circle-exclamation"></i> Açık
+            </span>
+        }
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3">Yığın izi</h3>
+            @if (!string.IsNullOrWhiteSpace(Model.StackTrace))
+            {
+                @* ⚠️ @Html.Raw YASAK — içerik kısmen istemciden geliyor (mobil raporu).
+                   Razor kaçışıyla basılır; aksi hâlde panelde depolanmış XSS olur. *@
+                <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded bg-gray-50 p-3 text-xs text-gray-700">@Model.StackTrace</pre>
+            }
+            else
+            {
+                <p class="text-sm text-gray-500">Bu kayıtta yığın izi yok.</p>
+            }
+        </div>
+
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3">Çözüm durumu</h3>
+            @if (Model.IsResolved)
+            {
+                <p class="text-sm text-gray-700">
+                    <strong>@(Model.ResolvedByName ?? "Bilinmeyen personel")</strong>
+                    @(Model.ResolvedAt?.AddHours(3).ToString("dd.MM.yyyy HH:mm")) tarihinde çözüldü olarak işaretledi.
+                </p>
+                @if (!string.IsNullOrWhiteSpace(Model.ResolvedNote))
+                {
+                    <p class="mt-2 rounded bg-gray-50 p-3 text-sm text-gray-700 whitespace-pre-wrap break-words">@Model.ResolvedNote</p>
+                }
+                <form asp-action="Reopen" method="post" class="mt-4">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        <i class="fas fa-rotate-left mr-2"></i> Yeniden aç
+                    </button>
+                </form>
+            }
+            else
+            {
+                <form asp-action="Resolve" method="post" class="space-y-3">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <div>
+                        <label for="note" class="block text-xs font-medium text-gray-600 mb-1">Çözüm notu (isteğe bağlı)</label>
+                        <textarea id="note" name="note" rows="2" placeholder="Ne yapıldı?"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                    <button type="submit" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                        <i class="fas fa-circle-check mr-2"></i> Çözüldü işaretle
+                    </button>
+                    <p class="text-xs text-gray-500">
+                        Kayıt silinmez. Aynı hata tekrar ederse kayıt <strong>kendiliğinden yeniden açılır</strong>.
+                    </p>
+                </form>
+            }
+        </div>
+    </div>
+
+    <div class="space-y-6">
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3">İstek</h3>
+            <dl class="space-y-2 text-sm">
+                <div><dt class="text-xs text-gray-500">Kod</dt><dd class="font-mono text-gray-900 break-all">@Model.Code</dd></div>
+                <div><dt class="text-xs text-gray-500">Yol</dt><dd class="text-gray-900 break-all">@(Model.Method) @(Model.Path ?? "—")</dd></div>
+                <div><dt class="text-xs text-gray-500">Durum kodu</dt><dd class="text-gray-900">@(Model.StatusCode?.ToString() ?? "—")</dd></div>
+                <div>
+                    <dt class="text-xs text-gray-500">TraceId</dt>
+                    @* 🔑 Bu değer panel kaydını Seq'teki ayrıntılı olaya bağlayan tek anahtar
+                       (hata zarfının meta.traceId'si ile aynı — görünmez sözleşme #10). *@
+                    <dd class="font-mono text-xs text-gray-900 break-all select-all">@(Model.TraceId ?? "—")</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3">Bağlam</h3>
+            <dl class="space-y-2 text-sm">
+                <div><dt class="text-xs text-gray-500">Kullanıcı</dt><dd class="text-gray-900">@(Model.UserName ?? "Anonim")</dd></div>
+                <div><dt class="text-xs text-gray-500">IP</dt><dd class="text-gray-900">@(Model.IpAddress ?? "—")</dd></div>
+                <div><dt class="text-xs text-gray-500">Uygulama sürümü</dt><dd class="text-gray-900">@(Model.AppVersion ?? "—")</dd></div>
+                <div><dt class="text-xs text-gray-500">Platform</dt><dd class="text-gray-900">@(Model.Platform ?? "—") @(Model.OsVersion)</dd></div>
+                <div><dt class="text-xs text-gray-500">Tarayıcı / istemci</dt><dd class="text-gray-900 break-all">@(Model.UserAgent ?? "—")</dd></div>
+            </dl>
+        </div>
+
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3">Zaman</h3>
+            <dl class="space-y-2 text-sm">
+                <div><dt class="text-xs text-gray-500">İlk görülme</dt><dd class="text-gray-900">@Model.FirstSeenAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")</dd></div>
+                <div><dt class="text-xs text-gray-500">Son görülme</dt><dd class="text-gray-900">@Model.LastSeenAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")</dd></div>
+                <div><dt class="text-xs text-gray-500">Parmak izi</dt><dd class="font-mono text-xs text-gray-500 break-all">@Model.Fingerprint</dd></div>
+            </dl>
+        </div>
+    </div>
+</div>

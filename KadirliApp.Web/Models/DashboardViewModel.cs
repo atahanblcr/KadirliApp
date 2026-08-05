@@ -20,6 +20,14 @@ public class DashboardViewModel
     public int NewAdsLast7Days { get; set; }
     public int TotalAnnouncementViews { get; set; }
 
+    /// <summary>
+    /// Faz 12.1 — son 24 saatte görülmüş, hâlâ açık hata kaydı sayısı.
+    /// <b>null = kullanıcı bunu görmemeli</b> (moderatör): hata kayıtları ekranı yalnız
+    /// admin'e açık, dolayısıyla sayacı da yalnız admin görür. Sıfır ile null farklı
+    /// şeylerdir — sıfırda "0 hata" rozeti çizilir (iyi haber), null'da hiç çizilmez.
+    /// </summary>
+    public int? OpenErrorCount { get; set; }
+
     public List<ActivityItem> RecentActivities { get; set; } = new();
 }
 

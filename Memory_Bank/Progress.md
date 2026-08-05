@@ -1736,7 +1736,7 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 
 ---
 
-### 12.1 — Hata günlüğü modülü — [ ]
+### 12.1 — Hata günlüğü modülü — [x] ✅ TAMAMLANDI (5 Ağustos 2026)
 
 **Hedef:** Vatandaşın ve yöneticinin aldığı hataların panelden görülebilmesi. Bugün 5xx
 yalnız Seq'e akıyor, mobilde oluşan hata **hiçbir yere** akmıyor.
@@ -1817,6 +1817,45 @@ yalnız Seq'e akıyor, mobilde oluşan hata **hiçbir yere** akmıyor.
 **tek satır, adet 3** · mobilden fırlatılan bir istisna panelde `mobile` kaynağıyla listeleniyor ·
 DB kapalıyken istek **normal hata zarfıyla** dönüyor (kayıt düşüyor, uygulama ayakta) ·
 telefon içeren bir yol maskeli saklanıyor.
+
+#### 12.1 kapanış notları
+
+**Teslim edilenler:** `ErrorLog` varlığı + migration `AddErrorLogs` · `ErrorFingerprint` +
+`SensitiveDataMasker` (saf, birim testli) · `ChannelErrorLogSink` (kuyruk + `BackgroundService`) ·
+`PurgeErrorLogsJob` · `POST /v1/client-errors` · `ExceptionMiddleware` ve `PanelErrorLoggingMiddleware`
+bağlantıları · `ErrorLogsAdmin` (liste + ayrıntı + çözme + CSV) · dashboard rozeti ·
+mobil `ErrorReporter`. **Backend 567 → 605 (+38), mobil 678 → 685 (+7), analyze 0.**
+
+🐛 **Uygulama sırasında bulunan/öğrenilen üç şey:**
+1. **Ara katman sırası sezgiye ters.** `PanelErrorLoggingMiddleware` ilk yazımda
+   `UseExceptionHandler`'dan **önce** kaydedilmişti. Önce kaydedilen ara katman **dışta**
+   kalır, istisnayı ilk gören ise **içtekidir** → hata sayfası çalışır, kayıt **sessizce hiç
+   oluşmazdı**. Doğrusu: `UseExceptionHandler`'dan **sonra** kaydetmek.
+2. **Testin kendi seed'i tekilleştirmeye takıldı.** `PanelErrorLogTests` başta parmak izini
+   `ErrorFingerprint.Compute` ile hesaplıyordu; "eşit kayıt 0/1/2/3" mesajları **sayılar
+   maskelendiği için aynı parmak izine** düştü ve benzersiz indeks patladı. Hata testteydi,
+   normalize edicide değil — tam tasarlandığı gibi davranıyordu. Seed artık rastgele parmak izi verir.
+3. **BOM bayt düzeyinde denetlenmeli.** `ReadAsStringAsync` BOM'u ön ek sayıp yutuyor ve
+   "BOM yok" gibi görünüyor (`PanelCsvExportTests`'teki aynı karar).
+
+📌 **`StaffAdmin` ile dokümantasyon arasında bir tutarsızlık bulundu (12.1 kapsamı dışı, düzeltilmedi):**
+`ARCHITECTURE.md` §3 yalnız-admin ekranların `Module`'ünün **null** olmasını şart koşuyor, ama
+`StaffAdmin` hem `AdminOnlyControllers`'ta hem de `Module = "staff"` taşıyor. `StaffAdminController.Modules`
+menüden türediği için **"staff" izin matrisinde görünüyor**: bir yönetici moderatöre "staff okuma"
+yetkisi verebilir, rol kapısı yüzünden o yetki **asla çalışmaz** — yani 11.15b'nin kapattığı
+"karşılığı olmayan yetki" hatasının hâlâ duran bir örneği. Düzeltmesi izin matrisini ve
+seed'lenmiş izinleri etkiler; ayrı ele alınmalı.
+
+**Doğrulama:** `dotnet test` **605/605** · `flutter analyze` **0** · `flutter test` **685/685**.
+**Kuralı bilerek boz:** normalize edici GUID/sayı maskelemeyi bıraktı · maskeleyiciden
+`phone`/`token` çıkarıldı · menü satırına modül anahtarı verildi · görünüm `@Html.Raw`'a çevrildi
+→ **10 test kırmızı**, geri alınınca yeşil.
+**Canlı (Chrome + curl):** 3 farklı mesajlı istek → **tek satır, adet 3** (sayılar normalize edildi) ·
+`/v1/auth/login?phone=+90…` → tabloda **`phone=***&page=2`** (tanılama parametresi korundu) ·
+gövdede `source` gönderilmeden kayıt **`mobile`** düştü · panelde Türkçe rozetler (Mobil · Çökme · Açık) ·
+çözüldü işaretlendi (kim/ne zaman/not) → **aynı hata tekrar gönderildi → kayıt kendiliğinden
+yeniden açıldı, adet 3→4, çözüm izi temizlendi** · dashboard'da "Son 24 saatte 2 açık hata kaydı" ·
+denetim izinde **"Hata Kayıtları / Hatayı çözdü"** (ham İngilizce yok).
 
 ---
 
