@@ -22,7 +22,13 @@ TestResults/
 # ---- Uygulama tarafından üretilenler ----
 logs/
 cookies.txt
-# not: uploads/ bilerek takip ediliyor — panel incelemesi için örnek görseller repoda
+# uploads/ ARTIK TAKİP EDİLMİYOR (5 Ağu 2026). Eski not "panel incelemesi için örnek
+# görseller repoda" diyordu ama repoya giren şey örnek değil TEST ARTIĞIydı: aynı 5 test
+# görseli (a/b/contract/gercek/ilanda.png) onlarca kez, her biri yeni GUID'le.
+# Bu ikinci tekrardı — 4085a96 (11.15c) ilk 39 artığı sildi ama buraya kapı koymadı,
+# a165a62'deki `git add -A` 35 yenisini geri doldurdu. Kapı olmadan silmek işe yaramıyor.
+# Klasörü LocalFileStorageService kendi oluşturuyor; repoda durmasına gerek yok.
+uploads/
 
 # ---- Yerel sırlar (isteğe bağlı: gerçek sırlar buraya konursa) ----
 appsettings.*.Local.json
