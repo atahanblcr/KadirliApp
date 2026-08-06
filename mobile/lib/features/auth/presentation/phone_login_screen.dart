@@ -44,8 +44,28 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
     FocusScope.of(context).unfocus();
 
     final sent = await ref.read(otpFlowProvider.notifier).requestOtp(phone);
-    if (sent && mounted) context.push(AppRoutes.otpVerify);
+    if (!sent || !mounted) return;
+
+    // 🛡️ Aynı ekranı yığına iki kez koymayı engeller.
+    //
+    // Butonun `flow.isBusy` kapısı çift dokunuşu engelliyor ama iki gönderim aynı
+    // kareye denk geldiğinde ikinci çağrı, birincinin rebuild'inden ÖNCE başlıyor —
+    // yani bayrak yetmiyor. Doğru soru "kaç kez bastı" değil, **"o sayfa zaten
+    // yığında mı"**.
+    //
+    // 📌 Bu, 12.2'de bulunan `_debugCheckDuplicatedPageKeys` çökmesinin **kanıtlanmış**
+    // çözümü DEĞİL: çökme widget testinde yeniden üretilemedi (bkz. Progress.md 12.2b),
+    // dolayısıyla testle de kilitlenemedi. Savunma amaçlı duruyor.
+    if (_isOtpScreenAlreadyOnStack()) return;
+
+    context.push(AppRoutes.otpVerify);
   }
+
+  /// Yığının tepesindeki konum kod ekranı mı — <b>router'a</b> sorulur, ekranın
+  /// kendi `GoRouterState`'ine değil: bu widget her zaman `/giris`'i temsil eder
+  /// ve kendi state'i "üstümde ne var" sorusunu cevaplayamaz.
+  bool _isOtpScreenAlreadyOnStack() =>
+      GoRouter.of(context).state.uri.path == AppRoutes.otpVerify;
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +123,10 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
               if (_localError != null) setState(() => _localError = null);
               if (flow.error != null) ref.read(otpFlowProvider.notifier).clearError();
             },
-            onSubmitted: (_) => _submit(),
+            // ⚠️ Butondaki `flow.isBusy` kapısının aynısı burada da olmalı:
+            // klavyenin "bitti" tuşu devre dışı bir alanda bile tetiklenebiliyor
+            // ve gönderim yolunu ikinci kez açıyordu.
+            onSubmitted: (_) => flow.isBusy ? null : _submit(),
           ),
           AppSpacing.gapXl,
 

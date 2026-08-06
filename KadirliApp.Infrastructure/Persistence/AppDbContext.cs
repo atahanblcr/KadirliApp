@@ -54,6 +54,7 @@ public class AppDbContext : DbContext
     public DbSet<PlaceImage> PlaceImages => Set<PlaceImage>();
     public DbSet<PowerOutage> PowerOutages => Set<PowerOutage>();
     public DbSet<PropertyOption> PropertyOptions => Set<PropertyOption>();
+    public DbSet<PushCampaign> PushCampaigns => Set<PushCampaign>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<TaxiCall> TaxiCalls => Set<TaxiCall>();
     public DbSet<TaxiDriver> TaxiDrivers => Set<TaxiDriver>();

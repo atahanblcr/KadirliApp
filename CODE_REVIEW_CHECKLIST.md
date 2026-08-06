@@ -1,7 +1,7 @@
  # KadirliApp — Code Review Checklist
 
 > Bu liste jenerik bir kurumsal şablon değil; `ARCHITECTURE.md`, `Memory_Bank/API_CONTRACT.md`,
-> `Memory_Bank/Active_Context.md` ve `Memory_Bank/Progress.md`'den (Faz 10–12.2) çıkarılmıştır.
+> `Memory_Bank/Active_Context.md` ve `Memory_Bank/Progress.md`'den (Faz 10–12.2b) çıkarılmıştır.
 > Özellikle **"Görünmez Sözleşmeler" (§7)** ve **tekrarlayan hata sınıfları** buraya birebir
 > taşınmıştır — bu proje aynı hatayı birden fazla kez üretmiş ve her seferinde not düşülmüş,
 > bu checklist o dersleri PR aşamasına çekmek için var.
@@ -189,6 +189,10 @@
 | Yeni bir **bildirim/uyarı** kanalı mı açtın? | O zaman **kısma (throttle)** zorunlu ve fail-open/fail-closed kararı bilinçli olmalı. Kısmasız bir uyarı, saldırı anında yöneticinin posta kutusuna **kendi kendimize yaptığımız DoS**'a döner: uyarılar filtreye atılır ve gerçek uyarı da o filtreye düşer — sistem çalışır, hata vermez, işe yaramaz. ⚠️ Kanalın kendisi "bayrakla kapalı yol"dur: ilk kez **gerçek bir olay sırasında** koşacaksa yanlış yapılandırmayı en kötü anda öğrenirsin — panele elle tetiklenen bir "kanalı dene" yolu koy. | ARCHITECTURE.md §7 madde 36, `SecurityAlertJob`, `LoginAttemptsAdmin/SendTestAlert` |
 | İstemci IP'sine bakan yeni bir kod mu yazdın? | IP'yi **tek bir yer** okumalı (12.2'de `LoginAttemptRecorder`) ve `ForwardedHeaders` ara katmanı pipeline'ın **en başında** kurulmalı. Ters vekil arkasında bu yoksa `RemoteIpAddress` her istekte proxy'nin IP'sidir: IP bazlı kurallar/limitler **herkeste aynı** partisyona düşer ve hata vermeden yanlış çalışır. ⚠️ `KnownProxies`/`KnownNetworks` boş bırakılamaz — istemci kendi `X-Forwarded-For`'unu uydurup kaydı **zehirler**. | `ForwardedHeadersSetup`, `ProductionReadinessGuardTests` |
 | Yeni bir çapraz-modül sorgusu **soft-delete**'i düşündü mü? | Global arama silinen kaydı **göstermez** (`IgnoreQueryFilters` yok) — silinen kaydın yeri Çöp Kutusu. Gösterseydi hem "silmiştim ama çıkıyor" karmaşası doğardı hem de sonuçtan düzenleme ekranına giden bağlantı boş sayfaya götürürdü. | `GlobalSearchTests.DeletedRecords_DoNotAppearInSearch` |
+| Aynı hedef kitleyi seçen **ikinci bir kod yolu** mu yazıyorsun? | Yazma — hedefleme tek sahipli olmalı (`INotificationDispatcher`). 12.2b'de duyuru üreticisi ile panelin manuel gönderimi aynı metottan geçiriliyor; ayrı yazılsalardı **aynı mahalleye farklı kişi kümesi** giderdi ve iki taraf da hiç hata vermezdi (§7 madde 23'ün sınıfı). ⚠️ Panelin "tahmini alıcı" önizlemesi de **aynı sorguyu** çağırmalı: ayrı sayım "342 kişiye gidecek" der, gönderim 280 satır yazar ve fark hiçbir yerde görünmez. ⚠️ Kullanıcı tercihi (`NotificationPreferences`) elle gönderimde de geçerlidir — "yönetici yolladıysa herkese gitsin" istisnası 10.3'ün tercih ekranını yalancı yapar. | ARCHITECTURE.md §7 madde 38, `PanelPushCampaignTests` |
+| Bir alan **terminal** mi (bir kez yazıldı mı geri alınamaz)? | Öyleyse panel onu geri almayı **teklif etmemeli**. `Notification.FcmSent=true` terminaldir: "yeniden gönder" butonu konsaydı **hiçbir şey yapmaz ve kimse hata almazdı** — panelin en sinsi yalan biçimi. Yeniden gönderim yeni kayıt açar; iptal yalnız **henüz yazılmamış/iletilmemiş** satıra dokunur. ⚠️ Butonun görünürlük koşulu **sunucudan** gelmeli (`CanCancel`), görünüm kendi koşulunu yazarsa komutun reddedeceği bir buton çizilir. 🐛 12.2b'de o koşul ilk yazımda "tamamlanmamış" idi ve yanlıştı: *"tamamlandı" ile "geri çekilecek bir şey kalmadı" aynı şey değil.* | ARCHITECTURE.md §7 madde 37, `PanelPushCampaignTests` |
+| Yeni bir **sayaç kolonu** mu açtın (sorgu anında `COUNT` yerine)? | O zaman yazımı **artımlıdır ve tek sahiplidir**; "bir kez daha say, düzelir" yolu yoktur. Yazım atlanırsa pano sonsuza kadar eski değeri gösterir: iş yapılır, hiçbir hata oluşmaz ve **yalnız pano yalan söyler**. ⚠️ "Tamamlandı" ölçütünü *işlenen = toplam* diye kurma: 12.2b'de gönderim işi yalnız token'ı olan satırları alıyor, token'sız alıcılar sonsuza kadar bekliyor görünürdü ve **hiçbir kampanya kapanmazdı**. Ölçüt "işlenebilir bekleyen kalmadı" olmalı. 🐛 Ve o kontrol **aynı işlemdeki henüz kaydedilmemiş satırları dışlamalı** — veritabanı onları hâlâ eski hâlleriyle görür. | ARCHITECTURE.md §7 madde 39, `PanelPushCampaignTests` |
+| Yeni bir satır, aynı `SaveChanges` içinde eklenen **başka bir satıra FK ile** mi bağlanıyor? | Bağ **gezinme özelliğinden** kurulmalı (`Campaign = campaign`), FK skalerinden değil. 🐛 12.2b'de tam bu tuzağa düşüldü: `Id` kolonları `gen_random_uuid()` varsayılanıyla tanımlı olduğu için EF onları **store-generated** sayıyor ve değer ancak INSERT'ten sonra geri dönüyor — yani `parent.Id` o anda hâlâ `Guid.Empty`. Bütün alt satırlar var olmayan bir kayda bağlandı ve FK ihlaliyle patladı. | `NotificationDispatcher`, `PanelPushCampaignTests` |
 
 ---
 
@@ -216,7 +220,11 @@ Test kırıldığında yapılacak şey testi gevşetmek değil, **checklist'i g�
    satırı silme — bileşenin adını yazarak bırak; yeni gelen "neden böyle" sorusunun
    cevabı burada.
 
-Son gözden geçirme: **6 Ağustos 2026 (Faz 12.2)** — §11'e dört satır (hesaptan türetilen
+Son gözden geçirme: **6 Ağustos 2026 (Faz 12.2b)** — §11'e dört satır (hedeflemenin tek
+sahibi + önizleme/gerçek paritesi, terminal alanın panelde geri alınmayı teklif etmemesi,
+artımlı sayaç kolonlarının tamamlanma ölçütü, aynı `SaveChanges` içindeki FK'nın gezinme
+özelliğinden kurulması).
+Önceki: **6 Ağustos 2026 (Faz 12.2)** — §11'e dört satır (hesaptan türetilen
 alanın maskelemeyi delmesi, ikiz güvenlik eşiklerinin tek kaynaktan gelmesi, uyarı kanalında
 kısma + "kanalı elle dene" yolu, istemci IP'sinin tek yerden okunması).
 Önceki: **5 Ağustos 2026 (Faz 12.1)** — §11'e altı satır (hata kaydı yazma

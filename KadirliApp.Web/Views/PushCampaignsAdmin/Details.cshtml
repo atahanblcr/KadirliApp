@@ -1,0 +1,169 @@
+@model KadirliApp.Application.Features.PushCampaigns.Dtos.PushCampaignDetailDto
+@{
+    ViewData["Title"] = "Gönderim Ayrıntısı";
+
+    var sourceBadge = PanelDisplay.PushSource(Model.Source);
+    var targetBadge = PanelDisplay.PushTarget(Model.TargetType);
+    var statusBadge = PanelDisplay.PushStatus(Model.Status);
+}
+
+<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Gönderim Ayrıntısı</h2>
+        <p class="text-sm text-gray-500 mt-1">
+            @Model.CreatedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm") tarihli gönderim
+        </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+        <a asp-action="Index" class="text-sm font-medium text-gray-600 hover:text-gray-900">
+            <i class="fas fa-arrow-left mr-1"></i> Listeye dön
+        </a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+            <div class="flex flex-wrap items-center gap-2 mb-4">
+                <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @statusBadge.Css">
+                    <i class="fas @statusBadge.Icon"></i> @statusBadge.Label
+                </span>
+                <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @sourceBadge.Css">
+                    <i class="fas @sourceBadge.Icon"></i> @sourceBadge.Label
+                </span>
+                <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @targetBadge.Css">
+                    <i class="fas @targetBadge.Icon"></i> @targetBadge.Label
+                </span>
+            </div>
+
+            @* ⚠️ Ham basılmaz — Razor kaçışı varsayılan, @Html.Raw burada yasak. *@
+            <h3 class="text-lg font-semibold text-gray-900 break-words">@Model.Title</h3>
+            <p class="mt-2 text-sm text-gray-700 whitespace-pre-line break-words">@Model.Body</p>
+
+            @if (Model.TargetNeighborhoodNames.Any())
+            {
+                <div class="mt-4 border-t border-gray-100 pt-4">
+                    <div class="text-xs font-medium text-gray-600 mb-1">Hedeflenen mahalleler</div>
+                    <div class="text-sm text-gray-800 break-words">@string.Join(", ", Model.TargetNeighborhoodNames)</div>
+                </div>
+            }
+
+            <dl class="mt-4 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 text-sm sm:grid-cols-2">
+                <div>
+                    <dt class="text-xs font-medium text-gray-500">Gönderen</dt>
+                    <dd class="text-gray-900">@(string.IsNullOrWhiteSpace(Model.CreatedByName) ? "Sistem (otomatik)" : Model.CreatedByName)</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-gray-500">Tamamlanma</dt>
+                    <dd class="text-gray-900">
+                        @(Model.CompletedAt is null ? "—" : Model.CompletedAt.Value.AddHours(3).ToString("dd.MM.yyyy HH:mm"))
+                    </dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+            <h3 class="text-base font-semibold text-gray-900 mb-1">Başarısızlık kırılımı</h3>
+            <p class="text-xs text-gray-500 mb-4">
+                Hangi hatadan kaç mesaj etkilendi. Kod başına eylem farklıdır: kullanıcı uygulamayı
+                sildiyse yapılacak bir şey yoktur (token zaten temizlendi), yapılandırma hatasında ise
+                <strong>her</strong> gönderim başarısız olur.
+            </p>
+
+            @if (Model.ErrorBreakdown.Any())
+            {
+                <table class="w-full text-left text-sm text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 font-medium">Hata</th>
+                            <th scope="col" class="px-4 py-3 font-medium">Adet</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.ErrorBreakdown)
+                        {
+                            <tr class="bg-white border-b">
+                                @* FCM'in hata kodu — sağlayıcıdan geliyor, ham basılamaz. *@
+                                <td class="px-4 py-3 font-mono text-gray-900 break-all">@row.Error</td>
+                                <td class="px-4 py-3 text-gray-900">@row.Count</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <p class="text-sm text-gray-500">Başarısız mesaj yok.</p>
+            }
+        </div>
+    </div>
+
+    <div class="space-y-6">
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+            <h3 class="text-base font-semibold text-gray-900 mb-4">Teslim</h3>
+            <dl class="space-y-3 text-sm">
+                <div class="flex items-center justify-between">
+                    <dt class="text-gray-600">Alıcı (uygulama içi)</dt>
+                    <dd class="font-semibold text-gray-900">@Model.RecipientCount</dd>
+                </div>
+                <div class="flex items-center justify-between">
+                    <dt class="text-gray-600">Push teslim edildi</dt>
+                    <dd class="font-semibold text-green-700">@Model.SentCount</dd>
+                </div>
+                <div class="flex items-center justify-between">
+                    <dt class="text-gray-600">Başarısız</dt>
+                    <dd class="font-semibold @(Model.FailedCount > 0 ? "text-red-700" : "text-gray-900")">@Model.FailedCount</dd>
+                </div>
+                <div class="flex items-center justify-between">
+                    <dt class="text-gray-600">Geçersiz token temizlendi</dt>
+                    <dd class="font-semibold text-gray-900">@Model.InvalidTokenCount</dd>
+                </div>
+                @* 🐛 Canlı doğrulamada bulundu: iptal edilmiş bir kampanyada aynı sayı
+                   "Bekleyen" diye yazıyordu — oysa o satırlar bekliyor değil, GERİ ÇEKİLDİ.
+                   Sayı doğru, etiket yalan söylüyordu; tam da bu fazın kapatmaya çalıştığı
+                   sınıf. Sayı bir, anlamı iki: hangisi olduğunu iptal işareti belirler. *@
+                <div class="flex items-center justify-between border-t border-gray-100 pt-3">
+                    <dt class="text-gray-600">@(Model.CancelledAt is null ? "Bekleyen" : "Geri çekilen")</dt>
+                    <dd class="font-semibold text-gray-900">@Model.PendingCount</dd>
+                </div>
+            </dl>
+
+            @if (Model.PendingCount > 0 && Model.CancelledAt is null)
+            {
+                <p class="mt-4 rounded-lg bg-blue-50 p-3 text-xs text-blue-800">
+                    Bekleyen satırlar kullanıcıların bildirim listesinde <strong>görünüyor</strong>.
+                    Push'un gitmemesinin olağan sebebi cihazın bildirim izni vermemiş olması —
+                    kullanıcı izin verdiğinde bekleyen mesaj gönderilir.
+                </p>
+            }
+        </div>
+
+        @if (Model.CanCancel)
+        {
+            <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+                <h3 class="text-base font-semibold text-gray-900 mb-2">Gönderimi iptal et</h3>
+                <p class="text-xs text-gray-500 mb-4">
+                    Henüz iletilmemiş bildirimler hem push kuyruğundan hem de kullanıcıların
+                    listesinden çıkarılır. <strong>İletilmiş mesajlar geri alınamaz.</strong>
+                </p>
+                @* ⚠️ `data-confirm` FORMDA olmak zorunda: _Layout'taki tek dinleyici
+                   `submit` olayında formun özniteliğine bakıyor. Butona konursa öznitelik
+                   durur, kod doğru görünür ve onay penceresi hiç açılmaz. *@
+                <form asp-action="Cancel" asp-route-id="@Model.Id" method="post"
+                      data-confirm="@($"\"{Model.Title}\" gönderiminin iletilmemiş bildirimleri geri çekilecek. Devam edilsin mi?")">
+                    <button type="submit"
+                            class="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-orange-300 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-800 transition-colors hover:bg-orange-100">
+                        <i class="fas fa-rotate-left"></i> Gönderilmemişleri geri çek
+                    </button>
+                </form>
+            </div>
+        }
+        else if (Model.CancelledAt is not null)
+        {
+            <div class="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
+                Bu gönderim @Model.CancelledAt.Value.AddHours(3).ToString("dd.MM.yyyy HH:mm") tarihinde iptal edildi.
+                İletilmiş @Model.SentCount mesaj geri alınamadı.
+            </div>
+        }
+    </div>
+</div>

@@ -1726,7 +1726,7 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 |---|---|---|---|---|
 | 12.1 | Hata günlüğü modülü ✅ | backend + panel + mobil (raporlayıcı) | ✔ | **+38 backend, +7 mobil** |
 | 12.2 | Şüpheli giriş günlüğü + e-posta raporlama (+ `ForwardedHeaders` + `StaffAdmin` izin tutarsızlığı) | backend + panel | ✔ | ~35 backend |
-| 12.2b | Bildirim teslim panosu + bağımsız push ekranı *(11.18'den kalan son madde)* | backend + panel | ✔ | ~25 backend |
+| 12.2b | Bildirim teslim panosu + bağımsız push ekranı ✅ | backend + panel | ✔ | **+26 backend** |
 | 12.3 | Kesinti mahalle referansı + mahalle bazlı bildirim | backend + panel + mobil | ✔ | ~25 backend, ~5 mobil |
 | 12.4 | Etkinlik konumu (il/ilçe) | backend + panel + mobil | ✔ | ~20 backend, ~10 mobil |
 | 12.5 | Ulaşım alan modeli (araç tipi · kalkış noktası · sefer günleri) | backend + panel | ✔ | ~30 backend |
@@ -2091,7 +2091,7 @@ kurulduğu fazın bir sonrakinde ilk gerçek işini gördü.
 
 ---
 
-### 12.2b — Bildirim gönderimi: teslim panosu + bağımsız push ekranı — [ ]
+### 12.2b — Bildirim gönderimi: teslim panosu + bağımsız push ekranı — [x] ✅ TAMAMLANDI (6 Ağustos 2026)
 
 > **Neden bu numarada:** 11.18'den kalan son madde buydu ve gözlem ailesine ait —
 > 12.1'in panel desenleri (yalnız-admin ekran, saklama işi, toplu liste) daha taze.
@@ -2163,6 +2163,110 @@ kurulduğu fazın bir sonrakinde ilk gerçek işini gördü.
 sayısı · job koştu → **gönderildi/başarısız sayaçları doldu** · geçersiz token'lı kullanıcının
 `FcmToken`'ı temizlendi ve sayaca yansıdı · bildirimleri kapatmış kullanıcı **listede yok** ·
 **emülatörde push düştü** · aynı kampanya ikinci kez işlenince sayaç **artmadı** (idempotency).
+
+#### 12.2b kapanış notları
+
+**Teslim edilenler:** `PushCampaign` varlığı + migration `AddPushCampaigns` ·
+`Notification.CampaignId` (additive FK) · **`INotificationDispatcher`/`NotificationDispatcher`**
+(hedeflemenin tek sahibi) · `AnnouncementNotificationGenerator` ona devredildi ·
+`PushCampaignStatus` (saf, birim testli) · `SendPushCampaignCommand` + `CancelPushCampaignCommand` ·
+`GetPushCampaignsQuery`/`GetPushCampaignByIdQuery`/`EstimatePushRecipientsQuery`/`GetLastPushCampaignQuery` ·
+`SendPushNotificationsJob` artımlı sayaç yazımı · `PurgeNotificationsJob` ·
+`PushCampaignsAdmin` (liste + ayrıntı + gönderim formu + **iptal** + CSV) · dashboard satırı ·
+`PanelSorts.PushCampaigns` · `PanelDisplay` üç yeni rozet ailesi.
+**Backend 663 → 689 (+26), mobil 685 (değişmedi), analyze 0.**
+
+🔑 **TESLİM EDİLEN:** "duyuruyu yayınladım, gitti mi?" sorusunun cevabı artık var. FCM'in
+cevabı 10.11'den beri `notifications.fcm_*` alanlarında **saklanıyordu** — ama o satırlara
+bakan bir ekran yoktu; yönetici cevabı ancak veritabanına girerek bulabiliyordu. İkinci
+boşluk daha da somuttu: bildirim satırı üreten tek şey duyuru üreticisiydi, yani tek seferlik
+bir push atmak için **vatandaşın duyurular listesine kalıcı bir kayıt düşürmek** gerekiyordu.
+
+🐛 **UYGULAMA SIRASINDA BULUNAN ÜÇ ŞEY (üçü de test ya da canlı doğrulamayla çıktı):**
+
+1. 🔴 **`Id` kolonu store-generated olduğu için FK aynı `SaveChanges` içinde kurulamıyordu.**
+   Dispatcher önce kampanyayı, sonra bildirimleri ekliyor ve FK'yı `CampaignId = campaign.Id`
+   ile yazıyordu — ama `Id` kolonları `gen_random_uuid()` varsayılanıyla tanımlı, yani EF
+   değeri **INSERT'ten sonra** geri alıyor ve o satırda `campaign.Id` hâlâ `Guid.Empty`.
+   Bütün bildirimler var olmayan bir kampanyaya bağlandı ve FK ihlaliyle patladı. Çözüm:
+   bağı **gezinme özelliğinden** kurmak (`Campaign = campaign`). ⚠️ Bu hata sessiz değil
+   gürültülüydü (13 test birden kırmızı) — ama yalnız var olan testler yüzünden: yeni bir
+   modülde ilk kez yazılsaydı hiçbir şey onu yakalamazdı.
+
+2. 🔴 **"Tamamlandı" ile "geri çekilecek bir şey kalmadı" aynı şey değil.** `CanCancel` ilk
+   yazımda "tamamlanmamış" koşuluna bağlıydı; test hemen kırdı. Kampanya, **gönderilebilir**
+   bekleyen satır kalmadığında tamamlanır — ama token'ı olmayan alıcıların satırları hâlâ
+   durur, kullanıcının bildirim listesinde görünür ve o kişi yarın token kaydederse gönderilir.
+   Doğru ölçüt `PendingCount`.
+
+3. 🔴 **Panelin onay penceresi hiç açılmıyordu — ve bu 12.2'den kalan bir hataydı.**
+   `data-confirm` dinleyicisi `_Layout`'ta tek yerde ve **form**un özniteliğine bakıyor;
+   öznitelik butona yazılınca hiçbir şey olmaz: kod doğru görünür, Razor derlenir, hiçbir
+   test kırılmaz ve **geri alınamaz aksiyon onaysız koşar**. 12.2'nin "Uyarı kanalını dene"
+   butonu tam bu durumdaydı ve canlı doğrulamada tesadüfen görüldü. Üç görünüm düzeltildi
+   (`LoginAttemptsAdmin` + 12.2b'nin ikisi) ve **yapısal test eklendi**
+   (`PanelConfirmDialogTests`): `data-confirm` yalnız `<form>` üzerinde olabilir; tek bilinçli
+   istisna `_BulkToolbar` (kendi `click` dinleyicisi var).
+
+🔑 **DİĞER KARARLAR:** hedefleme **tek sahipli** (`INotificationDispatcher`) ve panelin
+"tahmini alıcı" önizlemesi **aynı sorguyu** çağırıyor · `NeighborhoodIds` **`null` ≠ boş liste**
+(null "liste yok → herkes", 10.10'dan beri testle yazılı; boş liste "hiçbir mahalle seçilmemiş
+→ kimse" — bozuk JSON bu yüzden tüm şehre gidemiyor) · manuel gönderimde **deep-link yok**
+(`relatedType = null`, uydurma bir tür görünmez sözleşme #18 gereği zaten iptal edilirdi) →
+**mobilde sıfır değişiklik** · sayaçlar **kolonda ve artımlı** (her liste açılışında `GROUP BY`
+yapmamak için) · durum **türetilmiş** (ayrı kolon olsaydı sayaçlarla ayrışabilirdi) ·
+`RecipientCount` iptalde **düşürülmez** (tarihçe) · `PurgeNotificationsJob` yalnız **okunmuş**
+bildirimi siler ve **kampanya satırına dokunmaz** · `AuditBehavior` `ApiResponse<Guid>` için
+düzeltildi (doğrulamadan dönen bir RET, denetim izine "bildirim gönderdi" yazacaktı).
+
+➕ **PLAN DIŞI EKLENENLER (kullanıcı onaylı serbest kapsam):**
+- **Gönderim iptali** (`CancelPushCampaignCommand` + `CancelledAt`). Gerekçe: bir bildirim
+  gönderildikten sonra düzeltilemez; yanlış metinle yollanan gönderimin 12.2b öncesi tek
+  çaresi veritabanına elle girmekti. İptal, gönderimin **tersi değil sınırı**: `FcmSent=true`
+  terminal olduğu için iletilmiş mesaja dokunmaz ve dokunmayı **teklif de etmez**.
+- **`PanelConfirmDialogTests`** (yukarıdaki 3. bulgunun kalıcı kilidi).
+- **Kampanya durumu + bekleyen sayısı** ekranda; iptalden sonra aynı sayının etiketi
+  "Bekleyen" değil **"Geri çekilen"** olur (canlı doğrulamada yakalandı: sayı doğru, etiket
+  yalan söylüyordu).
+
+**Yeni görünmez sözleşmeler: #37, #38, #39** (`FcmSent` terminaldir · hedeflemenin tek
+sahibi vardır · sayaçlar artımlıdır ve tamamlanma ölçütü "gönderilebilir bekleyen kalmadı"dır).
+Toplam **39**.
+
+**Doğrulama:** `dotnet test` **689/689** · `flutter analyze` **0** · `flutter test` **685/685**.
+**Kuralı bilerek boz (5 deneme, hepsi kırmızıya döndü):** sayaç yazımı atlandı (2 test) ·
+bildirim tercihi süzgeci kaldırıldı (5 test) · iptal iletilmiş satırlara da dokundu (2 test) ·
+menü satırına modül anahtarı verildi (2 test) · `data-confirm` butona taşındı (1 test).
+
+**Canlı (Chrome + gerçek Android emülatörü):**
+- Panelden Cengiz Topel'e gönderim → **tahmini alıcı 5**, gönderim de **5 satır** yazdı
+  (önizleme ↔ gerçek paritesi, #38)
+- `SendPushNotificationsJob` koştu → **1 gönderildi, 4 bekliyor** ve kampanya
+  **"Tamamlandı"** oldu (token'ı olmayan 4 alıcı kampanyayı sonsuza kadar açık bırakmadı, #39)
+- **Gerçek emülatörde push düştü**: `aysedmr` hesabında ön plan bildirimi + sekme rozeti 1;
+  bildirim listesinde **genel "Bildirim" kimliğiyle** göründü (deep-link yok — mobilde
+  hiçbir değişiklik gerekmedi)
+- İptal → **yalnız 4 gönderilmemiş satır silindi**, iletilmiş 1 satır **durdu** (#37);
+  `completed_at` **tazelenmedi** (ilk tamamlanma anı korundu)
+- Denetim izinde **"Bildirim Gönderimleri / Bildirim gönderdi"** ve **"Gönderimi iptal etti"**
+  (ham İngilizce yok) · dashboard'da **"Son gönderim: 1 / 5 teslim"**
+- CSV: **BOM + noktalı virgül + Türkçe başlıklar ve değerler**
+- Alıcısı olmayan mahalleye gönderim → **"Hedeflemeye uyan kullanıcı bulunamadı — hiç bildirim
+  yazılmadı"** + **"Alıcı yok"** rozeti (sessizce "gönderildi" demedi)
+
+🐛 **12.2'DEN DEVRALINAN MOBİL ÇÖKME — HÂLÂ AÇIK, KÖK NEDEN DOĞRULANMADI.**
+`Navigator._debugCheckDuplicatedPageKeys` assertion'ı **widget testinde yeniden üretilemedi**:
+yazılan test düzeltme geri alındığında da **yeşil kaldı**, yani hiçbir şey kilitlemiyordu ve
+projenin kendi ölçütüne göre değersizdi → **silindi.** `error_logs`'taki yığın izi tamamen
+framework karesi (uygulama karesi yok) ve zincirin tepesinde `_InheritedNotifierElement.update`
+var — yani çökme **router bildirimiyle gelen bir Navigator rebuild'inde** doğuyor, doğrudan
+bir `push` çağrısında değil. İki **savunma amaçlı** düzeltme yapıldı ama ikisi de kanıtlanmış
+çözüm değil ve dokümanlarında böyle yazılı: (a) `phone_login_screen._submit` artık kod ekranı
+zaten yığındaysa `push` etmiyor, (b) `otp_verify_screen._changePhone` **önce pop edip sonra**
+durumu değiştiriyor (projenin kendi kod-dışı sözleşmesi: "`context.push` ile açılan ekran
+router redirect'inin ÜSTÜNDE kalır"). **Tekrar ederse `error_logs` yine yakalayacak.**
+
+---
 
 ---
 

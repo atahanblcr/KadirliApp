@@ -1,0 +1,206 @@
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.PushCampaigns.Dtos.PushCampaignResponseDto>
+@{
+    ViewData["Title"] = "Bildirim Gönderimleri";
+
+    var sources = ViewBag.Sources as List<(string Key, string Label)> ?? new();
+    var targets = ViewBag.Targets as List<(string Key, string Label)> ?? new();
+    var statuses = ViewBag.Statuses as List<(string Key, string Label)> ?? new();
+
+    string? selectedSource = ViewBag.Source;
+    string? selectedTarget = ViewBag.TargetType;
+    string? selectedStatus = ViewBag.Status;
+    DateTime? from = ViewBag.From;
+    DateTime? to = ViewBag.To;
+    string? search = ViewBag.Search;
+    string? sort = ViewBag.Sort;
+
+    var hasFilter = selectedSource != null || selectedTarget != null || selectedStatus != null
+                    || from != null || to != null || !string.IsNullOrWhiteSpace(search);
+}
+
+<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Bildirim Gönderimleri</h2>
+        <p class="text-sm text-gray-500 mt-1">
+            Her gönderim bir satır: kime yazıldı, kaçına ulaştı, kaçı başarısız oldu.
+            <strong>Alıcı</strong> bildirimi uygulama içinde görecek kişi sayısıdır;
+            <strong>gönderildi</strong> ise push'u gerçekten teslim edilenler.
+        </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+        <a asp-action="Create"
+           class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700">
+            <i class="fas fa-paper-plane"></i> Yeni bildirim gönder
+        </a>
+        <partial name="_ExportCsvButton" />
+    </div>
+</div>
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <form asp-action="Index" method="get" class="p-4 border-b border-gray-200 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+            <label for="source" class="block text-xs font-medium text-gray-600 mb-1">Kaynak</label>
+            <select id="source" name="source" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var s in sources)
+                {
+                    <option value="@s.Key" selected="@(s.Key == selectedSource)">@s.Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="targetType" class="block text-xs font-medium text-gray-600 mb-1">Hedef</label>
+            <select id="targetType" name="targetType" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var t in targets)
+                {
+                    <option value="@t.Key" selected="@(t.Key == selectedTarget)">@t.Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="status" class="block text-xs font-medium text-gray-600 mb-1">Durum</label>
+            <select id="status" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var s in statuses)
+                {
+                    <option value="@s.Key" selected="@(s.Key == selectedStatus)">@s.Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="search" class="block text-xs font-medium text-gray-600 mb-1">Başlıkta ara</label>
+            <input id="search" name="search" type="text" value="@search" placeholder="Örn. su kesintisi"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+            <label for="from" class="block text-xs font-medium text-gray-600 mb-1">Başlangıç</label>
+            <input id="from" name="from" type="date" value="@(from?.ToString("yyyy-MM-dd"))"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+            <label for="to" class="block text-xs font-medium text-gray-600 mb-1">Bitiş</label>
+            <input id="to" name="to" type="date" value="@(to?.ToString("yyyy-MM-dd"))"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(sort))
+        {
+            @* Sıralama filtre formundan kaybolmamalı — aksi hâlde "Filtrele"ye basınca sıra sıfırlanır. *@
+            <input type="hidden" name="sort" value="@sort" />
+        }
+
+        <div class="sm:col-span-2 lg:col-span-4 flex flex-wrap items-center gap-3">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-filter mr-2"></i> Filtrele
+            </button>
+            @if (hasFilter)
+            {
+                <a asp-action="Index" class="text-sm font-medium text-gray-600 hover:text-gray-900">
+                    <i class="fas fa-times mr-1"></i> Filtreleri temizle
+                </a>
+            }
+        </div>
+    </form>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                    <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Tarih", "created_asc", "created_desc", sort)' />
+                    <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Başlık", "title_asc", "title_desc", sort)' />
+                    <th scope="col" class="px-4 py-3 font-medium">Kaynak</th>
+                    <th scope="col" class="px-4 py-3 font-medium">Hedef</th>
+                    <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Alıcı", "recipients_asc", "recipients_desc", sort)' />
+                    <th scope="col" class="px-4 py-3 font-medium">Teslim</th>
+                    <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Başarısız", "failed_asc", "failed_desc", sort)' />
+                    <th scope="col" class="px-4 py-3 font-medium">Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model?.Items != null && Model.Items.Any())
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        var sourceBadge = PanelDisplay.PushSource(item.Source);
+                        var targetBadge = PanelDisplay.PushTarget(item.TargetType);
+                        var statusBadge = PanelDisplay.PushStatus(item.Status);
+                        <tr class="bg-white border-b hover:bg-gray-50 transition-colors align-top">
+                            <td class="px-4 py-4 whitespace-nowrap text-gray-900">
+                                @item.CreatedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")
+                            </td>
+                            <td class="px-4 py-4">
+                                @* ⚠️ Ham basılmaz. Başlık ve metni YÖNETİCİ yazıyor ama duyuru
+                                   kaynaklı satırlarda içerik başka bir formdan geliyor; Razor
+                                   kaçışı varsayılan ve @Html.Raw burada yasak (12.1 kararı). *@
+                                <a asp-action="Details" asp-route-id="@item.Id"
+                                   class="font-medium text-blue-600 hover:text-blue-800 break-words">@item.Title</a>
+                                @if (item.TargetNeighborhoodNames.Any())
+                                {
+                                    <div class="mt-1 text-xs text-gray-500 break-words">
+                                        @string.Join(", ", item.TargetNeighborhoodNames)
+                                    </div>
+                                }
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @sourceBadge.Css">
+                                    <i class="fas @sourceBadge.Icon"></i> @sourceBadge.Label
+                                </span>
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @targetBadge.Css">
+                                    <i class="fas @targetBadge.Icon"></i> @targetBadge.Label
+                                </span>
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap text-gray-900">@item.RecipientCount</td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <span class="font-medium text-gray-900">@item.SentCount</span>
+                                @* Aynı sayı, iki anlam: iptal edilmişse o satırlar bekliyor
+                                   değil GERİ ÇEKİLDİ (ayrıntı ekranındaki aynı düzeltme). *@
+                                @if (item.PendingCount > 0)
+                                {
+                                    <div class="mt-1 text-xs text-gray-500">
+                                        @item.PendingCount @(item.CancelledAt is null ? "bekliyor" : "geri çekildi")
+                                    </div>
+                                }
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                @if (item.FailedCount > 0)
+                                {
+                                    <span class="font-medium text-red-700">@item.FailedCount</span>
+                                }
+                                else
+                                {
+                                    <span class="text-gray-400">0</span>
+                                }
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @statusBadge.Css">
+                                    <i class="fas @statusBadge.Icon"></i> @statusBadge.Label
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-paper-plane text-4xl text-gray-300 mb-3"></i>
+                                <p>@(hasFilter ? "Bu filtreye uyan gönderim yok." : "Henüz bildirim gönderimi yok.")</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "gönderim"))
+</div>

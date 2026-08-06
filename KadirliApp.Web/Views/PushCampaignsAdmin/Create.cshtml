@@ -1,0 +1,146 @@
+@model KadirliApp.Application.Features.PushCampaigns.Dtos.SendPushCampaignDto
+@{
+    ViewData["Title"] = "Yeni Bildirim Gönder";
+    var neighborhoods = ViewBag.Neighborhoods as List<KadirliApp.Domain.Entities.Neighborhood> ?? new();
+}
+
+<div class="mb-6">
+    <h2 class="text-2xl font-semibold text-gray-800">Yeni Bildirim Gönder</h2>
+    <p class="text-sm text-gray-500 mt-1">
+        Duyuru oluşturmadan tek seferlik bildirim yollar. Bildirimlerini kapatmış kullanıcılara
+        <strong>gönderilmez</strong> — tercih ekranı burada da geçerlidir.
+    </p>
+</div>
+
+@* ⚠️ `data-confirm` FORMDA olmak zorunda: _Layout'taki tek dinleyici `submit` olayında
+   formun özniteliğine bakıyor. Butona konursa öznitelik durur, kod doğru görünür ve
+   onay penceresi hiç açılmaz — 12.2'nin "Uyarı kanalını dene" butonunda tam bu olmuştu. *@
+<form asp-action="Create" method="post" id="send-form" class="max-w-3xl space-y-6"
+      data-confirm="Bu bildirim seçtiğiniz kitleye gönderilecek. Devam edilsin mi?">
+    <div asp-validation-summary="ModelOnly" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"></div>
+
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 space-y-4">
+        <div>
+            <label asp-for="Title" class="block text-sm font-medium text-gray-700 mb-1">Başlık</label>
+            <input asp-for="Title" maxlength="200" placeholder="Örn. Yarın su kesintisi var"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <span asp-validation-for="Title" class="text-xs text-red-600"></span>
+        </div>
+
+        <div>
+            <label asp-for="Body" class="block text-sm font-medium text-gray-700 mb-1">Mesaj</label>
+            <textarea asp-for="Body" rows="4" maxlength="500"
+                      placeholder="Bildirimde görünecek metin (en fazla 500 karakter)."
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            <span asp-validation-for="Body" class="text-xs text-red-600"></span>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 space-y-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Hedef kitle</label>
+            <div class="flex flex-wrap gap-4">
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                    <input type="radio" asp-for="TargetType" value="all" id="target-all" class="text-blue-600" />
+                    Tüm kullanıcılar
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                    <input type="radio" asp-for="TargetType" value="neighborhood" id="target-neighborhood" class="text-blue-600" />
+                    Belirli mahalleler
+                </label>
+            </div>
+        </div>
+
+        <div id="neighborhood-picker" class="hidden">
+            <label class="block text-xs font-medium text-gray-600 mb-2">Mahalleler</label>
+            <div class="max-h-64 overflow-y-auto rounded-lg border border-gray-200 p-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                @foreach (var n in neighborhoods)
+                {
+                    <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                        <input type="checkbox" name="TargetNeighborhoodIds" value="@n.Id"
+                               checked="@(Model.TargetNeighborhoodIds.Contains(n.Id))"
+                               class="neighborhood-check text-blue-600" />
+                        @n.Name
+                    </label>
+                }
+            </div>
+        </div>
+
+        @* 🔑 Tahmini alıcı sayısı: yönetici neyi tetiklediğini GÖRMEDEN basmasın.
+           Sayı sunucudan gelir ve gönderimin kendisiyle aynı süzgeçten geçer — panel
+           kendi hesabını yapsaydı önizleme ile gerçek sessizce ayrışırdı. *@
+        <div class="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+            Tahmini alıcı: <strong id="estimate-count">—</strong> kişi
+            <span class="block text-xs text-gray-500 mt-1">
+                Bildirimlerini kapatmış, pasif ve engelli hesaplar bu sayıya dâhil değildir.
+            </span>
+        </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+        <button type="submit"
+                class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700">
+            <i class="fas fa-paper-plane"></i> Gönder
+        </button>
+        <a asp-action="Index" class="text-sm font-medium text-gray-600 hover:text-gray-900">Vazgeç</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const picker = document.getElementById('neighborhood-picker');
+            const all = document.getElementById('target-all');
+            const byNeighborhood = document.getElementById('target-neighborhood');
+            const output = document.getElementById('estimate-count');
+            const form = document.getElementById('send-form');
+            const estimateUrl = '@Url.Action("EstimateRecipients")';
+            let timer = null;
+
+            function selectedNeighborhoods() {
+                return Array.from(document.querySelectorAll('.neighborhood-check:checked')).map(c => c.value);
+            }
+
+            function syncPicker() {
+                picker.classList.toggle('hidden', !byNeighborhood.checked);
+            }
+
+            async function refreshEstimate() {
+                const targetType = byNeighborhood.checked ? 'neighborhood' : 'all';
+                const params = new URLSearchParams({ targetType });
+                selectedNeighborhoods().forEach(id => params.append('neighborhoodIds', id));
+
+                try {
+                    const response = await fetch(estimateUrl + '?' + params.toString());
+                    if (!response.ok) throw new Error();
+                    const data = await response.json();
+                    output.textContent = data.count;
+                    // Onay metni sayıyı SÖYLER: "gönderilsin mi?" sorusunun cevabı
+                    // kaç kişiye gideceğini bilmeden verilemez.
+                    form.setAttribute(
+                        'data-confirm',
+                        'Bu bildirim ' + data.count + ' kişiye gönderilecek. Devam edilsin mi?');
+                } catch {
+                    // Sayı alınamadıysa yalan söylemek yerine soru işareti bırakılır ve
+                    // onay metni genel hâline döner.
+                    output.textContent = 'hesaplanamadı';
+                    form.setAttribute(
+                        'data-confirm', 'Bu bildirim seçtiğiniz kitleye gönderilecek. Devam edilsin mi?');
+                }
+            }
+
+            function scheduleRefresh() {
+                syncPicker();
+                clearTimeout(timer);
+                timer = setTimeout(refreshEstimate, 250);
+            }
+
+            document.querySelectorAll('input[name="TargetType"], .neighborhood-check')
+                .forEach(el => el.addEventListener('change', scheduleRefresh));
+
+            syncPicker();
+            refreshEstimate();
+        })();
+    </script>
+}

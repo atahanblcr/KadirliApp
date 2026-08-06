@@ -71,10 +71,23 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
   }
 
   void _changePhone() {
-    ref.read(otpFlowProvider.notifier).changePhone();
+    // ⚠️ **Sıra bilinçli: ÖNCE yığından çık, SONRA durumu değiştir.**
+    //
+    // `changePhone()` `codeSent`'i sıfırlıyor ve bu router'ı **senkron** olarak
+    // uyandırıyor; router da `/giris/kod` için "kod gönderilmemişse telefon adımına
+    // dön" redirect'ini koşuyor. Ters sırada yazıldığında o redirect, bu ekran hâlâ
+    // `push` ile yığının üstündeyken çalışıyordu — projenin kendi kod-dışı
+    // sözleşmesinin (`ARCHITECTURE.md` §7: "`context.push` ile açılan ekran router
+    // redirect'inin ÜSTÜNDE kalır") tam olarak uyardığı durum.
+    //
+    // 📌 Bu değişiklik 12.2'de bulunan `_debugCheckDuplicatedPageKeys` çökmesinin
+    // **kanıtlanmış** çözümü DEĞİL — çökme widget testinde yeniden üretilemedi
+    // (bkz. Progress.md 12.2b). Kendi başına doğru olduğu için yapıldı; çökme
+    // tekrar ederse `error_logs` yine yakalayacak.
     if (context.canPop()) {
       context.pop();
     }
+    ref.read(otpFlowProvider.notifier).changePhone();
   }
 
   @override

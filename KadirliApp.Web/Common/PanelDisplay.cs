@@ -122,6 +122,9 @@ public static class PanelDisplay
     private static readonly Dictionary<string, string> NonMatrixModules = new(StringComparer.Ordinal)
     {
         ["error-logs"] = "Hata Kayıtları",
+        // Faz 12.2b — bildirim gönderimleri. Yalnız-admin ekran (menüde Module=null), ama
+        // SendPushCampaignCommand/CancelPushCampaignCommand AuditModule yazmak zorunda.
+        ["push-campaigns"] = "Bildirim Gönderimleri",
         // Faz 12.2 — "staff" menüden matris dışına alındı (Module=null). Personel
         // komutları (CreateStaff, SetStaffPermissions, ResetStaffPassword…) hâlâ
         // AuditModule = "staff" yazıyor; bu satır olmasaydı denetim izi ekranı o
@@ -212,6 +215,10 @@ public static class PanelDisplay
         // Hata kayıtları (Faz 12.1)
         ["resolve-error"] = new("Hatayı çözdü", "bg-green-100 text-green-800", "fa-circle-check"),
         ["reopen-error"] = new("Hatayı yeniden açtı", "bg-amber-100 text-amber-800", "fa-rotate-left"),
+
+        // Bildirim gönderimleri (Faz 12.2b)
+        ["send-push"] = new("Bildirim gönderdi", "bg-indigo-100 text-indigo-800", "fa-paper-plane"),
+        ["cancel-push"] = new("Gönderimi iptal etti", "bg-orange-100 text-orange-800", "fa-rotate-left"),
     };
 
     // ── Hata kayıtları (Faz 12.1) ───────────────────────────────────────────────
@@ -270,6 +277,52 @@ public static class PanelDisplay
         ["R3"] = new("Yeni IP'den panel girişi", "bg-amber-100 text-amber-800", "fa-location-dot"),
         ["R4"] = new("Kilit sonrası başarılı giriş", "bg-red-200 text-red-900", "fa-unlock")
     };
+
+    // ── Bildirim gönderimleri (Faz 12.2b) ───────────────────────────────────────
+    //
+    // Kaynak, hedef ve durum DB'de İngilizce sabit (announcement/manual · all/neighborhood ·
+    // queued/sending/completed…). Ekrana ham basılamaz — aynı kural, aynı gerekçe.
+    //
+    // ⚠️ Durum TÜRETİLMİŞ bir alandır (`PushCampaignStatus.Of`); burada yalnız Türkçeleşir.
+    // Ayrı bir durum kolonu tutulsaydı sayaçlarla ayrışabilirdi.
+
+    private static readonly Dictionary<string, PanelBadge> PushSources = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["announcement"] = new("Duyuru", "bg-indigo-100 text-indigo-800", "fa-bell"),
+        ["power_outage"] = new("Elektrik kesintisi", "bg-amber-100 text-amber-800", "fa-bolt"),
+        ["manual"] = new("Elle gönderim", "bg-purple-100 text-purple-800", "fa-paper-plane")
+    };
+
+    private static readonly Dictionary<string, PanelBadge> PushTargets = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["all"] = new("Tüm kullanıcılar", "bg-slate-200 text-slate-700", "fa-users"),
+        ["neighborhood"] = new("Seçili mahalleler", "bg-teal-100 text-teal-800", "fa-map-location-dot")
+    };
+
+    private static readonly Dictionary<string, PanelBadge> PushStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // "Alıcı yok" bir hata değil bir CEVAP: hedeflemeye uyan kimse çıkmamış.
+        // Yeşil/kırmızı yerine nötr — yönetici "gitmedi mi?" diye değil "kime gidecekti?"
+        // diye sorsun.
+        ["empty"] = new("Alıcı yok", "bg-gray-200 text-gray-700", "fa-user-slash"),
+        ["queued"] = new("Kuyrukta", "bg-slate-200 text-slate-700", "fa-clock"),
+        ["sending"] = new("Gönderiliyor", "bg-blue-100 text-blue-800", "fa-paper-plane"),
+        ["completed"] = new("Tamamlandı", "bg-green-100 text-green-800", "fa-circle-check"),
+        ["cancelled"] = new("İptal edildi", "bg-orange-100 text-orange-800", "fa-rotate-left")
+    };
+
+    /// <summary>Gönderimi doğuran olayı Türkçe rozete çevirir.</summary>
+    public static PanelBadge PushSource(string? raw) => Lookup(PushSources, raw, "kaynak");
+
+    /// <summary>Hedef kitleyi Türkçe rozete çevirir.</summary>
+    public static PanelBadge PushTarget(string? raw) => Lookup(PushTargets, raw, "hedef");
+
+    /// <summary>Kampanya durumunu Türkçe rozete çevirir.</summary>
+    public static PanelBadge PushStatus(string? raw) => Lookup(PushStatuses, raw, "durum");
+
+    public static IReadOnlyCollection<string> KnownPushSources => PushSources.Keys;
+    public static IReadOnlyCollection<string> KnownPushTargets => PushTargets.Keys;
+    public static IReadOnlyCollection<string> KnownPushStatuses => PushStatuses.Keys;
 
     /// <summary>Giriş kanalını Türkçe rozete çevirir. Bilinmeyen değer <b>ham geçmez</b>.</summary>
     public static PanelBadge LoginChannel(string? raw) => Lookup(LoginChannelBadges, raw, "kanal");
@@ -352,6 +405,7 @@ public static class PanelDisplay
         "Mosque" => "Cami",
         "User" => "Kullanıcı",
         "ErrorLog" => "Hata kaydı",
+        "PushCampaign" => "Bildirim gönderimi",
         "IntercityRoute" => "Şehirlerarası hat",
         "IntercitySchedule" => "Kalkış saati",
         "IntracityRoute" => "Şehir içi hat",

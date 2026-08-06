@@ -33,9 +33,13 @@
     </div>
     <div class="flex flex-wrap items-center gap-2">
         @* Plan dışı ek: uyarı kanalını "bir saldırı sırasında" değil BUGÜN dene. *@
-        <form asp-action="SendTestAlert" method="post" class="inline">
+        @* 🐛 Faz 12.2b'de bulundu: `data-confirm` BUTONDA duruyordu ve _Layout'taki tek
+           dinleyici `submit` olayında **form**un özniteliğine bakıyor — yani bu onay
+           penceresi hiç açılmıyordu. Tam da "işlevsiz buton" sınıfının sessiz hâli:
+           öznitelik duruyor, kod doğru görünüyor, davranış yok. *@
+        <form asp-action="SendTestAlert" method="post" class="inline"
+              data-confirm="Kendi e-posta adresinize bir test uyarısı gönderilecek. Devam edilsin mi?">
             <button type="submit"
-                    data-confirm="Kendi e-posta adresinize bir test uyarısı gönderilecek. Devam edilsin mi?"
                     class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
                 <i class="fas fa-paper-plane"></i> Uyarı kanalını dene
             </button>

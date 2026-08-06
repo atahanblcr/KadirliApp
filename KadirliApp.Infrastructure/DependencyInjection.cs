@@ -139,5 +139,7 @@ public static class DependencyInjection
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.SecurityAlertJob>("security-alerts", j => j.RunAsync(), "*/5 * * * *");
         // Faz 12.2: giriş denemelerinin saklama süresi (başarılı 90, başarısız 180 gün).
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.PurgeLoginAttemptsJob>("purge-login-attempts", j => j.RunAsync(), Cron.Daily);
+        // Faz 12.2b: okunmuş bildirimlerin saklama süresi (90 gün). Kampanya satırı KALIR.
+        RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.PurgeNotificationsJob>("purge-notifications", j => j.RunAsync(), Cron.Daily);
     }
 }

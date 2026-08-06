@@ -35,6 +35,15 @@ public class DashboardViewModel
     /// </summary>
     public int? SuspiciousLoginCount { get; set; }
 
+    /// <summary>
+    /// Faz 12.2b — en son bildirim gönderimi ("son gönderim: N/M teslim").
+    /// <b>null iki farklı şey demek olabilir</b> ve ikisi de kartı gizler: kullanıcı bunu
+    /// görmemeli (moderatör) ya da hiç gönderim yapılmamış. Ayrım gerekmiyor — ikisinde de
+    /// gösterilecek bir teslim yok. (Hata/şüpheli rozetinde ayrım gerekiyordu: orada "sıfır"
+    /// bir iyi haberdi, burada "hiç gönderim yok" bir haber değil.)
+    /// </summary>
+    public Application.Features.PushCampaigns.Dtos.PushCampaignResponseDto? LastPushCampaign { get; set; }
+
     public List<ActivityItem> RecentActivities { get; set; } = new();
 }
 

@@ -58,10 +58,20 @@ public class SendPushNotificationsJob
 
         var now = DateTime.UtcNow;
         int sent = 0, failed = 0, invalidTokens = 0;
+
+        // Faz 12.2b: kampanya başına delta. Sayaçlar SONRADAN türetilemez —
+        // "geçersiz token" işareti FcmToken null'landığı anda kaybolur — bu yüzden
+        // tam bu döngüde toplanır.
+        var deltas = new Dictionary<Guid, CampaignDelta>();
+
         for (var i = 0; i < batch.Count; i++)
         {
             var n = batch[i];
             var r = i < results.Count ? results[i] : PushResult.Failed("NO_RESULT");
+
+            var delta = n.CampaignId is { } campaignId
+                ? deltas.TryGetValue(campaignId, out var existing) ? existing : deltas[campaignId] = new CampaignDelta()
+                : null;
 
             n.FcmSent = true;
             if (r.Success)
@@ -69,25 +79,95 @@ public class SendPushNotificationsJob
                 n.FcmSentAt = now;
                 n.FcmError = null;
                 sent++;
+                if (delta is not null) delta.Sent++;
             }
             else
             {
                 n.FcmError = r.Error;
                 failed++;
+                if (delta is not null) delta.Failed++;
             }
 
             if (r.TokenInvalid && n.User.FcmToken != null)
             {
                 n.User.FcmToken = null; // aynı kullanıcının diğer satırları için de guard sayesinde tek kez sayılır
                 invalidTokens++;
+                if (delta is not null) delta.InvalidTokens++;
             }
         }
+
+        await ApplyCampaignCountersAsync(deltas, batch, now);
 
         await _context.SaveChangesAsync();
 
         _log.LogInformation(
             "SendPushNotificationsJob: {Sent} gönderildi, {Failed} başarısız, {Invalid} geçersiz token temizlendi (batch {Batch})",
             sent, failed, invalidTokens, batch.Count);
+    }
+
+    /// <summary>
+    /// Faz 12.2b — teslim panosunun sayaçlarını <b>artımlı</b> yazar.
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <b>Neden burada:</b> job bu üç sayıyı zaten hesaplıyordu (yukarıdaki döngü),
+    /// yalnız log'a yazıp atıyordu. Yazması bedava; sonradan <c>COUNT</c> ile saymak ise
+    /// panelin en hızlı büyüyecek tablosunu her liste açılışında tam taramak demek.
+    ///
+    /// ⚠️ <b>Sayaçlar artımlı olduğu için "bir kez daha say, düzelir" yolu YOK.</b> Bu
+    /// metot atlanırsa pano sonsuza kadar "Kuyrukta" gösterir: bildirimler gider,
+    /// <c>fcm_sent</c> dolar, hiçbir hata oluşmaz ve <b>yalnız pano yalan söyler.</b>
+    ///
+    /// 🔴 <b>Tamamlanma ölçütü "işlenen = alıcı" DEĞİL.</b> Öyle olsaydı kampanyalar asla
+    /// tamamlanmazdı: bu job yalnız <c>FcmToken != null</c> satırları alır, token'ı olmayan
+    /// alıcılar sonsuza kadar bekleyen görünürdü. Ölçüt "bu kampanyada <b>gönderilebilir</b>
+    /// bekleyen satır kalmadı" — token'ı olmayanlar bekler, kampanya yine tamamlanır ve
+    /// biri yarın token kaydederse satırı bir sonraki turda gider (sayaç artar, kampanya
+    /// yeniden açılmaz — <c>CompletedAt</c> ilk tamamlanma anıdır).
+    /// </remarks>
+    private async Task ApplyCampaignCountersAsync(
+        IReadOnlyDictionary<Guid, CampaignDelta> deltas,
+        IReadOnlyList<Domain.Entities.Notification> batch,
+        DateTime now)
+    {
+        if (deltas.Count == 0) return;   // 12.2b öncesi satırlar kampanyasız — normal
+
+        var ids = deltas.Keys.ToList();
+        var campaigns = await _context.PushCampaigns
+            .Where(c => ids.Contains(c.Id))
+            .ToListAsync();
+
+        // ⚠️ Bu batch'teki satırlar HENÜZ KAYDEDİLMEDİ: aşağıdaki sorgu veritabanına
+        // gider ve onları hâlâ `fcm_sent = false` görür. Dışlanmasalardı hiçbir kampanya
+        // asla tamamlanmazdı — "bekleyen var" cevabını kendi işlediğimiz satırlardan alırdık.
+        // (Alternatif iki ayrı SaveChanges'ti; o da sayaçları ayrı bir işleme bırakır ve
+        // ikincisi patlarsa artımlı sayaçlar kalıcı olarak eksik kalırdı.)
+        var processedIds = batch.Select(n => n.Id).ToList();
+
+        foreach (var campaign in campaigns)
+        {
+            var delta = deltas[campaign.Id];
+            campaign.SentCount += delta.Sent;
+            campaign.FailedCount += delta.Failed;
+            campaign.InvalidTokenCount += delta.InvalidTokens;
+
+            if (campaign.CompletedAt is not null) continue;
+
+            var stillPending = await _context.Notifications
+                .Include(n => n.User)
+                .AnyAsync(n => n.CampaignId == campaign.Id
+                               && !n.FcmSent
+                               && n.User.FcmToken != null
+                               && !processedIds.Contains(n.Id));
+
+            if (!stillPending) campaign.CompletedAt = now;
+        }
+    }
+
+    private sealed class CampaignDelta
+    {
+        public int Sent;
+        public int Failed;
+        public int InvalidTokens;
     }
 
     /// <summary>Mobil istemcinin push'tan ilgili kayda deep-link yapıp bildirimi okundu işaretleyebilmesi için veri yükü.</summary>

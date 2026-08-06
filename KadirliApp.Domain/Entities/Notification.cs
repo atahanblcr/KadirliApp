@@ -16,5 +16,16 @@ public class Notification : BaseEntity
     public DateTime? FcmSentAt { get; set; }
     public string? FcmError { get; set; }
 
+    /// <summary>
+    /// Faz 12.2b — bu satırı üreten gönderim olayı (<see cref="PushCampaign"/>).
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <b>Additive:</b> 12.2b öncesinde yazılmış satırlar <c>null</c> kalır ve öyle kalmalı.
+    /// Geriye dönük kampanya uydurmak, olmayan bir teslim tarihçesi üretmek olurdu — pano
+    /// "bilmiyorum" demeli, tahmin etmemeli. Panel bunu "kampanyasız" olarak gösterir.
+    /// </remarks>
+    public Guid? CampaignId { get; set; }
+
     public User User { get; set; } = default!;
+    public PushCampaign? Campaign { get; set; }
 }

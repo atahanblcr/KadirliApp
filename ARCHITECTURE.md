@@ -8,7 +8,7 @@
 > öğretici bir rehber değil (o `DOTNET_MASTERCLASS.md`), istemci kontratı değil
 > (o `Memory_Bank/API_CONTRACT.md`). Burası **harita**: bugün neyin nerede olduğu.
 >
-> Son güncelleme: 5 Ağustos 2026 (Faz 12.1 — hata günlüğü modülü).
+> Son güncelleme: 6 Ağustos 2026 (Faz 12.2b — bildirim teslim panosu + bağımsız push ekranı).
 
 ## Hangi dokümanı ne zaman okumalı
 
@@ -143,7 +143,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | 11 | **Ulaşım** | `Transport/` | `transport/intercity-routes`, `transport/intracity-routes` | `TransportAdmin` | `transport` | `transport/` | `/ulasim` *(detay rotası YOK — §6)* |
 | 12 | **Kesintiler** | `PowerOutages/` | `power-outages`, `power-outages/{id}` | `PowerOutagesAdmin` | `power-outages` | `power_outages/` | `/kesintiler`, `/kesintiler/:id` |
 | 13 | **Şikayet/İstek** | `Complaints/` | `POST complaints`, `complaints/my` | `ComplaintsAdmin` | `complaints` | `complaints/` | `/sikayet`, `/sikayet-bildir` |
-| 14 | **Bildirimler** | `Notifications/` | `notifications`, `…/{id}/read`, `notifications/read-all`, `notifications/fcm-token` | *(yok)* | — | `notifications/` (+ `core/push/`) | Bildirim sekmesi |
+| 14 | **Bildirimler** | `Notifications/` | `notifications`, `…/{id}/read`, `notifications/read-all`, `notifications/fcm-token` | *(yok — gönderim panosu 26. satırda)* | — | `notifications/` (+ `core/push/`) | Bildirim sekmesi |
 | 15 | **Kimlik** | `Auth/` | `auth/login`, `auth/verify-otp`, `auth/register`, `auth/refresh`, `auth/logout` | `Account` | — | `auth/` | `/giris`, `/kayit` |
 | 16 | **Kullanıcı** | `Users/` | `users/me`, `users/me/notifications`, `users/me/ads`, `users/me/favorites`, `DELETE users/me` | `UsersAdmin` | `users` | `profile/`, `settings/` | Profil sekmesi, `/ayarlar` |
 | 17 | **Dosyalar** | `Files/` | `files/upload`, `DELETE files/{id}` | *(yok)* | — | `files/` | *(ekran yok — ortak repo)* |
@@ -155,6 +155,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | 23 | **Global arama** | `Search/` | *(public uç yok)* | `GlobalSearch` | *(matris dışı — **sonucu süzer**, aşağıya bak)* | *(yok)* | — |
 | 24 | **Hata kayıtları** | `ErrorLogs/` | `POST client-errors` *(anonim)* | `ErrorLogsAdmin` | *(matris dışı — yalnız admin)* | *(ekran yok — `core/observability/`)* | — |
 | 25 | **Giriş denemeleri** | `LoginAttempts/` | *(public uç yok — kayıt giriş akışında düşer)* | `LoginAttemptsAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
+| 26 | **Bildirim gönderimleri** | `PushCampaigns/` | *(public uç yok — kayıt gönderim anında düşer)* | `PushCampaignsAdmin` | *(matris dışı — yalnız admin)* | *(ekran yok — bildirim modülü 14. satırda)* | — |
 
 **Mobilde ayrıca ekran taşıyan ama backend modülü olmayan klasörler:** `home/` (hub),
 `common/`, `dev/` (yalnız debug: `/gelistirici/tasarim`, `/gelistirici/ag`).
@@ -194,7 +195,7 @@ susturmaya yetmez — `GlobalSearchTests` süzmenin gerçekten çalıştığın�
 `PanelModeratorPermissionTests` de listenin muafiyet çöplüğüne dönmesini engeller.
 
 ⚠️ **Yalnız admin'e açık bir ekran** ekliyorsanız (`StaffAdmin`, `AuditLogsAdmin`, `TrashAdmin`,
-`ErrorLogsAdmin`, `LoginAttemptsAdmin`) desen farklıdır:
+`ErrorLogsAdmin`, `LoginAttemptsAdmin`, `PushCampaignsAdmin`) desen farklıdır:
 `[Authorize(Roles = "admin,super_admin")]` + `[PanelPermission]` **yok** +
 `PanelMenu.Items` satırının `Module`'ü **`null`** + `AdminOnlyControllers`'a controller adı.
 Modül anahtarı verirseniz izin matrisinde moderatöre dağıtılabilen ama rol kapısı yüzünden
@@ -222,6 +223,7 @@ düzeltildi; `admin_permissions`'taki ölü satırlar migration ile temizlendi.
 | `PurgeErrorLogsJob` | Hata kaydı saklama süresi: çözülmüş 30 gün, çözülmemiş 90 gün | Günlük |
 | `SecurityAlertJob` | İşlenmemiş şüpheli giriş denemelerini **tek e-postada** gruplar, `super_admin`'lere yollar (kural+alıcı başına saatte 1 kısma) | 5 dakikada bir |
 | `PurgeLoginAttemptsJob` | Giriş denemesi saklama süresi: başarılı 90 gün, başarısız 180 gün | Günlük |
+| `PurgeNotificationsJob` | **Okunmuş** bildirimler 90 gün sonra silinir; kampanya satırı **kalır** | Günlük |
 
 ⚠️ Panoya (`/hangfire`) erişen biri `PurgeLoginAttemptsJob`'ı elle tetikleyerek **yeni
 topladığımız güvenlik kanıtını silebilir** — panonun korumasının 12.2'de gözden geçirilmesi
@@ -380,7 +382,9 @@ Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıkla
 `Integration/Panel/PanelSortingTests.cs`, **31–33 (Faz 12.1)**
 `Integration/Panel/PanelErrorLogTests.cs` + `Unit/Application/Observability/`,
 **34–36 (Faz 12.2)** `Integration/Panel/PanelLoginAttemptTests.cs` +
-`Unit/Application/Security/` içinde (panelin canlı denetiminde bulundular ve
+`Unit/Application/Security/`, **37–39 (Faz 12.2b)**
+`Integration/Panel/PanelPushCampaignTests.cs` + `Unit/Application/Notifications/`
+içinde (panelin canlı denetiminde bulundular ve
 gerçek Postgres isterler). Biri kırmızıya dönerse ya sözleşme
 bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 
@@ -422,6 +426,9 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | 34 | **Giriş denemesinde `Identifier` MASKELİDİR** (`LoginIdentifierMasker`) ve maskeleme **deterministiktir** — aynı telefon her zaman aynı değeri üretir | Ham saklansaydı bir güvenlik tablosu, kendisi bir sızıntı hedefine dönerdi: satırlar panelde görülüyor, **CSV'ye çıkıyor**, başarısız denemeler **180 gün** duruyor. Determinizm ayrı bir bağımlılık: hatalı OTP satırlarında `UserId` **bilerek boştur** (o dalda kullanıcı tablosuna dokunulmuyor) ve kullanıcı ekranındaki "son giriş denemeleri" kutusu onları **yalnız maskeli kimlikle** hesaba bağlar. Maskeleme rastgeleleşirse o satırlar hiçbir hesapla eşleşmez ve kutu sessizce **boş** görünür |
 | 35 | **R1 eşiği `PanelLockoutPolicy.MaxFailedAttempts` ile aynı olmak zorundadır** (`SuspicionThresholds.AccountFailureThreshold`) | Ayrışırsa iki taraf farklı gerçeklik görür: eşik yüksekse hesap kilitlenir ama **uyarı hiç doğmaz** (kilit yüzünden eşiğe ulaşacak deneme zaten gelemez), düşükse kilitlenmeyen hesaplar için uyarı yağar. 11.18'in kilidi çalışmaya devam ettiği için **kimse fark etmez** — madde 23'ün aynı sınıfı |
 | 36 | **Uyarı e-postası kısılır** (`security_alert:{hash}`, kural+alıcı başına saatte 1) ve `SecurityAlertJob` her koşuda **tek** e-posta üretir | Kısma kaldırılırsa bir kaba kuvvet saldırısı, yöneticinin posta kutusuna **kendi kendimize yaptığımız DoS**'a döner: uyarılar filtreye atılır ve **gerçek** uyarı da o filtreye düşer. Sistem çalışmaya devam eder, hiç hata vermez ve tamamen işe yaramaz hâle gelir. ⚠️ Redis erişilemezse **fail-open**'dır (gönderir) — güvenlik uyarısını sessizce yutmak fazladan e-postadan kötüdür; tavanı koşu başına tek e-posta zaten sağlar |
+| 37 | **`Notification.FcmSent = true` TERMİNALDİR**: `SendPushNotificationsJob` o satırı bir daha almaz, mesaj bazlı hatalar (bad token vb.) kalıcı sayılır. Yeniden gönderim **yeni kampanya** açar; eski satırlara dokunulmaz (`CancelPushCampaignCommand` yalnız `FcmSent=false` satırları geri çekebilir) | Panele "yeniden gönder" butonu konursa **hiçbir şey yapmaz ve kimse hata almaz** — panelin en sinsi yalan biçimi: yönetici bastığını sanır, sayaç değişmez, log temizdir. Aynı sebeple iptal butonu iletilmiş mesajı geri almayı **teklif etmez**: geri alınamayacak bir şeyi teklif eden bir buton, işlevsiz butondan kötüdür |
+| 38 | **Hedefleme mantığının tek sahibi `INotificationDispatcher`**: mahalle süzgeci + `NotificationPreferences` + gövde kırpması orada, duyuru üreticisi de panelin manuel gönderimi de **aynı** metottan geçer. Panelin "tahmini alıcı" önizlemesi de aynı sorguyu çağırır. ⚠️ `NeighborhoodIds` **`null` ≠ boş liste**: null "liste yok → herkes" (10.10'dan beri), boş liste "hiçbir mahalle seçilmemiş → kimse" | İkinci bir hedefleme gerçeklemesi yazılırsa duyuru ile manuel gönderim **aynı mahalleye farklı kişi kümesi** yollar ve iki taraf da hiç hata vermez (#23'ün aynı sınıfı). Önizleme ayrılırsa panel "342 kişiye gidecek" der, gönderim 280 satır yazar ve fark hiçbir yerde görünmez. null/boş ayrımı kalkarsa ya duyurular ölür (null'ı "kimse" saymak) ya da **bozuk bir JSON tüm şehre giden bildirime dönüşür** |
+| 39 | **Kampanya sayaçları `SendPushNotificationsJob` tarafından ARTIMLI yazılır** (`sent`/`failed`/`invalidTokens`), sorgu anında `COUNT` ile hesaplanmaz; `CompletedAt`'in ölçütü "işlenen = alıcı" değil **"gönderilebilir bekleyen satır kalmadı"** | Sayaç yazımı atlanırsa pano sonsuza kadar "Kuyrukta" gösterir: bildirimler gider, `fcm_sent` dolar, hiçbir hata oluşmaz ve **yalnız pano yalan söyler** — üstelik artımlı olduğu için "bir kez daha say, düzelir" yolu yoktur. Tamamlanma ölçütü "işlenen = alıcı" yapılırsa **hiçbir kampanya tamamlanmaz**: job yalnız `FcmToken != null` satırları alır, token'ı olmayan alıcılar sonsuza kadar bekleyen görünür. ⚠️ Tamamlanma sorgusu **bu batch'in satırlarını dışlamalı** — henüz `SaveChanges` olmadığı için veritabanı onları hâlâ `fcm_sent = false` görür ve kampanya asla kapanmaz |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 
@@ -469,6 +476,8 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | **Hata parmak izi / maskeleme** | `Unit/Application/Observability/` | Saf mantık: GUID/sayı/tarih normalize ediliyor mu (yoksa tekilleştirme hiç çalışmaz), yığın satır numarası atılıyor mu, hassas sorgu parametreleri maskeleniyor mu |
 | **Giriş denemeleri** | `Integration/Panel/PanelLoginAttemptTests.cs` | §7 madde **34**: kimlik maskeli mi, ham kullanıcı adı CSV'ye sızıyor mu; 5 hatalı giriş → **5 kayıt + kilit + şüpheli işareti** (madde 35'in uçtan uca kanıtı); `unknown_user` ile `bad_password` ayrılıyor mu; ekran matris dışında mı; geçersiz IP süzgeci **sessizce yok sayılmıyor** mu |
 | **Şüphe kuralları / kimlik maskeleme** | `Unit/Application/Security/` | Saf mantık, container'sız: R1–R4'ün sınırları, kural **önceliği** (R2 > R1, R4 > R3), R1 eşiğinin `PanelLockoutPolicy` ile eşitliği, maskelemenin **determinizmi** ve "sıradan giriş asla şüpheli değildir" |
+| **Bildirim gönderimleri** | `Integration/Panel/PanelPushCampaignTests.cs` | §7 madde **37–39**: hedeflemenin tek sahibi mi (önizleme ↔ gönderim aynı sayı), bildirim tercihi manuel gönderimde de uygulanıyor mu, sayaçlar artımlı mı ve ikinci koşuda **artmıyor** mu, kampanya gerçekten **tamamlanıyor** mu, iptal yalnız gönderilmemişe dokunuyor mu, ekran matris dışında mı, istemciden gelmeyen ama panelde basılan metin **kaçırılıyor** mu |
+| **Kampanya durumu** | `Unit/Application/Notifications/PushCampaignStatusTests.cs` | Saf mantık, container'sız: durum önceliği (iptal > boş > tamamlandı > gönderiliyor > kuyrukta), bekleyen sayısının negatife düşmemesi |
 | **Önbellek sözleşmesi** | `Unit/Application/Caching/CacheContractTests.cs` | Grup adları sabit mi, her grubun invalidator'ı var mı, anahtar filtreyle değişiyor mu |
 | **Önbellek davranışı** | `Integration/Panel/CacheInvalidationTests.cs` | Gerçek Redis: önce **bayat veri döndüğü** gösterilir, sonra mutasyonun temizlediği |
 | **Moderasyon** | `Integration/Panel/ModerationStateMachineTests.cs` | Vefat/etkinlik/kampanya/işletme onay-red geçişleri, soft-delete etkileşimi |

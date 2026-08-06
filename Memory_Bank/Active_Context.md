@@ -1,5 +1,68 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 6 Ağustos 2026 (2. oturum) — **FAZ 12.2b TAMAMLANDI: bildirim teslim panosu + bağımsız push ekranı.**
+> Kod `Domain/Entities/PushCampaign.cs` + `Notification.CampaignId` +
+> `Common/Interfaces/INotificationDispatcher.cs` + `Features/Notifications/Services/NotificationDispatcher.cs` +
+> `Features/PushCampaigns/` (durum · DTO · 2 komut · 4 sorgu) + migration `AddPushCampaigns` +
+> `Jobs/PurgeNotificationsJob.cs` + `SendPushNotificationsJob` artımlı sayaçlar +
+> `Web/Controllers/PushCampaignsAdminController.cs` + `Views/PushCampaignsAdmin/{Index,Details,Create}` +
+> dashboard satırı + 3 yeni test dosyası. **Backend 663 → 689 (+26), mobil 685 (değişmedi), analyze 0.**
+>
+> 🔑 **TESLİM EDİLEN:** "duyuruyu yayınladım, gitti mi?" sorusunun cevabı artık panelde.
+> FCM'in cevabı 10.11'den beri `notifications.fcm_*` alanlarında **saklanıyordu** — ama o
+> satırlara bakan bir ekran yoktu. İkinci boşluk daha somuttu: bildirim satırı üreten tek şey
+> duyuru üreticisiydi, yani tek seferlik bir push atmak için **vatandaşın duyurular listesine
+> kalıcı bir kayıt düşürmek** gerekiyordu. `AuditLog` (ne yapıldı) + `ErrorLog` (ne bozuldu) +
+> `LoginAttempt` (kim girmeye çalıştı) üçlüsüne **`PushCampaign` (ne gönderildi, kaçına ulaştı)** eklendi.
+>
+> 🔴 **BULUNAN ÜÇ ŞEY:** (1) **`Id` store-generated olduğu için FK aynı `SaveChanges` içinde
+> skalerden kurulamıyor** — `gen_random_uuid()` varsayılanı yüzünden `campaign.Id` INSERT'ten
+> önce `Guid.Empty`; bağ **gezinme özelliğinden** kurulmalı. (2) **"Tamamlandı" ile "geri
+> çekilecek bir şey kalmadı" aynı şey değil** — kampanya *gönderilebilir* bekleyen kalmayınca
+> tamamlanır, ama token'ı olmayan alıcıların satırları hâlâ durur; `CanCancel` ölçütü
+> `PendingCount`. (3) 🐛 **Panelin onay penceresi hiç açılmıyordu ve bu 12.2'den kalan bir
+> hataydı**: `data-confirm` dinleyicisi **form**a bakıyor, öznitelik butona yazılınca hiçbir
+> şey olmaz — kod doğru görünür, test kırılmaz, **geri alınamaz aksiyon onaysız koşar.**
+> Üç görünüm düzeltildi + `PanelConfirmDialogTests` ile kilitlendi.
+>
+> 🔑 **DİĞER KARARLAR:** hedefleme **tek sahipli** (`INotificationDispatcher`) ve panelin
+> "tahmini alıcı" önizlemesi **aynı sorguyu** çağırıyor · `NeighborhoodIds` **`null` ≠ boş
+> liste** (null "liste yok → herkes"; boş liste "kimse" — bozuk JSON tüm şehre gidemiyor) ·
+> manuel gönderimde **deep-link yok** → **mobilde sıfır değişiklik** · sayaçlar **kolonda ve
+> artımlı** · durum **türetilmiş** (ayrı kolon sayaçlarla ayrışabilirdi) · `RecipientCount`
+> iptalde **düşürülmez** (tarihçe) · `PurgeNotificationsJob` yalnız **okunmuş** bildirimi siler,
+> **kampanya satırına dokunmaz** · `AuditBehavior` `ApiResponse<Guid>` için düzeltildi.
+>
+> ➕ **PLAN DIŞI:** **gönderim iptali** (`CancelledAt`; iletilmiş mesaja dokunmaz ve dokunmayı
+> teklif de etmez — `FcmSent=true` terminal) · **`PanelConfirmDialogTests`** · iptal sonrası
+> "Bekleyen" etiketinin **"Geri çekilen"**e dönmesi (canlı doğrulamada yakalandı: sayı doğru,
+> etiket yalan söylüyordu).
+>
+> 🔴 **GÖRÜNMEZ SÖZLEŞMELERE #37, #38, #39 EKLENDİ** (`FcmSent` terminaldir · hedeflemenin tek
+> sahibi vardır · sayaçlar artımlıdır ve tamamlanma ölçütü "gönderilebilir bekleyen kalmadı"dır).
+> Toplam **39**.
+>
+> **Doğrulama:** `dotnet test` **689/689** · `flutter analyze` **0** · `flutter test` **685/685**.
+> **Kuralı bilerek boz:** 5 deneme → hepsi kırmızı.
+> **Canlı (Chrome + gerçek Android emülatörü):** tahmini alıcı 5 → gönderim de 5 satır ·
+> job → 1 gönderildi / 4 bekliyor ve kampanya **tamamlandı** · **emülatörde push düştü**
+> (`aysedmr`, ön plan bildirimi + rozet, genel "Bildirim" kimliği) · iptal → **yalnız 4
+> gönderilmemiş satır** silindi, iletilmiş 1 satır durdu, `completed_at` tazelenmedi ·
+> denetim izi Türkçe · dashboard "Son gönderim: 1 / 5 teslim" · CSV BOM + `;` + Türkçe ·
+> alıcısız mahalle → "Alıcı yok" (sessizce "gönderildi" demedi).
+>
+> 🐛 **12.2'DEN DEVRALINAN MOBİL ÇÖKME — HÂLÂ AÇIK.** `_debugCheckDuplicatedPageKeys`
+> assertion'ı **widget testinde yeniden üretilemedi** (yazılan test düzeltme geri alındığında
+> da yeşil kaldı → **silindi**, çünkü hiçbir şey kilitlemiyordu). Yığın izinde uygulama karesi
+> yok; zincirin tepesinde `_InheritedNotifierElement.update` var → çökme **router bildirimiyle
+> gelen bir Navigator rebuild'inde** doğuyor. İki **savunma amaçlı** düzeltme yapıldı (kod
+> ekranı yığındaysa `push` edilmiyor; `_changePhone` önce pop edip sonra durumu değiştiriyor)
+> ama ikisi de **kanıtlanmış çözüm değil** ve kodda böyle yazılı.
+>
+> ⏭️ **SIRADAKİ: 12.3** — kesinti mahalle referansı + mahalle bazlı bildirim.
+>
+> ---
+>
 > Son güncelleme: 6 Ağustos 2026 — **FAZ 12.2 TAMAMLANDI: şüpheli giriş günlüğü + e-posta uyarısı + `StaffAdmin` izin düzeltmesi.**
 > Kod `Domain/Entities/LoginAttempt.cs` + `Application/Common/Security/{LoginIdentifierMasker,SuspiciousLoginRules}` +
 > `Common/Interfaces/ILoginAttemptRecorder.cs` + `Features/LoginAttempts/` + `Infrastructure/Security/LoginAttemptRecorder.cs` +

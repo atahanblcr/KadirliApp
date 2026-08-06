@@ -116,4 +116,26 @@ public static class PanelSorts
             ("channel_asc",      q => q.OrderBy(x => x.Channel).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
             ("channel_desc",     q => q.OrderByDescending(x => x.Channel).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
         });
+
+    // ————————————————————————————————————————————————————————————————
+    // Bildirim gönderimleri (Faz 12.2b) — YENİ modül, "eski sıra" kısıtı yok.
+    // Varsayılan "en yeni önce": panoya "az önce yolladığım gitti mi" diye bakılır.
+    // ⚠️ "failed_desc" bir SÜZGEÇ DEĞİL sıralamadır — en çok başarısız olan kampanya üste
+    //    çıkar ama sorunsuz gönderimler listede kalır (LoginAttempts'teki aynı ayrım).
+    // ⚠️ Sayaçlara göre sıralama, sayaçların KOLONDA tutulmasının somut getirisi: türetilmiş
+    //    bir alan olsaydı bu anahtarlar ya yazılamaz ya da tam tarama yapardı.
+    // ————————————————————————————————————————————————————————————————
+    public static readonly SortMap<PushCampaign> PushCampaigns = new(
+        defaultKey: "created_desc",
+        entries: new (string, Func<IQueryable<PushCampaign>, IOrderedQueryable<PushCampaign>>)[]
+        {
+            ("created_desc",   q => q.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
+            ("created_asc",    q => q.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)),
+            ("title_asc",      q => q.OrderBy(x => x.Title).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
+            ("title_desc",     q => q.OrderByDescending(x => x.Title).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
+            ("recipients_desc",q => q.OrderByDescending(x => x.RecipientCount).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
+            ("recipients_asc", q => q.OrderBy(x => x.RecipientCount).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
+            ("failed_desc",    q => q.OrderByDescending(x => x.FailedCount).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
+            ("failed_asc",     q => q.OrderBy(x => x.FailedCount).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
+        });
 }

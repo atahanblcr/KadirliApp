@@ -38,6 +38,14 @@ public class AuditBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TR
         if (response is Models.ApiResponse<bool> { Success: false })
             return response;
 
+        // 🐛 Faz 12.2b: aynı kural ApiResponse<Guid> için EKSİKTİ ve fark edilmemişti, çünkü
+        // o güne kadar Guid dönen hiçbir komut IAuditableCommand değildi. İlk öyle komut
+        // (SendPushCampaignCommand) yazılırken çıktı: doğrulamadan dönen bir RET,
+        // denetim izine "bildirim gönderdi" satırı yazacaktı — hiçbir bildirim gitmeden.
+        // Denetim izinin yalan söylemesi, iz tutmamasından kötüdür.
+        if (response is Models.ApiResponse<Guid> { Success: false })
+            return response;
+
         try
         {
             var audit = new AuditLog
@@ -45,7 +53,12 @@ public class AuditBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TR
                 UserId = userId,
                 Action = auditable.AuditAction,
                 Module = auditable.AuditModule,
-                AffectedId = auditable.AuditAffectedId ?? response as Guid?,
+                // ⚠️ `response as Guid?` yalnız komut DÜZ Guid döndüğünde çalışır;
+                // ApiResponse<Guid> saran komutlarda kimlik zarfın içindedir ve
+                // sarılmadan bakılırsa iz "hangi kayıt" sorusunu boş bırakır.
+                AffectedId = auditable.AuditAffectedId
+                             ?? response as Guid?
+                             ?? (response as Models.ApiResponse<Guid>)?.Data,
                 AffectedType = auditable.AuditAffectedType,
                 Details = auditable.AuditDetails is { } details ? JsonSerializer.Serialize(details) : null,
                 IpAddress = _auditContext.IpAddress,

@@ -153,6 +153,37 @@
     </a>
 }
 
+@*
+    Faz 12.2b — SON GÖNDERİM SATIRI (yalnız admin).
+    Diğer iki rozetten farkı: burada "sıfır" diye bir hâl yok. Hiç gönderim yapılmamışsa
+    gösterilecek bir teslim de yoktur ve kart çizilmez — "0 gönderim" satırı bir haber değil,
+    gürültü olurdu.
+*@
+@if (Model.LastPushCampaign is { } lastPush)
+{
+    var pushStatus = PanelDisplay.PushStatus(lastPush.Status);
+    var pushFailed = lastPush.FailedCount > 0;
+    <a asp-controller="PushCampaignsAdmin" asp-action="Details" asp-route-id="@lastPush.Id"
+       class="mb-6 flex items-center justify-between rounded-lg border @(pushFailed ? "border-amber-200 bg-amber-50 hover:bg-amber-100" : "border-gray-200 bg-gray-50 hover:bg-gray-100") p-4 transition-colors">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-paper-plane @(pushFailed ? "text-amber-600" : "text-gray-500") text-xl" aria-hidden="true"></i>
+            <div>
+                <p class="text-sm font-medium @(pushFailed ? "text-amber-900" : "text-gray-900")">
+                    Son gönderim: @lastPush.SentCount / @lastPush.RecipientCount teslim
+                    @if (pushFailed)
+                    {
+                        <span>· @lastPush.FailedCount başarısız</span>
+                    }
+                </p>
+                <p class="text-xs @(pushFailed ? "text-amber-700" : "text-gray-600")">
+                    @lastPush.Title — @pushStatus.Label
+                </p>
+            </div>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400" aria-hidden="true"></i>
+    </a>
+}
+
 <!-- Faz 10.10-A: Etkileşim satırı — üç 7-günlük nabız + duyuru erişim toplamı (mobil yayınla dolmaya başlar) -->
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6">
     <p class="text-xs text-gray-400 uppercase font-medium mb-3"><i class="fas fa-chart-line mr-1"></i>Etkileşim</p>

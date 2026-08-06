@@ -15,9 +15,12 @@ hesap kilidi). Yayın hazırlığının Apple gerektirmeyen kısmı tamam.
 (`ErrorLogsAdmin`). **12.2 bitti:** şüpheli giriş günlüğü — "kim, nereden, ne zaman girmeye
 çalıştı?" artık panelden görülüyor (`LoginAttemptsAdmin`), `super_admin`'e kısılmış e-posta
 uyarısı gidiyor, `ForwardedHeaders` kuruldu ve `StaffAdmin` izin tutarsızlığı düzeltildi.
-**663 backend + 685 mobil test, 36 görünmez sözleşme.**
+**12.2b bitti:** bildirim teslim panosu — "duyuruyu yayınladım, gitti mi?" artık panelde
+(`PushCampaignsAdmin`), duyuru oluşturmadan **tek seferlik push** atılabiliyor ve hedefleme
+tek sahibe (`INotificationDispatcher`) çekildi.
+**689 backend + 685 mobil test, 39 görünmez sözleşme.**
 
-**⏭️ Sırada 12.2b:** bildirim teslim panosu + bağımsız push ekranı.
+**⏭️ Sırada 12.3:** kesinti mahalle referansı + mahalle bazlı bildirim.
 Plan: `Memory_Bank/Progress.md` → "FAZ 12".
 
 > 🔑 **Panel süper admin parolası** `secrets/panel-admin.json`'dadır (git'e girmez; biçim ve
@@ -61,12 +64,13 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 36 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 39 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
 31–33 `PanelErrorLogTests.cs` + `Unit/Application/Observability/`,
-34–36 `PanelLoginAttemptTests.cs` + `Unit/Application/Security/`.
+34–36 `PanelLoginAttemptTests.cs` + `Unit/Application/Security/`,
+37–39 `PanelPushCampaignTests.cs` + `Unit/Application/Notifications/`.
 
 ## Değişmez kurallar
 
@@ -81,7 +85,7 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
    `[Authorize(Roles = "admin,super_admin,moderator")]` + `[PanelPermission("<modül>")]` +
    `PanelMenu.Items` satırıdır — üçü aynı modül anahtarını kullanır.
    **Yalnız admin'e açık ekranda** (Personel, Denetim İzi, Çöp Kutusu, Hata Kayıtları,
-   Giriş Denemeleri) desen farklıdır: rol listesinde `moderator` **yok**, `[PanelPermission]`
+   Giriş Denemeleri, Bildirim Gönderimleri) desen farklıdır: rol listesinde `moderator` **yok**, `[PanelPermission]`
    **yok**, menü satırının `Module`'ü **`null`** ve controller adı `AdminOnlyControllers`'ta —
    aksi hâlde izin matrisinde *karşılığı olmayan* bir yetki belirir (`ARCHITECTURE.md` §3).
    ✅ **12.2'de yapısal testle kilitlendi** (`AdminOnlyControllers_AreOutsideThePermissionMatrix`);

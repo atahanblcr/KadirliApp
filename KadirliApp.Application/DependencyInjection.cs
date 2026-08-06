@@ -20,6 +20,11 @@ public static class DependencyInjection
             cfg.AddOpenBehavior(typeof(AuditBehavior<,>));
         });
 
+        // Faz 12.2b: hedeflemenin TEK sahibi. Duyuru üreticisi de, panelin manuel gönderim
+        // komutu da bunu kullanır — ikinci bir hedefleme gerçeklemesi yazılırsa aynı
+        // mahalleye farklı kişi kümesi gider ve kimse hata almaz.
+        services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
+
         // Faz 10.10: duyuru yayınında bildirim üretimi — hem announcement command'leri
         // hem PublishScheduledAnnouncementsJob (Infrastructure) bu servisi kullanır.
         services.AddScoped<IAnnouncementNotificationGenerator, AnnouncementNotificationGenerator>();

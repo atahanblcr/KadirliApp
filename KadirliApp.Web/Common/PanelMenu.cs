@@ -71,7 +71,14 @@ public static class PanelMenu
         // Faz 12.2 — giriş denemeleri. Module NULL, aynı gerekçe: kayıtlar IP, tarayıcı
         // ve şüphe işareti taşıyor; "kim nereden girdi" moderatöre dağıtılabilir bir
         // yetki değil. Üstelik moderatörün KENDİ girişleri de bu listede.
-        new("LoginAttemptsAdmin", "fa-fingerprint",     "Giriş Denemeleri",     null)
+        new("LoginAttemptsAdmin", "fa-fingerprint",     "Giriş Denemeleri",     null),
+        // Faz 12.2b — bildirim gönderimleri (teslim panosu + elle gönderim). Module NULL,
+        // gerekçe diğerlerinden biraz farklı ve daha ağır: bu ekran yalnız GÖSTERMİYOR,
+        // tek tıkla ŞEHRİN TAMAMINA push atabiliyor. İzin matrisine girseydi "bildirimler:
+        // güncelleme" yetkisi verilen bir moderatör bunu yapabilirdi — üstelik aksiyon adı
+        // (`Send`) hiçbir moderasyon önekiyle eşleşmediği için sessizce `update`'e düşerek
+        // (görünmez sözleşme #19).
+        new("PushCampaignsAdmin", "fa-paper-plane",     "Bildirim Gönderimleri", null)
     };
 
     /// <summary>
@@ -87,7 +94,8 @@ public static class PanelMenu
     public static readonly IReadOnlySet<string> AdminOnlyControllers =
         new HashSet<string>(StringComparer.Ordinal)
         {
-            "StaffAdmin", "AuditLogsAdmin", "TrashAdmin", "ErrorLogsAdmin", "LoginAttemptsAdmin"
+            "StaffAdmin", "AuditLogsAdmin", "TrashAdmin", "ErrorLogsAdmin", "LoginAttemptsAdmin",
+            "PushCampaignsAdmin"
         };
 
     /// <summary>

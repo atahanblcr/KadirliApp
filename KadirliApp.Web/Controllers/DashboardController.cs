@@ -49,8 +49,18 @@ public class DashboardController : Controller
             ? await _sender.Send(new KadirliApp.Application.Features.LoginAttempts.Queries.GetSuspiciousLoginCountQuery(24))
             : null;
 
+        // Faz 12.2b — son gönderimin teslim özeti, aynı rol kapısı.
+        // 🔑 Gerekçe diğer iki rozetten biraz farklı: hata ve şüpheli giriş "bir şey oldu mu"
+        // sorusunu cevaplıyor, bu satır "benim yaptığım şey işe yaradı mı" sorusunu. Duyuruyu
+        // yayınlayan yönetici panele geri döndüğünde teslim sayısını görmeden çıkmamalı —
+        // 12.2b'den önce o sayıyı görmenin tek yolu veritabanına girmekti.
+        var lastCampaign = isAdmin
+            ? await _sender.Send(new KadirliApp.Application.Features.PushCampaigns.Queries.GetLastPushCampaignQuery())
+            : null;
+
         var model = new DashboardViewModel
         {
+            LastPushCampaign = lastCampaign,
             TotalUsers = stats.TotalUsers,
             ActiveAds = stats.ActiveAds,
             PendingApprovals = stats.PendingApprovals,
