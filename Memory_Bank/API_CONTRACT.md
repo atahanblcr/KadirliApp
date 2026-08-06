@@ -2,6 +2,15 @@
 
 > **Amaç:** Flutter mobil istemcisinin tek referansı. Zarf şeması, hata kodları, auth akışı, sayfalama, tarih/görsel kuralları ve public uç envanteri.
 > **Makine-okur şema:** `docs/openapi.json` (OpenAPI 3.0; `openapi_generator`/`dio` ile kod üretimi için). Bu doküman insan rehberi, openapi.json kesin şema — **çeliştiğinde openapi.json + mevcut kod kazanır.**
+> Son gözden geçirme: **6 Ağustos 2026 (Faz 12.2b)** — public yüzeyde **değişiklik yok.**
+> 12.2b bildirim *gönderimini* panele taşıdı ama kampanya bir **panel kavramı**: yeni public uç
+> eklenmedi, `NotificationDto`'ya `campaignId` **bilinçli olarak konmadı** (istemcinin gönderim
+> tarihçesiyle işi yok) ve `GET /v1/notifications` şekli aynı kaldı — yani mağazadaki eski
+> sürümler tek satır değişmeden çalışmaya devam ediyor. Aynı sebeple manuel gönderimde
+> `relatedType`/`relatedId` **boştur**: uydurma bir tür, görünmez sözleşme #18 gereği mobilde
+> zaten gezinmeyi iptal ederdi.
+> Önceki içerik güncellemesi: 5 Ağustos 2026 (Faz 12.1 — `POST /v1/client-errors`).
+>
 > Son güncelleme: 4 Ağustos 2026 (Faz 11.17). Kapsam: 10.1–10.12'nin public yüzeyi + mobil fazlarının
 > additive eklemeleri (11.10 `?sort=date_asc` · **11.18 `?sort=` duyuru/vefat/kampanya uçlarında ve etkinlikte yeni anahtarlar — hepsi isteğe bağlı, verilmezse eski sıra birebir korunur** · 11.11 `/v1/places/categories` · 11.15c bildirimlerde
 > "hedefi yaşayan" süzgeci ve `/v1/ads`'in public'te yok sayılan `?status=` parametresi ·
