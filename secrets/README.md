@@ -67,6 +67,81 @@ olmasını istiyor.
 
 ---
 
+## `panel-admin.json` — panel süper admin parolası (Faz 12.2)
+
+**Ne işe yarar:** Panelin `admin` (super_admin) kullanıcısının parolasının **tek doğruluk
+kaynağı**. Dosya varsa `DbSeeder` parolayı buradaki değere **hizalar**; yoksa hiçbir şey
+değişmez.
+
+> 🐛 **Neden var:** panel parolası 11.18'de değiştirildi ve o günden sonra her oturumda
+> "parola neydi?" sorusu yeniden doğdu — kaynaktaki sabit (`DbSeeder.AdminPassword`) artık
+> yalan söylüyordu, doğrusu ise **hiçbir yere yazılamıyordu**: depo herkese açık ve
+> `Memory_Bank/*.md` her oturumda push ediliyor. 11.18'de bu yüzden gerçek bir sızıntı
+> yaşandı. Bu dosya `secrets/*` altında olduğu için **commit edilmesi imkânsız**.
+
+**Dosya biçimi** — `secrets/panel-admin.json`:
+```json
+{
+  "Panel": {
+    "SuperAdmin": {
+      "Password": "buraya-kendi-parolanız"
+    }
+  }
+}
+```
+
+**Nasıl çalışır:**
+- API ve panel açılışta bu dosyayı okur (`optional: true` — yoksa sorun değil).
+- Parola veritabanındakinden farklıysa **hizalanır**, aynıysa hiçbir yazma yapılmaz
+  (her açılışta yazsaydı `PasswordChangedAt` tazelenir ve `OnValidatePrincipal` yöneticiyi
+  kendi oturumundan atardı — 11.18 dersi).
+- Hizalama sırasında **hesap kilidi de temizlenir**: parolayı unutup kilitlenen kişi
+  dosyayı düzeltip yeniden başlatır, 15 dakika beklemez.
+- `MustChangePassword` **işaretlenmez**: 11.18'in kuralı "parolayı sahibi değil *başkası*
+  belirlediyse değiştirmeye zorla"dır; burada belirleyen sahibin kendisidir.
+
+> 🔴 **Yalnız Development'ta uygulanır.** Production'da bir dosyanın canlı yönetici
+> parolasını sessizce ezmesi, eski/kopyalanmış bir dosyanın parolayı geri alması demektir.
+> Yayında parola panelden değiştirilir.
+
+**Parolayı unuttuysanız:** dosyaya yeni bir değer yazın ve API'yi (ya da paneli) yeniden
+başlatın — parola o değere döner.
+
+---
+
+## SMTP kimlik bilgileri — güvenlik uyarısı e-postası (Faz 12.2)
+
+**Ne işe yarar:** `SecurityAlertJob` şüpheli giriş denemelerini 5 dakikada bir toplayıp
+`super_admin` rolündeki yöneticilere e-posta atar. Gerçek gönderim `SmtpEmailService`
+üzerinden yapılır (`Email:Provider = "Smtp"`).
+
+> 🔴 **Kimlik bilgileri `appsettings.json`'a YAZILMAZ.** Depo herkese açık; oraya yazılan
+> bir parola commit edildiği anda **yanmış** sayılır (11.18'de gerçek bir sızıntı yaşandı).
+> Değerler ortam değişkeninden ya da `appsettings.Development.json`'dan (`.gitignore`'da)
+> gelir.
+
+**Bağlanışı** — ortam değişkeniyle (çift alt çizgi = iç içe anahtar):
+```bash
+export Email__Provider=Smtp
+export Email__Smtp__Host=smtp.example.com
+export Email__Smtp__Port=587
+export Email__Smtp__Username=uyari@kadirli.app
+export Email__Smtp__Password='<parola>'
+export Email__Smtp__FromAddress=uyari@kadirli.app
+export Security__PanelBaseUrl=https://panel.kadirli.app
+```
+
+**Yerel deneme:** gerçek bir sağlayıcıya gerek yok — bir SMTP yakalayıcısı yeter
+(`docker run -p 1025:1025 -p 8025:8025 mailhog/mailhog`), sonra
+`Email__Smtp__Host=localhost`, `Email__Smtp__Port=1025`, `Email__Smtp__EnableSsl=false`.
+Panelde **Giriş Denemeleri → "Uyarı kanalını dene"** butonu kanalı anında sınar.
+
+**Yoksa ne olur:** `Email:Provider=Dev` iken uygulama çalışır ve e-posta **yalnız log'a**
+yazılır. ⚠️ Production'da bu kombinasyon (uyarı açık + sağlayıcı Dev) `ProductionReadinessGuard`
+tarafından **engellenir**: uyarılar üretilip kimseye gitmesindense uygulama hiç açılmasın.
+
+---
+
 ## Bu klasörde OLMAYAN ama gereken diğer gizli dosyalar
 
 | Dosya | Yeri | Ne için | Nasıl |

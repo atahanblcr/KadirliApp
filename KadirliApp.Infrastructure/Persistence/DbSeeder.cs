@@ -17,13 +17,40 @@ public static class DbSeeder
     public const string AdminPassword = "Admin123!";
     public const string AdminPhone = "+905000000001";
 
+    /// <summary>
+    /// Faz 12.2 — <b>panel süper admin parolasının yerel, git'e girmeyen kaynağı.</b>
+    /// </summary>
+    /// <remarks>
+    /// 🐛 <b>Neden eklendi:</b> panel parolası 11.18'de değiştirildi ve o günden sonra her
+    /// oturumda "parola ne?" sorusu yeniden doğdu — kaynaktaki sabit artık yalan söylüyordu,
+    /// doğrusu ise <b>hiçbir yerde yazılı değildi</b> (ve yazılamazdı: depo herkese açık,
+    /// 11.18'de tam bu yüzden gerçek bir sızıntı yaşandı).
+    ///
+    /// 🔑 Çözüm: parola <c>secrets/</c> altında durur — klasör <c>.gitignore</c>'da
+    /// (<c>secrets/*</c>, yalnız README hariç), yani <b>commit edilmesi imkânsız</b>.
+    /// Dosya varsa seed onu kullanır; yoksa hiçbir şey değişmez (eski davranış aynen sürer).
+    ///
+    /// ⚠️ <b>Yalnız Development.</b> Production'da parolayı bir dosyadan sessizce ezmek,
+    /// eski/kopyalanmış bir dosyanın canlı yönetici parolasını geri alması demektir.
+    /// </remarks>
+    public const string PanelPasswordConfigKey = "Panel:SuperAdmin:Password";
+
     public static async Task SeedAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+        var cfg = scope.ServiceProvider.GetService<Microsoft.Extensions.Configuration.IConfiguration>();
+        var env = scope.ServiceProvider.GetService<Microsoft.Extensions.Hosting.IHostEnvironment>();
 
         await db.Database.MigrateAsync();
+
+        // Yapılandırılmış parola (secrets/panel-admin.json ya da ortam değişkeni).
+        // Boşsa akış 12.2 öncesiyle birebir aynı kalır.
+        var configuredPassword = cfg?[PanelPasswordConfigKey];
+        var canApplyConfigured =
+            !string.IsNullOrWhiteSpace(configuredPassword) &&
+            string.Equals(env?.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase);
 
         if (!await db.Users.AnyAsync(u => u.Role == UserRole.SuperAdmin))
         {
@@ -32,7 +59,7 @@ public static class DbSeeder
                 Phone = AdminPhone,
                 Username = AdminUsername,
                 Email = "admin@kadirli.app",
-                Password = hasher.HashPassword(AdminPassword),
+                Password = hasher.HashPassword(canApplyConfigured ? configuredPassword! : AdminPassword),
                 Role = UserRole.SuperAdmin,
                 IsActive = true,
                 // 🔑 Faz 11.18: varsayılan parola KAYNAKTA yazılı ve herkese açık bir depoda
@@ -40,7 +67,11 @@ public static class DbSeeder
                 // zayıf kalmıştı. Bu bayrak sayesinde varsayılan parola artık yalnızca
                 // "parolanı değiştir" ekranını açan bir anahtar — panelde başka hiçbir
                 // kapıyı açmıyor. Bayrağı `ChangeMyPasswordCommand` temizler.
-                MustChangePassword = true
+                //
+                // 🔑 Faz 12.2: parolayı yönetici KENDİ dosyasında belirlediyse bayrak
+                // gerekmez — 11.18'in kuralı "parolayı sahibi değil BAŞKASI belirlediyse
+                // değiştirmeye zorla"dır ve burada belirleyen sahibin ta kendisidir.
+                MustChangePassword = !canApplyConfigured
             });
         }
         else
@@ -60,6 +91,29 @@ public static class DbSeeder
 
             foreach (var admin in admins.Where(a => hasher.VerifyPassword(AdminPassword, a.Password!)))
                 admin.MustChangePassword = true;
+
+            // 🔑 Faz 12.2 — **parolayı yapılandırılmış değere hizala** (yalnız Development).
+            //
+            // Bu, "her oturumda parola ne?" sorusunu kalıcı olarak kapatan satır: dosya
+            // artık tek doğruluk kaynağı. Parola zaten dosyadakiyle aynıysa hiçbir şey
+            // yazılmaz — aksi hâlde her açılışta `PasswordChangedAt` tazelenir ve
+            // `OnValidatePrincipal` yöneticiyi KENDİ oturumundan atardı (11.18 dersi).
+            if (canApplyConfigured)
+            {
+                var byUsername = await db.Users
+                    .Where(u => u.Role == UserRole.SuperAdmin && u.Username == AdminUsername && u.Password != null)
+                    .ToListAsync();
+
+                foreach (var admin in byUsername.Where(a => !hasher.VerifyPassword(configuredPassword!, a.Password!)))
+                {
+                    admin.Password = hasher.HashPassword(configuredPassword!);
+                    admin.MustChangePassword = false;
+                    // ⚠️ Kilit de temizlenir: parolayı unutup kilitlenmiş bir yöneticinin
+                    // dosyayı düzeltip yeniden başlatması, 15 dakika beklemesinden iyidir.
+                    admin.FailedLoginAttempts = 0;
+                    admin.LockedOutUntil = null;
+                }
+            }
         }
 
         if (!await db.Neighborhoods.AnyAsync())

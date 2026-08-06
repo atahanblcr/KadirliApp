@@ -6,6 +6,7 @@ using Microsoft.Extensions.FileProviders;
 using KadirliApp.Application;
 using KadirliApp.Infrastructure;
 using KadirliApp.Infrastructure.Health;
+using KadirliApp.Infrastructure.Http;
 using KadirliApp.Infrastructure.Persistence;
 using Serilog;
 
@@ -27,6 +28,14 @@ var uploadsDir = Path.GetFullPath(Path.Combine(
     builder.Configuration["FileStorage:UploadDirectory"] ?? "wwwroot/uploads"));
 Directory.CreateDirectory(uploadsDir);
 builder.Configuration["FileStorage:UploadDirectory"] = uploadsDir;
+
+// Faz 12.2 — panel süper admin parolası: secrets/ altında, git'e GİRMEYEN dosyadan.
+// Api/Program.cs ile AYNI dosya: iki host farklı kaynaktan okusaydı biri parolayı
+// hizalar, diğeri eski değeri geri yazardı ve arıza "bazen giriyorum, bazen giremiyorum"
+// biçiminde görünürdü.
+builder.Configuration.AddJsonFile(
+    Path.Combine(builder.Environment.ContentRootPath, "..", "secrets", "panel-admin.json"),
+    optional: true, reloadOnChange: false);
 
 // Add services to the container.
 // 10.9 denetimi: antiforgery artık GLOBAL — tüm POST'lar token ister (eski aksiyonların çoğunda
@@ -68,6 +77,13 @@ builder.Services.AddRateLimiter(o =>
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     o.OnRejected = async (context, ct) =>
     {
+        // 🐛 Faz 12.2 (canlı doğrulamada bulundu): hız sınırı ara katmanı controller'dan
+        // ÖNCE çalışıyor, yani kısılan denemeler AccountController'a hiç ulaşmıyor ve
+        // login_attempts'e TEK SATIR bile düşmüyordu. Sonuç, bu fazın savaştığı sınıfın
+        // ta kendisiydi: saldırgan dakikada 500 deneme yapar, panel "5 deneme" gösterir.
+        // ⚠️ Kısma ne kadar iyi çalışırsa tablo o kadar çok yalan söylüyordu.
+        await RecordRateLimitedAttemptAsync(context.HttpContext, ct);
+
         context.HttpContext.Response.ContentType = "text/plain; charset=utf-8";
         await context.HttpContext.Response.WriteAsync(
             "Çok fazla deneme yaptınız. Lütfen 1 dakika sonra tekrar deneyin.", ct);
@@ -84,6 +100,14 @@ builder.Services.AddRateLimiter(o =>
 });
 
 var app = builder.Build();
+
+// 🔴 Faz 12.2 — ForwardedHeaders EN BAŞTA (Api/Program.cs ile AYNI sınıftan, aynı ayarlardan).
+// İki host iki ayrı gerçekleme yazsaydı biri güncellenip diğeri unutulurdu ve panelin
+// gördüğü IP ile API'nin gördüğü IP ayrışırdı — aynı saldırı iki tabloda iki farklı
+// kaynaktan gelmiş görünürdü.
+app.UseConfiguredForwardedHeaders(
+    app.Configuration,
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ForwardedHeaders"));
 
 // Migration + idempotent başlangıç verisi (super_admin ve lookup tabloları)
 await DbSeeder.SeedAsync(app.Services);
@@ -138,6 +162,47 @@ app.MapControllerRoute(
 app.MapInfrastructureHealthEndpoints();
 
 app.Run();
+
+/// <summary>
+/// Faz 12.2 — hız sınırının reddettiği giriş denemesini kaydeder.
+/// </summary>
+/// <remarks>
+/// 🔴 <b>Hiçbir koşulda fırlatmaz.</b> Burası zaten bir reddetme yolu; buradaki bir istisna
+/// istemciye 429 yerine ham 500 verdirirdi. Gövde okunamazsa kimlik "(boş)" olur ve satır
+/// yine yazılır — <b>IP ve zaman</b>, "bu adres kısıldı" bilgisinin asıl taşıyıcısı.
+///
+/// ⚠️ Gövde yalnız form POST'unda ve <c>ReadFormAsync</c> ile okunur; istek zaten
+/// reddedildiği için aşağı akışta kimseyi etkilemez.
+/// </remarks>
+static async Task RecordRateLimitedAttemptAsync(HttpContext http, CancellationToken ct)
+{
+    try
+    {
+        if (!HttpMethods.IsPost(http.Request.Method)) return;
+
+        var recorder = http.RequestServices
+            .GetService<KadirliApp.Application.Common.Interfaces.ILoginAttemptRecorder>();
+        if (recorder is null) return;
+
+        var identifier = string.Empty;
+        if (http.Request.HasFormContentType)
+        {
+            var form = await http.Request.ReadFormAsync(ct);
+            identifier = form["username"].ToString();
+        }
+
+        await recorder.RecordAsync(new KadirliApp.Application.Common.Interfaces.LoginAttemptRecord(
+            Channel: KadirliApp.Application.Common.Interfaces.LoginChannels.Panel,
+            RawIdentifier: identifier,
+            UserId: null,
+            Succeeded: false,
+            FailureReason: KadirliApp.Application.Common.Interfaces.LoginFailureReasons.RateLimited), ct);
+    }
+    catch
+    {
+        // Yutulur: reddetme yanıtı her hâlükârda yazılmalı.
+    }
+}
 
 // Faz 11.15b: paneli WebApplicationFactory ile ayağa kaldırabilmek için. Üst düzey
 // deyimlerin ürettiği Program sınıfı varsayılan olarak `internal`'dır; test projesinin

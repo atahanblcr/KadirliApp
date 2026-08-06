@@ -107,6 +107,46 @@ public static class ProductionReadinessGuard
                 "Boş bırakın.");
         }
 
+        // 6) Faz 12.2 — uyarı e-postası açık ama sağlayıcı "Dev".
+        // 🔴 Sessiz başarısızlığın ders kitabı örneği: şüpheli girişler işaretlenir,
+        // SecurityAlertJob koşar, e-posta "gönderildi" sayılır ve yalnız log'a yazılır —
+        // yani uyarı sistemi tam ihtiyaç duyulduğu anda kimseye ulaşmaz ve bunu gösteren
+        // hiçbir belirti olmaz.
+        var emailProvider = cfg["Email:Provider"] ?? "Dev";
+        if (cfg.GetValue("Security:AlertEmailEnabled", true) &&
+            string.Equals(emailProvider, "Dev", StringComparison.OrdinalIgnoreCase))
+        {
+            blockers.Add(
+                "Security:AlertEmailEnabled=true iken Email:Provider=Dev → şüpheli giriş " +
+                "uyarıları HİÇ KİMSEYE gitmez, yalnız log'a yazılır. Gerçek sağlayıcı " +
+                "bağlayın (Email:Provider=Smtp) ya da uyarıyı bilinçli olarak kapatın.");
+        }
+
+        // 7) Faz 12.2 — ForwardedHeaders açık ama güvenilen proxy/ağ yok.
+        // 🔴 Bu bir "eksik ayar" değil, açık bir güvenlik açığı: istemci kendi
+        // X-Forwarded-For başlığını uydurup güvenlik kaydını ZEHİRLER — kendi IP'sini
+        // gizler, başkasınınkini yazdırır ve login_attempts masum bir kullanıcıyı işaret eder.
+        if (KadirliApp.Infrastructure.Http.ForwardedHeadersSetup.IsEnabledWithoutTrustedSources(cfg))
+        {
+            blockers.Add(
+                "ForwardedHeaders:Enabled=true ama KnownProxies/KnownNetworks BOŞ → " +
+                "istemci kendi X-Forwarded-For başlığını uydurabilir ve giriş denemesi " +
+                "kaydını zehirleyebilir (kendi IP'sini gizler, başkasınınkini yazdırır). " +
+                "Ters vekilin IP'sini ya da ağını yazın.");
+        }
+
+        // 8) Faz 12.2 — proxy arkasında ForwardedHeaders KAPALI olmasın.
+        // Engelleyici değil (tek makinede doğrudan servis edilen bir kurulum meşru),
+        // ama sonuçları sessiz: R2 herkeste yanar, R3 hiç yanmaz, IP bazlı hız sınırı
+        // tek partition'a düşer.
+        if (!KadirliApp.Infrastructure.Http.ForwardedHeadersSetup.IsEnabled(cfg))
+        {
+            logger.LogWarning(
+                "ForwardedHeaders:Enabled=false → istemci IP'si ters vekilin IP'si olarak " +
+                "kaydedilir. Ters vekil arkasındaysanız giriş denemesi kayıtları ve IP bazlı " +
+                "hız sınırı YANLIŞ çalışır. Doğrudan servis ediyorsanız sorun yok.");
+        }
+
         if (blockers.Count > 0)
         {
             var message = "Production yapılandırması yayına uygun değil — " +

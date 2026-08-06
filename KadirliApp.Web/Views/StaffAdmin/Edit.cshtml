@@ -77,4 +77,10 @@
             <button type="submit" class="rounded-md bg-amber-500 py-2 px-6 text-sm font-medium text-white shadow hover:bg-amber-600">Sıfırla</button>
         </form>
     </div>
+
+    @* Faz 12.2 — son giriş denemeleri. Bu ekran zaten yalnız-admin, ek rol kapısı gereksiz.
+       🔑 Personel sayfasında ayrıca değerli: bir yöneticinin hesabına yapılan kaba kuvvet,
+       parolayı sıfırlama kararının ta kendisidir — kanıt kararın yanında dursun. *@
+    <partial name="_RecentLoginAttempts"
+             model="@(ViewBag.LoginAttempts as IReadOnlyList<KadirliApp.Application.Features.LoginAttempts.Dtos.LoginAttemptResponseDto>)" />
 </div>

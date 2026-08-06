@@ -28,6 +28,13 @@ public class DashboardViewModel
     /// </summary>
     public int? OpenErrorCount { get; set; }
 
+    /// <summary>
+    /// Faz 12.2 — son 24 saatte şüpheli işaretlenmiş giriş denemesi sayısı.
+    /// <b>null = kullanıcı bunu görmemeli</b> (moderatör), <see cref="OpenErrorCount"/>
+    /// ile aynı kural ve aynı gerekçe.
+    /// </summary>
+    public int? SuspiciousLoginCount { get; set; }
+
     public List<ActivityItem> RecentActivities { get; set; } = new();
 }
 

@@ -180,6 +180,78 @@ public class PanelModeratorPermissionTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// 🔴 <b>Faz 12.2 — yalnız-admin ekranların HİÇBİRİ izin matrisinde görünmez.</b>
+    /// </summary>
+    /// <remarks>
+    /// 🐛 Bu test bugün yazıldı çünkü <b>bugüne kadar ihlal ediliyordu</b>:
+    /// <c>AuditLogsAdmin</c>, <c>TrashAdmin</c> ve <c>ErrorLogsAdmin</c> kurala uyuyordu ama
+    /// <c>StaffAdmin</c> hem <c>AdminOnlyControllers</c>'ta hem de <c>Module = "staff"</c>
+    /// taşıyordu. <c>StaffAdminController.Modules</c> menüden türediği için "staff" izin
+    /// matrisinde bir satır olarak beliriyordu: yönetici moderatöre "Personel: okuma"
+    /// veriyor, kutu işaretleniyor, kaydediliyor — ve rol kapısı yüzünden o yetki
+    /// <b>asla çalışmıyordu.</b> 11.15b'nin kapattığı "karşılığı olmayan yetki" hatasının
+    /// hâlâ ayakta duran örneğiydi.
+    ///
+    /// 🔑 Üç ekranın uyup dördüncüsünün uymaması, tam olarak testle yakalanması gereken
+    /// şeydir: insan gözü "hepsi aynı desende" der ve dördüncüyü fark etmez.
+    /// </remarks>
+    [Fact]
+    public void AdminOnlyControllers_AreOutsideThePermissionMatrix()
+    {
+        var offenders = PanelMenu.AdminOnlyControllers
+            .Select(name => PanelMenu.Items.FirstOrDefault(i => i.Controller == name))
+            .Where(item => item is not null && item.Module is not null)
+            .Select(item => item!.Controller)
+            .ToList();
+
+        offenders.Should().BeEmpty(
+            "yalnız-admin ekranların menü satırında Module null olmalı; modül anahtarı " +
+            "verildiğinde izin matrisinde moderatöre dağıtılabilen ama rol kapısı yüzünden " +
+            "asla çalışmayacak bir yetki belirir. İhlal edenler: {0}",
+            string.Join(", ", offenders));
+    }
+
+    /// <summary>
+    /// Ters yön: <c>AdminOnlyControllers</c>'a yazılan her ad gerçekten var olan, moderatöre
+    /// <b>kapalı</b> bir controller olmalı. Aksi hâlde liste (üstteki testi susturmak için)
+    /// bir muafiyet çöplüğüne dönüşebilirdi.
+    /// </summary>
+    [Fact]
+    public void AdminOnlyControllers_OnlyListsControllersThatAreActuallyClosedToModerators()
+    {
+        var controllers = typeof(WebPanel::Program).Assembly.GetTypes()
+            .Where(t => t is { IsAbstract: false, IsClass: true }
+                        && typeof(Controller).IsAssignableFrom(t)
+                        && t.Name.EndsWith("Controller", StringComparison.Ordinal))
+            .ToDictionary(t => t.Name.Replace("Controller", "", StringComparison.Ordinal));
+
+        foreach (var name in PanelMenu.AdminOnlyControllers)
+        {
+            controllers.Should().ContainKey(name, "listedeki '{0}' karşılığı olmayan bir ad", name);
+
+            var roles = controllers[name].GetCustomAttribute<AuthorizeAttribute>()?.Roles ?? "";
+            roles.Should().NotContain("moderator",
+                "'{0}' yalnız-admin listesinde ama rol kapısı moderatöre açık — ikisinden biri yanlış", name);
+        }
+    }
+
+    /// <summary>
+    /// 🔑 Tutarsızlığı düzeltmek, düzeltilmemiş hâlinde OLMAYAN yeni bir hata doğurabilirdi:
+    /// personel komutları hâlâ <c>AuditModule = "staff"</c> yazıyor ve o anahtar artık
+    /// menüde YOK. Karşılığı <c>NonMatrixModules</c>'a eklenmeseydi denetim izi ekranı
+    /// "staff" diye <b>ham İngilizce</b> basmaya başlardı (Değişmez Kural #6).
+    /// </summary>
+    [Fact]
+    public void StaffAuditModule_StillHasATurkishLabel_AfterLeavingTheMatrix()
+    {
+        WebPanel::KadirliApp.Web.Common.PanelDisplay.ModuleLabel("staff")
+            .Should().Be("Personel");
+
+        StaffAdminController.Modules.Select(m => m.Key)
+            .Should().NotContain("staff", "personel ekranı artık izin matrisinde değil");
+    }
+
+    /// <summary>
     /// Menüdeki modül anahtarları, personel ekranındaki izin matrisiyle birebir aynı
     /// olmalı. Ayrışırlarsa yönetici matriste işaretlediği modülü menüde göremez
     /// (ya da tersi) ve sebebini hiçbir yerde bulamaz.

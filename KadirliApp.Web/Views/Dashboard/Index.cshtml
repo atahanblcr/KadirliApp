@@ -129,6 +129,30 @@
     </a>
 }
 
+@*
+    Faz 12.2 — ŞÜPHELİ GİRİŞ ROZETİ (yalnız admin), hata rozetiyle aynı kural.
+    Sıfır ile null yine farklı: sıfırda "şüpheli giriş yok" yazar. Kartın sessiz kalması
+    "bir şey olmadı" değil "bakmıyorum" demek olurdu.
+*@
+@if (Model.SuspiciousLoginCount is { } suspiciousLogins)
+{
+    <a asp-controller="LoginAttemptsAdmin" asp-action="Index" asp-route-suspicious="true"
+       class="mb-6 flex items-center justify-between rounded-lg border @(suspiciousLogins > 0 ? "border-red-200 bg-red-50 hover:bg-red-100" : "border-green-200 bg-green-50 hover:bg-green-100") p-4 transition-colors">
+        <div class="flex items-center gap-3">
+            <i class="fas @(suspiciousLogins > 0 ? "fa-user-lock text-red-600" : "fa-shield-halved text-green-600") text-xl" aria-hidden="true"></i>
+            <div>
+                <p class="text-sm font-medium @(suspiciousLogins > 0 ? "text-red-900" : "text-green-900")">
+                    @(suspiciousLogins > 0 ? $"Son 24 saatte {suspiciousLogins:N0} şüpheli giriş denemesi" : "Son 24 saatte şüpheli giriş denemesi yok")
+                </p>
+                <p class="text-xs @(suspiciousLogins > 0 ? "text-red-700" : "text-green-700")">
+                    Panel ve mobil (OTP) girişlerinde otomatik kurallarla işaretlenenler
+                </p>
+            </div>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400" aria-hidden="true"></i>
+    </a>
+}
+
 <!-- Faz 10.10-A: Etkileşim satırı — üç 7-günlük nabız + duyuru erişim toplamı (mobil yayınla dolmaya başlar) -->
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6">
     <p class="text-xs text-gray-400 uppercase font-medium mb-3"><i class="fas fa-chart-line mr-1"></i>Etkileşim</p>

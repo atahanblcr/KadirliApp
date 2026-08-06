@@ -45,7 +45,11 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
                 { "RateLimiting:Auth:PermitLimit", "1000" },
                 { "RateLimiting:Global:PermitLimit", "10000" },
                 // Faz 10.7: testler art arda yazma isteği attığından public-write limiti de gevşetilir
-                { "RateLimiting:PublicWrite:PermitLimit", "1000" }
+                { "RateLimiting:PublicWrite:PermitLimit", "1000" },
+                // 🔴 Faz 12.2: `secrets/panel-admin.json` geliştiricinin makinesinde var,
+                // CI'da yok. Okunsaydı testler kimin makinesinde koştuğuna göre farklı
+                // davranırdı (seed parolayı ezer, DbSeeder.AdminPassword ile giriş kırılır).
+                { KadirliApp.Infrastructure.Persistence.DbSeeder.PanelPasswordConfigKey, "" }
             };
 
             foreach (var (key, value) in ExtraConfiguration)

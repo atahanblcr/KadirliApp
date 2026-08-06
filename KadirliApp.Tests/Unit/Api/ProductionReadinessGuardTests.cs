@@ -30,6 +30,13 @@ public class ProductionReadinessGuardTests
         ["Hangfire:Dashboard:Password"] = "guclu-parola",
         ["FileStorage:BaseUrl"] = "",
         ["Fcm:Provider"] = "Firebase",
+        // Faz 12.2: uyarı e-postası varsayılan olarak AÇIK; açıkken sağlayıcı "Dev"
+        // olamaz (uyarılar sessizce kimseye gitmez). Sağlıklı yapılandırma gerçek
+        // sağlayıcıyı bağlar.
+        ["Email:Provider"] = "Smtp",
+        // Ters vekil arkasında gerçek istemci IP'si; güvenilen kaynak BOŞ bırakılamaz.
+        ["ForwardedHeaders:Enabled"] = "true",
+        ["ForwardedHeaders:KnownNetworks:0"] = "10.0.0.0/8",
     };
 
     private static void Validate(Dictionary<string, string?> settings, string? environment = null)
@@ -196,6 +203,78 @@ public class ProductionReadinessGuardTests
         message.Should().Contain("Sms:Provider");
         message.Should().Contain("Hangfire");
         message.Should().Contain("3 engelleyici");
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Faz 12.2 — gözlem katmanının iki sessiz başarısızlığı
+    // ────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 🔴 Sessiz başarısızlığın ders kitabı örneği: şüpheli girişler işaretlenir,
+    /// <c>SecurityAlertJob</c> koşar, e-posta "gönderildi" sayılır ve yalnız log'a yazılır.
+    /// Yani uyarı sistemi tam ihtiyaç duyulduğu anda kimseye ulaşmaz ve bunu gösteren
+    /// hiçbir belirti olmaz — uçlar 200 döner, loglar temiz görünür.
+    /// </summary>
+    [Fact]
+    public void Uyari_epostasi_acikken_Dev_saglayicisi_uygulamayi_actirmaz()
+    {
+        var settings = HealthyProductionSettings();
+        settings["Email:Provider"] = "Dev";
+
+        var act = () => Validate(settings);
+
+        act.Should().Throw<InvalidOperationException>()
+            .Which.Message.Should().Contain("Security:AlertEmailEnabled");
+    }
+
+    /// <summary>
+    /// Uyarıyı <b>bilinçli olarak</b> kapatmak meşru bir tercihtir; kapı yalnız
+    /// "açık ama çalışmıyor" hâlini engeller.
+    /// </summary>
+    [Fact]
+    public void Uyari_epostasi_bilincli_kapatilmissa_Dev_saglayicisi_engel_degildir()
+    {
+        var settings = HealthyProductionSettings();
+        settings["Email:Provider"] = "Dev";
+        settings["Security:AlertEmailEnabled"] = "false";
+
+        var act = () => Validate(settings);
+
+        act.Should().NotThrow();
+    }
+
+    /// <summary>
+    /// 🔴 Bu bir "eksik ayar" değil, açık bir güvenlik açığı: güvenilen kaynak
+    /// tanımlanmadan <c>X-Forwarded-For</c> okumak, istemcinin kendi IP'sini gizleyip
+    /// <b>başkasınınkini</b> yazdırmasına izin verir — <c>login_attempts</c> masum bir
+    /// kullanıcıyı işaret eder ve kayıt bir kanıt olmaktan çıkar.
+    /// </summary>
+    [Fact]
+    public void ForwardedHeaders_acikken_guvenilen_kaynak_yoksa_uygulama_acilmaz()
+    {
+        var settings = HealthyProductionSettings();
+        settings.Remove("ForwardedHeaders:KnownNetworks:0");
+
+        var act = () => Validate(settings);
+
+        act.Should().Throw<InvalidOperationException>()
+            .Which.Message.Should().Contain("X-Forwarded-For");
+    }
+
+    /// <summary>
+    /// Tek makinede doğrudan servis edilen bir kurulum meşrudur: kapı orada durmaz,
+    /// yalnız uyarı loglar (aksi hâlde ters vekilsiz her yayın engellenirdi).
+    /// </summary>
+    [Fact]
+    public void ForwardedHeaders_kapaliysa_engelleyici_degildir()
+    {
+        var settings = HealthyProductionSettings();
+        settings["ForwardedHeaders:Enabled"] = "false";
+        settings.Remove("ForwardedHeaders:KnownNetworks:0");
+
+        var act = () => Validate(settings);
+
+        act.Should().NotThrow();
     }
 
     /// <summary>Test derlemesinden çözüm köküne çıkar (appsettings.json'u okumak için).</summary>

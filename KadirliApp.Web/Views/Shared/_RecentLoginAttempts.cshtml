@@ -1,0 +1,64 @@
+@model IReadOnlyList<KadirliApp.Application.Features.LoginAttempts.Dtos.LoginAttemptResponseDto>
+@*
+    Faz 12.2 — kullanıcı/personel detayında "son giriş denemeleri" kutusu.
+
+    ⚠️ ÇAĞIRAN, KUTUYU YALNIZ ADMIN'E BASAR. Giriş denemesi ekranı bilinçli olarak
+    yalnız-admin (IP, tarayıcı, şüphe işareti taşıyor); aynı veriyi moderatöre açık bir
+    sayfada göstermek o kararı arka kapıdan iptal ederdi — "ekran kapalı ama içeriği
+    başka ekranda görünüyor" tam olarak sessiz yetki sızıntısıdır.
+
+    Model null/boş olabilir: kutu yine çizilir ve "kayıt yok" der. Hiç çizilmemesi,
+    yöneticiye "burada böyle bir bilgi yok" izlenimi verirdi.
+*@
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-4 py-3">
+        <h3 class="text-sm font-semibold text-gray-800">
+            <i class="fas fa-fingerprint mr-1 text-gray-400"></i> Son giriş denemeleri
+        </h3>
+        <a asp-controller="LoginAttemptsAdmin" asp-action="Index"
+           class="text-xs font-medium text-blue-600 hover:text-blue-800">
+            Tümünü gör <i class="fas fa-arrow-right ml-1"></i>
+        </a>
+    </div>
+
+    @if (Model is { Count: > 0 })
+    {
+        <ul class="divide-y divide-gray-100">
+            @foreach (var item in Model)
+            {
+                var channelBadge = PanelDisplay.LoginChannel(item.Channel);
+                <li class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
+                    <span class="font-mono text-gray-700">@item.CreatedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")</span>
+                    <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium @channelBadge.Css">
+                        <i class="fas @channelBadge.Icon"></i> @channelBadge.Label
+                    </span>
+                    @if (item.Succeeded)
+                    {
+                        <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                            <i class="fas fa-circle-check"></i> Başarılı
+                        </span>
+                    }
+                    else
+                    {
+                        var reasonBadge = PanelDisplay.LoginFailureReason(item.FailureReason);
+                        <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium @reasonBadge.Css">
+                            <i class="fas @reasonBadge.Icon"></i> @reasonBadge.Label
+                        </span>
+                    }
+                    <span class="font-mono text-xs text-gray-500">@(string.IsNullOrWhiteSpace(item.IpAddress) ? "—" : item.IpAddress)</span>
+                    @if (item.IsSuspicious)
+                    {
+                        var ruleBadge = PanelDisplay.SuspicionRule(item.SuspicionRule);
+                        <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium @ruleBadge.Css">
+                            <i class="fas @ruleBadge.Icon"></i> @ruleBadge.Label
+                        </span>
+                    }
+                </li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p class="px-4 py-6 text-center text-sm text-gray-500">Bu hesap için kayıtlı giriş denemesi yok.</p>
+    }
+</div>

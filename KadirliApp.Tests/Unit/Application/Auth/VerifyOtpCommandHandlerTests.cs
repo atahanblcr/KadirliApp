@@ -23,6 +23,14 @@ public class VerifyOtpCommandHandlerTests
     private readonly Mock<IOtpService> _otpServiceMock = new();
     private readonly Mock<IUnitOfWork> _uowMock = new();
     private readonly Mock<IRepository<User>> _userRepoMock = new();
+
+    /// <summary>
+    /// Faz 12.2: OTP akışı artık her sonucu <see cref="ILoginAttemptRecorder"/>'a bildiriyor.
+    /// Mock <b>gevşek</b> (loose) bırakıldı — bu testlerin konusu giriş akışının kendisi;
+    /// kaydın içeriği <c>PanelLoginAttemptTests</c> ve <c>SuspiciousLoginRulesTests</c>'te
+    /// ayrıca kilitli. Yine de "her dalda kayıt düşüyor mu" burada bir testle doğrulanıyor.
+    /// </summary>
+    private readonly Mock<ILoginAttemptRecorder> _loginAttemptsMock = new();
     private readonly VerifyOtpCommandHandler _handler;
 
     public VerifyOtpCommandHandlerTests()
@@ -32,7 +40,8 @@ public class VerifyOtpCommandHandlerTests
         _handler = new VerifyOtpCommandHandler(
             _jwtProviderMock.Object,
             _otpServiceMock.Object,
-            _uowMock.Object
+            _uowMock.Object,
+            _loginAttemptsMock.Object
         );
     }
 

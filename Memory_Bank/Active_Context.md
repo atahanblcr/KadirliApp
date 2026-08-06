@@ -1,5 +1,66 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 6 Ağustos 2026 — **FAZ 12.2 TAMAMLANDI: şüpheli giriş günlüğü + e-posta uyarısı + `StaffAdmin` izin düzeltmesi.**
+> Kod `Domain/Entities/LoginAttempt.cs` + `Application/Common/Security/{LoginIdentifierMasker,SuspiciousLoginRules}` +
+> `Common/Interfaces/ILoginAttemptRecorder.cs` + `Features/LoginAttempts/` + `Infrastructure/Security/LoginAttemptRecorder.cs` +
+> `Infrastructure/Http/ForwardedHeadersSetup.cs` + `Notifications/SmtpEmailService.cs` +
+> `Jobs/{SecurityAlertJob,PurgeLoginAttemptsJob}.cs` + migration `AddLoginAttempts` +
+> `Web/Controllers/LoginAttemptsAdminController.cs` + `Views/LoginAttemptsAdmin/Index` +
+> `Views/Shared/_RecentLoginAttempts` + 3 yeni test dosyası. **Backend 605 → 663 (+58), mobil 685 (değişmedi), analyze 0.**
+>
+> 🔑 **TESLİM EDİLEN:** "kim, nereden, ne zaman girmeye çalıştı?" sorusunun cevabı artık var. 11.18 hesap
+> kilidini getirmişti ama yalnız iki **sayaç** tutuyordu; kimin ve nereden denediği hiçbir yerde yoktu,
+> vatandaş tarafında (OTP) ise hiçbir iz yoktu. `AuditLog` (ne yapıldı) + `ErrorLog` (ne bozuldu) +
+> `LoginAttempt` (kim girmeye çalıştı) üçlüsü tamamlandı.
+>
+> 🔴 **CANLI DOĞRULAMADA BULUNAN ÜÇ SESSİZ HASAR (üçü de kapatıldı):** (1) **Hız sınırı kayıt yolundan
+> ÖNCE çalışıyordu** — kısılan denemeler `login_attempts`'e hiç düşmüyordu; saldırgan dakikada 500 deneme
+> yaparken panel "5 deneme" gösteriyordu ve **kısma ne kadar iyi çalışırsa tablo o kadar çok yalan
+> söylüyordu**. Çözüm: `OnRejected` içinde `rate_limited` kaydı. (2) **Maskeleme yanındaki sütundan
+> deliniyordu** — `Identifier` maskeliydi ama "Kullanıcı" sütunu `Username ?? Phone` deseniyle
+> **kullanıcı adı olmayan vatandaş hesabında ham telefonu CSV'ye** yazıyordu. ⚠️ İlk yazdığım test bunu
+> kaçırdı (test kullanıcısının adı vardı → yedek dala hiç girilmiyordu); **maskeleme testi, maskelemenin
+> devreye girdiği dalda kurulmalı.** (3) **Eşik sözleşmesi yalnız koddaki varsayılan için kilitliydi** —
+> `appsettings` eşiği ezebiliyor; bilerek bozunca saf kural testi kırmızıya döndü ama uçtan uca test
+> **yeşil kaldı**. Artık `appsettings` ↔ sabit eşitliği **iki dosyada birden** (Api + Web) test edilir.
+>
+> 🔑 **DİĞER KARARLAR:** kimlik **maskeli ve deterministik** (hatalı OTP dalında `UserId` bilerek boş —
+> 10.2 kuralı; kayıt hesaba maskeli kimlikle bağlanır) · kural önceliği **R2 > R1** (kimlik doldurma
+> altındaki hesapları R1 de yakalar; ters sırada yönetici "20 ayrı uyarı" görüp asıl olayı kaçırırdı) ve
+> **R4 > R3** · **R3 yalnız panel kanalında** (mobilde IP her gün değişir) · IP'yi **yalnız
+> `LoginAttemptRecorder` okur** · `UsersAdmin`'deki kutu **rol kapısıyla** korunuyor (ekran moderatöre
+> açık, veri değil) · uyarı e-postası **kısılır** (kısmasız bir saldırı yöneticinin posta kutusuna
+> kendi kendimize yaptığımız DoS'a döner ve gerçek uyarı filtreye düşer).
+>
+> ➕ **PLAN DIŞI:** "Uyarı kanalını dene" butonu (bayrakla kapalı e-posta yolunu **bugün** sınar, 10.11
+> FCM dersi) · dashboard şüpheli giriş rozeti · `rate_limited` sebebi · **`secrets/panel-admin.json`**:
+> panel süper admin parolasının git'e girmeyen tek kaynağı — parola 11.18'de değişmiş, kaynaktaki sabit
+> o günden beri yalan söylüyordu ve doğrusu **hiçbir yere yazılamıyordu** (depo herkese açık). Seed
+> parolayı ona hizalar (aynıysa yazmaz, yoksa `PasswordChangedAt` tazelenip yönetici kendi oturumundan
+> atılırdı), kilidi temizler, **yalnız Development**, `MustChangePassword` işaretlemez.
+> ⚠️ **Testler bu dosyayı bilinçli yok sayar** — okusalardı kimin makinesinde koştuklarına göre farklı davranırlardı.
+>
+> 🔴 **GÖRÜNMEZ SÖZLEŞMELERE #34, #35, #36 EKLENDİ** (kimlik maskeli + deterministik · R1 eşiği kilit
+> eşiğiyle aynı · uyarı e-postası kısılır). Toplam **36**.
+>
+> **Doğrulama:** `dotnet test` **663/663** · `flutter analyze` **0** · `flutter test` **685/685**.
+> **Kuralı bilerek boz:** 5 deneme → hepsi kırmızı; **ilk turda 2'si yeşil kaldı**, eksik testler yazılınca kırmızıya döndüler.
+> **Canlı (curl + Chrome + gerçek Android emülatörü):** 5 hatalı giriş → 5 kayıt + kilit + **R1** ·
+> 8 hızlı deneme → 5 `unknown_user` + **3 `rate_limited`** · **gerçek mobil uygulamadan** hatalı OTP →
+> `+90532***0002` / `mobile_otp` / UA `Dart/3.12 (dart:io)` · admin'in ilk `::1` girişi → **R3 kendiliğinden yandı** ·
+> `SecurityAlertJob` Türkçe uyarı üretti, kısma anahtarı ikinci `SETNX`'i **reddetti** ·
+> güvenilen vekilden `X-Forwarded-For: 9.9.9.9` → **kaydedildi**, güvenilmeyen kaynaktan uydurma başlık → **yok sayıldı** ·
+> Production kapısı güvenilen kaynak yokken uygulamayı **açmadı**.
+>
+> 🐛 **12.2 DIŞINDA BULUNAN MOBİL HATA (açık madde):** OTP ekranında hızlı gezinme
+> `Navigator._debugCheckDuplicatedPageKeys` assertion'ını patlatıyor (`'!keyReservation.contains(key)'`) —
+> `go_router`'ın "`context.push` redirect'in üstünde kalır" ailesinden. 🔑 **Çökme 12.1'in aynasına düştü**
+> (`error_logs` → `mobile`/`android`/`1.0.0+1`): gözlem katmanı bir sonraki fazda ilk gerçek işini gördü.
+>
+> ⏭️ **SIRADAKİ: 12.2b** — bildirim teslim panosu + bağımsız push ekranı.
+>
+> ---
+>
 > Son güncelleme: 5 Ağustos 2026 (2. oturum) — **FAZ 12.1 TAMAMLANDI: hata günlüğü modülü.** Kod `Domain/Entities/ErrorLog.cs` + `Application/Common/Observability/{ErrorFingerprint,SensitiveDataMasker}` + `Common/Interfaces/IErrorLogSink.cs` + `Features/ErrorLogs/` + `Infrastructure/Observability/ChannelErrorLogSink.cs` + `Jobs/PurgeErrorLogsJob.cs` + migration `AddErrorLogs` + `Api/Controllers/ClientErrorsController.cs` + `Web/Controllers/ErrorLogsAdminController.cs` + `Views/ErrorLogsAdmin/{Index,Details}` + `Web/Common/PanelErrorLoggingMiddleware.cs` + `mobile/lib/core/observability/error_reporter.dart` + 3 yeni test dosyası. **Backend 567 → 605 (+38), mobil 678 → 685 (+7), analyze 0.**
 >
 > 🔑 **TESLİM EDİLEN:** panel artık "ne yapıldığını" değil **"ne olduğunu" da** gösteriyor. `AuditLog` yöneticinin *başarılı* yazma eylemlerini tutuyordu; vatandaşın aldığı hata yalnız Seq'e akıyordu (`localhost:5341` — panelden bakanın erişemediği yer), mobil hata ise **hiçbir yere**. Artık üç kaynak (`api`/`web`/`mobile`) tek ekranda.

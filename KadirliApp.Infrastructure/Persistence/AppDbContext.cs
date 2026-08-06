@@ -22,6 +22,8 @@ public class AppDbContext : DbContext
     // Faz 12.1 — AuditLog'un tamamlayıcısı: denetim izi BAŞARILI yazma eylemlerini tutar,
     // bu tablo BAŞARISIZ olanı ("vatandaş ne gördü").
     public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
+    // Faz 12.2 — üçüncü kardeş: kimlik doğrulamanın sonucu ("kim girmeye çalıştı").
+    public DbSet<LoginAttempt> LoginAttempts => Set<LoginAttempt>();
     public DbSet<Business> Businesses => Set<Business>();
     public DbSet<BusinessCategory> BusinessCategories => Set<BusinessCategory>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();

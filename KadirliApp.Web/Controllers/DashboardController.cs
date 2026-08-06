@@ -35,8 +35,18 @@ public class DashboardController : Controller
         // Faz 12.1 — hata rozeti YALNIZ admin'e. Sayacı paylaşılan GetDashboardStatsQuery'ye
         // eklemedik bilerek: o sorgu 60 sn Redis'te cache'leniyor ve moderatöre de dönüyor;
         // eklenseydi moderatör göremeyeceği bir ekranın sayacını görürdü ("gizli buton"un tersi).
-        int? openErrors = User.IsInRole("admin") || User.IsInRole("super_admin")
+        var isAdmin = User.IsInRole("admin") || User.IsInRole("super_admin");
+
+        int? openErrors = isAdmin
             ? await _sender.Send(new KadirliApp.Application.Features.ErrorLogs.Queries.GetOpenErrorCountQuery(24))
+            : null;
+
+        // Faz 12.2 — şüpheli giriş rozeti, hata rozetiyle aynı kural: yalnız admin.
+        // 🔑 Uyarı e-postası 5 dakikada bir gidiyor ama kimse posta kutusuna 7/24 bakmıyor;
+        // panele giren yönetici ise iniş sayfasını mutlaka görüyor. İki kanal aynı olayı
+        // farklı zamanlarda yakalar ve bu tekrar bilinçli.
+        int? suspiciousLogins = isAdmin
+            ? await _sender.Send(new KadirliApp.Application.Features.LoginAttempts.Queries.GetSuspiciousLoginCountQuery(24))
             : null;
 
         var model = new DashboardViewModel
@@ -50,6 +60,7 @@ public class DashboardController : Controller
             NewAdsLast7Days = stats.NewAdsLast7Days,
             TotalAnnouncementViews = stats.TotalAnnouncementViews,
             OpenErrorCount = openErrors,
+            SuspiciousLoginCount = suspiciousLogins,
             // Faz 11.15c: kırılım artık ekrana çıkıyor; sıfır olan modül satırı çizilmez
             // ("0 bekliyor" satırı gürültü, tıklanınca boş liste açar).
             PendingQueue = new List<PendingQueueItem>

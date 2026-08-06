@@ -1859,7 +1859,7 @@ denetim izinde **"Hata Kayıtları / Hatayı çözdü"** (ham İngilizce yok).
 
 ---
 
-### 12.2 — Şüpheli giriş günlüğü + e-posta raporlama + `StaffAdmin` izin tutarsızlığı — [ ]
+### 12.2 — Şüpheli giriş günlüğü + e-posta raporlama + `StaffAdmin` izin tutarsızlığı — [x] ✅ TAMAMLANDI (6 Ağustos 2026)
 
 **Hedef:** "Kim, nereden, ne zaman girmeye çalıştı" sorusunun cevabı + süper admin'e uyarı.
 
@@ -1987,6 +1987,107 @@ ikinci kez → **ikinci e-posta gitmedi** (kısma çalıştı) · geçersiz OTP 
 `Identifier` maskeli · Production'da `Dev` sağlayıcıyla uygulama **açılmıyor** ·
 proxy başlığıyla gelen istekte **gerçek istemci IP'si** kaydediliyor, uydurma `X-Forwarded-For`
 **yok sayılıyor**.
+
+#### 12.2 kapanış notları
+
+**Teslim edilenler:** `LoginAttempt` varlığı + migration `AddLoginAttempts` ·
+`LoginIdentifierMasker` + `SuspiciousLoginRules` (saf, birim testli) ·
+`ILoginAttemptRecorder`/`LoginAttemptRecorder` · `ForwardedHeadersSetup` (Api **ve** Web) ·
+`SmtpEmailService` + DI `case "smtp"` · `SecurityAlertJob` (Redis kısma) ·
+`PurgeLoginAttemptsJob` · `LoginAttemptsAdmin` (liste + filtre + CSV + **"Uyarı kanalını dene"**) ·
+dashboard rozeti · `UsersAdmin`/`StaffAdmin` detayında "son giriş denemeleri" ·
+`ProductionReadinessGuard`'a 2 engelleyici + 1 uyarı · `StaffAdmin` matris düzeltmesi.
+**Backend 605 → 663 (+58), mobil 685 (değişmedi), analyze 0.**
+
+🐛 **CANLI DOĞRULAMADA BULUNAN ÜÇ ŞEY** (üçü de "kuralı bilerek boz" ya da gerçek kullanım sırasında çıktı):
+
+1. 🔴 **Hız sınırı kayıt yolundan ÖNCE çalışıyordu — kısılan denemeler HİÇ kaydedilmiyordu.**
+   `panel-login` limiti (9.2) controller'dan önceki bir ara katman; dakikada 5'i aşan
+   denemeler `AccountController`'a hiç girmiyor ve `login_attempts`'e **tek satır bile**
+   düşmüyordu. Sonuç tam da bu fazın savaştığı sınıftı: saldırgan dakikada 500 deneme
+   yapar, panel "5 deneme" gösterir. ⚠️ **Kısma ne kadar iyi çalışırsa tablo o kadar çok
+   yalan söylüyordu.** Çözüm: `OnRejected` içinde `rate_limited` sebebiyle kayıt (fırlatmaz;
+   gövde okunamazsa kimlik boş geçer, IP + zaman yine yazılır). Canlıda 8 deneme →
+   **5 `unknown_user` + 3 `rate_limited`**.
+
+2. 🔴 **Maskeleme, yanındaki sütundan deliniyordu.** `Identifier` özenle maskeleniyordu ama
+   listenin "Kullanıcı" sütunu panelin alışılmış `Username ?? Phone` desenini kullanıyordu:
+   **kullanıcı adı olmayan bir vatandaş hesabında ham telefon numarası CSV'ye düşüyordu.**
+   🔑 İlk yazdığım test bunu **kaçırdı** — test kullanıcısı moderatördü, adı vardı, yani
+   yedek dala hiç girilmiyordu. Düzeltmeyi geri alınca test **yeşil kaldı**; kırılgan durum
+   için (adı olmayan vatandaş) ayrı bir test yazılınca yakalandı. Ders: **maskeleme testi,
+   maskelemenin devreye girdiği dalda kurulmalı.**
+
+3. 🔴 **Eşik sözleşmesi yalnız KODDAKİ varsayılan için kilitliydi.** R1 eşiğini
+   `PanelLockoutPolicy.MaxFailedAttempts`'e bağlayan test vardı, ama eşiği `appsettings`
+   ezebiliyor ve `LoginAttemptRecorder` yapılandırmayı okuyor. Bilerek bozunca saf kural
+   testi kırmızıya döndü, **uçtan uca panel testi yeşil kaldı** (yapılandırma hâlâ 5
+   diyordu). `appsettings` ile sabiti eşitleyen test eklendi — **iki dosya birden**
+   (Api + Web), çünkü giriş iki ayrı süreçte kaydediliyor.
+
+🔑 **DİĞER KARARLAR:** `Identifier` **maskeli ve deterministik** (hatalı OTP dalında
+`UserId` bilerek boş — o dalda kullanıcı tablosuna dokunulmuyor, 10.2 kuralı; kayıt hesaba
+**maskeli kimlikle** bağlanıyor) · kural **önceliği** R2 > R1 (kimlik doldurma altındaki tek
+tek hesapları R1 de yakalar; R1 önce gelseydi yönetici "20 ayrı uyarı" görüp asıl olayı
+kaçırırdı) ve R4 > R3 · **R3 yalnız panel kanalında** (mobil şebekede IP her gün değişir,
+orada kural yanlış alarm makinesi olurdu) · IP'yi **yalnız `LoginAttemptRecorder` okur**
+(üç ayrı yerde okunsaydı `ForwardedHeaders`'ı doğru yorumlama sorumluluğu dağılırdı) ·
+`UsersAdmin`'deki kutu **rol kapısıyla korunuyor** (ekran moderatöre açık, veri değil —
+"ekran kapalı ama verisi başka yerde görünüyor" sessiz sızıntısı) · `SecurityAlertJob`
+alıcı yoksa **patlamaz**, loglar · e-posta gövdesi **HTML-kaçırılmış** (uyarı postası
+enjeksiyon taşıyıcısı olmamalı).
+
+➕ **PLAN DIŞI EKLENENLER (kullanıcı onaylı serbest kapsam):**
+- **"Uyarı kanalını dene" butonu** (`LoginAttemptsAdmin/SendTestAlert`). Gerekçe projenin
+  kendi dersi: *"bayrakla kapalı yol = hiç test edilmemiş yol"* (10.11 FCM). `SecurityAlertJob`'ın
+  e-posta yolu ancak **gerçek bir saldırı sırasında** ilk kez koşar — SMTP yanlışsa bunu tam
+  da en kötü anda öğreniriz. Buton o yolu bugün çalıştırır; alıcı **her zaman kişinin kendisi**
+  (serbest alıcı alanı paneli spam aracına çevirirdi).
+- **Dashboard "şüpheli giriş" rozeti** (12.1'in hata rozetiyle aynı desen ve aynı rol kapısı).
+- **`rate_limited` sebebi** (yukarıdaki 1. bulgunun çözümü).
+- **`secrets/panel-admin.json`** — panel süper admin parolasının git'e girmeyen tek kaynağı.
+  🐛 Gerekçe gerçek bir tekrar eden sorun: parola 11.18'de değiştirildi, kaynaktaki sabit
+  (`DbSeeder.AdminPassword`) o günden beri **yalan söylüyordu** ve doğrusu hiçbir yere
+  yazılamıyordu (depo herkese açık; 11.18'de tam bu yüzden gerçek bir sızıntı yaşandı).
+  Dosya `secrets/*` altında → **commit edilmesi imkânsız**. Seed parolayı ona **hizalar**
+  (aynıysa yazmaz — her açılışta yazsaydı `PasswordChangedAt` tazelenir ve
+  `OnValidatePrincipal` yöneticiyi kendi oturumundan atardı) ve kilidi temizler.
+  ⚠️ **Yalnız Development** · `MustChangePassword` **işaretlenmez** (11.18'in kuralı
+  "parolayı *başkası* belirlediyse zorla"dır; burada belirleyen sahibi) ·
+  ⚠️ **Testler bu dosyayı bilinçli olarak yok sayar** (iki factory'de boş değerle ezilir):
+  okusaydılar testler *kimin makinesinde koştuğuna göre* farklı davranırdı.
+
+**Yeni görünmez sözleşmeler: #34, #35, #36** (kimlik maskeli + deterministik · R1 eşiği
+kilit eşiğiyle aynı · uyarı e-postası kısılır). Toplam **36**.
+
+**Doğrulama:** `dotnet test` **663/663** · `flutter analyze` **0** · `flutter test` **685/685**.
+**Kuralı bilerek boz (5 deneme, hepsi kırmızıya döndü):** R1 eşiği koddan ayrıldı ·
+`appsettings` eşiği 7 yapıldı · maskeleme kaldırıldı (7 test) · `StaffAdmin` yeniden
+`Module="staff"` (2 test) · görünüm `@Html.Raw`'a çevrildi · `UserName` yedeği ham telefona
+döndü. **İlk denemede 2'si yeşil kaldı** → eksik testler yazıldı, sonra kırmızıya döndüler.
+
+**Canlı (curl + Chrome + gerçek Android emülatörü):**
+- 5 hatalı panel girişi → **5 kayıt + kilit + son satırda R1** · kimlik `adm***` (ham yok)
+- 8 hızlı deneme → **5 `unknown_user` + 3 `rate_limited`** (kör nokta kapandı)
+- **Gerçek mobil uygulamadan** hatalı OTP → `+90532***0002` · `mobile_otp` · `bad_otp` ·
+  UA `Dart/3.12 (dart:io)` (isteğin uygulamadan geldiğinin kanıtı); doğru kodla giriş → başarılı kayıt
+- admin'in ilk `::1` girişi → **R3 "Yeni IP'den panel girişi"** kendiliğinden yandı
+- `SecurityAlertJob` → `super_admin`'e **Türkçe uyarı e-postası** (Dev sağlayıcı log'a yazdı),
+  Redis kısma anahtarı TTL < 1 saat ve ikinci `SETNX` **boş** döndü (e-posta gönderilmez)
+- `ForwardedHeaders`: güvenilen vekil `127.0.0.1` iken `X-Forwarded-For: 9.9.9.9` → **kaydedilen IP 9.9.9.9**;
+  güvenilen vekil `10.9.9.9` iken uydurma başlık → **yok sayıldı, IP 127.0.0.1 kaldı**
+- Production kapısı: `ForwardedHeaders` açık + güvenilen kaynak yok → uygulama **açılmadı**
+- Panelde Türkçe rozetler (Panel · Mobil (OTP) · Hatalı parola · Kullanıcı yok · Hız sınırı ·
+  Aynı hesaba yoğun deneme) · "staff" izin matrisinden **kalktı** · dashboard'da
+  "Son 24 saatte 7 şüpheli giriş denemesi"
+
+🐛 **12.2 KAPSAMI DIŞINDA BULUNAN MOBİL HATA (düzeltilmedi, sonraki faza):** canlı doğrulama
+sırasında OTP ekranında hızlı ard arda gezinme `Navigator._debugCheckDuplicatedPageKeys`
+assertion'ını patlattı (`'!keyReservation.contains(key)'`). Aynı sayfa anahtarı iki kez
+yığına giriyor — `go_router`'ın "`context.push` ile açılan ekran redirect'in ÜSTÜNDE kalır"
+ailesinden (§7 kod-dışı sözleşmeler). 🔑 **Ama asıl haber şu: çökme 12.1'in aynasına düştü** —
+`error_logs`'ta `mobile` / `android` / `1.0.0+1` kaynağıyla duruyor. Gözlem katmanı, kendi
+kurulduğu fazın bir sonrakinde ilk gerçek işini gördü.
 
 ---
 

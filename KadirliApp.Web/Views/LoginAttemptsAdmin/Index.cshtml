@@ -1,0 +1,232 @@
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.LoginAttempts.Dtos.LoginAttemptResponseDto>
+@{
+    ViewData["Title"] = "Giriş Denemeleri";
+
+    var channels = ViewBag.Channels as List<(string Key, string Label)> ?? new();
+    var rules = ViewBag.Rules as List<(string Key, string Label)> ?? new();
+    var reasons = ViewBag.Reasons as List<(string Key, string Label)> ?? new();
+
+    string? selectedChannel = ViewBag.Channel;
+    bool? succeeded = ViewBag.Succeeded;
+    bool? suspicious = ViewBag.Suspicious;
+    string? selectedRule = ViewBag.Rule;
+    string? selectedReason = ViewBag.Reason;
+    string? ip = ViewBag.Ip;
+    DateTime? from = ViewBag.From;
+    DateTime? to = ViewBag.To;
+    string? search = ViewBag.Search;
+    string? sort = ViewBag.Sort;
+
+    var hasFilter = selectedChannel != null || succeeded != null || suspicious != null
+                    || selectedRule != null || selectedReason != null
+                    || !string.IsNullOrWhiteSpace(ip) || from != null || to != null
+                    || !string.IsNullOrWhiteSpace(search);
+}
+
+<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Giriş Denemeleri</h2>
+        <p class="text-sm text-gray-500 mt-1">
+            Panel ve mobil (OTP) girişlerinin sonucu. Kimlik bilgisi <strong>maskeli</strong> saklanır;
+            ham telefon veya kullanıcı adı bu tabloya hiç yazılmaz.
+        </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+        @* Plan dışı ek: uyarı kanalını "bir saldırı sırasında" değil BUGÜN dene. *@
+        <form asp-action="SendTestAlert" method="post" class="inline">
+            <button type="submit"
+                    data-confirm="Kendi e-posta adresinize bir test uyarısı gönderilecek. Devam edilsin mi?"
+                    class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                <i class="fas fa-paper-plane"></i> Uyarı kanalını dene
+            </button>
+        </form>
+        <partial name="_ExportCsvButton" />
+    </div>
+</div>
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <form asp-action="Index" method="get" class="p-4 border-b border-gray-200 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+            <label for="channel" class="block text-xs font-medium text-gray-600 mb-1">Kanal</label>
+            <select id="channel" name="channel" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var c in channels)
+                {
+                    <option value="@c.Key" selected="@(c.Key == selectedChannel)">@c.Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="succeeded" class="block text-xs font-medium text-gray-600 mb-1">Sonuç</label>
+            <select id="succeeded" name="succeeded" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                <option value="false" selected="@(succeeded == false)">Başarısız</option>
+                <option value="true" selected="@(succeeded == true)">Başarılı</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="suspicious" class="block text-xs font-medium text-gray-600 mb-1">Şüphe</label>
+            <select id="suspicious" name="suspicious" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                <option value="true" selected="@(suspicious == true)">Yalnız şüpheli</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="rule" class="block text-xs font-medium text-gray-600 mb-1">Kural</label>
+            <select id="rule" name="rule" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var r in rules)
+                {
+                    <option value="@r.Key" selected="@(r.Key == selectedRule)">@r.Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="reason" class="block text-xs font-medium text-gray-600 mb-1">Başarısızlık sebebi</label>
+            <select id="reason" name="reason" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var r in reasons)
+                {
+                    <option value="@r.Key" selected="@(r.Key == selectedReason)">@r.Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="ip" class="block text-xs font-medium text-gray-600 mb-1">IP (tam eşleşme)</label>
+            <input id="ip" name="ip" type="text" value="@ip" placeholder="88.240.10.1"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+            <label for="from" class="block text-xs font-medium text-gray-600 mb-1">Başlangıç</label>
+            <input id="from" name="from" type="date" value="@(from?.ToString("yyyy-MM-dd"))"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+            <label for="to" class="block text-xs font-medium text-gray-600 mb-1">Bitiş</label>
+            <input id="to" name="to" type="date" value="@(to?.ToString("yyyy-MM-dd"))"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div class="sm:col-span-2">
+            <label for="search" class="block text-xs font-medium text-gray-600 mb-1">Kimlikte ara (maskeli)</label>
+            <input id="search" name="search" type="text" value="@search" placeholder="Örn. +90500 veya adm"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(sort))
+        {
+            @* Sıralama filtre formundan kaybolmamalı — aksi hâlde "Filtrele"ye basınca sıra sıfırlanır. *@
+            <input type="hidden" name="sort" value="@sort" />
+        }
+
+        <div class="sm:col-span-2 lg:col-span-4 flex flex-wrap items-center gap-3">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-filter mr-2"></i> Filtrele
+            </button>
+            @if (hasFilter)
+            {
+                <a asp-action="Index" class="text-sm font-medium text-gray-600 hover:text-gray-900">
+                    <i class="fas fa-times mr-1"></i> Filtreleri temizle
+                </a>
+            }
+        </div>
+    </form>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                    <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Zaman", "created_asc", "created_desc", sort)' />
+                    <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Kanal", "channel_asc", "channel_desc", sort)' />
+                    <th scope="col" class="px-4 py-3 font-medium">Kimlik</th>
+                    <th scope="col" class="px-4 py-3 font-medium">Sonuç</th>
+                    <th scope="col" class="px-4 py-3 font-medium">IP</th>
+                    <th scope="col" class="px-4 py-3 font-medium">Şüphe</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model?.Items != null && Model.Items.Any())
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        var channelBadge = PanelDisplay.LoginChannel(item.Channel);
+                        <tr class="bg-white border-b hover:bg-gray-50 transition-colors align-top @(item.IsSuspicious ? "bg-red-50/40" : "")">
+                            <td class="px-4 py-4 whitespace-nowrap text-gray-900">
+                                @item.CreatedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @channelBadge.Css">
+                                    <i class="fas @channelBadge.Icon"></i> @channelBadge.Label
+                                </span>
+                            </td>
+                            <td class="px-4 py-4">
+                                @* ⚠️ Ham basılmaz: kimlik dolaylı olarak İSTEMCİDEN geliyor (giriş formu).
+                                   Razor kaçışı varsayılan — burada @Html.Raw kullanmak panelde
+                                   depolanmış XSS açardı (12.1'in hata kaydı kararının aynısı). *@
+                                <div class="font-mono text-gray-900 break-all">@item.Identifier</div>
+                                @if (!string.IsNullOrWhiteSpace(item.UserName))
+                                {
+                                    <div class="mt-1 text-xs text-gray-500 break-all">@item.UserName</div>
+                                }
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                @if (item.Succeeded)
+                                {
+                                    <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-circle-check"></i> Başarılı
+                                    </span>
+                                }
+                                else
+                                {
+                                    var reasonBadge = PanelDisplay.LoginFailureReason(item.FailureReason);
+                                    <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @reasonBadge.Css">
+                                        <i class="fas @reasonBadge.Icon"></i> @reasonBadge.Label
+                                    </span>
+                                }
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap font-mono text-gray-700">
+                                @(string.IsNullOrWhiteSpace(item.IpAddress) ? "—" : item.IpAddress)
+                            </td>
+                            <td class="px-4 py-4">
+                                @if (item.IsSuspicious)
+                                {
+                                    var ruleBadge = PanelDisplay.SuspicionRule(item.SuspicionRule);
+                                    <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @ruleBadge.Css">
+                                        <i class="fas @ruleBadge.Icon"></i> @ruleBadge.Label
+                                    </span>
+                                    <div class="mt-1 text-xs text-gray-500">
+                                        @(item.AlertedAt is null ? "Uyarı bekliyor" : "Uyarıldı")
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-xs text-gray-400">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-fingerprint text-4xl text-gray-300 mb-3"></i>
+                                <p>@(hasFilter ? "Bu filtreye uyan giriş denemesi yok." : "Henüz kayıtlı giriş denemesi yok.")</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "giriş denemesi"))
+</div>

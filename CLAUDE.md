@@ -11,12 +11,18 @@ ve güvenlik kapanışı yapılmış (oturum iptali · zorunlu parola değişimi
 hesap kilidi). Yayın hazırlığının Apple gerektirmeyen kısmı tamam.
 
 **Şimdi Faz 12** — gözlem, alan modeli ve giriş kolaylığı; 9 alt-faz, **hepsi additive**
-(hiçbir DTO alanı silinmiyor, hiçbir tablo düşürülmüyor). **12.1 bitti:** hata günlüğü modülü —
-sunucu/panel/mobil hataları artık panelden görülüyor (`ErrorLogsAdmin`).
-**605 backend + 685 mobil test, 33 görünmez sözleşme.**
+(hiçbir DTO alanı silinmiyor, hiçbir tablo düşürülmüyor). **12.1 bitti:** hata günlüğü modülü
+(`ErrorLogsAdmin`). **12.2 bitti:** şüpheli giriş günlüğü — "kim, nereden, ne zaman girmeye
+çalıştı?" artık panelden görülüyor (`LoginAttemptsAdmin`), `super_admin`'e kısılmış e-posta
+uyarısı gidiyor, `ForwardedHeaders` kuruldu ve `StaffAdmin` izin tutarsızlığı düzeltildi.
+**663 backend + 685 mobil test, 36 görünmez sözleşme.**
 
-**⏭️ Sırada 12.2:** şüpheli giriş günlüğü + e-posta raporlama (`ForwardedHeaders` ön koşul) ·
-`StaffAdmin` izin matrisi tutarsızlığı. Plan: `Memory_Bank/Progress.md` → "FAZ 12".
+**⏭️ Sırada 12.2b:** bildirim teslim panosu + bağımsız push ekranı.
+Plan: `Memory_Bank/Progress.md` → "FAZ 12".
+
+> 🔑 **Panel süper admin parolası** `secrets/panel-admin.json`'dadır (git'e girmez; biçim ve
+> davranış: `secrets/README.md`). Dosya varsa açılışta parola ona **hizalanır** — "parola neydi?"
+> sorusu artık kaynağa değil o dosyaya sorulur.
 
 ## Çalıştır
 
@@ -55,11 +61,12 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 33 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 36 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
-31–33 `PanelErrorLogTests.cs` + `Unit/Application/Observability/`.
+31–33 `PanelErrorLogTests.cs` + `Unit/Application/Observability/`,
+34–36 `PanelLoginAttemptTests.cs` + `Unit/Application/Security/`.
 
 ## Değişmez kurallar
 
@@ -73,13 +80,12 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
    taşır. (Yapısal test bunu denetliyor.) **Razor panelinde** karşılığı
    `[Authorize(Roles = "admin,super_admin,moderator")]` + `[PanelPermission("<modül>")]` +
    `PanelMenu.Items` satırıdır — üçü aynı modül anahtarını kullanır.
-   **Yalnız admin'e açık ekranda** (Personel, Denetim İzi, Çöp Kutusu, Hata Kayıtları) desen
-   farklıdır: rol listesinde `moderator` **yok**, `[PanelPermission]` **yok**, menü satırının
-   `Module`'ü **`null`** ve controller adı `AdminOnlyControllers`'ta — aksi hâlde izin matrisinde
-   *karşılığı olmayan* bir yetki belirir (`ARCHITECTURE.md` §3).
-   ⚠️ **Bilinen ihlal:** `StaffAdmin` bu kurala uymuyor (`Module = "staff"` taşıyor) →
-   "staff" izin matrisinde görünüyor ama rol kapısı yüzünden asla çalışmıyor. **12.2'de
-   düzeltilecek** (`Memory_Bank/Progress.md` → 12.2 "Ek madde").
+   **Yalnız admin'e açık ekranda** (Personel, Denetim İzi, Çöp Kutusu, Hata Kayıtları,
+   Giriş Denemeleri) desen farklıdır: rol listesinde `moderator` **yok**, `[PanelPermission]`
+   **yok**, menü satırının `Module`'ü **`null`** ve controller adı `AdminOnlyControllers`'ta —
+   aksi hâlde izin matrisinde *karşılığı olmayan* bir yetki belirir (`ARCHITECTURE.md` §3).
+   ✅ **12.2'de yapısal testle kilitlendi** (`AdminOnlyControllers_AreOutsideThePermissionMatrix`);
+   `StaffAdmin`'in bilinen ihlali aynı fazda düzeltildi ve ölü izinler migration'la temizlendi.
 5. **"İşlevsiz buton yok"** — mobilde her buton bir uca ya da bir ekrana gider.
    Modül kaydı tek yerde: `mobile/lib/core/navigation/app_modules.dart`.
 6. **Arayüz Türkçe**, kod ve kimlikler İngilizce. Kullanıcıya teknik/İngilizce hata

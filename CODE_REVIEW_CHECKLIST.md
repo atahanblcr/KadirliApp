@@ -1,7 +1,7 @@
  # KadirliApp — Code Review Checklist
 
 > Bu liste jenerik bir kurumsal şablon değil; `ARCHITECTURE.md`, `Memory_Bank/API_CONTRACT.md`,
-> `Memory_Bank/Active_Context.md` ve `Memory_Bank/Progress.md`'den (Faz 10–12.1) çıkarılmıştır.
+> `Memory_Bank/Active_Context.md` ve `Memory_Bank/Progress.md`'den (Faz 10–12.2) çıkarılmıştır.
 > Özellikle **"Görünmez Sözleşmeler" (§7)** ve **tekrarlayan hata sınıfları** buraya birebir
 > taşınmıştır — bu proje aynı hatayı birden fazla kez üretmiş ve her seferinde not düşülmüş,
 > bu checklist o dersleri PR aşamasına çekmek için var.
@@ -184,6 +184,10 @@
 | Sınırsız büyüyen yeni bir tablo mu açtın? | Saklama süresi işi (`PurgeErrorLogsJob` deseni) olmadan tablo tek yönlü büyür ve sorun ancak yıllar sonra fark edilir. ⚠️ Ölçüt **son görülme** olmalı, oluşturulma değil: aylar önce açılıp bugün hâlâ tekrar eden kayıt, `CreatedAt`'e bakılsaydı **hâlâ patlarken** silinirdi. | `PurgeErrorLogsJob` |
 | Yalnız-admin ekranın komutu bir **`AuditModule`** yazıyor mu? | Yazmak zorunda — ama o anahtar menüde `Module = null` olduğu için `PanelDisplay.ModuleLabel` onu bulamaz ve denetim izi ekranı **ham İngilizce** basar (Değişmez Kural #6). Karşılığı `PanelDisplay.NonMatrixModules`'a eklenmeli. | `PanelErrorLogTests.AuditActionsAndModule_HaveTurkishLabels` |
 | Tek modüle ait **olmayan** bir ekran mı ekledin? | O zaman `[PanelPermission]` takılamaz; izin **sorgunun içinde** uygulanır ve controller adı `PanelMenu.PermissionFilteredControllers`'a **bildirilir**. ⚠️ Listeye ad yazmak yapısal testi susturmaya yetmez: her ad için süzmenin gerçekten çalıştığını kanıtlayan bir davranış testi şart, yoksa "içeride süzüyorum" çürüyen bir yorum satırı olur. | `GlobalSearchTests`, `PanelModeratorPermissionTests` |
+| Yeni bir kayıt tablosuna **hesaptan türetilen** bir alan mı yazıyorsun (ad, telefon, e-posta)? | ⚠️ Panelin alışılmış deseni `Username ?? Phone`'dur — ve **maskeleme yapan bir tabloda o desen maskelemeyi deler**: kullanıcı adı olmayan bir vatandaş hesabında ham telefon numarası listeye ve **CSV'ye** düşer. 12.2'de tam bu yaşandı: `Identifier` özenle maskeleniyordu, hemen yanındaki "Kullanıcı" sütunu ham numarayı basıyordu. Yedek değer de aynı maskeleyiciden geçmeli. | `PanelLoginAttemptTests.ExportCsv_…_NeverLeaksARawPhoneNumber` |
+| Yeni bir güvenlik eşiği, var olan bir eşiğin **ikizi** mi? | Öyleyse ikisi **tek kaynaktan** türemeli ve test bunu kilitlemeli. 12.2'de şüphe kuralı R1'in eşiği `PanelLockoutPolicy.MaxFailedAttempts`'ten geliyor: ayrışsalardı hesap kilitlenir ama **kimseye haber gitmezdi** (kilit yüzünden eşiğe ulaşacak deneme zaten gelemez) ve 11.18'in kilidi çalışmaya devam ettiği için kimse fark etmezdi. | ARCHITECTURE.md §7 madde 35, `SuspiciousLoginRulesTests` |
+| Yeni bir **bildirim/uyarı** kanalı mı açtın? | O zaman **kısma (throttle)** zorunlu ve fail-open/fail-closed kararı bilinçli olmalı. Kısmasız bir uyarı, saldırı anında yöneticinin posta kutusuna **kendi kendimize yaptığımız DoS**'a döner: uyarılar filtreye atılır ve gerçek uyarı da o filtreye düşer — sistem çalışır, hata vermez, işe yaramaz. ⚠️ Kanalın kendisi "bayrakla kapalı yol"dur: ilk kez **gerçek bir olay sırasında** koşacaksa yanlış yapılandırmayı en kötü anda öğrenirsin — panele elle tetiklenen bir "kanalı dene" yolu koy. | ARCHITECTURE.md §7 madde 36, `SecurityAlertJob`, `LoginAttemptsAdmin/SendTestAlert` |
+| İstemci IP'sine bakan yeni bir kod mu yazdın? | IP'yi **tek bir yer** okumalı (12.2'de `LoginAttemptRecorder`) ve `ForwardedHeaders` ara katmanı pipeline'ın **en başında** kurulmalı. Ters vekil arkasında bu yoksa `RemoteIpAddress` her istekte proxy'nin IP'sidir: IP bazlı kurallar/limitler **herkeste aynı** partisyona düşer ve hata vermeden yanlış çalışır. ⚠️ `KnownProxies`/`KnownNetworks` boş bırakılamaz — istemci kendi `X-Forwarded-For`'unu uydurup kaydı **zehirler**. | `ForwardedHeadersSetup`, `ProductionReadinessGuardTests` |
 | Yeni bir çapraz-modül sorgusu **soft-delete**'i düşündü mü? | Global arama silinen kaydı **göstermez** (`IgnoreQueryFilters` yok) — silinen kaydın yeri Çöp Kutusu. Gösterseydi hem "silmiştim ama çıkıyor" karmaşası doğardı hem de sonuçtan düzenleme ekranına giden bağlantı boş sayfaya götürürdü. | `GlobalSearchTests.DeletedRecords_DoNotAppearInSearch` |
 
 ---
@@ -212,7 +216,10 @@ Test kırıldığında yapılacak şey testi gevşetmek değil, **checklist'i g�
    satırı silme — bileşenin adını yazarak bırak; yeni gelen "neden böyle" sorusunun
    cevabı burada.
 
-Son gözden geçirme: **5 Ağustos 2026 (Faz 12.1)** — §11'e altı satır (hata kaydı yazma
+Son gözden geçirme: **6 Ağustos 2026 (Faz 12.2)** — §11'e dört satır (hesaptan türetilen
+alanın maskelemeyi delmesi, ikiz güvenlik eşiklerinin tek kaynaktan gelmesi, uyarı kanalında
+kısma + "kanalı elle dene" yolu, istemci IP'sinin tek yerden okunması).
+Önceki: **5 Ağustos 2026 (Faz 12.1)** — §11'e altı satır (hata kaydı yazma
 yolunun isteği düşürmemesi, tekilleştirme, istemciden gelen metin + XSS, PII maskeleme,
 saklama süresi işi, yalnız-admin ekranların `AuditModule` karşılığı).
 Önceki: **4 Ağustos 2026 (Faz 11.16b)** — §11'e beş satır (CSV'nin dört

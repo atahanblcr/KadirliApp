@@ -49,7 +49,15 @@ public static class PanelMenu
         new("LookupsAdmin",       "fa-tags",            "Tanımlar",             "lookups"),
         // Personel yönetimi bilinçli olarak matrisin DIŞINDA: izin veren rolü, izinleri
         // kendine yazabilecek biri yönetmemeli.
-        new("StaffAdmin",         "fa-user-shield",     "Personel",             "staff"),
+        //
+        // 🐛 Faz 12.2 DÜZELTMESİ: bu satır 12.1'e kadar `Module = "staff"` taşıyordu ve
+        // yorumu kendini yalanlıyordu — anahtar dolu olduğu için `StaffAdminController.Modules`
+        // menüden türerken "staff"ı da alıyor, izin matrisinde bir SATIR olarak beliriyordu.
+        // Yönetici moderatöre "Personel: okuma" veriyor, kutu işaretleniyor, kaydediliyor —
+        // ama rol kapısı ([Authorize(Roles = "admin,super_admin")]) yüzünden o yetki ASLA
+        // çalışmıyordu. 11.15b'nin kapattığı "karşılığı olmayan yetki" hatasının hâlâ ayakta
+        // duran örneğiydi. Artık null; `PanelDisplay.NonMatrixModules` Türkçe karşılığını taşıyor.
+        new("StaffAdmin",         "fa-user-shield",     "Personel",             null),
         // Faz 11.17 — denetim izi. Module NULL: aynı gerekçeyle matrisin dışında (denetlenen
         // kişi denetim ekranını yönetmemeli) ve modül anahtarı verilseydi izin matrisinde
         // **karşılığı olmayan bir yetki** belirirdi — 11.15b'nin en büyük bulgusu buydu.
@@ -59,14 +67,27 @@ public static class PanelMenu
         new("TrashAdmin",         "fa-trash-can",       "Çöp Kutusu",           null),
         // Faz 12.1 — hata kayıtları. Module NULL, aynı gerekçe: kayıtlar yığın izi, istek
         // yolu ve kullanıcı kimliği taşıyor; moderatöre dağıtılabilir bir yetki değil.
-        new("ErrorLogsAdmin",     "fa-triangle-exclamation", "Hata Kayıtları",  null)
+        new("ErrorLogsAdmin",     "fa-triangle-exclamation", "Hata Kayıtları",  null),
+        // Faz 12.2 — giriş denemeleri. Module NULL, aynı gerekçe: kayıtlar IP, tarayıcı
+        // ve şüphe işareti taşıyor; "kim nereden girdi" moderatöre dağıtılabilir bir
+        // yetki değil. Üstelik moderatörün KENDİ girişleri de bu listede.
+        new("LoginAttemptsAdmin", "fa-fingerprint",     "Giriş Denemeleri",     null)
     };
 
-    /// <summary>Yalnız admin/super_admin'in görebileceği satırlar.</summary>
+    /// <summary>
+    /// Yalnız admin/super_admin'in görebileceği satırlar.
+    /// </summary>
+    /// <remarks>
+    /// 🔑 Faz 12.2'de yapısal bir kural eklendi: buradaki <b>her</b> controller'ın menü
+    /// satırında <c>Module</c> <c>null</c> olmak ZORUNDA
+    /// (<c>PanelModeratorPermissionTests.AdminOnlyControllers_AreOutsideThePermissionMatrix</c>).
+    /// Dört ekran uyup beşincisinin uymaması tam olarak testle yakalanması gereken şeydi —
+    /// ve 12.1'e kadar <c>StaffAdmin</c> uymuyordu.
+    /// </remarks>
     public static readonly IReadOnlySet<string> AdminOnlyControllers =
         new HashSet<string>(StringComparer.Ordinal)
         {
-            "StaffAdmin", "AuditLogsAdmin", "TrashAdmin", "ErrorLogsAdmin"
+            "StaffAdmin", "AuditLogsAdmin", "TrashAdmin", "ErrorLogsAdmin", "LoginAttemptsAdmin"
         };
 
     /// <summary>

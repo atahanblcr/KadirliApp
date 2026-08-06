@@ -98,4 +98,22 @@ public static class PanelSorts
             ("count_desc",      q => q.OrderByDescending(x => x.OccurrenceCount).ThenByDescending(x => x.LastSeenAt).ThenBy(x => x.Id)),
             ("count_asc",       q => q.OrderBy(x => x.OccurrenceCount).ThenByDescending(x => x.LastSeenAt).ThenBy(x => x.Id)),
         });
+
+    // ————————————————————————————————————————————————————————————————
+    // Giriş denemeleri (Faz 12.2) — YENİ modül, "eski sıra" kısıtı yok.
+    // Varsayılan "en yeni önce": güvenlik ekranına "şu an ne oluyor" diye bakılır.
+    // ⚠️ "suspicious_first" bir SÜZGEÇ DEĞİL sıralamadır: şüpheliler üste çıkar ama
+    //    sıradan denemeler listede kalır. Süzgeç ayrı ("Yalnız şüpheli"); ikisini
+    //    karıştırmak "listede 3 satır var" derken tabloda 4.000 satır olmasına yol açardı.
+    // ————————————————————————————————————————————————————————————————
+    public static readonly SortMap<LoginAttempt> LoginAttempts = new(
+        defaultKey: "created_desc",
+        entries: new (string, Func<IQueryable<LoginAttempt>, IOrderedQueryable<LoginAttempt>>)[]
+        {
+            ("created_desc",     q => q.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
+            ("created_asc",      q => q.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)),
+            ("suspicious_first", q => q.OrderByDescending(x => x.IsSuspicious).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
+            ("channel_asc",      q => q.OrderBy(x => x.Channel).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
+            ("channel_desc",     q => q.OrderByDescending(x => x.Channel).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
+        });
 }

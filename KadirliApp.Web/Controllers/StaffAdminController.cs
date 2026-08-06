@@ -4,6 +4,9 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using KadirliApp.Application.Common.Exceptions;
+using KadirliApp.Application.Common.Security;
+using KadirliApp.Application.Features.LoginAttempts.Dtos;
+using KadirliApp.Application.Features.LoginAttempts.Queries;
 using KadirliApp.Application.Features.Staff.Commands;
 using KadirliApp.Application.Features.Staff.DTOs;
 using KadirliApp.Application.Features.Staff.Queries;
@@ -101,6 +104,18 @@ public class StaffAdminController : Controller
         try
         {
             var staff = await _sender.Send(new GetStaffByIdQuery(id));
+            // Faz 12.2 — bu ekran zaten yalnız-admin; rol kapısı sınıfın üstünde.
+            // (UsersAdmin'de aynı kutu ayrıca rol denetimiyle korunuyor, çünkü orası
+            // moderatöre açık.)
+            ViewBag.LoginAttempts = (await _sender.Send(new GetLoginAttemptsQuery(new QueryLoginAttemptDto
+            {
+                UserId = id,
+                MaskedIdentifier = string.IsNullOrWhiteSpace(staff.Phone)
+                    ? null
+                    : LoginIdentifierMasker.MaskIdentifier(staff.Phone),
+                Page = 1,
+                Limit = 10
+            }))).Items.ToList();
             return View(staff);
         }
         catch (NotFoundException)

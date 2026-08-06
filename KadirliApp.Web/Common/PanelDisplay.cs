@@ -121,7 +121,13 @@ public static class PanelDisplay
     /// </summary>
     private static readonly Dictionary<string, string> NonMatrixModules = new(StringComparer.Ordinal)
     {
-        ["error-logs"] = "Hata Kayıtları"
+        ["error-logs"] = "Hata Kayıtları",
+        // Faz 12.2 — "staff" menüden matris dışına alındı (Module=null). Personel
+        // komutları (CreateStaff, SetStaffPermissions, ResetStaffPassword…) hâlâ
+        // AuditModule = "staff" yazıyor; bu satır olmasaydı denetim izi ekranı o
+        // kayıtlarda MODÜL SÜTUNUNU ham İngilizce basmaya başlardı. Yani tutarsızlığın
+        // düzeltilmesi, düzeltilmemiş hâlinde OLMAYAN yeni bir hatayı doğurabilirdi.
+        ["staff"] = "Personel"
     };
 
     /// <summary>
@@ -225,6 +231,58 @@ public static class PanelDisplay
         ["error"] = new("Hata", "bg-red-100 text-red-800", "fa-circle-exclamation"),
         ["fatal"] = new("Çökme", "bg-red-200 text-red-900", "fa-skull-crossbones")
     };
+
+    // ── Giriş denemeleri (Faz 12.2) ─────────────────────────────────────────────
+    //
+    // Kanal, başarısızlık sebebi ve şüphe kuralı DB'de İngilizce sabit
+    // (panel/mobile_otp · bad_password · R1…). Ekrana ham basılamaz — hata
+    // rozetleriyle aynı kural, aynı gerekçe.
+    //
+    // ⚠️ Kural etiketleri `SecurityAlertJob.RuleTitle` ile AYNI anlamı taşımalı:
+    // e-posta "Aynı IP'den çok sayıda hesaba deneme" derken panel başka bir şey
+    // yazarsa yönetici hangi uyarının hangi satır olduğunu bulamaz.
+
+    private static readonly Dictionary<string, PanelBadge> LoginChannelBadges = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["panel"] = new("Panel", "bg-purple-100 text-purple-800", "fa-desktop"),
+        ["mobile_otp"] = new("Mobil (OTP)", "bg-teal-100 text-teal-800", "fa-mobile-screen")
+    };
+
+    private static readonly Dictionary<string, PanelBadge> LoginFailureReasons = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["bad_password"] = new("Hatalı parola", "bg-red-100 text-red-800", "fa-key"),
+        ["bad_otp"] = new("Hatalı kod", "bg-red-100 text-red-800", "fa-hashtag"),
+        ["unknown_user"] = new("Kullanıcı yok", "bg-gray-200 text-gray-700", "fa-user-slash"),
+        ["locked_out"] = new("Hesap kilitli", "bg-orange-100 text-orange-800", "fa-lock"),
+        ["otp_blocked"] = new("Kod bloğu", "bg-orange-100 text-orange-800", "fa-ban"),
+        ["banned"] = new("Engelli hesap", "bg-red-100 text-red-800", "fa-user-slash"),
+        ["inactive"] = new("Pasif hesap", "bg-slate-200 text-slate-700", "fa-user-clock"),
+        ["role_denied"] = new("Yetkisiz rol", "bg-amber-100 text-amber-800", "fa-user-lock"),
+        // Faz 12.2: hız sınırı denemeyi controller'a hiç ulaştırmadan reddetti.
+        // Bu satırlar "kısma çalıştı" demek — yokluğu ise tablonun yalan söylemesi demekti.
+        ["rate_limited"] = new("Hız sınırı", "bg-orange-100 text-orange-800", "fa-gauge-high")
+    };
+
+    private static readonly Dictionary<string, PanelBadge> SuspicionRuleBadges = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["R1"] = new("Aynı hesaba yoğun deneme", "bg-red-100 text-red-800", "fa-repeat"),
+        ["R2"] = new("Aynı IP'den çok hesap", "bg-red-200 text-red-900", "fa-network-wired"),
+        ["R3"] = new("Yeni IP'den panel girişi", "bg-amber-100 text-amber-800", "fa-location-dot"),
+        ["R4"] = new("Kilit sonrası başarılı giriş", "bg-red-200 text-red-900", "fa-unlock")
+    };
+
+    /// <summary>Giriş kanalını Türkçe rozete çevirir. Bilinmeyen değer <b>ham geçmez</b>.</summary>
+    public static PanelBadge LoginChannel(string? raw) => Lookup(LoginChannelBadges, raw, "kanal");
+
+    /// <summary>Başarısızlık sebebini Türkçe rozete çevirir.</summary>
+    public static PanelBadge LoginFailureReason(string? raw) => Lookup(LoginFailureReasons, raw, "sebep");
+
+    /// <summary>Şüphe kuralını Türkçe rozete çevirir.</summary>
+    public static PanelBadge SuspicionRule(string? raw) => Lookup(SuspicionRuleBadges, raw, "kural");
+
+    public static IReadOnlyCollection<string> KnownLoginChannels => LoginChannelBadges.Keys;
+    public static IReadOnlyCollection<string> KnownLoginFailureReasons => LoginFailureReasons.Keys;
+    public static IReadOnlyCollection<string> KnownSuspicionRules => SuspicionRuleBadges.Keys;
 
     /// <summary>Hata kaynağını Türkçe rozete çevirir. Bilinmeyen değer <b>ham geçmez</b>.</summary>
     public static PanelBadge ErrorSource(string? raw) => Lookup(ErrorSources, raw, "kaynak");

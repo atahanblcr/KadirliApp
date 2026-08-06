@@ -74,6 +74,11 @@ public static class DependencyInjection
             case "dev":
                 services.AddSingleton<IEmailService, Notifications.DevLogEmailService>();
                 break;
+            // Faz 12.2: 9.2'nin "sağlayıcı bağlama talimatı" birebir uygulandı —
+            // yeni sınıf Notifications/ altına, buraya bir case, çağıran kod DEĞİŞMEDİ.
+            case "smtp":
+                services.AddSingleton<IEmailService, Notifications.SmtpEmailService>();
+                break;
             default:
                 throw new InvalidOperationException(
                     $"Bilinmeyen e-posta sağlayıcısı: '{emailProvider}'. IEmailService implementasyonu ekleyip Infrastructure/DependencyInjection.cs'e kaydedin.");
@@ -97,6 +102,10 @@ public static class DependencyInjection
 
         // Faz 9.4: distributed cache (CachingBehavior/CacheInvalidationBehavior bunu kullanır)
         services.AddSingleton<ICacheService, Caching.RedisCacheService>();
+
+        // Faz 12.2 — giriş denemesi kaydı. Scoped: istek başına AppDbContext ve
+        // IHttpContextAccessor ile çalışır (IP'yi YALNIZ bu sınıf okur).
+        services.AddScoped<ILoginAttemptRecorder, Security.LoginAttemptRecorder>();
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -125,5 +134,10 @@ public static class DependencyInjection
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.SendPushNotificationsJob>("send-push-notifications", j => j.RunAsync(), Cron.Minutely);
         // Faz 12.1: hata kayıtlarının saklama süresi (çözülmüş 30 gün, çözülmemiş 90 gün).
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.PurgeErrorLogsJob>("purge-error-logs", j => j.RunAsync(), Cron.Daily);
+        // Faz 12.2: şüpheli giriş uyarısı. 5 dakika bilinçli — "anında" bildirim tek tek
+        // olayları yollamak demek olurdu ve gruplama (dolayısıyla kısma) anlamsızlaşırdı.
+        RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.SecurityAlertJob>("security-alerts", j => j.RunAsync(), "*/5 * * * *");
+        // Faz 12.2: giriş denemelerinin saklama süresi (başarılı 90, başarısız 180 gün).
+        RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.PurgeLoginAttemptsJob>("purge-login-attempts", j => j.RunAsync(), Cron.Daily);
     }
 }

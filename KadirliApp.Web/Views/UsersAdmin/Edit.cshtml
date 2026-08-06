@@ -131,3 +131,14 @@
         </div>
     </form>
 </div>
+
+@* Faz 12.2 — son giriş denemeleri. Kutu YALNIZ admin'e basılır: controller moderatöre
+   boş liste döndürüyor ve burada da rol denetleniyor. İki kapı bilinçli — biri veriyi
+   hiç çekmiyor, diğeri hiç çizmiyor. *@
+@if (User.IsInRole("admin") || User.IsInRole("super_admin"))
+{
+    <div class="mt-6">
+        <partial name="_RecentLoginAttempts"
+                 model="@(ViewBag.LoginAttempts as IReadOnlyList<KadirliApp.Application.Features.LoginAttempts.Dtos.LoginAttemptResponseDto>)" />
+    </div>
+}

@@ -103,7 +103,14 @@ public class WebPanelApplicationFactory : WebApplicationFactory<WebPanel::Progra
                 // Panel girişi IP başına 5 denemeye kilitli (Faz 9.2). Testler tek IP'den
                 // onlarca kez giriş yaptığı için limit gevşetilir — kilidin KENDİSİ ayrı
                 // bir testte, kendi factory'siyle denenmeli.
-                { "RateLimiting:PanelLogin:PermitLimit", "10000" }
+                { "RateLimiting:PanelLogin:PermitLimit", "10000" },
+                // 🔴 Faz 12.2: panel parolası artık `secrets/panel-admin.json`'dan
+                // hizalanabiliyor. O dosya GELİŞTİRİCİNİN MAKİNESİNDE var, CI'da yok —
+                // yani testler onu okusaydı **kimin makinesinde koştuğuna göre** farklı
+                // davranırdı: seed parolayı geliştiricinin değeriyle ezer ve
+                // `DbSeeder.AdminPassword` ile giriş yapan onlarca test kırılırdı.
+                // Boş değer dosyayı bilinçli olarak devre dışı bırakır.
+                { KadirliApp.Infrastructure.Persistence.DbSeeder.PanelPasswordConfigKey, "" }
             });
         });
     }

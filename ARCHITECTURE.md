@@ -148,12 +148,13 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | 16 | **Kullanıcı** | `Users/` | `users/me`, `users/me/notifications`, `users/me/ads`, `users/me/favorites`, `DELETE users/me` | `UsersAdmin` | `users` | `profile/`, `settings/` | Profil sekmesi, `/ayarlar` |
 | 17 | **Dosyalar** | `Files/` | `files/upload`, `DELETE files/{id}` | *(yok)* | — | `files/` | *(ekran yok — ortak repo)* |
 | 18 | **Sözlükler** | `Lookups/` | `neighborhoods` (+ modül içi `cemeteries`/`mosques`/`categories`) | `LookupsAdmin` | `lookups` | `lookups/` | *(ekran yok)* |
-| 19 | **Personel** | `Staff/` | *(public uç yok)* | `StaffAdmin` | `staff` | *(yok)* | — |
+| 19 | **Personel** | `Staff/` | *(public uç yok)* | `StaffAdmin` | *(matris dışı — yalnız admin, **12.2'de düzeltildi**)* | *(yok)* | — |
 | 20 | **Panel istatistik** | `Dashboard/` | *(public uç yok)* | `Dashboard` | `dashboard` | *(yok)* | — |
 | 21 | **Denetim izi** | `Audit/` | *(public uç yok)* | `AuditLogsAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
 | 22 | **Çöp kutusu** | `Trash/` | *(public uç yok)* | `TrashAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
 | 23 | **Global arama** | `Search/` | *(public uç yok)* | `GlobalSearch` | *(matris dışı — **sonucu süzer**, aşağıya bak)* | *(yok)* | — |
 | 24 | **Hata kayıtları** | `ErrorLogs/` | `POST client-errors` *(anonim)* | `ErrorLogsAdmin` | *(matris dışı — yalnız admin)* | *(ekran yok — `core/observability/`)* | — |
+| 25 | **Giriş denemeleri** | `LoginAttempts/` | *(public uç yok — kayıt giriş akışında düşer)* | `LoginAttemptsAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
 
 **Mobilde ayrıca ekran taşıyan ama backend modülü olmayan klasörler:** `home/` (hub),
 `common/`, `dev/` (yalnız debug: `/gelistirici/tasarim`, `/gelistirici/ag`).
@@ -192,12 +193,23 @@ moderatör menüde göremediği bir modülden **tek sonuç bile** almaz.
 susturmaya yetmez — `GlobalSearchTests` süzmenin gerçekten çalıştığını ayrıca denetler,
 `PanelModeratorPermissionTests` de listenin muafiyet çöplüğüne dönmesini engeller.
 
-⚠️ **Yalnız admin'e açık bir ekran** ekliyorsanız (Faz 11.17: `AuditLogsAdmin`, `TrashAdmin`)
-desen farklıdır: `[Authorize(Roles = "admin,super_admin")]` + `[PanelPermission]` **yok** +
+⚠️ **Yalnız admin'e açık bir ekran** ekliyorsanız (`StaffAdmin`, `AuditLogsAdmin`, `TrashAdmin`,
+`ErrorLogsAdmin`, `LoginAttemptsAdmin`) desen farklıdır:
+`[Authorize(Roles = "admin,super_admin")]` + `[PanelPermission]` **yok** +
 `PanelMenu.Items` satırının `Module`'ü **`null`** + `AdminOnlyControllers`'a controller adı.
 Modül anahtarı verirseniz izin matrisinde moderatöre dağıtılabilen ama rol kapısı yüzünden
 asla çalışmayacak bir yetki belirir — 11.15b'nin en büyük bulgusu ("karşılığı olmayan yetki")
 tam olarak buydu.
+
+🔒 **Faz 12.2'den beri bu kural yapısal testle kilitli**
+(`PanelModeratorPermissionTests.AdminOnlyControllers_AreOutsideThePermissionMatrix`):
+`AdminOnlyControllers`'taki **her** controller'ın menü satırının `Module`'ü `null` olmak
+zorunda. 🐛 Test yazıldığı gün **kırmızıydı**: dört ekrandan üçü kurala uyuyordu ama
+`StaffAdmin` hem listede hem de `Module = "staff"` taşıyordu, yani "staff" izin matrisinde
+görünüyor ve yöneticinin moderatöre verdiği o yetki hiçbir zaman çalışmıyordu. Aynı commit'te
+düzeltildi; `admin_permissions`'taki ölü satırlar migration ile temizlendi.
+⚠️ Komutlar hâlâ `AuditModule = "staff"` yazıyor — karşılığı `PanelDisplay.NonMatrixModules`'ta
+(yoksa denetim izi ekranı ham İngilizce basar).
 
 ### Arka plan işleri (Hangfire)
 
@@ -208,6 +220,12 @@ tam olarak buydu.
 | `PublishScheduledAnnouncementsJob` | Zamanlanmış duyuruyu yayınlar + bildirim satırı üretir | Dakikalık |
 | `SendPushNotificationsJob` | Gönderilmemiş bildirimleri FCM'e yollar | Dakikalık |
 | `PurgeErrorLogsJob` | Hata kaydı saklama süresi: çözülmüş 30 gün, çözülmemiş 90 gün | Günlük |
+| `SecurityAlertJob` | İşlenmemiş şüpheli giriş denemelerini **tek e-postada** gruplar, `super_admin`'lere yollar (kural+alıcı başına saatte 1 kısma) | 5 dakikada bir |
+| `PurgeLoginAttemptsJob` | Giriş denemesi saklama süresi: başarılı 90 gün, başarısız 180 gün | Günlük |
+
+⚠️ Panoya (`/hangfire`) erişen biri `PurgeLoginAttemptsJob`'ı elle tetikleyerek **yeni
+topladığımız güvenlik kanıtını silebilir** — panonun korumasının 12.2'de gözden geçirilmesi
+(`HangfireDashboardAuthorizationFilter` + `ForwardedHeaders`) tesadüf değil.
 
 ---
 
@@ -360,7 +378,9 @@ Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıkla
 `Integration/Panel/PanelTrashTests.cs`, **29 (Faz 11.18)**
 `Integration/Panel/PanelBulkActionTests.cs`, **30 (Faz 11.18)**
 `Integration/Panel/PanelSortingTests.cs`, **31–33 (Faz 12.1)**
-`Integration/Panel/PanelErrorLogTests.cs` + `Unit/Application/Observability/` içinde (panelin canlı denetiminde bulundular ve
+`Integration/Panel/PanelErrorLogTests.cs` + `Unit/Application/Observability/`,
+**34–36 (Faz 12.2)** `Integration/Panel/PanelLoginAttemptTests.cs` +
+`Unit/Application/Security/` içinde (panelin canlı denetiminde bulundular ve
 gerçek Postgres isterler). Biri kırmızıya dönerse ya sözleşme
 bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 
@@ -399,6 +419,9 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | 31 | **Hata kaydı yazımı isteği DÜŞÜREMEZ**: `IErrorLogSink.TryWrite` asla fırlatmaz, asla beklemez; yazıcının kendi hatası **asla** `error_logs`'a gitmez, yalnız `ILogger`'a düşer | `ExceptionMiddleware`'in `catch` bloğunda **senkron DB yazmak** en tehlikeli tasarım: veritabanı çöktüğünde hata yazma denemesi de patlar, istisna `catch`'in İÇİNDE doğar, yanıt zarfı hiç yazılmaz ve istemci **zarfsız ham 500** alır → madde 10 tam da her şeyin kötü gittiği anda kırılır. Yazıcı kendi hatasını tabloya yazarsa: DB hatası → kayıt denemesi → DB hatası… sonsuz döngü |
 | 32 | **`Fingerprint` tekilleştirmesi zorunludur** ve `ErrorFingerprint.Normalize` GUID/sayı/tarihi maskeler; benzersiz indeks veritabanındadır | Normalize kalkarsa `"Ad {guid} bulunamadı"` her istekte ayrı parmak izi üretir → tekilleştirme **hiç** çalışmaz. Tekilleştirme kalkarsa tek bir 500 döngüsü tabloyu dakikada on binlerce satırla doldurur. İkisi de **hiçbir hata vermeden** olur; tek belirti tablonun sessizce şişmesi. Benzersiz indeks ayrıca Api/Web yarışını yakalar — olmasaydı iki süreç aynı yeni hatayı aynı anda görüp mükerrer satır üretirdi |
 | 33 | Hata kaydının `Source`'u **sunucuda sabitlenir** (`POST /v1/client-errors` gövdesinde `source` alanı yoktur); `Path` **maskelenir** (`SensitiveDataMasker`) | İstemci `api` diyebilseydi kendi çökmesini sunucu hatası gibi gösterip "sunucumuzda kaç hata var?" sorusunun cevabını zehirlerdi. Maskeleme kalkarsa OTP akışındaki telefon numarası tabloya girer — kayıtlar panelde görülüyor, **CSV olarak dışa aktarılıyor** ve 90 gün saklanıyor |
+| 34 | **Giriş denemesinde `Identifier` MASKELİDİR** (`LoginIdentifierMasker`) ve maskeleme **deterministiktir** — aynı telefon her zaman aynı değeri üretir | Ham saklansaydı bir güvenlik tablosu, kendisi bir sızıntı hedefine dönerdi: satırlar panelde görülüyor, **CSV'ye çıkıyor**, başarısız denemeler **180 gün** duruyor. Determinizm ayrı bir bağımlılık: hatalı OTP satırlarında `UserId` **bilerek boştur** (o dalda kullanıcı tablosuna dokunulmuyor) ve kullanıcı ekranındaki "son giriş denemeleri" kutusu onları **yalnız maskeli kimlikle** hesaba bağlar. Maskeleme rastgeleleşirse o satırlar hiçbir hesapla eşleşmez ve kutu sessizce **boş** görünür |
+| 35 | **R1 eşiği `PanelLockoutPolicy.MaxFailedAttempts` ile aynı olmak zorundadır** (`SuspicionThresholds.AccountFailureThreshold`) | Ayrışırsa iki taraf farklı gerçeklik görür: eşik yüksekse hesap kilitlenir ama **uyarı hiç doğmaz** (kilit yüzünden eşiğe ulaşacak deneme zaten gelemez), düşükse kilitlenmeyen hesaplar için uyarı yağar. 11.18'in kilidi çalışmaya devam ettiği için **kimse fark etmez** — madde 23'ün aynı sınıfı |
+| 36 | **Uyarı e-postası kısılır** (`security_alert:{hash}`, kural+alıcı başına saatte 1) ve `SecurityAlertJob` her koşuda **tek** e-posta üretir | Kısma kaldırılırsa bir kaba kuvvet saldırısı, yöneticinin posta kutusuna **kendi kendimize yaptığımız DoS**'a döner: uyarılar filtreye atılır ve **gerçek** uyarı da o filtreye düşer. Sistem çalışmaya devam eder, hiç hata vermez ve tamamen işe yaramaz hâle gelir. ⚠️ Redis erişilemezse **fail-open**'dır (gönderir) — güvenlik uyarısını sessizce yutmak fazladan e-postadan kötüdür; tavanı koşu başına tek e-posta zaten sağlar |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 
@@ -444,6 +467,8 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | **Kesinti süzgeci** | `Integration/Panel/PanelPowerOutageFilterTests.cs` | §7 madde **27**: süren/planlı/bitti sınır anları mobil tanımıyla birebir; tarih aralığı **kesişim** üzerinden |
 | **Hata günlüğü** | `Integration/Panel/PanelErrorLogTests.cs` | §7 madde **31–33**: tekilleştirme gerçekten tek satır üretiyor mu, çözülmüş hata tekrar edince kendiliğinden açılıyor mu, istemciden gelen metin panelde **kaçırılıyor** mu (depolanmış XSS), ekran matris dışında mı |
 | **Hata parmak izi / maskeleme** | `Unit/Application/Observability/` | Saf mantık: GUID/sayı/tarih normalize ediliyor mu (yoksa tekilleştirme hiç çalışmaz), yığın satır numarası atılıyor mu, hassas sorgu parametreleri maskeleniyor mu |
+| **Giriş denemeleri** | `Integration/Panel/PanelLoginAttemptTests.cs` | §7 madde **34**: kimlik maskeli mi, ham kullanıcı adı CSV'ye sızıyor mu; 5 hatalı giriş → **5 kayıt + kilit + şüpheli işareti** (madde 35'in uçtan uca kanıtı); `unknown_user` ile `bad_password` ayrılıyor mu; ekran matris dışında mı; geçersiz IP süzgeci **sessizce yok sayılmıyor** mu |
+| **Şüphe kuralları / kimlik maskeleme** | `Unit/Application/Security/` | Saf mantık, container'sız: R1–R4'ün sınırları, kural **önceliği** (R2 > R1, R4 > R3), R1 eşiğinin `PanelLockoutPolicy` ile eşitliği, maskelemenin **determinizmi** ve "sıradan giriş asla şüpheli değildir" |
 | **Önbellek sözleşmesi** | `Unit/Application/Caching/CacheContractTests.cs` | Grup adları sabit mi, her grubun invalidator'ı var mı, anahtar filtreyle değişiyor mu |
 | **Önbellek davranışı** | `Integration/Panel/CacheInvalidationTests.cs` | Gerçek Redis: önce **bayat veri döndüğü** gösterilir, sonra mutasyonun temizlediği |
 | **Moderasyon** | `Integration/Panel/ModerationStateMachineTests.cs` | Vefat/etkinlik/kampanya/işletme onay-red geçişleri, soft-delete etkileşimi |

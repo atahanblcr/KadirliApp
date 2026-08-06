@@ -20,13 +20,35 @@ public class AccountController : Controller
     private readonly IUnitOfWork _uow;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ISender _sender;
+    private readonly ILoginAttemptRecorder _loginAttempts;
 
-    public AccountController(IUnitOfWork uow, IPasswordHasher passwordHasher, ISender sender)
+    public AccountController(
+        IUnitOfWork uow,
+        IPasswordHasher passwordHasher,
+        ISender sender,
+        ILoginAttemptRecorder loginAttempts)
     {
         _uow = uow;
         _passwordHasher = passwordHasher;
         _sender = sender;
+        _loginAttempts = loginAttempts;
     }
+
+    /// <summary>
+    /// Faz 12.2 — giriş denemesini kaydeder. ⚠️ Kaydedici asla fırlatmaz; giriş akışı
+    /// kendi gözlemcisi yüzünden bozulamaz (bkz. <c>ILoginAttemptRecorder</c>).
+    /// </summary>
+    private Task RecordAttemptAsync(
+        string identifier, Guid? userId, bool succeeded,
+        string? failureReason = null, bool isPanelUser = false, DateTime? lockedOutUntil = null) =>
+        _loginAttempts.RecordAsync(new LoginAttemptRecord(
+            Channel: LoginChannels.Panel,
+            RawIdentifier: identifier,
+            UserId: userId,
+            Succeeded: succeeded,
+            FailureReason: failureReason,
+            IsPanelUser: isPanelUser,
+            LockedOutUntil: lockedOutUntil));
 
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
@@ -62,17 +84,26 @@ public class AccountController : Controller
         {
             // ⚠️ Var olmayan kullanıcı ile hatalı parola AYNI mesajı alır — aksi hâlde
             // giriş ekranı bir "kullanıcı adı var mı?" sorgulama aracına dönüşür.
+            // 🔑 Ama KAYIT ikisini ayırır (unknown_user ≠ bad_password): "var olmayan
+            // hesaba 200 deneme" ile "tek hesaba 200 deneme" çok farklı saldırılar ve
+            // panelde aynı görünmemeliler.
+            await RecordAttemptAsync(username, null, succeeded: false, LoginFailureReasons.UnknownUser);
             ViewBag.Error = "Kullanıcı adı veya şifre hatalı!";
             return View();
         }
 
         var now = DateTime.UtcNow;
+        // 🔑 Kilit bitişi BAŞARILI girişten ÖNCE alınır: RegisterSuccess onu temizliyor ve
+        // R4 ("kilit biter bitmez gelen başarılı giriş") tam o değere bakıyor. Sonra
+        // okunsaydı R4 hiçbir zaman yanmazdı — sessizce hiç çalışmayan bir kural.
+        var lockedOutUntilBefore = user.LockedOutUntil;
 
         // 🔴 Faz 11.18: hesap kilidi parola denetiminden ÖNCE gelir — kilitliyken
         // doğru parola da kabul edilmez. Sonra gelseydi kilit yalnızca yanlış tahminleri
         // yavaşlatır, doğru tahmini hiç engellemezdi.
         if (PanelLockoutPolicy.IsLockedOut(user, now))
         {
+            await RecordAttemptAsync(username, user.Id, succeeded: false, LoginFailureReasons.LockedOut);
             ViewBag.Error = $"Hesabınız çok fazla hatalı denemeden dolayı geçici olarak kilitlendi. " +
                             $"Lütfen {PanelLockoutPolicy.RemainingMinutes(user, now)} dakika sonra tekrar deneyin.";
             return View();
@@ -82,6 +113,7 @@ public class AccountController : Controller
         {
             PanelLockoutPolicy.RegisterFailure(user, now);
             await _uow.SaveChangesAsync();
+            await RecordAttemptAsync(username, user.Id, succeeded: false, LoginFailureReasons.BadPassword);
 
             ViewBag.Error = PanelLockoutPolicy.IsLockedOut(user, now)
                 ? $"Kullanıcı adı veya şifre hatalı! Çok fazla hatalı deneme yaptığınız için hesabınız " +
@@ -92,12 +124,17 @@ public class AccountController : Controller
 
         if (user.IsBanned || !user.IsActive)
         {
+            await RecordAttemptAsync(username, user.Id, succeeded: false,
+                user.IsBanned ? LoginFailureReasons.Banned : LoginFailureReasons.Inactive);
             ViewBag.Error = "Hesabınız pasif veya engellenmiş durumda.";
             return View();
         }
 
         if (user.Role is not (UserRole.Admin or UserRole.SuperAdmin or UserRole.Moderator))
         {
+            // ⚠️ Parola DOĞRUYDU ama rol yetmedi. Bu "başarılı giriş" değil: vatandaş
+            // hesabıyla panele girmeye çalışmak başlı başına bir sinyal.
+            await RecordAttemptAsync(username, user.Id, succeeded: false, LoginFailureReasons.RoleDenied);
             ViewBag.Error = "Bu panele erişim yetkiniz bulunmuyor.";
             return View();
         }
@@ -105,6 +142,9 @@ public class AccountController : Controller
         // Doğru parola → sayaç ve kilit temizlenir (kısmi denemeler birikip sonradan patlamasın).
         PanelLockoutPolicy.RegisterSuccess(user);
         await _uow.SaveChangesAsync();
+
+        await RecordAttemptAsync(username, user.Id, succeeded: true,
+            isPanelUser: true, lockedOutUntil: lockedOutUntilBefore);
 
         await SignInPanelUserAsync(user);
 

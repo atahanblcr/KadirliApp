@@ -14,6 +14,9 @@ using KadirliApp.Application.Features.Users.Commands.SetUserBan;
 using KadirliApp.Application.Features.Users.Commands.UpdateUser;
 using KadirliApp.Application.Features.Users.DTOs;
 using KadirliApp.Application.Features.Users.Queries.GetUsers;
+using KadirliApp.Application.Common.Security;
+using KadirliApp.Application.Features.LoginAttempts.Dtos;
+using KadirliApp.Application.Features.LoginAttempts.Queries;
 using System.Security.Claims;
 
 namespace KadirliApp.Web.Controllers;
@@ -94,7 +97,40 @@ public class UsersAdminController : Controller
 
         ViewBag.Id = id;
         ViewBag.Neighborhoods = await _uow.Repository<Neighborhood>().Query().OrderBy(n => n.Name).ToListAsync();
+        ViewBag.LoginAttempts = await RecentLoginAttemptsAsync(id, user.Phone);
         return View(dto);
+    }
+
+    /// <summary>
+    /// Faz 12.2 — hesabın son giriş denemeleri (yalnız admin'e).
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>Rol kapısı burada, görünümde değil.</b> Bu ekran moderatöre AÇIK
+    /// (<c>[PanelPermission("users")]</c>); giriş denemesi ekranı ise bilinçli olarak
+    /// yalnız-admin. Veriyi koşulsuz çekseydik, kapalı bir ekranın içeriğini açık bir
+    /// ekrandan sızdırmış olurduk — "ekran kapalı ama verisi başka yerde görünüyor" tam
+    /// olarak sessiz yetki sızıntısıdır. Yalnız görünümde gizlemek de yetmez: veri yine
+    /// sorgulanır ve bir sonraki düzenlemede ekrana düşer.
+    ///
+    /// 🔑 <c>UserId</c> <b>ve</b> maskeli telefon birlikte sorgulanır: hatalı OTP
+    /// satırlarında <c>UserId</c> boştur (o dalda kullanıcı tablosuna dokunulmuyor) ve
+    /// yalnız kimlikle bulunabilirler. Tek alanla süzülseydi kutu, bu hesaba yapılan
+    /// başarısız OTP denemelerini <b>hiç göstermezdi</b>.
+    /// </remarks>
+    private async Task<IReadOnlyList<LoginAttemptResponseDto>> RecentLoginAttemptsAsync(Guid userId, string? phone)
+    {
+        if (!User.IsInRole("admin") && !User.IsInRole("super_admin"))
+            return Array.Empty<LoginAttemptResponseDto>();
+
+        var result = await _sender.Send(new GetLoginAttemptsQuery(new QueryLoginAttemptDto
+        {
+            UserId = userId,
+            MaskedIdentifier = string.IsNullOrWhiteSpace(phone) ? null : LoginIdentifierMasker.MaskIdentifier(phone),
+            Page = 1,
+            Limit = 10
+        }));
+
+        return result.Items.ToList();
     }
 
     [HttpPost]

@@ -12,6 +12,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Hangfire;
 using KadirliApp.Infrastructure.Health;
+using KadirliApp.Infrastructure.Http;
 using KadirliApp.Infrastructure.Jobs;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
@@ -29,6 +30,14 @@ var uploadsDir = Path.GetFullPath(Path.Combine(
     builder.Configuration["FileStorage:UploadDirectory"] ?? "wwwroot/uploads"));
 Directory.CreateDirectory(uploadsDir);
 builder.Configuration["FileStorage:UploadDirectory"] = uploadsDir;
+
+// Faz 12.2 — panel süper admin parolası: secrets/ altında, git'e GİRMEYEN dosyadan.
+// 🔑 "Her oturumda parola ne?" sorusunu kapatır: kaynaktaki sabit 11.18'de değiştirildiği
+// an yalan söylemeye başlamıştı ve doğrusu hiçbir yere yazılamıyordu (depo herkese açık).
+// optional: true — dosya yoksa hiçbir şey değişmez, davranış 12.2 öncesiyle aynı kalır.
+builder.Configuration.AddJsonFile(
+    Path.Combine(builder.Environment.ContentRootPath, "..", "secrets", "panel-admin.json"),
+    optional: true, reloadOnChange: false);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -169,6 +178,15 @@ builder.Services.AddRateLimiter(o =>
 });
 
 var app = builder.Build();
+
+// 🔴 Faz 12.2 — ForwardedHeaders EN BAŞTA. IP'ye bakan her şey (hız sınırı, giriş denemesi
+// kaydı, hata kaydı, Hangfire pano filtresi) bundan SONRA gelir; sonraya konursa ara katman
+// çalışır ama kimse değişmiş IP'yi görmez — tamamen sessiz bir arıza.
+// 12.2 öncesinde burada yalnız bir yorum satırı vardı ve proxy arkasında R2 herkeste yanıp
+// R3 hiç yanmadığı için bu alt-fazın ürettiği veri gürültüden ibaret kalırdı.
+app.UseConfiguredForwardedHeaders(
+    app.Configuration,
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ForwardedHeaders"));
 
 // Her isteği tek satır yapılandırılmış olayla loglar (method, path, status, süre).
 // ⚠️ ExceptionMiddleware'DEN ÖNCE (yani DIŞTA) olmalı: aksi halde iş kuralı
