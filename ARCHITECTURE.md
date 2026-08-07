@@ -8,7 +8,7 @@
 > öğretici bir rehber değil (o `DOTNET_MASTERCLASS.md`), istemci kontratı değil
 > (o `Memory_Bank/API_CONTRACT.md`). Burası **harita**: bugün neyin nerede olduğu.
 >
-> Son güncelleme: 6 Ağustos 2026 (Faz 12.2b — bildirim teslim panosu + bağımsız push ekranı).
+> Son güncelleme: 7 Ağustos 2026 (Faz 12.3 — kesinti mahalle referansı + mahalle bazlı bildirim).
 
 ## Hangi dokümanı ne zaman okumalı
 
@@ -108,7 +108,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 |---|---|
 | `lib/core/config/` | `Env` (flavor, base URL, `--dart-define` override'ları) |
 | `lib/core/network/` | İki Dio istemcisi, `EnvelopeInterceptor`, `AuthInterceptor`, `ApiClient`, hata sözlüğü, `retry_policy` |
-| `lib/core/router/` | `app_routes.dart`, `app_shell.dart` (4 sekmeli `StatefulShellRoute`), tek redirect noktası |
+| `lib/core/router/` | `app_routes.dart`, `app_shell.dart` (4 sekmeli `StatefulShellRoute`), tek redirect noktası, 🔑 `app_nav.dart` (**kabuk rotasına güvenli gezinme** — §7 kod-dışı) |
 | `lib/core/navigation/app_modules.dart` | 🔑 **Modül kaydı** — ızgara + rota + uç listesi tek yerde |
 | `lib/core/theme/` | Renk token'ları, `AppPalette` ThemeExtension, açık/koyu tema |
 | `lib/core/paging/paged_feed.dart` | 🔑 Ortak sayfalama çekirdeği (yarış, mükerrer eleme, filtre) |
@@ -119,7 +119,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | `lib/features/<modül>/data/` | Model + repository (yalnız burası Dio görür) |
 | `lib/features/<modül>/application/` | Provider'lar, denetleyiciler, saf mantık |
 | `lib/features/<modül>/presentation/` | Ekranlar + `widgets/` |
-| `test/` | **685 test** (69 dosya); klasör yapısı `lib/`'i aynalar |
+| `test/` | **696 test** (70 dosya); klasör yapısı `lib/`'i aynalar |
 
 ---
 
@@ -383,7 +383,9 @@ Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıkla
 `Integration/Panel/PanelErrorLogTests.cs` + `Unit/Application/Observability/`,
 **34–36 (Faz 12.2)** `Integration/Panel/PanelLoginAttemptTests.cs` +
 `Unit/Application/Security/`, **37–39 (Faz 12.2b)**
-`Integration/Panel/PanelPushCampaignTests.cs` + `Unit/Application/Notifications/`
+`Integration/Panel/PanelPushCampaignTests.cs` + `Unit/Application/Notifications/`,
+**40–42 (Faz 12.3)** `Integration/Panel/PanelPowerOutageNeighborhoodTests.cs` +
+`Unit/Application/PowerOutages/`
 içinde (panelin canlı denetiminde bulundular ve
 gerçek Postgres isterler). Biri kırmızıya dönerse ya sözleşme
 bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te güncelle) ya da kazadır.
@@ -429,6 +431,9 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | 37 | **`Notification.FcmSent = true` TERMİNALDİR**: `SendPushNotificationsJob` o satırı bir daha almaz, mesaj bazlı hatalar (bad token vb.) kalıcı sayılır. Yeniden gönderim **yeni kampanya** açar; eski satırlara dokunulmaz (`CancelPushCampaignCommand` yalnız `FcmSent=false` satırları geri çekebilir) | Panele "yeniden gönder" butonu konursa **hiçbir şey yapmaz ve kimse hata almaz** — panelin en sinsi yalan biçimi: yönetici bastığını sanır, sayaç değişmez, log temizdir. Aynı sebeple iptal butonu iletilmiş mesajı geri almayı **teklif etmez**: geri alınamayacak bir şeyi teklif eden bir buton, işlevsiz butondan kötüdür |
 | 38 | **Hedefleme mantığının tek sahibi `INotificationDispatcher`**: mahalle süzgeci + `NotificationPreferences` + gövde kırpması orada, duyuru üreticisi de panelin manuel gönderimi de **aynı** metottan geçer. Panelin "tahmini alıcı" önizlemesi de aynı sorguyu çağırır. ⚠️ `NeighborhoodIds` **`null` ≠ boş liste**: null "liste yok → herkes" (10.10'dan beri), boş liste "hiçbir mahalle seçilmemiş → kimse" | İkinci bir hedefleme gerçeklemesi yazılırsa duyuru ile manuel gönderim **aynı mahalleye farklı kişi kümesi** yollar ve iki taraf da hiç hata vermez (#23'ün aynı sınıfı). Önizleme ayrılırsa panel "342 kişiye gidecek" der, gönderim 280 satır yazar ve fark hiçbir yerde görünmez. null/boş ayrımı kalkarsa ya duyurular ölür (null'ı "kimse" saymak) ya da **bozuk bir JSON tüm şehre giden bildirime dönüşür** |
 | 39 | **Kampanya sayaçları `SendPushNotificationsJob` tarafından ARTIMLI yazılır** (`sent`/`failed`/`invalidTokens`), sorgu anında `COUNT` ile hesaplanmaz; `CompletedAt`'in ölçütü "işlenen = alıcı" değil **"gönderilebilir bekleyen satır kalmadı"** | Sayaç yazımı atlanırsa pano sonsuza kadar "Kuyrukta" gösterir: bildirimler gider, `fcm_sent` dolar, hiçbir hata oluşmaz ve **yalnız pano yalan söyler** — üstelik artımlı olduğu için "bir kez daha say, düzelir" yolu yoktur. Tamamlanma ölçütü "işlenen = alıcı" yapılırsa **hiçbir kampanya tamamlanmaz**: job yalnız `FcmToken != null` satırları alır, token'ı olmayan alıcılar sonsuza kadar bekleyen görünür. ⚠️ Tamamlanma sorgusu **bu batch'in satırlarını dışlamalı** — henüz `SaveChanges` olmadığı için veritabanı onları hâlâ `fcm_sent = false` görür ve kampanya asla kapanmaz |
+| 40 | **`power_outages.neighborhood` metni `NeighborhoodId` doluyken SÖZLÜKTEN TÜRETİLİR** (`PowerOutageNeighborhoodResolver`), elle yazılmaz; geri doldurma da adı kanonikleştirir | Kolon bilerek duruyor: `GET /v1/power-outages` onu düz metin veriyor ve **mağazadaki eski sürümler mahalle eşleşmesini ad üzerinden** yapıyor (`power_outage.dart → matchesNeighborhood`). Türetme kalkarsa panelde "Cengiz Topel Mah." yazan bir kayıt, kullanıcının profilindeki "Cengiz Topel" ile tutmaz ve **"sadece mahallem" süzgeci sessizce boş kalır** — 12.3 öncesinde tam olarak bu oluyordu. ⚠️ Serbest metni sözlüğe bağlayan normalleştirmenin tek sahibi `SlugHelper` (madde 21): ikinci bir gerçekleme yazılırsa `'İ'` yüzünden kesinti **yanlış mahalleye** bağlanır ve o kaydın bildirimi **başka mahallenin sakinlerine** gider |
+| 41 | **Kesinti bildirimi ayrı bir tür değil, BİR DUYURUDUR** (`IPowerOutageAnnouncementWriter` — tek sahip): kesinti silinince duyurusu ve bildirimleri de silinir, **güncelleme ikinci duyuru üretmez** | Ayrı bir `relatedType` uydurulsaydı görünmez sözleşme #18 gereği eski sürümler bildirime dokunduğunda **sessizce hiçbir yere gitmezdi**. Silme temizliği #24'ün uzantısı: kalsalardı vatandaş bildirime dokunup **boş sayfaya** düşerdi (11.15c'de duyurularda birebir yaşandı, 9 ölü bildirim). Güncelleme yeniden üretseydi bir **yazım düzeltmesi** bile şehre ikinci bir push atardı. ⚠️ Yazıcı duyuruyu `Query(tracking: true)` ile almak zorunda — `Repository.Query()` varsayılan olarak **AsNoTracking**'tir ve `SoftRemove` bağlantısız nesneye yazınca duyuru "silinmiş görünür, `deleted_at` boş kalır", hiçbir hata oluşmaz (12.3'te canlı testte yakalandı) |
+| 42 | **Bildirim yalnız `NeighborhoodId` DOLU kesintide gönderilebilir**; hedefsiz kayıtta komut `NotTargetable` döner ve panel bunu **söyler** | Serbest metinli kayıt hedeflenemez. Kapı kalkarsa dispatcher'a **boş mahalle listesi** gider; `NotificationDispatcher`'da boş liste "kimseye" demek (null "herkese"), yani en iyi hâlde bildirim sessizce buharlaşır — panel "gönderildi" der, kimse almaz. Panel bu yüzden hem butonu kapatır hem sebebini yazar: sessizce "gönderildi" demek bu fazın savaştığı hasar sınıfının ta kendisi |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 
@@ -443,6 +448,20 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
   olmadığı için).
 - 📌 **`context.push` ile açılan ekran router redirect'inin ÜSTÜNDE kalır.** Durum
   değiştikten sonra ekranı `addPostFrameCallback` içinde `pop()`/`go()` ile kapat.
+- 🐛 **KABUK (sekme) ROTASI, kabuk en üstte değilken `push` EDİLMEZ — `go` edilir.**
+  Tek sahibi `lib/core/router/app_nav.dart` (`AppNav.push` / `AppNav.of`).
+  **12.2'den devralınan ve iki oturum boyunca açık kalan çökmenin kanıtlanmış kök nedeni
+  budur** (12.3'te bulundu, `test/core/navigation/shell_page_key_test.dart` ile kilitlendi):
+  `go_router` imperative sayfalara **rastgele**, `StatefulShellRoute` sayfalarına ise
+  **`route.hashCode`** anahtarı verir. Kabuk anahtarı deterministik olduğu için, araya kabuk
+  dışı bir sayfa girmişken bir kabuk rotası `push` edilirse
+  `RouteMatchList._createNewMatchUntilIncompatible` birleştirme yapamaz ve listeye **aynı
+  anahtarla ikinci bir `ShellRouteMatch`** ekler → `Navigator._debugCheckDuplicatedPageKeys`.
+  ⚠️ Karar elde tutulan bir rota listesinden değil **router'ın kendisinden** okunur; elle
+  liste tutulsaydı yeni bir sekme eklendiğinde çürür ve çökme sessizce geri gelirdi
+  (`module_grid`'in `AppRoutes.tabs` kontrolü doğru sezgiye sahipti ama yalnız sekme
+  **köklerini** tanıyordu — `/ilanlar/:id` gibi **alt** rotalar, yani push bildiriminin
+  deep-link hedefleri, kapsam dışındaydı).
 - 📌 **Riverpod 3 hatalı provider'ları sınırsız yeniden dener** → her uç provider'ına
   `retry: apiRetry`.
 - 📌 **Mobil tarihte sabit UTC+3** (`timezone` paketi yok). Türkiye 2016'dan beri kalıcı
@@ -478,6 +497,8 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | **Şüphe kuralları / kimlik maskeleme** | `Unit/Application/Security/` | Saf mantık, container'sız: R1–R4'ün sınırları, kural **önceliği** (R2 > R1, R4 > R3), R1 eşiğinin `PanelLockoutPolicy` ile eşitliği, maskelemenin **determinizmi** ve "sıradan giriş asla şüpheli değildir" |
 | **Bildirim gönderimleri** | `Integration/Panel/PanelPushCampaignTests.cs` | §7 madde **37–39**: hedeflemenin tek sahibi mi (önizleme ↔ gönderim aynı sayı), bildirim tercihi manuel gönderimde de uygulanıyor mu, sayaçlar artımlı mı ve ikinci koşuda **artmıyor** mu, kampanya gerçekten **tamamlanıyor** mu, iptal yalnız gönderilmemişe dokunuyor mu, ekran matris dışında mı, istemciden gelmeyen ama panelde basılan metin **kaçırılıyor** mu |
 | **Kampanya durumu** | `Unit/Application/Notifications/PushCampaignStatusTests.cs` | Saf mantık, container'sız: durum önceliği (iptal > boş > tamamlandı > gönderiliyor > kuyrukta), bekleyen sayısının negatife düşmemesi |
+| **Kesinti mahalle referansı** | `Integration/Panel/PanelPowerOutageNeighborhoodTests.cs` | §7 madde **40–42**: mahalle adı formdan değil **sözlükten** yazılıyor mu, kesinti bildirimi duyuru üretip **yalnız o mahalleye** yazıyor mu, güncelleme **ikinci bildirim üretmiyor** mu, silme duyuru+bildirimleri götürüyor mu, FK'sız kayıt bildirim gönderemiyor mu, önizleme ↔ gerçek alıcı sayısı **aynı** mı, geri doldurma idempotent ve var olan bağı **ezmiyor** mu, uç hâlâ **düz dizi** mi (#1) |
+| **Mahalle eşleştirme / bildirim metni** | `Unit/Application/PowerOutages/` | Saf mantık, container'sız: "X Mahallesi" → sözlükteki "X" (ek kırpma), Türkçe `İ` (madde 21), eşleşmenin **tam** olması (yanlış mahalleye bağlamak hiç bağlamamaktan kötü); duyuru gövdesinde saatin **TR yerel** yazılması ve gün aşan kesintide bitiş **tarihinin** de yazılması |
 | **Önbellek sözleşmesi** | `Unit/Application/Caching/CacheContractTests.cs` | Grup adları sabit mi, her grubun invalidator'ı var mı, anahtar filtreyle değişiyor mu |
 | **Önbellek davranışı** | `Integration/Panel/CacheInvalidationTests.cs` | Gerçek Redis: önce **bayat veri döndüğü** gösterilir, sonra mutasyonun temizlediği |
 | **Moderasyon** | `Integration/Panel/ModerationStateMachineTests.cs` | Vefat/etkinlik/kampanya/işletme onay-red geçişleri, soft-delete etkileşimi |

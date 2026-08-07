@@ -13,12 +13,16 @@ void main() {
   PowerOutage outage({
     String id = '1',
     String? neighborhood = 'Yenimahalle',
+    String? neighborhoodId,
+    String? areaDetail,
     required Duration start,
     required Duration end,
     String? reason,
   }) => PowerOutage(
     id: id,
     neighborhood: neighborhood,
+    neighborhoodId: neighborhoodId,
+    areaDetail: areaDetail,
     startTime: now.add(start),
     endTime: now.add(end),
     reason: reason,
@@ -119,6 +123,68 @@ void main() {
       expect(item.matchesNeighborhood(null), isFalse);
       expect(item.matchesNeighborhood(''), isFalse);
     });
+
+    // ─────────────── Faz 12.3: kimlik öncelikli eşleşme ───────────────
+
+    test('kimlik varsa AD karşılaştırması hiç yapılmaz', () {
+      // 🔴 Asıl kazanç bu: sunucu 12.3'ten önce "Yenimahalle Mah." yazıyordu ve
+      // kullanıcının profilindeki "Yenimahalle" ile eşleşmiyordu — süzgeç sessizce
+      // boş kalıyordu. Kimlik varken yazım farkı artık hiç önemli değil.
+      final item = outage(
+        neighborhood: 'Yenimahalle Mah.',
+        neighborhoodId: 'n-1',
+        start: Duration.zero,
+        end: Duration.zero,
+      );
+
+      expect(
+        item.matchesNeighborhood('Yenimahalle', userNeighborhoodId: 'n-1'),
+        isTrue,
+      );
+      expect(
+        item.matchesNeighborhood('Yenimahalle Mah.', userNeighborhoodId: 'n-2'),
+        isFalse,
+        reason: 'kimlikler tutmuyorsa ad tutsa bile eşleşme YOK',
+      );
+    });
+
+    test('kimliklerden biri boşsa ad karşılaştırmasına düşülür', () {
+      // Geri doldurmada eşleşmemiş eski kayıtta `neighborhoodId` boş gelir;
+      // elimizdeki tek şey ad olduğu için o yol kapatılmadı.
+      final legacy = outage(
+        neighborhood: 'Yenimahalle',
+        start: Duration.zero,
+        end: Duration.zero,
+      );
+
+      expect(
+        legacy.matchesNeighborhood('yenimahalle', userNeighborhoodId: 'n-1'),
+        isTrue,
+      );
+      expect(legacy.hasNeighborhoodRef, isFalse);
+    });
+
+    test('sözlüğe bağlı kayıt hasNeighborhoodRef ile ayırt edilir', () {
+      final linked = outage(
+        neighborhoodId: 'n-9',
+        start: Duration.zero,
+        end: Duration.zero,
+      );
+      expect(linked.hasNeighborhoodRef, isTrue);
+    });
+
+    test('mahalle bilgisi olmayan kayıt şehir geneli sayılır', () {
+      expect(
+        outage(neighborhood: null, start: Duration.zero, end: Duration.zero)
+            .isCityWide,
+        isTrue,
+      );
+      expect(
+        outage(neighborhood: '  ', start: Duration.zero, end: Duration.zero)
+            .isCityWide,
+        isTrue,
+      );
+    });
   });
 
   group('gruplama', () {
@@ -185,6 +251,67 @@ void main() {
       final groups = PowerOutageGroups.from(const [], now: now);
       expect(groups.hasCurrent, isFalse);
       expect(groups.pastCount, 0);
+    });
+
+    // ─────────────── Faz 12.3: kimlik bazlı süzgeç ───────────────
+
+    test('kimlik süzgeci yazım farkına rağmen doğru mahalleyi tutar', () {
+      final byId = [
+        outage(
+          id: 'benim',
+          neighborhood: 'Yenimahalle Mah.',
+          neighborhoodId: 'n-1',
+          start: const Duration(hours: 1),
+          end: const Duration(hours: 2),
+        ),
+        outage(
+          id: 'baska',
+          neighborhood: 'Karataş',
+          neighborhoodId: 'n-2',
+          start: const Duration(hours: 3),
+          end: const Duration(hours: 4),
+        ),
+        outage(
+          id: 'sehir',
+          neighborhood: null,
+          start: const Duration(hours: 5),
+          end: const Duration(hours: 6),
+        ),
+      ];
+
+      final groups = PowerOutageGroups.from(
+        byId,
+        now: now,
+        neighborhood: 'Yenimahalle',
+        neighborhoodId: 'n-1',
+      );
+
+      expect(groups.upcoming.map((o) => o.id), ['benim', 'sehir']);
+      expect(groups.hiddenByNeighborhood, 1);
+    });
+
+    test('yalnız kimlik verilse de süzgeç çalışır (ad gerekmez)', () {
+      final byId = [
+        outage(
+          id: 'benim',
+          neighborhood: 'Adı Hiç Tutmayan Bir Metin',
+          neighborhoodId: 'n-1',
+          start: const Duration(hours: 1),
+          end: const Duration(hours: 2),
+        ),
+        outage(
+          id: 'baska',
+          neighborhood: 'Yenimahalle',
+          neighborhoodId: 'n-2',
+          start: const Duration(hours: 3),
+          end: const Duration(hours: 4),
+        ),
+      ];
+
+      final groups = PowerOutageGroups.from(byId, now: now, neighborhoodId: 'n-1');
+
+      expect(groups.upcoming.map((o) => o.id), ['benim']);
+      expect(groups.hiddenByNeighborhood, 1);
     });
   });
 }

@@ -15,7 +15,14 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PowerOutage {
 
- String get id; String? get neighborhood; DateTime get startTime; DateTime get endTime; String? get reason;
+ String get id;/// Mahalle **adı**. Faz 12.3'ten beri sunucuda sözlükten türetiliyor (yazım
+/// farkı yok); eski kayıtlarda hâlâ serbest metin olabilir.
+ String? get neighborhood;/// Faz 12.3 (yeni): sözlükteki mahalle kimliği. Eski sürümlerde ve şehir
+/// geneli kesintilerde `null`.
+ String? get neighborhoodId;/// Faz 12.3 (yeni): mahallenin hangi kısmı ("Atatürk Caddesi ve çevresi").
+ String? get areaDetail; DateTime get startTime; DateTime get endTime; String? get reason;/// Faz 12.3 (yeni): bu kesinti için üretilmiş duyuru. Dolu olması
+/// "bildirim gönderildi" demektir.
+ String? get announcementId;
 /// Create a copy of PowerOutage
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +35,16 @@ $PowerOutageCopyWith<PowerOutage> get copyWith => _$PowerOutageCopyWithImpl<Powe
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PowerOutage&&(identical(other.id, id) || other.id == id)&&(identical(other.neighborhood, neighborhood) || other.neighborhood == neighborhood)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&(identical(other.reason, reason) || other.reason == reason));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PowerOutage&&(identical(other.id, id) || other.id == id)&&(identical(other.neighborhood, neighborhood) || other.neighborhood == neighborhood)&&(identical(other.neighborhoodId, neighborhoodId) || other.neighborhoodId == neighborhoodId)&&(identical(other.areaDetail, areaDetail) || other.areaDetail == areaDetail)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&(identical(other.reason, reason) || other.reason == reason)&&(identical(other.announcementId, announcementId) || other.announcementId == announcementId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,neighborhood,startTime,endTime,reason);
+int get hashCode => Object.hash(runtimeType,id,neighborhood,neighborhoodId,areaDetail,startTime,endTime,reason,announcementId);
 
 @override
 String toString() {
-  return 'PowerOutage(id: $id, neighborhood: $neighborhood, startTime: $startTime, endTime: $endTime, reason: $reason)';
+  return 'PowerOutage(id: $id, neighborhood: $neighborhood, neighborhoodId: $neighborhoodId, areaDetail: $areaDetail, startTime: $startTime, endTime: $endTime, reason: $reason, announcementId: $announcementId)';
 }
 
 
@@ -48,7 +55,7 @@ abstract mixin class $PowerOutageCopyWith<$Res>  {
   factory $PowerOutageCopyWith(PowerOutage value, $Res Function(PowerOutage) _then) = _$PowerOutageCopyWithImpl;
 @useResult
 $Res call({
- String id, String? neighborhood, DateTime startTime, DateTime endTime, String? reason
+ String id, String? neighborhood, String? neighborhoodId, String? areaDetail, DateTime startTime, DateTime endTime, String? reason, String? announcementId
 });
 
 
@@ -65,13 +72,16 @@ class _$PowerOutageCopyWithImpl<$Res>
 
 /// Create a copy of PowerOutage
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? neighborhood = freezed,Object? startTime = null,Object? endTime = null,Object? reason = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? neighborhood = freezed,Object? neighborhoodId = freezed,Object? areaDetail = freezed,Object? startTime = null,Object? endTime = null,Object? reason = freezed,Object? announcementId = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,neighborhood: freezed == neighborhood ? _self.neighborhood : neighborhood // ignore: cast_nullable_to_non_nullable
+as String?,neighborhoodId: freezed == neighborhoodId ? _self.neighborhoodId : neighborhoodId // ignore: cast_nullable_to_non_nullable
+as String?,areaDetail: freezed == areaDetail ? _self.areaDetail : areaDetail // ignore: cast_nullable_to_non_nullable
 as String?,startTime: null == startTime ? _self.startTime : startTime // ignore: cast_nullable_to_non_nullable
 as DateTime,endTime: null == endTime ? _self.endTime : endTime // ignore: cast_nullable_to_non_nullable
 as DateTime,reason: freezed == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String?,announcementId: freezed == announcementId ? _self.announcementId : announcementId // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -157,10 +167,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String? neighborhood,  DateTime startTime,  DateTime endTime,  String? reason)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String? neighborhood,  String? neighborhoodId,  String? areaDetail,  DateTime startTime,  DateTime endTime,  String? reason,  String? announcementId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PowerOutage() when $default != null:
-return $default(_that.id,_that.neighborhood,_that.startTime,_that.endTime,_that.reason);case _:
+return $default(_that.id,_that.neighborhood,_that.neighborhoodId,_that.areaDetail,_that.startTime,_that.endTime,_that.reason,_that.announcementId);case _:
   return orElse();
 
 }
@@ -178,10 +188,10 @@ return $default(_that.id,_that.neighborhood,_that.startTime,_that.endTime,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String? neighborhood,  DateTime startTime,  DateTime endTime,  String? reason)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String? neighborhood,  String? neighborhoodId,  String? areaDetail,  DateTime startTime,  DateTime endTime,  String? reason,  String? announcementId)  $default,) {final _that = this;
 switch (_that) {
 case _PowerOutage():
-return $default(_that.id,_that.neighborhood,_that.startTime,_that.endTime,_that.reason);case _:
+return $default(_that.id,_that.neighborhood,_that.neighborhoodId,_that.areaDetail,_that.startTime,_that.endTime,_that.reason,_that.announcementId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +208,10 @@ return $default(_that.id,_that.neighborhood,_that.startTime,_that.endTime,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String? neighborhood,  DateTime startTime,  DateTime endTime,  String? reason)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String? neighborhood,  String? neighborhoodId,  String? areaDetail,  DateTime startTime,  DateTime endTime,  String? reason,  String? announcementId)?  $default,) {final _that = this;
 switch (_that) {
 case _PowerOutage() when $default != null:
-return $default(_that.id,_that.neighborhood,_that.startTime,_that.endTime,_that.reason);case _:
+return $default(_that.id,_that.neighborhood,_that.neighborhoodId,_that.areaDetail,_that.startTime,_that.endTime,_that.reason,_that.announcementId);case _:
   return null;
 
 }
@@ -213,14 +223,24 @@ return $default(_that.id,_that.neighborhood,_that.startTime,_that.endTime,_that.
 @JsonSerializable()
 
 class _PowerOutage extends PowerOutage {
-  const _PowerOutage({required this.id, this.neighborhood, required this.startTime, required this.endTime, this.reason}): super._();
+  const _PowerOutage({required this.id, this.neighborhood, this.neighborhoodId, this.areaDetail, required this.startTime, required this.endTime, this.reason, this.announcementId}): super._();
   factory _PowerOutage.fromJson(Map<String, dynamic> json) => _$PowerOutageFromJson(json);
 
 @override final  String id;
+/// Mahalle **adı**. Faz 12.3'ten beri sunucuda sözlükten türetiliyor (yazım
+/// farkı yok); eski kayıtlarda hâlâ serbest metin olabilir.
 @override final  String? neighborhood;
+/// Faz 12.3 (yeni): sözlükteki mahalle kimliği. Eski sürümlerde ve şehir
+/// geneli kesintilerde `null`.
+@override final  String? neighborhoodId;
+/// Faz 12.3 (yeni): mahallenin hangi kısmı ("Atatürk Caddesi ve çevresi").
+@override final  String? areaDetail;
 @override final  DateTime startTime;
 @override final  DateTime endTime;
 @override final  String? reason;
+/// Faz 12.3 (yeni): bu kesinti için üretilmiş duyuru. Dolu olması
+/// "bildirim gönderildi" demektir.
+@override final  String? announcementId;
 
 /// Create a copy of PowerOutage
 /// with the given fields replaced by the non-null parameter values.
@@ -235,16 +255,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PowerOutage&&(identical(other.id, id) || other.id == id)&&(identical(other.neighborhood, neighborhood) || other.neighborhood == neighborhood)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&(identical(other.reason, reason) || other.reason == reason));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PowerOutage&&(identical(other.id, id) || other.id == id)&&(identical(other.neighborhood, neighborhood) || other.neighborhood == neighborhood)&&(identical(other.neighborhoodId, neighborhoodId) || other.neighborhoodId == neighborhoodId)&&(identical(other.areaDetail, areaDetail) || other.areaDetail == areaDetail)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&(identical(other.reason, reason) || other.reason == reason)&&(identical(other.announcementId, announcementId) || other.announcementId == announcementId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,neighborhood,startTime,endTime,reason);
+int get hashCode => Object.hash(runtimeType,id,neighborhood,neighborhoodId,areaDetail,startTime,endTime,reason,announcementId);
 
 @override
 String toString() {
-  return 'PowerOutage(id: $id, neighborhood: $neighborhood, startTime: $startTime, endTime: $endTime, reason: $reason)';
+  return 'PowerOutage(id: $id, neighborhood: $neighborhood, neighborhoodId: $neighborhoodId, areaDetail: $areaDetail, startTime: $startTime, endTime: $endTime, reason: $reason, announcementId: $announcementId)';
 }
 
 
@@ -255,7 +275,7 @@ abstract mixin class _$PowerOutageCopyWith<$Res> implements $PowerOutageCopyWith
   factory _$PowerOutageCopyWith(_PowerOutage value, $Res Function(_PowerOutage) _then) = __$PowerOutageCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String? neighborhood, DateTime startTime, DateTime endTime, String? reason
+ String id, String? neighborhood, String? neighborhoodId, String? areaDetail, DateTime startTime, DateTime endTime, String? reason, String? announcementId
 });
 
 
@@ -272,13 +292,16 @@ class __$PowerOutageCopyWithImpl<$Res>
 
 /// Create a copy of PowerOutage
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? neighborhood = freezed,Object? startTime = null,Object? endTime = null,Object? reason = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? neighborhood = freezed,Object? neighborhoodId = freezed,Object? areaDetail = freezed,Object? startTime = null,Object? endTime = null,Object? reason = freezed,Object? announcementId = freezed,}) {
   return _then(_PowerOutage(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,neighborhood: freezed == neighborhood ? _self.neighborhood : neighborhood // ignore: cast_nullable_to_non_nullable
+as String?,neighborhoodId: freezed == neighborhoodId ? _self.neighborhoodId : neighborhoodId // ignore: cast_nullable_to_non_nullable
+as String?,areaDetail: freezed == areaDetail ? _self.areaDetail : areaDetail // ignore: cast_nullable_to_non_nullable
 as String?,startTime: null == startTime ? _self.startTime : startTime // ignore: cast_nullable_to_non_nullable
 as DateTime,endTime: null == endTime ? _self.endTime : endTime // ignore: cast_nullable_to_non_nullable
 as DateTime,reason: freezed == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String?,announcementId: freezed == announcementId ? _self.announcementId : announcementId // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

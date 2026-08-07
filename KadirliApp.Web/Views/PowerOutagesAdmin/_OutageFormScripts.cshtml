@@ -1,0 +1,81 @@
+@*
+    Faz 12.3 — kesinti formunun bildirim önizlemesi. Create ve Edit aynı betiği kullanır.
+
+    ⚠️ `data-confirm` FORMDA olmak zorunda: _Layout'taki tek dinleyici `submit` olayında
+    formun özniteliğine bakıyor. Butona konursa öznitelik durur, kod doğru görünür ve
+    onay penceresi hiç açılmaz — 12.2'de bu hata üç görünümde birden yaşandı.
+*@
+<script>
+    (function () {
+        const form = document.getElementById('outage-form');
+        const send = document.getElementById('send-notification');
+        if (!form || !send) return;
+
+        const extra = document.getElementById('notify-extra');
+        const output = document.getElementById('estimate-count');
+        const warning = document.getElementById('no-neighborhood-warning');
+        const primary = document.getElementById('NeighborhoodId');
+        const estimateUrl = '@Url.Action("EstimateRecipients")';
+        const baseConfirm = form.getAttribute('data-confirm') || '';
+        let timer = null;
+
+        function selectedIds() {
+            const ids = [];
+            if (primary && primary.value) ids.push(primary.value);
+            document.querySelectorAll('.extra-neighborhood:checked')
+                .forEach(c => { if (!ids.includes(c.value)) ids.push(c.value); });
+            return ids;
+        }
+
+        function setConfirm(text) {
+            if (text) form.setAttribute('data-confirm', text);
+            else if (baseConfirm) form.setAttribute('data-confirm', baseConfirm);
+            else form.removeAttribute('data-confirm');
+        }
+
+        async function refresh() {
+            const on = send.checked;
+            extra.classList.toggle('hidden', !on);
+
+            if (!on) { setConfirm(null); return; }
+
+            const ids = selectedIds();
+            warning.classList.toggle('hidden', ids.length > 0);
+
+            if (ids.length === 0) {
+                output.textContent = '0';
+                setConfirm(null);
+                return;
+            }
+
+            const params = new URLSearchParams();
+            ids.forEach(id => params.append('neighborhoodIds', id));
+
+            try {
+                const response = await fetch(estimateUrl + '?' + params.toString());
+                if (!response.ok) throw new Error();
+                const data = await response.json();
+                output.textContent = data.count;
+                // Onay metni sayıyı SÖYLER: "gönderilsin mi?" sorusunun cevabı kaç kişiye
+                // gideceğini bilmeden verilemez (12.2b'nin aynı kararı).
+                setConfirm('Bu kesinti için ' + data.count + ' kişiye bildirim gönderilecek. Devam edilsin mi?');
+            } catch {
+                // Sayı alınamadıysa yalan söylemek yerine soru işareti bırakılır.
+                output.textContent = 'hesaplanamadı';
+                setConfirm('Bu kesinti için seçilen mahallelere bildirim gönderilecek. Devam edilsin mi?');
+            }
+        }
+
+        function schedule() {
+            clearTimeout(timer);
+            timer = setTimeout(refresh, 250);
+        }
+
+        send.addEventListener('change', schedule);
+        if (primary) primary.addEventListener('change', schedule);
+        document.querySelectorAll('.extra-neighborhood')
+            .forEach(el => el.addEventListener('change', schedule));
+
+        refresh();
+    })();
+</script>

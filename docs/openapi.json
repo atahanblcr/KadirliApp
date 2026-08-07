@@ -8069,6 +8069,15 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "neighborhoodId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "areaDetail": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "startTime": {
                         "type": "string",
                         "format": "date-time"
@@ -8079,6 +8088,17 @@
                     },
                     "reason": {
                         "type": "string",
+                        "nullable": true
+                    },
+                    "sendNotification": {
+                        "type": "boolean"
+                    },
+                    "targetNeighborhoodIds": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
                         "nullable": true
                     }
                 },
@@ -10605,6 +10625,15 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "neighborhoodId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "areaDetail": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "startTime": {
                         "type": "string",
                         "format": "date-time"
@@ -10615,6 +10644,17 @@
                     },
                     "reason": {
                         "type": "string",
+                        "nullable": true
+                    },
+                    "sendNotification": {
+                        "type": "boolean"
+                    },
+                    "targetNeighborhoodIds": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
                         "nullable": true
                     }
                 },

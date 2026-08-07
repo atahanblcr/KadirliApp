@@ -54,12 +54,18 @@ class _PowerOutagesScreenState extends ConsumerState<PowerOutagesScreen> {
     final myNeighborhood = ref.watch(
       currentUserProvider.select((user) => user?.primaryNeighborhoodName),
     );
+    // Faz 12.3: uç artık mahalle **kimliği** de döndürüyor; eşleşme öncelikle
+    // bundan yapılıyor (ad karşılaştırması yalnız eski kayıtlar için yedek).
+    final myNeighborhoodId = ref.watch(
+      currentUserProvider.select((user) => user?.primaryNeighborhoodId),
+    );
 
     final groups = switch (outages) {
       AsyncData(value: final items) => PowerOutageGroups.from(
         items,
         now: _now,
         neighborhood: onlyMine ? myNeighborhood : null,
+        neighborhoodId: onlyMine ? myNeighborhoodId : null,
       ),
       _ => null,
     };
@@ -88,7 +94,12 @@ class _PowerOutagesScreenState extends ConsumerState<PowerOutagesScreen> {
             AppSpacing.gapSm,
             Expanded(
               child: tab == PowerOutageTab.current
-                  ? _CurrentList(groups: groups, now: _now, mine: onlyMine ? null : myNeighborhood)
+                  ? _CurrentList(
+                      groups: groups,
+                      now: _now,
+                      mine: onlyMine ? null : myNeighborhood,
+                      mineId: onlyMine ? null : myNeighborhoodId,
+                    )
                   : _PastList(groups: groups, now: _now),
             ),
           ],
@@ -186,7 +197,12 @@ class _OnlyMineToggle extends ConsumerWidget {
 
 /// Süren + planlanan kesintiler, iki başlık altında.
 class _CurrentList extends StatelessWidget {
-  const _CurrentList({required this.groups, required this.now, this.mine});
+  const _CurrentList({
+    required this.groups,
+    required this.now,
+    this.mine,
+    this.mineId,
+  });
 
   final PowerOutageGroups groups;
   final DateTime now;
@@ -194,6 +210,9 @@ class _CurrentList extends StatelessWidget {
   /// Filtre kapalıyken kullanıcının mahallesi — eşleşen kart "Mahalleniz"
   /// rozetiyle öne çıkar (filtreyi açmadan da gözden kaçmaz).
   final String? mine;
+
+  /// Faz 12.3: aynı rozetin kimlik üzerinden eşleşen hâli.
+  final String? mineId;
 
   @override
   Widget build(BuildContext context) {
@@ -249,7 +268,10 @@ class _CurrentList extends StatelessWidget {
   Widget _tile(BuildContext context, PowerOutage outage) => PowerOutageTile(
     outage: outage,
     now: now,
-    highlightNeighborhood: outage.matchesNeighborhood(mine),
+    highlightNeighborhood: outage.matchesNeighborhood(
+      mine,
+      userNeighborhoodId: mineId,
+    ),
     onTap: () => context.push(AppRoutes.powerOutageDetail(outage.id)),
   );
 }

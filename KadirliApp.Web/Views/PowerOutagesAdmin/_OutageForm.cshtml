@@ -1,0 +1,143 @@
+@*
+    Faz 12.3 — kesinti formunun mahalle + bildirim bloğu.
+
+    🔑 Create ve Edit **tek** bloktan besleniyor. İki görünüme kopyalansaydı biri
+    güncellenip diğeri unutulduğunda "eklerken bildirim gidiyor, düzenlerken gitmiyor"
+    gibi bir ayrışma doğardı ve hiçbir test bunu görmezdi.
+*@
+@using KadirliApp.Domain.Entities
+@{
+    var neighborhoods = ViewBag.Neighborhoods as List<Neighborhood> ?? new List<Neighborhood>();
+    Guid? selectedId = ViewData.Model switch
+    {
+        KadirliApp.Application.Features.PowerOutages.DTOs.CreatePowerOutageDto c => c.NeighborhoodId,
+        KadirliApp.Application.Features.PowerOutages.DTOs.UpdatePowerOutageDto u => u.NeighborhoodId,
+        _ => null
+    };
+    string? areaDetail = ViewData.Model switch
+    {
+        KadirliApp.Application.Features.PowerOutages.DTOs.CreatePowerOutageDto c => c.AreaDetail,
+        KadirliApp.Application.Features.PowerOutages.DTOs.UpdatePowerOutageDto u => u.AreaDetail,
+        _ => null
+    };
+    string? legacyText = ViewData.Model switch
+    {
+        KadirliApp.Application.Features.PowerOutages.DTOs.CreatePowerOutageDto c => c.Neighborhood,
+        KadirliApp.Application.Features.PowerOutages.DTOs.UpdatePowerOutageDto u => u.Neighborhood,
+        _ => null
+    };
+
+    var alreadyNotified = ViewBag.AlreadyNotified is true;
+    var unmatchedLegacy = selectedId is null && !string.IsNullOrWhiteSpace(legacyText);
+}
+
+<div class="md:col-span-2">
+    <label for="NeighborhoodId" class="block text-sm font-medium text-gray-700 mb-2">
+        Mahalle <span class="text-red-500">*</span>
+    </label>
+    <select id="NeighborhoodId" name="NeighborhoodId"
+            class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow shadow-sm text-gray-900">
+        <option value="">Şehir geneli (mahalle seçilmedi)</option>
+        @foreach (var n in neighborhoods)
+        {
+            <option value="@n.Id" selected="@(selectedId == n.Id)">@n.Name</option>
+        }
+    </select>
+    <p class="text-xs text-gray-500 mt-1">
+        Mahalle sözlükten seçilir; kayıttaki mahalle adı buradan yazılır ve elle düzenlenmez.
+        <strong>Bildirim göndermenin ön koşuludur.</strong>
+    </p>
+
+    @if (unmatchedLegacy)
+    {
+        @* Eski serbest metin kaydı: değeri GÖSTER ama düzenlenebilir bırakma —
+           yönetici neyin yazdığını görmeden doğru mahalleyi seçemez. *@
+        <div class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <i class="fas fa-triangle-exclamation mr-1"></i>
+            Bu kayıtta mahalle serbest metin olarak duruyor: <strong>@legacyText</strong> —
+            sözlükten karşılığı seçilene kadar bildirim gönderilemez.
+        </div>
+        <input type="hidden" name="Neighborhood" value="@legacyText" />
+    }
+</div>
+
+<div class="md:col-span-2">
+    <label for="AreaDetail" class="block text-sm font-medium text-gray-700 mb-2">Bölge ayrıntısı</label>
+    <input id="AreaDetail" name="AreaDetail" value="@areaDetail" maxlength="300"
+           placeholder="Örn: Atatürk Caddesi ve çevresi"
+           class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow shadow-sm text-gray-900" />
+    <p class="text-xs text-gray-500 mt-1">
+        Kesinti mahallenin tamamını kapsamıyorsa buraya yazın. Mahalle adının içine yazılırsa
+        sözlük eşleşmesi bozulur.
+    </p>
+</div>
+
+<div class="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+    @if (alreadyNotified)
+    {
+        @* 🔴 Gönderilmiş bildirim GERİ ALINMAZ (`FcmSent` terminaldir, görünmez sözleşme #37).
+           Bu yüzden burada bir kutu değil bir DURUM yazıyor: geri alınamayacak bir şeyi
+           teklif eden buton, işlevsiz butondan kötüdür. *@
+        <p class="text-sm text-gray-800">
+            <i class="fas fa-circle-check text-green-600 mr-1"></i>
+            <strong>Bu kesinti için bildirim gönderildi.</strong>
+        </p>
+        <p class="text-xs text-gray-600">
+            Kaydı güncellemek duyurunun metnini ve görünürlük süresini tazeler;
+            <strong>ikinci bir bildirim gönderilmez</strong>. Teslim durumu
+            <a asp-controller="PushCampaignsAdmin" asp-action="Index" asp-route-source="power_outage"
+               class="text-indigo-600 hover:text-indigo-800 underline">Bildirim Gönderimleri</a>
+            ekranından izlenir.
+        </p>
+        <input type="hidden" name="SendNotification" value="false" />
+    }
+    else
+    {
+        <label class="inline-flex items-start gap-2 text-sm text-gray-800">
+            <input type="checkbox" id="send-notification" name="SendNotification" value="true"
+                   class="mt-0.5 text-indigo-600" />
+            <span>
+                <strong>Bu kesinti için bildirim gönder</strong>
+                <span class="block text-xs text-gray-600">
+                    Seçilen mahallelerin sakinlerine duyuru + push gider. Bildirimlerini
+                    kapatmış, pasif ve engelli hesaplar hariçtir.
+                </span>
+            </span>
+        </label>
+        @* Checkbox işaretsizken de bir değer gitsin: ASP.NET'in kendi hidden'ı olmadığı için
+           form "false" göndermezse model binder varsayılana düşer. *@
+        <input type="hidden" name="SendNotification" value="false" />
+
+        <div id="notify-extra" class="hidden space-y-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-2">
+                    Ek mahalleler (kesintinin kendi mahallesi zaten dâhildir)
+                </label>
+                <div class="max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    @foreach (var n in neighborhoods)
+                    {
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                            <input type="checkbox" name="TargetNeighborhoodIds" value="@n.Id"
+                                   class="extra-neighborhood text-indigo-600" />
+                            @n.Name
+                        </label>
+                    }
+                </div>
+            </div>
+
+            @* 🔑 Tahmini alıcı sunucudan gelir ve GÖNDERİMİN KENDİSİYLE aynı süzgeçten geçer.
+               Panel kendi hesabını yapsaydı önizleme ile gerçek sessizce ayrışırdı (#38). *@
+            <div class="rounded-lg bg-white border border-gray-200 p-3 text-sm text-gray-700">
+                Tahmini alıcı: <strong id="estimate-count">—</strong> kişi
+                <span class="block text-xs text-gray-500 mt-1">
+                    Bildirimlerini kapatmış, pasif ve engelli hesaplar bu sayıya dâhil değildir.
+                </span>
+            </div>
+
+            <p id="no-neighborhood-warning" class="hidden text-xs text-amber-700">
+                <i class="fas fa-triangle-exclamation mr-1"></i>
+                Mahalle seçilmeden bildirim gönderilemez.
+            </p>
+        </div>
+    }
+</div>

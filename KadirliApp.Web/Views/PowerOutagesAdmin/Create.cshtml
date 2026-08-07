@@ -17,14 +17,10 @@
     </div>
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
-        <form asp-action="Create" method="post" class="p-8">
+        <form asp-action="Create" method="post" id="outage-form" class="p-8">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                <div class="md:col-span-2">
-                    <label asp-for="Neighborhood" class="block text-sm font-medium text-gray-700 mb-2">Mahalle / Bölge <span class="text-red-500">*</span></label>
-                    <input asp-for="Neighborhood" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow shadow-sm text-gray-900" placeholder="Örn: Cemalpaşa Mahallesi" required />
-                    <span asp-validation-for="Neighborhood" class="text-sm text-red-600 mt-1 block"></span>
-                </div>
+
+                <partial name="_OutageForm" model="Model" />
 
                 <div>
                     <label asp-for="StartTime" class="block text-sm font-medium text-gray-700 mb-2">Başlangıç Zamanı <span class="text-red-500">*</span></label>
@@ -60,4 +56,5 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <partial name="_OutageFormScripts" />
 }

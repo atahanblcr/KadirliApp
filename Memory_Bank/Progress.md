@@ -1727,7 +1727,7 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 | 12.1 | Hata günlüğü modülü ✅ | backend + panel + mobil (raporlayıcı) | ✔ | **+38 backend, +7 mobil** |
 | 12.2 | Şüpheli giriş günlüğü + e-posta raporlama (+ `ForwardedHeaders` + `StaffAdmin` izin tutarsızlığı) | backend + panel | ✔ | ~35 backend |
 | 12.2b | Bildirim teslim panosu + bağımsız push ekranı ✅ | backend + panel | ✔ | **+26 backend** |
-| 12.3 | Kesinti mahalle referansı + mahalle bazlı bildirim | backend + panel + mobil | ✔ | ~25 backend, ~5 mobil |
+| 12.3 | Kesinti mahalle referansı + mahalle bazlı bildirim ✅ | backend + panel + mobil | ✔ | **+40 backend, +11 mobil** |
 | 12.4 | Etkinlik konumu (il/ilçe) | backend + panel + mobil | ✔ | ~20 backend, ~10 mobil |
 | 12.5 | Ulaşım alan modeli (araç tipi · kalkış noktası · sefer günleri) | backend + panel | ✔ | ~30 backend |
 | 12.6 | Ulaşım mobil (ikili kalkış · gün rozetleri · "sıradaki sefer") | mobil | — | ~25 mobil |
@@ -2270,7 +2270,7 @@ router redirect'inin ÜSTÜNDE kalır"). **Tekrar ederse `error_logs` yine yakal
 
 ---
 
-### 12.3 — Kesinti mahalle referansı + mahalle bazlı bildirim — [ ]
+### 12.3 — Kesinti mahalle referansı + mahalle bazlı bildirim — [x] ✅ TAMAMLANDI (7 Ağustos 2026)
 
 **Hedef:** Kesintinin sözlükteki mahalleye bağlanması ve o mahallenin sakinlerine bildirim gitmesi.
 
@@ -2337,6 +2337,104 @@ Buna karşılık hedefleme altyapısı **tamamen hazır**: `Neighborhood` sözl�
 `power_outages.announcement_id` dolu → o mahalleye kayıtlı kullanıcıda bildirim satırı ·
 **başka mahalledeki kullanıcıda satır YOK** · kesinti silindi → duyuru + bildirimler gitti ·
 `GET /v1/power-outages` **hâlâ düz dizi** ve `neighborhood` alanı dolu · geri doldurma raporu doğru.
+
+#### 12.3 kapanış notları
+
+**Teslim edilenler:** `PowerOutage.NeighborhoodId` (FK → `neighborhoods`, `SetNull`) + `AreaDetail` +
+migration `AddPowerOutageNeighborhood` · `PowerOutageNeighborhoodMatcher` + `PowerOutageNeighborhoodResolver`
+(saf, birim testli) · `PowerOutageNeighborhoodBackfill` (idempotent açılış adımı + rapor) ·
+`IPowerOutageAnnouncementWriter` / `PowerOutageAnnouncementWriter` (**kesinti ↔ duyuru bağının tek sahibi**) ·
+`PowerOutageAnnouncementText` (saf; TR yerel saat) · `DbSeeder.EnsurePowerOutageAnnouncementTypeAsync` ·
+üç komut yeniden yazıldı (Create/Update artık `IAuditableCommand`) · panelde mahalle seçimi +
+bölge ayrıntısı + bildirim onayı + **canlı tahmini alıcı** + eşleşmemiş şeridi + mahalle süzgeci +
+"Bildirim" sütunu · mobil `neighborhoodId`/`areaDetail` + **kimlik öncelikli** mahalle eşleşmesi.
+**Backend 689 → 729 (+40), mobil 685 → 696 (+11), analyze 0.**
+
+🔑 **TESLİM EDİLEN:** `PowerOutage.AnnouncementId` 10.x'ten beri duran **boş bir çengeldi**;
+kesinti hiçbir bildirim üretmiyordu ve `Neighborhood` serbest metin olduğu için üretemezdi de.
+Artık kesinti sözlüğe bağlı ve **kendiliğinden bildirim gönderiyor**.
+
+🔴 **EN ÖNEMLİ KARAR — kesinti bildirimi ayrı bir tür DEĞİL, BİR DUYURU.** Faz başında alınmıştı,
+uygulamada bedeli görüldü ve doğru çıktı: `Announcement` + `AnnouncementNotificationGenerator` +
+`SendPushNotificationsJob` + deep-link zinciri **aynen** çalıştı → **mobilde tek satır bildirim
+kodu yazılmadı** ve mağazadaki eski sürümler de kesinti bildirimini alıyor. Yeni bir `relatedType`
+uydurulsaydı görünmez sözleşme #18 gereği eski sürümler bildirime dokunduğunda **sessizce hiçbir
+yere gitmezdi.** Tek eklenen şey kampanya **etiketi** (`PushCampaignSources.PowerOutage`) —
+teslim panosunda "bu push nereden çıktı?" sorusunun cevabı "duyuru" olsaydı yönetici kesinti
+gönderimlerini hiçbir süzgeçle ayıramazdı.
+
+🐛 **UYGULAMA SIRASINDA BULUNAN DÖRT ŞEY:**
+1. 🔴 **`Repository.Query()` varsayılan olarak `AsNoTracking()`.** `RemoveAsync` duyuruyu onunla
+   alıp `SoftRemove` çağırıyordu: alan bağlantısız nesneye yazılıyor, `SaveChanges` onu **hiç
+   görmüyor**. Duyuru "silinmiş görünüyor", `deleted_at` boş kalıyor, **hiçbir hata oluşmuyor**.
+   `Update()`/`Remove()` çağıran yollarda görünmez çünkü EF nesneyi yeniden iliştirir — yalnız
+   *alan yazan* işlemler sessizce kayboluyor. Testte yakalandı, `Query(tracking: true)` ile düzeltildi.
+2. 🔴 **Seed'in "tablo boşsa" bloğu yeni bir satırı garanti etmez.** "Elektrik Kesintisi" duyuru
+   türü `AnnouncementTypes` listesinde zaten vardı ama blok `if (!await db.AnnouncementTypes.AnyAsync())`
+   ile korunuyor — yani 12.3'ten **önce ayağa kalkmış her veritabanında** o blok bir daha hiç
+   koşmaz. Tür bazında idempotent bir adım yazılmasaydı kesinti bildirimi **yalnız eski
+   kurulumlarda** patlardı; geliştiricinin taze veritabanında hiç görünmezdi.
+3. 🐛 **Test kendi kullanıcılarını başka bir testin mahallesine yazdı.** İlk yazımda sözlüğün ilk
+   iki mahallesi (`OrderBy(Name).Take(2)`) ödünç alınmıştı — `PanelPushCampaignTests` de aynı iki
+   satırı kullanıyor ve iki test kullanıcısı **onun alıcı sayımına karıştı** ("2 bekleniyordu, 3
+   bulundu"). Paylaşılan veritabanında **sayı iddia eden her test kendi kitlesini kurmalı**;
+   ödünç alınan lookup satırı bir sonraki fazın testini kırar.
+4. 📌 **Mahalle eki kırpması olmadan geri doldurma sessizce sıfır sonuç verirdi.** Sözlükte ad
+   `"Cengiz Topel"`, kesinti kaydında yıllardır `"Cengiz Topel Mahallesi"`. Kırpma slug'ın
+   *üstüne* yazıldı (girdisi ASCII slug, çıktısı slug) — Türkçe karakter kararı hâlâ tek yerde
+   (`SlugHelper`, madde 21). ⚠️ `"Yenimahalle"` içindeki "mahalle" **ek değil**: ek yalnız
+   ayraçtan sonra gelirse ektir, aksi hâlde geriye "yeni" kalır ve mahalle hiç eşleşmez.
+
+➕ **PLAN DIŞI (raporlandı):**
+- **`AreaDetail` mahalle adından ayrıldı** — plandaydı ama sebebi uygulamada netleşti: sözlük
+  eşleşmesini imkânsız kılan asıl şey, sokak bilgisinin mahalle metnine sıkıştırılmasıydı.
+- **Bildirim ek mahallelere genişletilebiliyor** (`TargetNeighborhoodIds`): bir trafo arızası
+  komşu mahalleyi de karartabilir. Kesintinin kendi mahallesi **her zaman** dâhil.
+- **Panel Index'e "Bildirim" sütunu + Bildirim Gönderimleri bağlantısı** — 12.2b'nin panosuna
+  kesinti ekranından köprü.
+- **Create/Update artık `IAuditableCommand`** (eskiden yalnız Delete izliyordu).
+- **Bitiş ≤ başlangıç doğrulaması** (eskiden hiç yoktu — ters saatli kesinti kaydedilebiliyordu).
+- **Silme onayı artık neyi sildiğini söylüyor** ("duyurusu ve gönderilen bildirimleri de kaldırılacak").
+
+🐛 **12.2'DEN DEVRALINAN MOBİL ÇÖKMENİN KÖK NEDENİ BULUNDU VE KİLİTLENDİ.** İki oturumdur
+"yeniden üretilemedi" diye açık duran `Navigator._debugCheckDuplicatedPageKeys` artık
+**deterministik olarak üretilebiliyor**:
+`go_router` imperative sayfalara **rastgele** (`_getUniqueValueKey`, 32 karakter), kabuk
+(`StatefulShellRoute`) sayfalarına ise **`route.hashCode`** anahtarı verir — yani kabuk anahtarı
+**deterministik**. `RouteMatchList._createNewMatchUntilIncompatible` bir kabuk rotasını yığındaki
+kabukla **yalnız kabuk en üstteyse** birleştirir; araya kabuk dışı bir sayfa girmişse birleştirmez
+ve listeye **aynı anahtarla ikinci bir `ShellRouteMatch`** ekler:
+`[ShellRouteMatch=114994750, ImperativeRouteMatch=…, ShellRouteMatch=114994750]` → Navigator patlar.
+🔑 **Gerçek hayattaki tetikleyici tam da 12.3 ile yakınlaştı:** kesinti bildirimi artık
+kendiliğinden gidiyor ve `PushCoordinator.openNotification` hedefe **`push`** ediyordu — hedef
+`/ilanlar/:id` gibi bir sekme **alt** rotasıysa ve kullanıcı o an bir modül ekranındaysa uygulama
+dokunur dokunmaz çökerdi. Düzeltme tek sahipli: **`lib/core/router/app_nav.dart`** (kabuk rotası,
+kabuk en üstte değilken `go` edilir; karar **router'a sorulur**, elle rota listesi tutulmaz).
+📌 `module_grid`'de elle yazılmış `AppRoutes.tabs` kontrolü **doğru sezgiye sahipti ama yalnız
+sekme köklerini tanıyordu** — alt rotalar kapsam dışıydı; o da `AppNav`'a çekildi.
+Regresyon testi `test/core/navigation/shell_page_key_test.dart` (5 test) ve **çakışma kare
+basılmadan ölçülüyor**: assertion'ın gerçekten atılmasına izin vermek widget ağacını bozuk
+bırakıyor ve artık istisnalar aynı binding'i paylaşan sonraki testlere sızıyor.
+
+🔴 **GÖRÜNMEZ SÖZLEŞMELERE #40, #41, #42 EKLENDİ** (mahalle adı sözlükten türetilir · kesinti
+bildirimi bir duyurudur ve kesintiyle birlikte silinir, güncelleme ikinci duyuru üretmez ·
+bildirim yalnız FK'sı dolu kesintide gönderilebilir). Toplam **42**.
+§7 kod-dışı sözleşmelere ayrıca **kabuk rotası `push` edilmez** maddesi eklendi.
+
+**Doğrulama:** `dotnet test` **729/729** · `flutter analyze` **0** · `flutter test` **696/696**.
+**Kuralı bilerek boz:** 7 deneme (türetilmiş ad · FK kapısı · silmede bildirim temizliği ·
+`tracking: true` · `SlugHelper` normalleştirmesi · mahalle eki kırpması · mobil kimlik önceliği ·
+`AppNav`) → **hepsi kırmızı**, geri alınınca yeşil.
+**Canlı (Chrome + gerçek Android emülatörü):** geri doldurma açılışta **2/2 eşleştirdi** ·
+panelde mahalle seçildi → **tahmini alıcı 5**, gönderim de **5 satır** (önizleme ↔ gerçek paritesi) ·
+`push_campaigns.source = power_outage`, **tamamlandı** · bildirim yalnız **Cengiz Topel**'in 5
+sakinine yazıldı, Şehit Kansu'daki kullanıcıya **YOK** · duyuru gövdesi **TR yerel saatle**
+"7 Ağustos 22:00 – 8 Ağustos 02:00" (UTC 19:00 kaydı; gün aşımında bitiş **tarihi** de yazıldı) ·
+`visible_until` = kesinti bitişi · **emülatörde push düştü** (`aysedmr`), ön plan bildirimi +
+rozet · kesinti kartında **"Mahalleniz"** rozeti ve bölge ayrıntısı · "Sadece Cengiz Topel"
+süzgeci → "2 kesinti mahalle filtresi yüzünden gizli" · **kabuk dışı bir modül ekranındayken
+bildirime dokunuldu → duyuru detayı açıldı, ÇÖKME YOK** (tür rozeti "Elektrik Kesintisi",
+"8 Ağustos 2026, 02:00 tarihine kadar geçerli").
 
 ---
 

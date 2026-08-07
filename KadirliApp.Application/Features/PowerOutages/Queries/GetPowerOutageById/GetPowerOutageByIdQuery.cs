@@ -33,9 +33,12 @@ public class GetPowerOutageByIdQueryHandler : IRequestHandler<GetPowerOutageById
         {
             Id = outage.Id,
             Neighborhood = outage.Neighborhood,
+            NeighborhoodId = outage.NeighborhoodId,
+            AreaDetail = outage.AreaDetail,
             StartTime = outage.StartTime,
             EndTime = outage.EndTime,
-            Reason = outage.Reason
+            Reason = outage.Reason,
+            AnnouncementId = outage.AnnouncementId
         });
     }
 }

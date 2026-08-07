@@ -92,23 +92,31 @@ class PowerOutageGroups {
 
   /// Sunucudan gelen ham listeyi gruplara ayırır.
   ///
-  /// [neighborhood] verilirse yalnız o mahallenin (ve mahalle bilgisi olmayan
-  /// = şehir geneli) kayıtları kalır: şehir geneli kesinti herkesi ilgilendirir,
-  /// filtrelenip saklanması yanlış olurdu.
+  /// [neighborhood] (ve Faz 12.3'ten beri [neighborhoodId]) verilirse yalnız o
+  /// mahallenin — ve mahalle bilgisi olmayan, yani şehir geneli — kayıtları
+  /// kalır: şehir geneli kesinti herkesi ilgilendirir, filtrelenip saklanması
+  /// yanlış olurdu.
+  ///
+  /// 🔑 Filtre **kimlik öncelikli**: [neighborhoodId] verildiğinde ad
+  /// karşılaştırması hiç yapılmaz (bkz. `PowerOutage.matchesNeighborhood`).
   factory PowerOutageGroups.from(
     List<PowerOutage> outages, {
     DateTime? now,
     String? neighborhood,
+    String? neighborhoodId,
   }) {
     final reference = now ?? DateTime.now();
+    final filtering = neighborhood != null || neighborhoodId != null;
 
     var hidden = 0;
     final visible = <PowerOutage>[];
     for (final outage in outages) {
-      final cityWide = (outage.neighborhood?.trim().isEmpty ?? true);
-      if (neighborhood != null &&
-          !cityWide &&
-          !outage.matchesNeighborhood(neighborhood)) {
+      if (filtering &&
+          !outage.isCityWide &&
+          !outage.matchesNeighborhood(
+            neighborhood,
+            userNeighborhoodId: neighborhoodId,
+          )) {
         hidden++;
         continue;
       }

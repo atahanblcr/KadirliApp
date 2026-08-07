@@ -72,15 +72,35 @@ class PowerOutageTile extends StatelessWidget {
           ),
           AppSpacing.gapSm,
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(Icons.place_rounded, size: 18, color: palette.muted),
               AppSpacing.wGapSm,
+              // ⚠️ Expanded şart: 360 dp'de ve 1.4 yazı ölçeğinde uzun mahalle +
+              // bölge ayrıntısı Row'u taşırıyordu (bu projenin 7+ kez ürettiği
+              // RenderFlex overflow sınıfı).
               Expanded(
-                child: Text(
-                  outage.placeLabel,
-                  style: theme.textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      outage.placeLabel,
+                      style: theme.textTheme.titleSmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    // Faz 12.3: kesinti mahallenin tamamını kapsamıyorsa hangi
+                    // kısmı olduğu burada yazar — vatandaşın ilk sorusu bu.
+                    if ((outage.areaDetail ?? '').trim().isNotEmpty)
+                      Text(
+                        outage.areaDetail!.trim(),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: palette.muted,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
                 ),
               ),
             ],

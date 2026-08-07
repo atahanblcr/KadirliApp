@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/network.dart';
 import '../../../core/push/push_messaging.dart';
+import '../../../core/router/app_nav.dart';
 import '../../../core/router/app_router.dart';
 import '../data/fcm_token_service.dart';
 import '../data/models/app_notification.dart';
@@ -148,7 +149,10 @@ class PushCoordinator {
     );
     if (route == null || !_ref.mounted) return;
 
-    _ref.read(routerProvider).push(route);
+    // 🔴 `router.push` DEĞİL: hedef bir kabuk (sekme) rotası olabilir — `/ilanlar/:id`
+    // gibi — ve kullanıcı o an kabuk dışı bir ekrandaysa mükerrer sayfa anahtarı
+    // doğar, uygulama çöker. Kök neden ve kanıt: `core/router/app_nav.dart`.
+    AppNav.push(_ref.read(routerProvider), route);
   }
 
   Future<void> _markReadQuietly(String notificationId) async {

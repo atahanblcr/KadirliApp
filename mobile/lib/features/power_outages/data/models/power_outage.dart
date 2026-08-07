@@ -11,10 +11,25 @@ part 'power_outage.g.dart';
 abstract class PowerOutage with _$PowerOutage {
   const factory PowerOutage({
     required String id,
+
+    /// Mahalle **adı**. Faz 12.3'ten beri sunucuda sözlükten türetiliyor (yazım
+    /// farkı yok); eski kayıtlarda hâlâ serbest metin olabilir.
     String? neighborhood,
+
+    /// Faz 12.3 (yeni): sözlükteki mahalle kimliği. Eski sürümlerde ve şehir
+    /// geneli kesintilerde `null`.
+    String? neighborhoodId,
+
+    /// Faz 12.3 (yeni): mahallenin hangi kısmı ("Atatürk Caddesi ve çevresi").
+    String? areaDetail,
+
     required DateTime startTime,
     required DateTime endTime,
     String? reason,
+
+    /// Faz 12.3 (yeni): bu kesinti için üretilmiş duyuru. Dolu olması
+    /// "bildirim gönderildi" demektir.
+    String? announcementId,
   }) = _PowerOutage;
 
   const PowerOutage._();
@@ -65,9 +80,30 @@ abstract class PowerOutage with _$PowerOutage {
     return (name == null || name.isEmpty) ? 'Kadirli geneli' : name;
   }
 
-  /// Kullanıcının mahallesiyle eşleşiyor mu (ad üzerinden — uç mahalle **id**'si
-  /// döndürmüyor, yalnız ad; büyük/küçük harf ve boşluk farkı yok sayılır).
-  bool matchesNeighborhood(String? userNeighborhood) {
+  /// Bu kesinti mahalle sözlüğüne bağlı mı (Faz 12.3).
+  bool get hasNeighborhoodRef => (neighborhoodId?.trim().isNotEmpty ?? false);
+
+  /// Mahalle bilgisi hiç yok → şehir geneli, herkesi ilgilendirir.
+  bool get isCityWide => (neighborhood?.trim().isEmpty ?? true);
+
+  /// Kullanıcının mahallesiyle eşleşiyor mu.
+  ///
+  /// 🔑 Faz 12.3: **önce kimlik, sonra ad.** Uç 12.3'ten beri `neighborhoodId`
+  /// döndürüyor; kimlik varsa ad karşılaştırması hiç yapılmaz — "Cengiz Topel"
+  /// ile "Cengiz Topel Mahallesi" yazım farkı yüzünden sessizce eşleşmeyen
+  /// kayıtlar tam olarak buradan doğuyordu.
+  ///
+  /// ⚠️ Ad karşılaştırması **kaldırılmadı**: mağazadaki eski sürümlerin değil,
+  /// sunucudaki eski *kayıtların* hatırına — geri doldurmada eşleşmemiş bir
+  /// kesintinin `neighborhoodId`'si hâlâ boş gelir ve o kayıt için elimizdeki
+  /// tek şey ad.
+  bool matchesNeighborhood(String? userNeighborhood, {String? userNeighborhoodId}) {
+    final myId = userNeighborhoodId?.trim();
+    final hereId = neighborhoodId?.trim();
+    if (myId != null && myId.isNotEmpty && hereId != null && hereId.isNotEmpty) {
+      return myId == hereId;
+    }
+
     final mine = userNeighborhood?.trim().toLowerCase();
     final here = neighborhood?.trim().toLowerCase();
     if (mine == null || mine.isEmpty || here == null || here.isEmpty) {

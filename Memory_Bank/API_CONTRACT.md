@@ -216,6 +216,21 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
 - `GET /v1/announcements` (sayfalı, `?typeId=`, **`?sort=created_desc|created_asc|title_asc|title_desc`** — 11.18, varsayılan `created_desc`, bilinmeyen değer varsayılana düşer), `GET /v1/announcements/types`, `GET /v1/announcements/{id}` (⚠️ 200+success:false quirk)
 - `POST /v1/announcements/{id}/view`, `/click` — anonim (sayaç)
 - `GET /v1/power-outages`, `GET /v1/power-outages/{id}`
+  - ⚠️ **Sayfasız, düz dizi** (görünmez sözleşme #1) — Faz 12.3'te alan eklendi, **şekil değişmedi**.
+  - 🆕 **Faz 12.3 (additive):** `neighborhoodId` (Guid?), `areaDetail` (string?), `announcementId` (Guid?).
+  - 🔴 `neighborhood` alanı **aynen duruyor ve adı değişmedi**, ama artık `neighborhoodId`
+    doluyken **sözlükten türetiliyor**: değer `neighborhoods.name` ile birebir aynıdır.
+    Eski sürümler etkilenmez — üstelik ad üzerinden yaptıkları eşleşme artık yazım farkı
+    olmadığı için **daha güvenilir** çalışır ("Cengiz Topel Mahallesi" → "Cengiz Topel").
+    FK'sı olmayan (12.3 öncesinden kalan, geri doldurmada eşleşmemiş) kayıtlarda alan hâlâ
+    serbest metindir ve `neighborhoodId` **`null`** gelir.
+  - `areaDetail` = mahallenin hangi kısmı ("Atatürk Caddesi ve çevresi"). Önce mahalle
+    metnine sıkıştırılıyordu; ayrılmasının sebebi sözlük eşleşmesini mümkün kılmaktı.
+  - `announcementId` dolu ⇒ bu kesinti için **bildirim gönderilmiş**. Kesinti bildirimi ayrı
+    bir tür değil, **bir duyurudur**: push `data.relatedType` yine **`announcement`** taşır ve
+    deep-link `/duyurular/:id`'ye gider → **mobilde değişiklik gerekmez**, mağazadaki eski
+    sürümler de kesinti bildirimini alır (görünmez sözleşme #18 korunur).
+  - ⚠️ Kesinti silinirse duyurusu ve **onun bildirimleri de silinir** (#24'ün uzantısı).
 
 ### Etkinlik / Kampanya / İşletme
 - `GET /v1/events` (sayfalı; `?search=` başlık+mekan, `?categoryId=`, `?startDate=`/`?endDate=` (`yyyy-MM-dd`, gün dahil), `?isFree=`, **`?sort=date_asc|date_desc|title_asc|title_desc`** — varsayılan `date_desc`, bilinmeyen değer varsayılana düşer; `title_*` Faz 11.18'de panel sütun sıralaması için eklendi). ⚠️ **Yalnız `approved` döner** (`status` parametresi public uçta yok sayılır); `eventDate` "TR günü 00:00 UTC", `eventTime` ayrı `"HH:mm:ss"` alanı → **saat dilimi kaydırılmaz**.

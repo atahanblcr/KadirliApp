@@ -22,10 +22,13 @@ public class DeletePowerOutageCommand : IRequest<ApiResponse<bool>>, IAuditableC
 public class DeletePowerOutageCommandHandler : IRequestHandler<DeletePowerOutageCommand, ApiResponse<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPowerOutageAnnouncementWriter _announcements;
 
-    public DeletePowerOutageCommandHandler(IUnitOfWork unitOfWork)
+    public DeletePowerOutageCommandHandler(
+        IUnitOfWork unitOfWork, IPowerOutageAnnouncementWriter announcements)
     {
         _unitOfWork = unitOfWork;
+        _announcements = announcements;
     }
 
     public async Task<ApiResponse<bool>> Handle(DeletePowerOutageCommand request, CancellationToken cancellationToken)
@@ -33,6 +36,11 @@ public class DeletePowerOutageCommandHandler : IRequestHandler<DeletePowerOutage
         var outage = await _unitOfWork.Repository<PowerOutage>().GetByIdAsync(request.Id, cancellationToken);
         if (outage == null)
             return ApiResponse<bool>.FailureResponse("NOT_FOUND", "Elektrik kesintisi bulunamadı.");
+
+        // 🔴 Faz 12.3: kesinti gidince DUYURUSU ve ONUN BİLDİRİMLERİ de gider.
+        // Görünmez sözleşme #24'ün uzantısı — kalsalardı vatandaş bildirime dokunup boş
+        // sayfaya düşerdi (11.15c'de duyurularda birebir bu yaşandı: 9 ölü bildirim).
+        await _announcements.RemoveAsync(outage, cancellationToken);
 
         _unitOfWork.Repository<PowerOutage>().Remove(outage);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

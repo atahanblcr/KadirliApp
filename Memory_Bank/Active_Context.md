@@ -1,5 +1,72 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 7 Ağustos 2026 — **FAZ 12.3 TAMAMLANDI: kesinti mahalle referansı + mahalle bazlı bildirim.**
+> Kod `Domain/Entities/PowerOutage.cs` (+`NeighborhoodId` FK, +`AreaDetail`) + migration `AddPowerOutageNeighborhood` +
+> `Features/PowerOutages/{PowerOutageNeighborhoodMatcher,PowerOutageNeighborhoodResolver,PowerOutageAnnouncementText}` +
+> `Common/Interfaces/IPowerOutageAnnouncementWriter.cs` + `Features/PowerOutages/Services/PowerOutageAnnouncementWriter.cs` +
+> `Infrastructure/Persistence/PowerOutageNeighborhoodBackfill.cs` + `DbSeeder.EnsurePowerOutageAnnouncementTypeAsync` +
+> üç komut yeniden yazıldı + `Web/Views/PowerOutagesAdmin/{_OutageForm,_OutageFormScripts}` +
+> mobil `power_outage.dart` / `power_outages_providers.dart` / **`core/router/app_nav.dart`** +
+> 3 yeni test dosyası. **Backend 689 → 729 (+40), mobil 685 → 696 (+11), analyze 0.**
+>
+> 🔑 **TESLİM EDİLEN:** `PowerOutage.AnnouncementId` 10.x'ten beri duran **boş bir çengeldi** —
+> kesinti hiçbir bildirim üretmiyordu ve `Neighborhood` serbest metin olduğu için üretemezdi de.
+> Artık kesinti sözlükteki mahalleye bağlı ve o mahallenin sakinlerine **kendiliğinden** bildirim
+> gidiyor. `AuditLog` · `ErrorLog` · `LoginAttempt` · `PushCampaign` dörtlüsünden sonra ilk kez
+> bir **modül** otomatik push üretiyor — 12.2b'nin teslim panosunun 12.3'ten *önce* yapılmış
+> olmasının somut sebebi buydu.
+>
+> 🔴 **EN ÖNEMLİ KARAR:** kesinti bildirimi ayrı bir tür değil **bir DUYURU**. Var olan zincir
+> (`Announcement` + `AnnouncementNotificationGenerator` + `SendPushNotificationsJob` + deep-link)
+> aynen çalıştı → **mobilde tek satır bildirim kodu yazılmadı**, mağazadaki eski sürümler de
+> alıyor. Yeni bir `relatedType` uydurulsaydı görünmez sözleşme #18 gereği eski sürümler
+> bildirime dokunduğunda **sessizce hiçbir yere gitmezdi**. Tek eklenen şey kampanya *etiketi*
+> (`PushCampaignSources.PowerOutage`) — pano olmadan kesinti gönderimleri süzülemezdi.
+>
+> 🔴 **BULUNAN DÖRT ŞEY:** (1) **`Repository.Query()` varsayılan olarak `AsNoTracking()`** —
+> `SoftRemove` bağlantısız nesneye yazınca duyuru "silinmiş görünür, `deleted_at` boş kalır" ve
+> **hiçbir hata oluşmaz**; `Update()`/`Remove()` çağıran yollarda görünmez, yalnız *alan yazan*
+> işlemler sessizce kaybolur. (2) **Seed'in "tablo boşsa" bloğu yeni bir satırı garanti etmez** —
+> "Elektrik Kesintisi" türü listedeydi ama blok koşulu yüzünden 12.3'ten önce ayağa kalkmış hiçbir
+> veritabanına girmezdi; hata **yalnız eski kurulumlarda** çıkardı. (3) **Test kendi kullanıcılarını
+> başka bir testin mahallesine yazdı** ve onun alıcı sayımını bozdu — paylaşılan veritabanında sayı
+> iddia eden her test **kendi kitlesini kurmalı**. (4) **Mahalle eki kırpması olmadan geri doldurma
+> sessizce sıfır sonuç verirdi** ("Cengiz Topel" ≠ "Cengiz Topel Mahallesi"); kırpma slug'ın *üstüne*
+> yazıldı, Türkçe karakter kararı hâlâ tek yerde (`SlugHelper`).
+>
+> ➕ **PLAN DIŞI:** bildirimin **ek mahallelere** genişletilebilmesi (trafo komşuyu da karartır) ·
+> panel Index'te **"Bildirim" sütunu** + teslim panosuna köprü · Create/Update artık
+> **`IAuditableCommand`** · **bitiş ≤ başlangıç doğrulaması** (hiç yoktu) · silme onayının neyi
+> sildiğini söylemesi.
+>
+> 🐛 **12.2'DEN DEVRALINAN MOBİL ÇÖKMENİN KÖK NEDENİ BULUNDU VE KİLİTLENDİ.** İki oturumdur
+> "yeniden üretilemedi" diye açık duran `Navigator._debugCheckDuplicatedPageKeys` artık
+> **deterministik**: `go_router` imperative sayfalara **rastgele**, kabuk (`StatefulShellRoute`)
+> sayfalarına **`route.hashCode`** anahtarı verir; kabuk en üstte **değilken** bir kabuk rotası
+> `push` edilirse birleştirme yapılamaz ve listeye **aynı anahtarla ikinci bir `ShellRouteMatch`**
+> girer. 🔑 Tetikleyici tam da 12.3 ile yakınlaştı: `PushCoordinator.openNotification` hedefe
+> `push` ediyordu ve hedef `/ilanlar/:id` gibi bir sekme **alt** rotasıysa, kullanıcı bir modül
+> ekranındayken (kabuk dışı) bildirime dokunması **uygulamayı çökertiyordu**. Düzeltme tek
+> sahipli: **`lib/core/router/app_nav.dart`** — karar **router'a sorulur**, elle rota listesi
+> tutulmaz (`module_grid`'in `AppRoutes.tabs` kontrolü doğru sezgiye sahipti ama yalnız sekme
+> *köklerini* tanıyordu). Regresyon: `test/core/navigation/shell_page_key_test.dart` (5 test).
+>
+> 🔴 **GÖRÜNMEZ SÖZLEŞMELERE #40, #41, #42 EKLENDİ.** Toplam **42**. §7 kod-dışı listesine
+> ayrıca "kabuk rotası `push` edilmez" maddesi girdi.
+>
+> **Doğrulama:** `dotnet test` **729/729** · `flutter analyze` **0** · `flutter test` **696/696**.
+> **Kuralı bilerek boz:** 7 deneme → hepsi kırmızı.
+> **Canlı (Chrome + gerçek Android emülatörü):** geri doldurma 2/2 · tahmini alıcı **5** =
+> gerçek gönderim **5** · kampanya kaynağı `power_outage`, tamamlandı · bildirim yalnız Cengiz
+> Topel'in 5 sakinine, başka mahallede **yok** · gövde **TR yerel saatle** "7 Ağustos 22:00 –
+> 8 Ağustos 02:00" (gün aşımında bitiş tarihi de yazıldı) · **emülatörde push düştü** ·
+> kartta "Mahalleniz" rozeti + bölge ayrıntısı · mahalle süzgeci "2 kesinti … gizli" ·
+> **kabuk dışı ekrandayken bildirime dokunuldu → duyuru açıldı, ÇÖKME YOK**.
+>
+> ⏭️ **SIRADAKİ: 12.4** — etkinlik konumu (il / ilçe).
+>
+> ---
+>
 > Son güncelleme: 6 Ağustos 2026 (2. oturum) — **FAZ 12.2b TAMAMLANDI: bildirim teslim panosu + bağımsız push ekranı.**
 > Kod `Domain/Entities/PushCampaign.cs` + `Notification.CampaignId` +
 > `Common/Interfaces/INotificationDispatcher.cs` + `Features/Notifications/Services/NotificationDispatcher.cs` +

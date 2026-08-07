@@ -37,7 +37,8 @@ public class AnnouncementNotificationGenerator : IAnnouncementNotificationGenera
         _dispatcher = dispatcher;
     }
 
-    public async Task<int> GenerateForAnnouncementAsync(Announcement announcement, CancellationToken ct = default)
+    public async Task<int> GenerateForAnnouncementAsync(
+        Announcement announcement, string? campaignSource = null, CancellationToken ct = default)
     {
         if (!announcement.SendPushNotification)
             return 0;
@@ -61,7 +62,13 @@ public class AnnouncementNotificationGenerator : IAnnouncementNotificationGenera
             Body: announcement.Body,
             TargetType: targetType,
             NeighborhoodIds: neighborhoodIds,
-            Source: PushCampaignSources.Announcement,
+            // Faz 12.3: etiket çağırandan gelir; verilmezse 10.10 davranışı aynen sürer.
+            // ⚠️ Tanınmayan bir değer kabul edilmez — pano süzgeci koddaki sabit listeden
+            // besleniyor (`PanelDisplay.KnownPushSources`), serbest metin oraya hiç düşmez
+            // ve o gönderim panoda **hiçbir kaynak süzgeciyle bulunamaz** hâle gelirdi.
+            Source: campaignSource is not null && PushCampaignSources.All.Contains(campaignSource)
+                ? campaignSource
+                : PushCampaignSources.Announcement,
             SourceId: announcement.Id,
             CreatedBy: announcement.CreatedBy,
             NotificationType: RelatedTypeAnnouncement,
@@ -88,8 +95,12 @@ public class AnnouncementNotificationGenerator : IAnnouncementNotificationGenera
     /// </remarks>
     private async Task<bool> AlreadyGeneratedAsync(Guid announcementId, CancellationToken ct)
     {
+        // ⚠️ Faz 12.3: kaynak etiketi artık `announcement` OLMAYABİLİR (kesintiden doğan
+        // duyuru `power_outage` yazıyor). Sorgu kaynağa bakmaya devam etseydi aynı duyuru
+        // ikinci çağrıda kampanyasını bulamaz ve **bildirimler ikinci kez üretilirdi** —
+        // kullanıcı aynı kesintiyi iki kez alırdı. Çıpa kaynak değil, duyurunun kimliği.
         var campaignExists = await _uow.Repository<PushCampaign>().Query()
-            .AnyAsync(c => c.Source == PushCampaignSources.Announcement && c.SourceId == announcementId, ct);
+            .AnyAsync(c => c.SourceId == announcementId, ct);
         if (campaignExists) return true;
 
         return await _uow.Repository<Notification>().Query()

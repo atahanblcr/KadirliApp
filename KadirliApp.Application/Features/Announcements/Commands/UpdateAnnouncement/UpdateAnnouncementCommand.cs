@@ -87,7 +87,7 @@ public class UpdateAnnouncementCommandHandler : IRequestHandler<UpdateAnnounceme
         // Faz 10.10: bu güncellemeyle yayına giren duyurunun bildirimlerini üret
         // (generator idempotent — daha önce üretildiyse mükerrer satır yazmaz).
         if (publishedNow)
-            await _notificationGenerator.GenerateForAnnouncementAsync(announcement, cancellationToken);
+            await _notificationGenerator.GenerateForAnnouncementAsync(announcement, ct: cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true);
     }

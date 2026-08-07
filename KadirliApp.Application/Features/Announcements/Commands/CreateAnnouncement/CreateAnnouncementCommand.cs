@@ -77,7 +77,7 @@ public class CreateAnnouncementCommandHandler : IRequestHandler<CreateAnnounceme
 
         // Faz 10.10: anında yayınlanan duyuru bildirimlerini üret (scheduled olanları job üretir).
         if (!isScheduled)
-            await _notificationGenerator.GenerateForAnnouncementAsync(announcement, cancellationToken);
+            await _notificationGenerator.GenerateForAnnouncementAsync(announcement, ct: cancellationToken);
 
         return ApiResponse<Guid>.SuccessResponse(announcement.Id);
     }

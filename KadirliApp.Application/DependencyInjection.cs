@@ -1,6 +1,7 @@
 using KadirliApp.Application.Common.Behaviors;
 using KadirliApp.Application.Common.Interfaces;
 using KadirliApp.Application.Features.Notifications.Services;
+using KadirliApp.Application.Features.PowerOutages.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace KadirliApp.Application;
@@ -28,6 +29,11 @@ public static class DependencyInjection
         // Faz 10.10: duyuru yayınında bildirim üretimi — hem announcement command'leri
         // hem PublishScheduledAnnouncementsJob (Infrastructure) bu servisi kullanır.
         services.AddScoped<IAnnouncementNotificationGenerator, AnnouncementNotificationGenerator>();
+
+        // Faz 12.3: kesinti ↔ duyuru bağının TEK sahibi. Üç komut da (oluştur/güncelle/sil)
+        // buradan geçer — ikinci bir gerçekleme "güncelleme ikinci duyuru üretti" ya da
+        // "silinen kesintinin bildirimleri ayakta kaldı" sınıfından sessiz hata doğurur.
+        services.AddScoped<IPowerOutageAnnouncementWriter, PowerOutageAnnouncementWriter>();
 
         return services;
     }

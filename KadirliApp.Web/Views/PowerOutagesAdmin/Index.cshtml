@@ -1,16 +1,21 @@
+@using KadirliApp.Domain.Entities
+@using KadirliApp.Web.Controllers
 @model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.PowerOutages.DTOs.PowerOutageDto>
 @{
     ViewData["Title"] = "Elektrik Kesintileri";
 
     string? neighborhood = ViewBag.Neighborhood;
+    string? neighborhoodId = ViewBag.NeighborhoodId;
     string? phase = ViewBag.Phase;
     DateTime? from = ViewBag.From;
     DateTime? to = ViewBag.To;
     DateTime now = ViewBag.Now ?? DateTime.UtcNow;
     int totalBeforeFilter = ViewBag.TotalBeforeFilter ?? 0;
+    int unmatchedCount = ViewBag.UnmatchedCount ?? 0;
+    var neighborhoods = ViewBag.Neighborhoods as List<Neighborhood> ?? new List<Neighborhood>();
 
-    var hasFilter = !string.IsNullOrWhiteSpace(neighborhood) || !string.IsNullOrWhiteSpace(phase)
-                    || from != null || to != null;
+    var hasFilter = !string.IsNullOrWhiteSpace(neighborhood) || !string.IsNullOrWhiteSpace(neighborhoodId)
+                    || !string.IsNullOrWhiteSpace(phase) || from != null || to != null;
 }
 
 <div class="mb-6 flex justify-between items-center">
@@ -25,11 +30,45 @@
     </div>
 </div>
 
+@* 🔑 Faz 12.3 — "mahallesi eşleşmemiş" şeridi. Bu kayıtlar sözlüğe bağlı olmadığı için
+   BİLDİRİM GÖNDEREMEZ. Sayı görünmezse yönetici bazı kesintilerde bildirim kutusunun neden
+   kapalı olduğunu hiçbir zaman anlamaz — geri doldurma raporunun ekrandaki karşılığı budur. *@
+@if (unmatchedCount > 0)
+{
+    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex flex-wrap items-center gap-2">
+        <i class="fas fa-triangle-exclamation"></i>
+        <span>
+            <strong>@unmatchedCount kesintinin mahallesi sözlükle eşleşmiyor.</strong>
+            Bu kayıtlar için bildirim gönderilemez; düzenleyip mahalleyi sözlükten seçin.
+        </span>
+        <a asp-action="Index" asp-route-neighborhoodId="@PowerOutagesAdminController.UnmatchedNeighborhoodKey"
+           class="ml-auto font-medium text-amber-900 underline hover:text-amber-950">
+            Eşleşmeyenleri listele
+        </a>
+    </div>
+}
+
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
-    <form asp-action="Index" method="get" class="p-4 border-b border-gray-200 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <form asp-action="Index" method="get" class="p-4 border-b border-gray-200 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <div>
-            <label for="neighborhood" class="block text-xs font-medium text-gray-600 mb-1">Mahalle / Bölge</label>
-            <input id="neighborhood" name="neighborhood" type="text" value="@neighborhood" placeholder="Mahalle ara..."
+            <label for="neighborhoodId" class="block text-xs font-medium text-gray-600 mb-1">Mahalle</label>
+            <select id="neighborhoodId" name="neighborhoodId"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Tümü</option>
+                <option value="@PowerOutagesAdminController.UnmatchedNeighborhoodKey"
+                        selected="@(neighborhoodId == PowerOutagesAdminController.UnmatchedNeighborhoodKey)">
+                    Eşleşmemiş kayıtlar
+                </option>
+                @foreach (var n in neighborhoods)
+                {
+                    <option value="@n.Id" selected="@(neighborhoodId == n.Id.ToString())">@n.Name</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="neighborhood" class="block text-xs font-medium text-gray-600 mb-1">Metinde ara</label>
+            <input id="neighborhood" name="neighborhood" type="text" value="@neighborhood" placeholder="Serbest metin..."
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
 
@@ -71,7 +110,7 @@
 
         @if (hasFilter && Model != null)
         {
-            <div class="sm:col-span-2 lg:col-span-5 text-xs text-gray-500">
+            <div class="sm:col-span-2 lg:col-span-6 text-xs text-gray-500">
                 Toplam @totalBeforeFilter kaydın <span class="font-medium text-gray-800">@Model.TotalCount</span> tanesi gösteriliyor.
             </div>
         }
@@ -83,6 +122,7 @@
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">Mahalle / Bölge</th>
                     <th scope="col" class="px-6 py-3 font-medium">Durum</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Bildirim</th>
                     <th scope="col" class="px-6 py-3 font-medium">Başlangıç</th>
                     <th scope="col" class="px-6 py-3 font-medium">Bitiş</th>
                     <th scope="col" class="px-6 py-3 font-medium">Sebep</th>
@@ -98,11 +138,37 @@
                         <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
                             <td class="px-6 py-4 font-medium text-gray-900">
                                 @(string.IsNullOrWhiteSpace(item.Neighborhood) ? "Şehir geneli" : item.Neighborhood)
+                                @if (item.NeighborhoodId is null && !string.IsNullOrWhiteSpace(item.Neighborhood))
+                                {
+                                    <span class="ml-1 inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800"
+                                          title="Sözlükte karşılığı bulunamadı — bildirim gönderilemez">
+                                        <i class="fas fa-link-slash"></i> eşleşmemiş
+                                    </span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.AreaDetail))
+                                {
+                                    <span class="block text-xs font-normal text-gray-500">@item.AreaDetail</span>
+                                }
                             </td>
                             <td class="px-6 py-4">
                                 <span class="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-medium @badge.Css">
                                     <i class="fas @badge.Icon"></i> @badge.Label
                                 </span>
+                            </td>
+                            @* Faz 12.3: "duyuruyu yayınladım, gitti mi?" sorusunun kesinti
+                               ekranındaki karşılığı — teslim ayrıntısı Bildirim Gönderimleri'nde. *@
+                            <td class="px-6 py-4">
+                                @if (item.AnnouncementId is not null)
+                                {
+                                    <a asp-controller="PushCampaignsAdmin" asp-action="Index" asp-route-source="power_outage"
+                                       class="inline-flex items-center gap-1 rounded bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 hover:bg-green-200">
+                                        <i class="fas fa-bell"></i> Gönderildi
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-xs text-gray-400">—</span>
+                                }
                             </td>
                             <td class="px-6 py-4">
                                 @item.StartTime.ToString("dd.MM.yyyy HH:mm")
@@ -117,7 +183,10 @@
                                 <a asp-action="Edit" asp-route-id="@item.Id" class="text-indigo-600 hover:text-indigo-900 mr-3" title="Düzenle">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="inline" data-confirm="@(item.Neighborhood ?? "Şehir geneli") kesinti kaydını silmek istediğinize emin misiniz?">
+                                @* Faz 12.3: silme artık duyuruyu ve bildirimlerini de kaldırıyor —
+                                   onay metni bunu SÖYLEMELİ, yoksa yönetici yalnız satırı sildiğini sanır. *@
+                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="inline"
+                                      data-confirm="@(item.Neighborhood ?? "Şehir geneli") kesinti kaydı silinecek@(item.AnnouncementId is not null ? " — duyurusu ve gönderilen bildirimleri de kaldırılacak" : "" ). Emin misiniz?">
                                     <button type="submit" class="text-red-600 hover:text-red-900" title="Sil">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
@@ -129,7 +198,7 @@
                 else
                 {
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
                                 <p>@(hasFilter ? "Bu filtreye uyan kesinti yok." : "Kayıt bulunamadı.")</p>

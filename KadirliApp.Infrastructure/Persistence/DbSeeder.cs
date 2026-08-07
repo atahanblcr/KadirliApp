@@ -3,6 +3,7 @@ using KadirliApp.Domain.Entities;
 using KadirliApp.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace KadirliApp.Infrastructure.Persistence;
 
@@ -198,6 +199,46 @@ public static class DbSeeder
         // (dev DB'de ad_categories dolu olduğundan üstteki blok çalışmaz; bu bloklar kendi
         // tablolarına/koşullarına göre ayrıca idempotenttir).
         await SeedAdCategoryTreeAsync(db);
+
+        // Faz 12.3: kesinti bildirimi bir DUYURUDUR ve o duyurunun türü olmak zorunda.
+        // ⚠️ Üstteki blok `AnnouncementTypes` tablosu BOŞSA çalışıyor — yani 12.3'ten önce
+        // ayağa kalkmış her veritabanında (dev dâhil) tür listesi doludur ve o blok bir daha
+        // hiç koşmaz. Türün varlığını ayrıca ve tür bazında garantilemezsek kesinti bildirimi
+        // canlıda "duyuru türü bulunamadı" ile patlardı — üstelik yalnız eski kurulumlarda,
+        // yani geliştiricinin makinesinde görünmeyen bir hata olarak.
+        await EnsurePowerOutageAnnouncementTypeAsync(db);
+
+        // Faz 12.3: serbest metin mahalleleri sözlüğe bağla (idempotent, yalnız FK'sı boş
+        // satırlara dokunur). Raporu panel "mahallesi eşleşmemiş kesinti" şeridinde gösterir.
+        await PowerOutageNeighborhoodBackfill.RunAsync(
+            db, scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger(nameof(PowerOutageNeighborhoodBackfill)));
+    }
+
+    /// <summary>
+    /// Faz 12.3 — "Elektrik Kesintisi" duyuru türü, <b>tür bazında</b> idempotent.
+    /// Slug üzerinden aranır: ad panelden değiştirilse bile aynı satır bulunur.
+    /// </summary>
+    public const string PowerOutageAnnouncementTypeSlug = "elektrik-kesintisi";
+
+    private static async Task EnsurePowerOutageAnnouncementTypeAsync(AppDbContext db)
+    {
+        if (await db.AnnouncementTypes.AnyAsync(t => t.Slug == PowerOutageAnnouncementTypeSlug))
+            return;
+
+        var order = await db.AnnouncementTypes.AnyAsync()
+            ? await db.AnnouncementTypes.MaxAsync(t => t.DisplayOrder) + 1
+            : 0;
+
+        db.AnnouncementTypes.Add(new AnnouncementType
+        {
+            Name = "Elektrik Kesintisi",
+            Slug = PowerOutageAnnouncementTypeSlug,
+            Icon = "fa-bolt",
+            Color = "#F59E0B",
+            DisplayOrder = order
+        });
+
+        await db.SaveChangesAsync();
     }
 
     private static async Task SeedAdCategoryTreeAsync(AppDbContext db)

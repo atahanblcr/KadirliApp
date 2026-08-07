@@ -32,9 +32,12 @@ public class GetPowerOutagesQueryHandler : IRequestHandler<GetPowerOutagesQuery,
             {
                 Id = x.Id,
                 Neighborhood = x.Neighborhood,
+                NeighborhoodId = x.NeighborhoodId,
+                AreaDetail = x.AreaDetail,
                 StartTime = x.StartTime,
                 EndTime = x.EndTime,
-                Reason = x.Reason
+                Reason = x.Reason,
+                AnnouncementId = x.AnnouncementId
             })
             .ToListAsync(cancellationToken);
 
