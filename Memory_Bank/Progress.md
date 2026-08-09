@@ -1728,7 +1728,7 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 | 12.2 | Şüpheli giriş günlüğü + e-posta raporlama (+ `ForwardedHeaders` + `StaffAdmin` izin tutarsızlığı) | backend + panel | ✔ | ~35 backend |
 | 12.2b | Bildirim teslim panosu + bağımsız push ekranı ✅ | backend + panel | ✔ | **+26 backend** |
 | 12.3 | Kesinti mahalle referansı + mahalle bazlı bildirim ✅ | backend + panel + mobil | ✔ | **+40 backend, +11 mobil** |
-| 12.4 | Etkinlik konumu (il/ilçe) | backend + panel + mobil | ✔ | ~20 backend, ~10 mobil |
+| 12.4 | Etkinlik konumu (il/ilçe) ✅ | backend + panel + mobil | ✔ | **+55 backend, +7 mobil** |
 | 12.5 | Ulaşım alan modeli (araç tipi · kalkış noktası · sefer günleri) | backend + panel | ✔ | ~30 backend |
 | 12.6 | Ulaşım mobil (ikili kalkış · gün rozetleri · "sıradaki sefer") | mobil | — | ~25 mobil |
 | 12.7 | Sosyal giriş — backend | backend + panel | ✔ | ~30 backend |
@@ -2438,7 +2438,7 @@ bildirime dokunuldu → duyuru detayı açıldı, ÇÖKME YOK** (tür rozeti "El
 
 ---
 
-### 12.4 — Etkinlik konumu: il / ilçe — [ ]
+### 12.4 — Etkinlik konumu: il / ilçe — [x] ✅ TAMAMLANDI (9 Ağustos 2026)
 
 **Hedef:** "Bu etkinlik nerede?" sorusunun listede cevaplanması ve çevre il/ilçe etkinliklerinin
 görünür olması.
@@ -2484,6 +2484,112 @@ mobil parse ediyor ama **hiçbir widget kullanmıyor**. Yani konum modeli yarım
 **Bitti kriteri:** panelden "Osmaniye / Merkez" etkinliği eklendi → `GET /v1/events` `locationLabel`
 dolu → **emülatörde kartta göründü** · "Kadirli" filtresi çevre ilçe etkinliğini eliyor ·
 eski etkinlikler `IsLocal=true` · golden'lar güncellendi ve **PNG farkı gözle incelendi**.
+
+#### 12.4 kapanış notları
+
+**Teslim edilenler:** `District` varlığı + `DistrictConfiguration` + migration `AddEventDistricts` ·
+`Event.DistrictId` FK (`SetNull`) + `ix_events_district` · `DbSeeder.EnsureDistrictsAsync`
+(11 satır, **satır bazında** idempotent) · `EventDistrictBackfill` ·
+`Features/Lookups/DistrictLocation.cs` (`DistrictDefaults` + `DistrictLabel`) ·
+`Features/Events/{EventDistrictResolver,EventLocationScope,EventProjection}` ·
+DTO'ya 4 alan + sorguya 3 süzgeç · `GetDistrictsAdminQuery` + `Create/UpdateDistrictCommand` ·
+`Views/Shared/_DistrictSelect.cshtml` + `DistrictSelectViewModel` · `PanelDisplay.DistrictLabel()` ·
+`EventsAdmin` form/filtre/sütun/CSV · `LookupsAdmin`'e "İl / İlçeler" bölümü ·
+mobil `event.dart` + `events_providers.dart` (`EventPlace`) + `events_repository.dart` +
+`_PlaceFilter` + `EventCard` konum rozeti + detay "İlçe" satırı ·
+3 yeni test dosyası. **Backend 729 → 784 (+55), mobil 696 → 703 (+7), analyze 0.**
+
+🔑 **TESLİM EDİLEN:** `Event.City` panelde formu **hiç olmadığı** için her kayıtta `null`'dı ve
+`Event.IsLocal` panel tarafından hiç yazılmadığı için her kayıtta `false`'tu — mobil onu ayrıştırıp
+**hiçbir yerde kullanmıyordu**. Yani konum modeli yarımdı ve yarısı ölü koddu. Artık etkinlik
+sözlükteki bir ilçeye bağlı, `IsLocal` o bağdan **türetiliyor** ve vatandaş "bu etkinlik nerede?"
+sorusunun cevabını listede görüyor. `City` kolonu **düşürülmedi** (§6) ama entity'de **ölü olduğu
+yazılı** — yoksa bir sonraki oturum onu "gerçek" sanardı.
+
+🔴 **EN ÖNEMLİ KARAR — "çevre iller" bir SUNUCU tanımıdır.** Mobil `?locationScope=nearby` diyor,
+kümeyi kendisi hesaplamıyor. İstemcide "Osmaniye dışı" diye hesaplansaydı sözlüğe **yarın eklenen
+bir Osmaniye ilçesini** mağazadaki eski sürümler çevre il sayardı — liste yanlış, hata yok
+(görünmez sözleşme #23'ün sınıfı). Aynı sebeple `locationLabel` de sunucuda üretiliyor: panel ile
+mobilin aynı etkinliği farklı yazması hiçbir yerde görünmezdi.
+
+🔴 **İKİNCİ KARAR — ev ilçesinin çıpası bir DB bayrağı DEĞİL, kod sabiti** (`DistrictDefaults.HomeSlug`).
+Sözlükte bir `IsHome` bayrağı olsaydı panelden yanlışlıkla başka bir ilçeye taşınabilir ve o andan
+sonra yazılan **her** etkinlik sessizce "yerel değil" olurdu. Sabit olduğu için de tersi gerekti:
+ev ilçesi satırı panelden **yeniden adlandırılamıyor ve pasifleştirilemiyor** (komut reddediyor,
+form da sebebini yazıyor).
+
+🐛 **UYGULAMA SIRASINDA BULUNAN/ÖĞRENİLEN BEŞ ŞEY:**
+1. **Slug yalnız ilçe adından üretilemez.** İlk tasarımda `Slugify(Name)` vardı; **her ilin bir
+   "Merkez"i** olduğu için ikinci il merkezi benzersiz indekse takılır ve sözlüğe **hiç eklenemezdi**.
+   Slug il+ilçeden türetiliyor (`osmaniye-merkez`, `adana-merkez`) ve benzersizlik onun üzerinden.
+2. **Liste ve detay iki ayrı `Select` bloğuydu** — dört yeni alan yalnız birine eklenseydi
+   **detay ekranı sessizce konumsuz kalırdı** ve ne derleyici ne mevcut test yakalardı. Projeksiyon
+   `EventProjection`'a çekildi. ⚠️ Etiket EF'e çevrilemediği için ifade ağacı ham alanları döndürüyor,
+   hesap bellekte tek bir `Finish` adımında yapılıyor.
+3. 🐛 **Süzgeç şeridinin bağlantıları `asp-route-*` ile ELLE sayılmış ve `sort` unutulmuştu** —
+   panelin canlı denetiminde bulundu. Başlığa göre sıralanmış bir listede "Çevre iller"e tıklamak
+   sıralamayı **sessizce varsayılana döndürüyordu**: hiçbir test kırılmaz, hiçbir log düşmez,
+   liste yalnız "bir şekilde" yeniden sıralanır. İlginç olan, aynı sayfadaki *diğer* bağlantıların
+   (sıralama başlığı, CSV butonu, sayfalama, toplu işlem) hepsinin **doğru** çalışmasıydı — çünkü
+   üçü de sorgu dizesini **jenerik** taşıyor. Yani hata "yeni filtre eklendi, taşınması unutuldu"
+   değil, tam tersi: **elle sayan tek bileşen benimkiydi.** `_ExportCsvButton`'ın 11.16b'den beri
+   yazılı olan uyarısı (*"elle sayılsaydı unutulurdu"*) birebir gerçekleşti. Kural artık
+   `Common/PanelQuery.With` içinde; regresyon `PanelEventDistrictTests.LocationChips_…` (2 test).
+   📌 Not: aynı kuralın hâlâ **üç kopyası** var (`_Pagination`, `_SortableHeader`, `_ExportCsvButton`) —
+   üçü de testli ve çalışıyor, buraya çekilmeleri ayrı bir temizlik adımı.
+4. 🐛 **`AdCard`'ın golden referansı kendiliğinden çürüyordu** — `--update-goldens` çalıştırıldığında
+   `ad_card_{light,dark}.png` de değişti, oysa `AdCard`'a dokunulmamıştı. Sebep: kart
+   `AppDate.relative(ad.createdAt)` çağırıyor ve `now` **iletmiyordu**; golden fixture'ı sabit bir
+   `now`'dan "2 gün önce" üretiyor ama kart **gerçek saate** bakıyordu → aylar geçince aynı fixture
+   "1 Ağustos 2026" basmaya başladı. Yani referans, kodda hiçbir şey değişmeden zamanla kırmızıya
+   dönecekti. Bu checklist §5'teki **"⚠️ TEKRARLAYAN (4 kez)"** maddesinin ta kendisi:
+   `AnnouncementTile`, `ComplaintCard` ve `NotificationTile` aynı sebeple düzeltilmişti, **`AdCard`
+   atlanmıştı**. Düzeltme: `AdCard`'a `now` parametresi + golden senaryolarında sabitleme;
+   **PNG geri alındı** (drift referansa yazılmadı) ve orijinal referans yeniden yeşile döndü —
+   yani sapma gerçek bir regresyon değil, tam olarak çürümeydi.
+   🔑 **Ders:** `--update-goldens` sonrası **hangi dosyaların değiştiğine** bakmak, PNG'ye bakmak
+   kadar önemli: dokunmadığın bir kartın referansı değiştiyse ya gerçek bir regresyon vardır ya da
+   o referans zamana bağlıdır. İkisi de sessizdir.
+5. **Geri doldurma bir eşleştirme değil düz bir varsayım** ("hepsi Kadirli'dir") ve bu yüzden
+   12.3'ün geri doldurmasından **farklı bir riski** var: her açılışta koştuğu için, ilçesiz yeni
+   bir kayıt doğabilseydi onu da ezerdi. Varsayımı iki kapı ayakta tutuyor — alan **zorunlu**
+   (komut reddediyor) ve sözlükte **silme yok** (FK'nin `SetNull`'ı tetiklenmiyor). ⚠️ Tarama
+   `IgnoreQueryFilters` ile: çöp kutusundan geri gelen etkinlik aksi hâlde ilçesiz dönerdi.
+
+➕ **PLAN DIŞI:** `Common/PanelQuery.cs` + `AdCard.now` (ikisi de yukarıdaki bulguların çözümü) ·
+`?locationScope` ekseni (plan yalnız `onlyLocal` diyordu — bir `bool` "çevre iller"i
+ifade edemez; `onlyLocal` **korundu** ama aynı enum'a çevrilen bir kısayol olarak, yani "yerel"in
+tanımı tek yerde) · **`EventProjection`** (liste/detay projeksiyon birleştirmesi) ·
+Create/Update artık **`IAuditableCommand`** (etkinlik oluşturma/düzenleme ize hiç düşmüyordu) ·
+panel Index'te **konum kapsamı şeridi** + arama ile ilçe süzgecinin **tek forma** alınması
+(ayrı formlar birbirini sıfırlıyordu) · detay ekranında **"İlçe" satırı** ·
+**`mapQuery`'ye ilçe/il eklendi** (koordinatsız bir Adana etkinliğinde "Kültür Merkezi" araması
+kullanıcıyı **Kadirli'ye** götürüyordu) · paylaşım metnine konum · pasif ilçenin
+**seçili kayıtta listede kalması** (düşseydi form kaydedildiğinde konum sessizce değişirdi).
+
+#### Yeni görünmez sözleşmeler
+
+**#43** `locationLabel` sunucuda tek yerde + liste/detay aynı projeksiyon ·
+**#44** `Event.IsLocal` türetilmiştir, çıpası kod sabiti ·
+**#45** ilçe zorunlu + sözlükte silme yok = `district_id IS NULL` yalnız "12.4 öncesi" demek.
+(`ARCHITECTURE.md` §7; testler `PanelEventDistrictTests` + `Unit/Application/Events/`.)
+
+**Doğrulama:** `dotnet test` **784/784** · `flutter analyze` **0** · `flutter test` **703/703**.
+**Kuralı bilerek boz:** 4 deneme (form `IsLocal`'ına güven · detay kendi projeksiyonunu yazsın ·
+ilçe zorunlu olmasın · bilinmeyen kapsam varsayılana düşmesin) → **hepsi kırmızı**, geri alınınca yeşil.
+⚠️ **Chrome eklentisi bu oturumda bağlanamadı** (`list_connected_browsers` boş döndü); panel canlı
+denetimi tarayıcı yerine **oturum açmış curl + DOM ayrıştırma** ile yapıldı — `sort` kaybı bulgusu
+tam olarak o denetimden çıktı.
+**Canlı (panel + gerçek Android emülatörü):** geri doldurma **3/3** (açılış logunda) ·
+panelden "Osmaniye / Merkez" etkinliği eklendi, form `IsLocal=true` gönderdi ama kayıt
+**`is_local=false`** düştü (türetme kazandı) · `GET /v1/events` `locationLabel="Osmaniye / Merkez"` ·
+ilçesiz gönderim **reddedildi** ("İlçe seçilmelidir", 0 kayıt) · ev ilçesini yeniden adlandırma
+denemesi **yok sayıldı** (slug ve ad korundu) · form ilçeleri **5 `<optgroup>`** ile grupladı ve
+Kadirli **önceden seçili** geldi · panel Index'te Konum sütunu + Türkçe şerit, ham `nearby` **yok** ·
+CSV'de `Konum;` sütunu ve "Osmaniye / Merkez" · **emülatörde** kartta konum rozeti (Kadirli
+**vurgulu**, Adana/Osmaniye sönük), "Çevre iller" → yalnız Adana, "Kadirli" → çevre ilçeleri eledi,
+detayda **"İlçe: Kadirli"** satırı, **çökme yok** · golden'lar yenilendi ve **PNG'ler gözle incelendi**
+(1.4 ölçekte taşma yok, uzun ilçe adı ellipsis'e düşüyor).
 
 ---
 

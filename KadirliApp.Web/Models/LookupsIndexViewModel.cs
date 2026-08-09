@@ -6,6 +6,9 @@ namespace KadirliApp.Web.Models;
 public class LookupsIndexViewModel
 {
     public IReadOnlyList<NeighborhoodAdminDto> Neighborhoods { get; set; } = [];
+
+    /// <summary>Faz 12.4 — il/ilçe sözlüğü (etkinlik konumunun kaynağı).</summary>
+    public IReadOnlyList<DistrictAdminDto> Districts { get; set; } = [];
     public IReadOnlyList<NamedLookupDto> Cemeteries { get; set; } = [];
     public IReadOnlyList<NamedLookupDto> Mosques { get; set; } = [];
     public IReadOnlyList<SluggedLookupDto> EventCategories { get; set; } = [];

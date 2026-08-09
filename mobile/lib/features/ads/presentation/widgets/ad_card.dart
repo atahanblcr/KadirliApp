@@ -21,6 +21,7 @@ class AdCard extends StatelessWidget {
     required this.onTap,
     this.isFavorite = false,
     this.onFavoriteTap,
+    this.now,
   });
 
   final AdSummary ad;
@@ -29,6 +30,16 @@ class AdCard extends StatelessWidget {
 
   /// Null ise kalp hiç çizilmez (favori özelliğinin kapalı olduğu bağlamlar).
   final VoidCallback? onFavoriteTap;
+
+  /// Testlerde "şimdi"yi sabitlemek için — **golden testinin şartı.**
+  ///
+  /// ⚠️ `AppDate.relative` `now` verilmezse **gerçek saate** bakar; kart bunu
+  /// iletmediği sürece golden referansı zamanla kendiliğinden çürür: fixture
+  /// "2 gün önce" diye üretilir, aylar sonra aynı fixture "1 Ağustos 2026"
+  /// basar ve test, kodda hiçbir şey değişmeden kırmızıya döner. 12.4'te tam
+  /// bu yaşandı — `AnnouncementTile`/`ComplaintCard`/`NotificationTile` daha
+  /// önce aynı sebeple düzeltilmişti, `AdCard` atlanmıştı.
+  final DateTime? now;
 
   static const double _imageSize = 104;
 
@@ -110,7 +121,7 @@ class AdCard extends StatelessWidget {
                         children: [
                           _MetaBit(
                             icon: Icons.schedule_rounded,
-                            label: AppDate.relative(ad.createdAt),
+                            label: AppDate.relative(ad.createdAt, now: now),
                           ),
                           if (ad.viewCount > 0)
                             _MetaBit(

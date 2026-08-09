@@ -51,6 +51,7 @@ void main() {
         GoldenScenario(
           'Uzun başlık + 7 haneli fiyat',
           AdCard(
+            now: now,
             ad: ad(
               title: 'Sahibinden az kullanılmış, hatasız, tramer kaydı olmayan Fiat Egea',
               price: 1250000,
@@ -63,6 +64,7 @@ void main() {
         GoldenScenario(
           'Fiyatsız ilan',
           AdCard(
+            now: now,
             ad: ad(title: 'Ücretsiz devren kitaplık', price: null),
             onFavoriteTap: () {},
             onTap: () {},
@@ -220,6 +222,8 @@ void main() {
               eventTime: '20:30:00',
               venueName: 'Kültür Merkezi',
               isFree: true,
+              // Faz 12.4 — kendi ilçemiz: konum rozeti vurgulu çizilir.
+              locationLabel: 'Kadirli',
             ),
             onTap: () {},
           ),
@@ -235,6 +239,28 @@ void main() {
               eventTime: '19:00:00',
               venueName: 'Halk Eğitim Salonu',
               ticketPrice: 150,
+              locationLabel: 'Osmaniye / Merkez',
+              isLocal: false,
+            ),
+            onTap: () {},
+          ),
+        ),
+        // 🔴 Faz 12.4 — uzun Türkçe konum + uzun mekan adı aynı kartta. Kısa
+        // örnek hiçbir düzen hatası göstermez; bu projede `Row`'a giren metin
+        // yedi kez taşma üretti ve her seferinde kısa fixture'la gözden kaçtı.
+        GoldenScenario(
+          'Çevre il, uzun konum + uzun mekan',
+          EventCard(
+            now: now,
+            event: Event(
+              id: 'e-3',
+              title: 'Uluslararası Kahramanmaraş Dondurma ve Kültür Festivali',
+              eventDate: DateTime.utc(2026, 9, 2),
+              eventTime: '18:00:00',
+              venueName: 'Kahramanmaraş Büyükşehir Belediyesi Kongre Merkezi',
+              locationLabel: 'Kahramanmaraş',
+              isLocal: false,
+              isFree: true,
             ),
             onTap: () {},
           ),

@@ -1,6 +1,19 @@
+@using KadirliApp.Application.Features.Lookups
 @model KadirliApp.Application.Features.Events.Commands.UpdateEventCommand
 @{
     ViewData["Title"] = "Etkinlik Düzenle";
+
+    // Faz 12.4 — ilçe seçimi. Pasif bir ilçeye bağlı kayıtta seçili satır listede KALIR
+    // (bkz. DistrictSelectViewModel): düşseydi form kaydedildiğinde konum sessizce değişirdi.
+    var districts = ViewBag.Districts as IReadOnlyList<DistrictAdminDto> ?? [];
+    var districtSelect = new KadirliApp.Web.Models.DistrictSelectViewModel
+    {
+        Districts = districts,
+        Selected = Model.DistrictId,
+        Required = true,
+        EmptyLabel = Model.DistrictId is null ? "Seçiniz…" : null,
+        CssClass = "w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm"
+    };
 }
 
 <div class="max-w-4xl mx-auto">
@@ -65,6 +78,13 @@
                 <div>
                     <label asp-for="EventTime" class="block text-sm font-semibold text-gray-700 mb-2">Etkinlik Saati <span class="text-red-500">*</span></label>
                     <input asp-for="EventTime" type="time" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm" required />
+                </div>
+
+                @* Faz 12.4 — ilçe (zorunlu). *@
+                <div>
+                    <label for="DistrictId" class="block text-sm font-semibold text-gray-700 mb-2">İlçe <span class="text-red-500">*</span></label>
+                    <partial name="_DistrictSelect" model="districtSelect" />
+                    <p class="text-xs text-gray-500 mt-1">Mobilde konum rozetinde ve “Kadirli / Osmaniye / Çevre iller” süzgecinde kullanılır.</p>
                 </div>
 
                 <!-- Venue -->

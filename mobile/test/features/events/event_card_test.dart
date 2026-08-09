@@ -25,9 +25,13 @@ void main() {
     bool isFree = true,
     double? price,
     int inDays = 2,
+    String? location,
+    bool isLocal = true,
   }) => Event(
     id: 'e1',
     title: title,
+    locationLabel: location,
+    isLocal: isLocal,
     // ⚠️ `eventDate` sunucuda "Türkiye günü, 00:00 UTC" olarak yazılır ve model
     // onu **kaydırmadan** okur. `DateTime.now().toUtc()` verilirse saat
     // 00:00-03:00 arasında gün bir geri kayıyor ve test yalnız gece patlıyordu.
@@ -125,6 +129,10 @@ void main() {
                 'Festivali Kapanış Programı',
             venue: 'Kadirli Şehir Stadyumu Yanı Kültür Park Açık Hava Sahnesi',
             category: 'Festival ve Şenlikler',
+            // Faz 12.4: konum rozeti aynı `Wrap` içine giriyor — bu projede
+            // `Row`'a giren her yeni metin taşma üretmişti.
+            location: 'Kahramanmaraş / Afşin',
+            isLocal: false,
           ),
         ),
         textScale: 1.4,
@@ -132,6 +140,38 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
+    });
+
+    // ---- Faz 12.4: konum ----
+
+    testWidgets('konum etiketi kartta ve ekran okuyucuda görünür', (
+      tester,
+    ) async {
+      await pumpCard(tester, EventCard(event: event(location: 'Adana')));
+
+      expect(find.text('Adana'), findsOneWidget);
+
+      // Rozet yalnız göze değil ekran okuyucuya da anlatılmalı: aksi hâlde
+      // "bu etkinlik nerede" sorusu erişilebilirlik tarafında cevapsız kalır.
+      final semantics = tester.getSemantics(
+        find.byType(EventCard).first,
+      );
+      expect(semantics.label, contains('Adana'));
+    });
+
+    /// Sunucu etiketi göndermediyse (12.4 öncesinden kalan kayıt ya da eski
+    /// sunucu) rozet **hiç çizilmez** — "Konum yok" yazmak bilgi değil gürültü.
+    testWidgets('konum yoksa rozet çizilmez', (tester) async {
+      await pumpCard(tester, EventCard(event: event(location: null)));
+
+      expect(find.byIcon(Icons.map_rounded), findsNothing);
+    });
+
+    /// Boş/boşluklu etiket de yok sayılmalı — sunucudan gelen `""` bir konum değil.
+    testWidgets('boş konum etiketi rozet üretmez', (tester) async {
+      await pumpCard(tester, EventCard(event: event(location: '   ')));
+
+      expect(find.byIcon(Icons.map_rounded), findsNothing);
     });
   });
 

@@ -1,6 +1,26 @@
+@using KadirliApp.Application.Features.Events
+@using KadirliApp.Application.Features.Lookups
 @model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Events.Dtos.EventResponseDto>
 @{
     ViewData["Title"] = "Etkinlik Yönetimi";
+
+    // Faz 12.4 — konum süzgeci. Şeritteki etiketler EventLocationScopes.Label'dan gelir;
+    // ham "nearby"/"local" ekrana basılmaz (Değişmez Kural #6).
+    var districts = ViewBag.Districts as IReadOnlyList<DistrictAdminDto> ?? [];
+    Guid? districtId = ViewBag.DistrictId;
+    EventLocationScope locationScope = ViewBag.LocationScope ?? EventLocationScope.All;
+    var districtFilter = new KadirliApp.Web.Models.DistrictSelectViewModel
+    {
+        Districts = districts,
+        Name = "DistrictId",
+        Selected = districtId,
+        EmptyLabel = "Tüm ilçeler"
+    };
+    var scopeChips = new[]
+    {
+        EventLocationScope.All, EventLocationScope.Local,
+        EventLocationScope.Province, EventLocationScope.Nearby
+    };
 
     // Faz 11.18 — toplu işlem çubuğu ve satır kutuları tek yerden kurulur.
     var bulkController = "EventsAdmin";
@@ -27,13 +47,47 @@
 </div>
 
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm" data-bulk-scope>
-    <div class="p-4 border-b border-gray-200">
-        <form action="" method="get" class="relative w-full md:w-64">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <i class="fas fa-search text-gray-400"></i>
+    <div class="p-4 border-b border-gray-200 space-y-3">
+        @* Faz 12.4: arama ve ilçe TEK formda — ayrı formlar olsaydı ilçeyi seçip arama
+           yapmak süzgeci sıfırlardı (ve tersi). *@
+        <form action="" method="get" class="flex flex-wrap items-end gap-3">
+            @if (locationScope != EventLocationScope.All)
+            {
+                <input type="hidden" name="LocationScope" value="@EventLocationScopes.Value(locationScope)" />
+            }
+            <div class="relative w-full md:w-64">
+                <label for="Search" class="block text-xs font-medium text-gray-600 mb-1">Ara</label>
+                <div class="absolute inset-y-0 left-0 pl-3 pt-5 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input id="Search" type="text" name="Search" placeholder="Başlık ile ara..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" value="@Context.Request.Query["Search"]">
             </div>
-            <input type="text" name="Search" placeholder="Başlık ile ara..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" value="@Context.Request.Query["Search"]">
+            <div class="w-full md:w-56">
+                <label for="DistrictId" class="block text-xs font-medium text-gray-600 mb-1">İlçe</label>
+                <partial name="_DistrictSelect" model="districtFilter" />
+            </div>
+            <button type="submit" class="rounded-lg bg-indigo-600 py-2 px-5 text-sm font-medium text-white shadow hover:bg-indigo-700">Filtrele</button>
+            @if (!string.IsNullOrWhiteSpace(Context.Request.Query["Search"]) || districtId != null || locationScope != EventLocationScope.All)
+            {
+                <a asp-action="Index" class="py-2 px-4 text-sm text-gray-600 hover:text-gray-900">Temizle</a>
+            }
         </form>
+
+        @* Konum kapsamı şeridi — "Çevre iller" tanımının sahibi sunucu (EventLocationScopes). *@
+        <div class="flex flex-wrap gap-2">
+            @* 🐛 Bağlantılar `asp-route-*` ile ELLE sayılmaz: ilk yazımda `Search` ve
+               `DistrictId` sayılmış, `sort` unutulmuştu → sıralı bir listede chip'e
+               tıklamak sıralamayı **sessizce** varsayılana döndürüyordu. Kural artık
+               `PanelQuery.With`'te: mevcut sorgu korunur, yalnız kapsam değişir. *@
+            @foreach (var chip in scopeChips)
+            {
+                var active = chip == locationScope;
+                <a href="@PanelQuery.With(Context.Request, "LocationScope", EventLocationScopes.Value(chip))"
+                   class="px-3 py-1 rounded-full text-xs font-medium border transition-colors @(active ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50")">
+                    @EventLocationScopes.Label(chip)
+                </a>
+            }
+        </div>
     </div>
 
     @* Faz 11.18: toplu işlem — satır seçimi + toplu eylem. *@
@@ -47,6 +101,7 @@
                     <th scope="col" class="px-6 py-3 font-medium">Kategori</th>
                     <partial name="_SortableHeader" model='new KadirliApp.Web.Models.SortableHeaderViewModel("Tarih / Saat", "date_asc", "date_desc", currentSort)' />
                     <th scope="col" class="px-6 py-3 font-medium">Mekan</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Konum</th>
                     <th scope="col" class="px-6 py-3 font-medium">Ücret</th>
                     <th scope="col" class="px-6 py-3 font-medium">Durum</th>
                     <th scope="col" class="px-6 py-3 text-right font-medium">İşlemler</th>
@@ -68,6 +123,20 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4">@(item.VenueName ?? "—")</td>
+                            @* Konum etiketi sunucudan hazır gelir (locationLabel) — panel kendi
+                               biçimini yazsaydı mobille ayrışırdı, görünmez sözleşme #23'ün sınıfı. *@
+                            <td class="px-6 py-4">
+                                @if (item.LocationLabel is { Length: > 0 } label)
+                                {
+                                    <span class="inline-flex items-center gap-1 @(item.IsLocal ? "text-indigo-700" : "text-gray-600")">
+                                        <i class="fas fa-location-dot text-xs"></i>@label
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-gray-400">—</span>
+                                }
+                            </td>
                             <td class="px-6 py-4">
                                 @if (item.IsFree)
                                 {
@@ -118,7 +187,7 @@
                 else
                 {
                     <tr>
-                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="9" class="px-6 py-8 text-center text-gray-500">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="fas fa-calendar-times text-4xl text-gray-300 mb-3"></i>
                                 <p>Kayıt bulunamadı.</p>

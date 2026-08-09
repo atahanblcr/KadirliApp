@@ -13,7 +13,24 @@ public class Event : BaseEntity, ISoftDeletable
     public int? DurationMinutes { get; set; }
     public string? VenueName { get; set; }
     public string? Address { get; set; }
+
+    /// <summary>
+    /// ☠️ <b>ÖLÜ KOLON (Faz 12.4'ten beri).</b> Okunmuyor, yazılmıyor, hiçbir DTO'da yok —
+    /// konum artık <see cref="DistrictId"/> üzerinden taşınıyor.
+    /// </summary>
+    /// <remarks>
+    /// Kolon <b>bilerek düşürülmedi</b> (<c>ARCHITECTURE.md</c> §6: tablo/kolon düşürmüyoruz),
+    /// ama bir sonraki oturum onu "gerçek" sanmasın diye ölü olduğu burada yazılı: panelde
+    /// formu hiç olmadı, bu yüzden veritabanındaki <b>her satırda <c>null</c></b>.
+    /// Yeni kod bu alana dokunmamalıdır.
+    /// </remarks>
     public string? City { get; set; }
+
+    /// <summary>
+    /// Faz 12.4: etkinliğin sözlükteki ilçesi. <c>null</c> = konumu bilinmeyen (12.4 öncesinden
+    /// kalan ve geri doldurmaya girmemiş) kayıt.
+    /// </summary>
+    public Guid? DistrictId { get; set; }
     public decimal? Latitude { get; set; }
     public decimal? Longitude { get; set; }
     public string? Organizer { get; set; }
@@ -26,12 +43,26 @@ public class Event : BaseEntity, ISoftDeletable
     public Guid? CoverImageId { get; set; }
     public bool IsRecurring { get; set; }
     public string? RecurrencePattern { get; set; }
+
+    /// <summary>
+    /// 🔴 <b>TÜRETİLMİŞ ALAN (Faz 12.4'ten beri):</b> "ilçesi Kadirli mi?" —
+    /// yazma anında <see cref="DistrictId"/>'den hesaplanır (<c>EventDistrictResolver</c>),
+    /// panelden elle işaretlenmez.
+    /// </summary>
+    /// <remarks>
+    /// Alan 10.x'ten beri DTO'da duruyor ve mobil onu ayrıştırıyor — <b>silmek kırıcı olurdu</b>
+    /// (<c>ARCHITECTURE.md</c> §5). 12.4 öncesinde panel hiç yazmıyordu, yani her kayıtta
+    /// <c>false</c>'tu ve mobilde hiçbir widget kullanmıyordu: yarım kalmış bir alan modelinin
+    /// ölü yarısı. Türetmek additive: eski istemci aynı alanı görmeye devam eder, üstelik
+    /// değeri artık <b>doğrudur</b>.
+    /// </remarks>
     public bool IsLocal { get; set; }
     public string Status { get; set; } = "pending";
     public Guid CreatedBy { get; set; }
     public DateTime? DeletedAt { get; set; }
 
     public EventCategory Category { get; set; } = default!;
+    public District? District { get; set; }
     public File? CoverImage { get; set; }
     public ICollection<EventImage> Images { get; set; } = new List<EventImage>();
 }

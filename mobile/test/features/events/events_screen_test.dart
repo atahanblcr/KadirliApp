@@ -183,6 +183,58 @@ void main() {
     );
   });
 
+  // ---- Faz 12.4: konum ----
+
+  /// 🔴 İstemci "Osmaniye dışı" diye kendi hesabını yapmaz, yalnız `nearby` der:
+  /// tanımın sahibi sunucu. Burada hesaplansaydı sözlüğe yarın eklenen bir
+  /// Osmaniye ilçesini mağazadaki eski sürümler çevre il sayardı.
+  testWidgets('konum şeridi uca locationScope gönderir ve kaldırılabilir', (
+    tester,
+  ) async {
+    final adapter = await openEvents(
+      tester,
+      routes: {'/v1/events': (_) async => jsonResponse(pagedBody([event()]))},
+    );
+
+    await tester.tap(find.text('Kadirli').first);
+    await tester.pumpAndSettle();
+    expect(
+      adapter.lastOf('/v1/events')?.queryParameters['locationScope'],
+      'local',
+    );
+
+    await tester.tap(find.text('Çevre iller').first);
+    await tester.pumpAndSettle();
+    expect(
+      adapter.lastOf('/v1/events')?.queryParameters['locationScope'],
+      'nearby',
+    );
+
+    // Seçili chip'e tekrar dokunmak süzgeci kaldırır (kategori şeridiyle aynı
+    // el alışkanlığı) — parametre hiç gönderilmemeli, "all" diye bir değer yok.
+    await tester.tap(find.text('Çevre iller').first);
+    await tester.pumpAndSettle();
+    expect(
+      adapter.lastOf('/v1/events')?.queryParameters.containsKey('locationScope'),
+      isFalse,
+    );
+  });
+
+  testWidgets('konum etiketi kartta gösterilir', (tester) async {
+    await openEvents(
+      tester,
+      routes: {
+        '/v1/events': (_) async => jsonResponse(
+          pagedBody([
+            {...event(), 'locationLabel': 'Adana', 'isLocal': false},
+          ]),
+        ),
+      },
+    );
+
+    expect(find.text('Adana'), findsOneWidget);
+  });
+
   testWidgets('arama uca search olarak gider', (tester) async {
     final adapter = await openEvents(
       tester,
@@ -449,6 +501,36 @@ void main() {
       );
       expect(event.canOpenMap, isFalse);
       expect(event.mapQuery, 'Kültür Merkezi, Cumhuriyet Mah.');
+    });
+
+    /// 🔴 Faz 12.4: koordinatsız bir çevre il etkinliğinde "Kültür Merkezi"
+    /// araması kullanıcıyı **Kadirli'deki** bir yere götürüyordu. Sorguya ilçe
+    /// ve il de girer — etiket ("Adana / Ceyhan") değil ham adlar: eğik çizgi
+    /// harita aramasını bozar.
+    test('harita sorgusu ilçe ve ili de taşır', () {
+      final event = Event(
+        id: 'e',
+        title: 'Konser',
+        eventDate: DateTime.parse('2026-08-12T00:00:00Z'),
+        venueName: 'Kültür Merkezi',
+        districtName: 'Ceyhan',
+        provinceName: 'Adana',
+        locationLabel: 'Adana / Ceyhan',
+      );
+      expect(event.mapQuery, 'Kültür Merkezi, Ceyhan, Adana');
+    });
+
+    test('konum rozeti yalnız dolu etikette çizilir', () {
+      Event build({String? label}) => Event(
+        id: 'e',
+        title: 'Konser',
+        eventDate: DateTime.parse('2026-08-12T00:00:00Z'),
+        locationLabel: label,
+      );
+
+      expect(build(label: 'Kadirli').locationBadge, 'Kadirli');
+      expect(build(label: null).locationBadge, isNull);
+      expect(build(label: '   ').locationBadge, isNull);
     });
 
     test('kategori slug\'ı Material ikonuna eşlenir', () {

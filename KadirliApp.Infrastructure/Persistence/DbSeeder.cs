@@ -212,6 +212,66 @@ public static class DbSeeder
         // satırlara dokunur). Raporu panel "mahallesi eşleşmemiş kesinti" şeridinde gösterir.
         await PowerOutageNeighborhoodBackfill.RunAsync(
             db, scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger(nameof(PowerOutageNeighborhoodBackfill)));
+
+        // Faz 12.4: il/ilçe sözlüğü + etkinliklerin geri doldurulması.
+        await EnsureDistrictsAsync(db);
+        await EventDistrictBackfill.RunAsync(
+            db, scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger(nameof(EventDistrictBackfill)));
+    }
+
+    /// <summary>
+    /// Faz 12.4 — il/ilçe sözlüğü, <b>satır bazında</b> idempotent.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Bilerek "tablo boşsa" bloğu <b>değil</b>: 12.3'te tam bu tuzağa düşüldü — koşullu blok,
+    /// listeye <i>sonradan</i> eklenen bir satırı zaten ayakta olan hiçbir veritabanına sokmaz
+    /// ve hata yalnız <b>eski kurulumlarda</b> çıkar (geliştiricinin makinesinde görünmez).
+    /// Buraya yarın "Ceyhan" eklenirse mevcut kurulumlar da onu alır.
+    ///
+    /// ⚠️ Var olan satırın adı/sırası <b>ezilmez</b>: sözlük panelden yönetilebiliyor, yöneticinin
+    /// düzeltmesi her açılışta geri alınamaz.
+    /// </remarks>
+    private static async Task EnsureDistrictsAsync(AppDbContext db)
+    {
+        // (İl, İlçe, Merkez mi, Sıra). Kadirli başta: ev ilçesi listede önce görünmeli.
+        var seed = new (string Province, string Name, bool IsCenter, int Order)[]
+        {
+            ("Osmaniye", "Kadirli", false, 0),
+            ("Osmaniye", "Merkez", true, 1),
+            ("Osmaniye", "Düziçi", false, 2),
+            ("Osmaniye", "Bahçe", false, 3),
+            ("Osmaniye", "Hasanbeyli", false, 4),
+            ("Osmaniye", "Sumbas", false, 5),
+            ("Osmaniye", "Toprakkale", false, 6),
+            // Çevre il merkezleri — Kadirli'ye günübirlik gidilen yerler.
+            ("Adana", "Merkez", true, 10),
+            ("Hatay", "Merkez", true, 11),
+            ("Kahramanmaraş", "Merkez", true, 12),
+            ("Gaziantep", "Merkez", true, 13)
+        };
+
+        var existing = await db.Districts.Select(d => d.Slug).ToListAsync();
+        var known = new HashSet<string>(existing, StringComparer.Ordinal);
+        var added = false;
+
+        foreach (var (province, name, isCenter, order) in seed)
+        {
+            var slug = Application.Features.Lookups.DistrictDefaults.SlugFor(province, name);
+            if (!known.Add(slug)) continue;
+
+            db.Districts.Add(new District
+            {
+                Name = name,
+                Slug = slug,
+                ProvinceName = province,
+                IsCenter = isCenter,
+                DisplayOrder = order,
+                IsActive = true
+            });
+            added = true;
+        }
+
+        if (added) await db.SaveChangesAsync();
     }
 
     /// <summary>

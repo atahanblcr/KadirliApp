@@ -1,5 +1,88 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 9 Ağustos 2026 — **FAZ 12.4 TAMAMLANDI: etkinlik konumu (il / ilçe).**
+> Kod `Domain/Entities/District.cs` + `Event.{DistrictId,District}` + migration `AddEventDistricts` +
+> `Features/Lookups/DistrictLocation.cs` (`DistrictDefaults` + `DistrictLabel`) +
+> `Features/Events/{EventDistrictResolver,EventLocationScope,EventProjection}` +
+> `Infrastructure/Persistence/EventDistrictBackfill.cs` + `DbSeeder.EnsureDistrictsAsync` +
+> Lookups admin sorgusu + 2 komut + `Views/Shared/_DistrictSelect.cshtml` +
+> `EventsAdmin` form/filtre/sütun/CSV + `LookupsAdmin` "İl / İlçeler" bölümü +
+> mobil `event.dart` / `events_providers.dart` (`EventPlace`) / `event_card.dart` / detay ekranı +
+> 3 yeni test dosyası. **Backend 729 → 784 (+55), mobil 696 → 703 (+7), analyze 0.**
+>
+> 🔑 **TESLİM EDİLEN:** `Event.City` panelde **formu hiç olmadığı** için her kayıtta `null`'dı;
+> `Event.IsLocal` panel tarafından hiç yazılmadığı için her kayıtta `false`'tu ve mobil onu
+> ayrıştırıp **hiçbir yerde kullanmıyordu**. Yarım bir alan modelinin ölü yarısıydı. Artık
+> etkinlik sözlükteki bir ilçeye bağlı, `IsLocal` o bağdan **türetiliyor** ve vatandaş
+> "bu etkinlik nerede?" sorusunun cevabını **listede** görüyor. `City` kolonu düşürülmedi (§6)
+> ama entity'de **ölü olduğu yazılı**.
+>
+> 🔴 **EN ÖNEMLİ KARAR:** **"çevre iller" bir SUNUCU tanımıdır.** Mobil `?locationScope=nearby`
+> diyor, kümeyi kendisi hesaplamıyor — istemcide "Osmaniye dışı" diye hesaplansaydı sözlüğe
+> **yarın eklenen bir Osmaniye ilçesini** mağazadaki eski sürümler çevre il sayardı: liste
+> yanlış, hata yok (#23'ün sınıfı). Aynı sebeple `locationLabel` de sunucuda üretiliyor.
+> **İkinci karar:** ev ilçesinin çıpası bir **DB bayrağı değil kod sabiti**
+> (`DistrictDefaults.HomeSlug`) — bayrak olsaydı panelden yanlışlıkla taşınabilir ve o andan
+> sonra yazılan **her** etkinlik sessizce "yerel değil" olurdu. Bu yüzden ev ilçesi satırı
+> panelden **yeniden adlandırılamıyor ve pasifleştirilemiyor**.
+>
+> 🐛 **CANLI DENETİMDE BULUNAN HATA (düzeltildi):** konum şeridinin bağlantıları `asp-route-*`
+> ile **elle sayılmış** ve `sort` unutulmuştu → başlığa göre sıralanmış bir listede "Çevre iller"e
+> tıklamak sıralamayı **sessizce varsayılana döndürüyordu** (test kırılmaz, log düşmez). İlginç
+> olan: aynı sayfadaki sıralama başlığı, CSV butonu, sayfalama ve toplu işlem **doğru** çalışıyordu,
+> çünkü üçü de sorgu dizesini **jenerik** taşıyor — elle sayan tek bileşen yeni yazılandı.
+> `_ExportCsvButton`'ın 11.16b'den beri yazılı uyarısı birebir gerçekleşti. Kural artık
+> **`Common/PanelQuery.With`** içinde; regresyon `PanelEventDistrictTests.LocationChips_…` (2 test).
+> 📌 Aynı kuralın hâlâ üç kopyası var (`_Pagination`, `_SortableHeader`, `_ExportCsvButton`) —
+> üçü de testli ve çalışıyor; buraya çekilmeleri **ayrı bir temizlik adımı**.
+>
+> 🐛 **İKİNCİ CANLI BULGU (düzeltildi): `AdCard`'ın golden referansı kendiliğinden çürüyordu.**
+> `--update-goldens` sonrası `ad_card_{light,dark}.png` de değişti, oysa `AdCard`'a dokunulmamıştı:
+> kart `AppDate.relative(ad.createdAt)` çağırıp **`now` iletmiyordu**, yani sabit fixture'a rağmen
+> **gerçek saate** bakıyordu → "2 gün önce" aylar sonra "1 Ağustos 2026" oldu. Checklist §5'teki
+> **"⚠️ TEKRARLAYAN (4 kez)"** maddesinin aynısı; `AnnouncementTile`/`ComplaintCard`/`NotificationTile`
+> düzeltilmiş, **`AdCard` atlanmıştı**. `AdCard.now` eklendi, golden'da sabitlendi, **PNG geri alındı**
+> ve orijinal referans yeşile döndü — sapma regresyon değil çürümeydi.
+> 🔑 **Ders:** `--update-goldens` sonrası **hangi dosyaların değiştiğine** bakmak PNG'ye bakmak kadar
+> önemli: dokunmadığın bir kartın referansı değiştiyse ya gerçek regresyon vardır ya da o referans
+> zamana bağlıdır — ikisi de sessizdir.
+>
+> 🔴 **BULUNAN ÜÇ ŞEY:** (1) **Slug yalnız ilçe adından üretilemez** — her ilin bir "Merkez"i var,
+> ikinci il merkezi benzersiz indekse takılır ve sözlüğe **hiç eklenemezdi**; slug il+ilçeden
+> türetiliyor. (2) **Liste ve detay iki ayrı `Select` bloğuydu**: dört yeni alan yalnız birine
+> eklenseydi **detay sessizce konumsuz kalırdı** ve ne derleyici ne test yakalardı → `EventProjection`.
+> (3) **Geri doldurma bir eşleştirme değil düz bir varsayım** ("hepsi Kadirli") ve her açılışta
+> koştuğu için ilçesiz yeni bir kayıt doğabilseydi onu da ezerdi; varsayımı **iki kapı** tutuyor —
+> alan zorunlu + sözlükte silme yok. `IgnoreQueryFilters` şart: çöp kutusundan geri gelen
+> etkinlik aksi hâlde ilçesiz dönerdi.
+>
+> ➕ **PLAN DIŞI:** `Common/PanelQuery.cs` + `AdCard.now` (ikisi de yukarıdaki bulguların çözümü) ·
+> `?locationScope` ekseni (bir `bool` "çevre iller"i ifade edemez; `onlyLocal`
+> korundu ama aynı enum'a çevrilen bir **kısayol** olarak → "yerel"in tanımı tek yerde) ·
+> `EventProjection` · Create/Update artık **`IAuditableCommand`** · panelde konum kapsamı şeridi +
+> arama ile ilçe süzgecinin **tek forma** alınması · detayda "İlçe" satırı ·
+> **`mapQuery`'ye ilçe/il eklendi** (koordinatsız Adana etkinliğinde "Kültür Merkezi" araması
+> kullanıcıyı **Kadirli'ye** götürüyordu) · paylaşım metnine konum · **pasif ilçenin seçili
+> kayıtta listede kalması** (düşseydi form kaydedildiğinde konum sessizce değişirdi).
+>
+> 🔴 **GÖRÜNMEZ SÖZLEŞMELERE #43, #44, #45 EKLENDİ.** Toplam **45**.
+>
+> **Doğrulama:** `dotnet test` **784/784** · `flutter analyze` **0** · `flutter test` **703/703**.
+> **Kuralı bilerek boz:** 4 deneme → hepsi kırmızı.
+> ⚠️ **Chrome eklentisi bu oturumda bağlanamadı** (`list_connected_browsers` boş); panel canlı
+> denetimi **oturum açmış curl + DOM ayrıştırma** ile yapıldı — `sort` kaybı bulgusu oradan çıktı.
+> **Canlı (panel + gerçek Android emülatörü):** geri doldurma 3/3 · panelden "Osmaniye / Merkez"
+> eklendi, form `IsLocal=true` gönderdi ama kayıt **`is_local=false`** düştü · uçta
+> `locationLabel="Osmaniye / Merkez"` · ilçesiz gönderim **reddedildi** (0 kayıt) · ev ilçesini
+> yeniden adlandırma denemesi **yok sayıldı** · form 5 `<optgroup>`, Kadirli önceden seçili ·
+> panelde Konum sütunu + Türkçe şerit, ham `nearby` **yok** · CSV'de `Konum;` sütunu ·
+> **emülatörde** rozet (Kadirli vurgulu), "Çevre iller" → yalnız Adana, "Kadirli" → çevre ilçeleri
+> eledi, detayda "İlçe: Kadirli", **çökme yok** · golden'lar yenilendi, **PNG'ler gözle incelendi**.
+>
+> ⏭️ **SIRADAKİ: 12.5** — ulaşım alan modeli (araç tipi · kalkış noktası · sefer günleri).
+>
+> ---
+>
 > Son güncelleme: 7 Ağustos 2026 — **FAZ 12.3 TAMAMLANDI: kesinti mahalle referansı + mahalle bazlı bildirim.**
 > Kod `Domain/Entities/PowerOutage.cs` (+`NeighborhoodId` FK, +`AreaDetail`) + migration `AddPowerOutageNeighborhood` +
 > `Features/PowerOutages/{PowerOutageNeighborhoodMatcher,PowerOutageNeighborhoodResolver,PowerOutageAnnouncementText}` +

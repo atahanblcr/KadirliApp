@@ -31,29 +31,12 @@ public class GetEventByIdQueryHandler : IRequestHandler<GetEventByIdQuery, Event
         if (request.OnlyPublished)
             query = query.Where(x => x.Status == "approved");
 
-        return await query
-            .Select(x => new EventResponseDto
-            {
-                Id = x.Id,
-                Title = x.Title,
-                Description = x.Description,
-                CategoryId = x.CategoryId,
-                CategoryName = x.Category.Name,
-                EventDate = x.EventDate,
-                EventTime = x.EventTime,
-                VenueName = x.VenueName,
-                Address = x.Address,
-                Latitude = x.Latitude,
-                Longitude = x.Longitude,
-                Organizer = x.Organizer,
-                TicketPrice = x.TicketPrice,
-                IsFree = x.IsFree,
-                IsLocal = x.IsLocal,
-                CoverImageId = x.CoverImageId,
-                CoverImageUrl = x.CoverImage != null ? x.CoverImage.CdnUrl : null,
-                Status = x.Status,
-                CreatedAt = x.CreatedAt
-            })
+        // Faz 12.4: projeksiyon liste sorgusuyla ORTAK (EventProjection) — konum alanları
+        // yalnız birine eklenseydi detay ekranı sessizce konumsuz kalırdı.
+        var row = await query
+            .Select(EventProjection.Select)
             .FirstOrDefaultAsync(cancellationToken);
+
+        return row is null ? null : EventProjection.Finish(row);
     }
 }

@@ -15,7 +15,12 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Event {
 
- String get id; String get title; String get description; String? get categoryId; String? get categoryName; DateTime get eventDate; String get eventTime; String? get venueName; String? get address; double? get latitude; double? get longitude; bool get hasLocation; String? get organizer; double? get ticketPrice; bool get isFree; bool get isLocal; String? get coverImageId; String? get coverImageUrl; String get status; DateTime? get createdAt;
+ String get id; String get title; String get description; String? get categoryId; String? get categoryName; DateTime get eventDate; String get eventTime; String? get venueName; String? get address;// ---- Faz 12.4: konum ----
+ String? get districtId; String? get districtName; String? get provinceName;/// Sunucuda üretilen hazır konum metni ("Kadirli" · "Osmaniye / Merkez" ·
+/// "Adana"). ⚠️ İstemci bunu **kendisi kurmaz**: kural sunucuda tek yerde
+/// (`DistrictLabel`) yaşıyor, burada da kurulsaydı panel ile mobil aynı
+/// etkinliği farklı yazardı ve kimse hata almazdı.
+ String? get locationLabel; double? get latitude; double? get longitude; bool get hasLocation; String? get organizer; double? get ticketPrice; bool get isFree; bool get isLocal; String? get coverImageId; String? get coverImageUrl; String get status; DateTime? get createdAt;
 /// Create a copy of Event
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +33,16 @@ $EventCopyWith<Event> get copyWith => _$EventCopyWithImpl<Event>(this as Event, 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Event&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.description, description) || other.description == description)&&(identical(other.categoryId, categoryId) || other.categoryId == categoryId)&&(identical(other.categoryName, categoryName) || other.categoryName == categoryName)&&(identical(other.eventDate, eventDate) || other.eventDate == eventDate)&&(identical(other.eventTime, eventTime) || other.eventTime == eventTime)&&(identical(other.venueName, venueName) || other.venueName == venueName)&&(identical(other.address, address) || other.address == address)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.hasLocation, hasLocation) || other.hasLocation == hasLocation)&&(identical(other.organizer, organizer) || other.organizer == organizer)&&(identical(other.ticketPrice, ticketPrice) || other.ticketPrice == ticketPrice)&&(identical(other.isFree, isFree) || other.isFree == isFree)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.coverImageId, coverImageId) || other.coverImageId == coverImageId)&&(identical(other.coverImageUrl, coverImageUrl) || other.coverImageUrl == coverImageUrl)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Event&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.description, description) || other.description == description)&&(identical(other.categoryId, categoryId) || other.categoryId == categoryId)&&(identical(other.categoryName, categoryName) || other.categoryName == categoryName)&&(identical(other.eventDate, eventDate) || other.eventDate == eventDate)&&(identical(other.eventTime, eventTime) || other.eventTime == eventTime)&&(identical(other.venueName, venueName) || other.venueName == venueName)&&(identical(other.address, address) || other.address == address)&&(identical(other.districtId, districtId) || other.districtId == districtId)&&(identical(other.districtName, districtName) || other.districtName == districtName)&&(identical(other.provinceName, provinceName) || other.provinceName == provinceName)&&(identical(other.locationLabel, locationLabel) || other.locationLabel == locationLabel)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.hasLocation, hasLocation) || other.hasLocation == hasLocation)&&(identical(other.organizer, organizer) || other.organizer == organizer)&&(identical(other.ticketPrice, ticketPrice) || other.ticketPrice == ticketPrice)&&(identical(other.isFree, isFree) || other.isFree == isFree)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.coverImageId, coverImageId) || other.coverImageId == coverImageId)&&(identical(other.coverImageUrl, coverImageUrl) || other.coverImageUrl == coverImageUrl)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,title,description,categoryId,categoryName,eventDate,eventTime,venueName,address,latitude,longitude,hasLocation,organizer,ticketPrice,isFree,isLocal,coverImageId,coverImageUrl,status,createdAt]);
+int get hashCode => Object.hashAll([runtimeType,id,title,description,categoryId,categoryName,eventDate,eventTime,venueName,address,districtId,districtName,provinceName,locationLabel,latitude,longitude,hasLocation,organizer,ticketPrice,isFree,isLocal,coverImageId,coverImageUrl,status,createdAt]);
 
 @override
 String toString() {
-  return 'Event(id: $id, title: $title, description: $description, categoryId: $categoryId, categoryName: $categoryName, eventDate: $eventDate, eventTime: $eventTime, venueName: $venueName, address: $address, latitude: $latitude, longitude: $longitude, hasLocation: $hasLocation, organizer: $organizer, ticketPrice: $ticketPrice, isFree: $isFree, isLocal: $isLocal, coverImageId: $coverImageId, coverImageUrl: $coverImageUrl, status: $status, createdAt: $createdAt)';
+  return 'Event(id: $id, title: $title, description: $description, categoryId: $categoryId, categoryName: $categoryName, eventDate: $eventDate, eventTime: $eventTime, venueName: $venueName, address: $address, districtId: $districtId, districtName: $districtName, provinceName: $provinceName, locationLabel: $locationLabel, latitude: $latitude, longitude: $longitude, hasLocation: $hasLocation, organizer: $organizer, ticketPrice: $ticketPrice, isFree: $isFree, isLocal: $isLocal, coverImageId: $coverImageId, coverImageUrl: $coverImageUrl, status: $status, createdAt: $createdAt)';
 }
 
 
@@ -48,7 +53,7 @@ abstract mixin class $EventCopyWith<$Res>  {
   factory $EventCopyWith(Event value, $Res Function(Event) _then) = _$EventCopyWithImpl;
 @useResult
 $Res call({
- String id, String title, String description, String? categoryId, String? categoryName, DateTime eventDate, String eventTime, String? venueName, String? address, double? latitude, double? longitude, bool hasLocation, String? organizer, double? ticketPrice, bool isFree, bool isLocal, String? coverImageId, String? coverImageUrl, String status, DateTime? createdAt
+ String id, String title, String description, String? categoryId, String? categoryName, DateTime eventDate, String eventTime, String? venueName, String? address, String? districtId, String? districtName, String? provinceName, String? locationLabel, double? latitude, double? longitude, bool hasLocation, String? organizer, double? ticketPrice, bool isFree, bool isLocal, String? coverImageId, String? coverImageUrl, String status, DateTime? createdAt
 });
 
 
@@ -65,7 +70,7 @@ class _$EventCopyWithImpl<$Res>
 
 /// Create a copy of Event
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? description = null,Object? categoryId = freezed,Object? categoryName = freezed,Object? eventDate = null,Object? eventTime = null,Object? venueName = freezed,Object? address = freezed,Object? latitude = freezed,Object? longitude = freezed,Object? hasLocation = null,Object? organizer = freezed,Object? ticketPrice = freezed,Object? isFree = null,Object? isLocal = null,Object? coverImageId = freezed,Object? coverImageUrl = freezed,Object? status = null,Object? createdAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? description = null,Object? categoryId = freezed,Object? categoryName = freezed,Object? eventDate = null,Object? eventTime = null,Object? venueName = freezed,Object? address = freezed,Object? districtId = freezed,Object? districtName = freezed,Object? provinceName = freezed,Object? locationLabel = freezed,Object? latitude = freezed,Object? longitude = freezed,Object? hasLocation = null,Object? organizer = freezed,Object? ticketPrice = freezed,Object? isFree = null,Object? isLocal = null,Object? coverImageId = freezed,Object? coverImageUrl = freezed,Object? status = null,Object? createdAt = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -76,6 +81,10 @@ as String?,eventDate: null == eventDate ? _self.eventDate : eventDate // ignore:
 as DateTime,eventTime: null == eventTime ? _self.eventTime : eventTime // ignore: cast_nullable_to_non_nullable
 as String,venueName: freezed == venueName ? _self.venueName : venueName // ignore: cast_nullable_to_non_nullable
 as String?,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
+as String?,districtId: freezed == districtId ? _self.districtId : districtId // ignore: cast_nullable_to_non_nullable
+as String?,districtName: freezed == districtName ? _self.districtName : districtName // ignore: cast_nullable_to_non_nullable
+as String?,provinceName: freezed == provinceName ? _self.provinceName : provinceName // ignore: cast_nullable_to_non_nullable
+as String?,locationLabel: freezed == locationLabel ? _self.locationLabel : locationLabel // ignore: cast_nullable_to_non_nullable
 as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
 as double?,hasLocation: null == hasLocation ? _self.hasLocation : hasLocation // ignore: cast_nullable_to_non_nullable
@@ -172,10 +181,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title,  String description,  String? categoryId,  String? categoryName,  DateTime eventDate,  String eventTime,  String? venueName,  String? address,  double? latitude,  double? longitude,  bool hasLocation,  String? organizer,  double? ticketPrice,  bool isFree,  bool isLocal,  String? coverImageId,  String? coverImageUrl,  String status,  DateTime? createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title,  String description,  String? categoryId,  String? categoryName,  DateTime eventDate,  String eventTime,  String? venueName,  String? address,  String? districtId,  String? districtName,  String? provinceName,  String? locationLabel,  double? latitude,  double? longitude,  bool hasLocation,  String? organizer,  double? ticketPrice,  bool isFree,  bool isLocal,  String? coverImageId,  String? coverImageUrl,  String status,  DateTime? createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Event() when $default != null:
-return $default(_that.id,_that.title,_that.description,_that.categoryId,_that.categoryName,_that.eventDate,_that.eventTime,_that.venueName,_that.address,_that.latitude,_that.longitude,_that.hasLocation,_that.organizer,_that.ticketPrice,_that.isFree,_that.isLocal,_that.coverImageId,_that.coverImageUrl,_that.status,_that.createdAt);case _:
+return $default(_that.id,_that.title,_that.description,_that.categoryId,_that.categoryName,_that.eventDate,_that.eventTime,_that.venueName,_that.address,_that.districtId,_that.districtName,_that.provinceName,_that.locationLabel,_that.latitude,_that.longitude,_that.hasLocation,_that.organizer,_that.ticketPrice,_that.isFree,_that.isLocal,_that.coverImageId,_that.coverImageUrl,_that.status,_that.createdAt);case _:
   return orElse();
 
 }
@@ -193,10 +202,10 @@ return $default(_that.id,_that.title,_that.description,_that.categoryId,_that.ca
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title,  String description,  String? categoryId,  String? categoryName,  DateTime eventDate,  String eventTime,  String? venueName,  String? address,  double? latitude,  double? longitude,  bool hasLocation,  String? organizer,  double? ticketPrice,  bool isFree,  bool isLocal,  String? coverImageId,  String? coverImageUrl,  String status,  DateTime? createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title,  String description,  String? categoryId,  String? categoryName,  DateTime eventDate,  String eventTime,  String? venueName,  String? address,  String? districtId,  String? districtName,  String? provinceName,  String? locationLabel,  double? latitude,  double? longitude,  bool hasLocation,  String? organizer,  double? ticketPrice,  bool isFree,  bool isLocal,  String? coverImageId,  String? coverImageUrl,  String status,  DateTime? createdAt)  $default,) {final _that = this;
 switch (_that) {
 case _Event():
-return $default(_that.id,_that.title,_that.description,_that.categoryId,_that.categoryName,_that.eventDate,_that.eventTime,_that.venueName,_that.address,_that.latitude,_that.longitude,_that.hasLocation,_that.organizer,_that.ticketPrice,_that.isFree,_that.isLocal,_that.coverImageId,_that.coverImageUrl,_that.status,_that.createdAt);case _:
+return $default(_that.id,_that.title,_that.description,_that.categoryId,_that.categoryName,_that.eventDate,_that.eventTime,_that.venueName,_that.address,_that.districtId,_that.districtName,_that.provinceName,_that.locationLabel,_that.latitude,_that.longitude,_that.hasLocation,_that.organizer,_that.ticketPrice,_that.isFree,_that.isLocal,_that.coverImageId,_that.coverImageUrl,_that.status,_that.createdAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -213,10 +222,10 @@ return $default(_that.id,_that.title,_that.description,_that.categoryId,_that.ca
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title,  String description,  String? categoryId,  String? categoryName,  DateTime eventDate,  String eventTime,  String? venueName,  String? address,  double? latitude,  double? longitude,  bool hasLocation,  String? organizer,  double? ticketPrice,  bool isFree,  bool isLocal,  String? coverImageId,  String? coverImageUrl,  String status,  DateTime? createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title,  String description,  String? categoryId,  String? categoryName,  DateTime eventDate,  String eventTime,  String? venueName,  String? address,  String? districtId,  String? districtName,  String? provinceName,  String? locationLabel,  double? latitude,  double? longitude,  bool hasLocation,  String? organizer,  double? ticketPrice,  bool isFree,  bool isLocal,  String? coverImageId,  String? coverImageUrl,  String status,  DateTime? createdAt)?  $default,) {final _that = this;
 switch (_that) {
 case _Event() when $default != null:
-return $default(_that.id,_that.title,_that.description,_that.categoryId,_that.categoryName,_that.eventDate,_that.eventTime,_that.venueName,_that.address,_that.latitude,_that.longitude,_that.hasLocation,_that.organizer,_that.ticketPrice,_that.isFree,_that.isLocal,_that.coverImageId,_that.coverImageUrl,_that.status,_that.createdAt);case _:
+return $default(_that.id,_that.title,_that.description,_that.categoryId,_that.categoryName,_that.eventDate,_that.eventTime,_that.venueName,_that.address,_that.districtId,_that.districtName,_that.provinceName,_that.locationLabel,_that.latitude,_that.longitude,_that.hasLocation,_that.organizer,_that.ticketPrice,_that.isFree,_that.isLocal,_that.coverImageId,_that.coverImageUrl,_that.status,_that.createdAt);case _:
   return null;
 
 }
@@ -228,7 +237,7 @@ return $default(_that.id,_that.title,_that.description,_that.categoryId,_that.ca
 @JsonSerializable()
 
 class _Event extends Event {
-  const _Event({required this.id, required this.title, this.description = '', this.categoryId, this.categoryName, required this.eventDate, this.eventTime = '00:00:00', this.venueName, this.address, this.latitude, this.longitude, this.hasLocation = false, this.organizer, this.ticketPrice, this.isFree = false, this.isLocal = true, this.coverImageId, this.coverImageUrl, this.status = 'approved', this.createdAt}): super._();
+  const _Event({required this.id, required this.title, this.description = '', this.categoryId, this.categoryName, required this.eventDate, this.eventTime = '00:00:00', this.venueName, this.address, this.districtId, this.districtName, this.provinceName, this.locationLabel, this.latitude, this.longitude, this.hasLocation = false, this.organizer, this.ticketPrice, this.isFree = false, this.isLocal = true, this.coverImageId, this.coverImageUrl, this.status = 'approved', this.createdAt}): super._();
   factory _Event.fromJson(Map<String, dynamic> json) => _$EventFromJson(json);
 
 @override final  String id;
@@ -240,6 +249,15 @@ class _Event extends Event {
 @override@JsonKey() final  String eventTime;
 @override final  String? venueName;
 @override final  String? address;
+// ---- Faz 12.4: konum ----
+@override final  String? districtId;
+@override final  String? districtName;
+@override final  String? provinceName;
+/// Sunucuda üretilen hazır konum metni ("Kadirli" · "Osmaniye / Merkez" ·
+/// "Adana"). ⚠️ İstemci bunu **kendisi kurmaz**: kural sunucuda tek yerde
+/// (`DistrictLabel`) yaşıyor, burada da kurulsaydı panel ile mobil aynı
+/// etkinliği farklı yazardı ve kimse hata almazdı.
+@override final  String? locationLabel;
 @override final  double? latitude;
 @override final  double? longitude;
 @override@JsonKey() final  bool hasLocation;
@@ -265,16 +283,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Event&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.description, description) || other.description == description)&&(identical(other.categoryId, categoryId) || other.categoryId == categoryId)&&(identical(other.categoryName, categoryName) || other.categoryName == categoryName)&&(identical(other.eventDate, eventDate) || other.eventDate == eventDate)&&(identical(other.eventTime, eventTime) || other.eventTime == eventTime)&&(identical(other.venueName, venueName) || other.venueName == venueName)&&(identical(other.address, address) || other.address == address)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.hasLocation, hasLocation) || other.hasLocation == hasLocation)&&(identical(other.organizer, organizer) || other.organizer == organizer)&&(identical(other.ticketPrice, ticketPrice) || other.ticketPrice == ticketPrice)&&(identical(other.isFree, isFree) || other.isFree == isFree)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.coverImageId, coverImageId) || other.coverImageId == coverImageId)&&(identical(other.coverImageUrl, coverImageUrl) || other.coverImageUrl == coverImageUrl)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Event&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.description, description) || other.description == description)&&(identical(other.categoryId, categoryId) || other.categoryId == categoryId)&&(identical(other.categoryName, categoryName) || other.categoryName == categoryName)&&(identical(other.eventDate, eventDate) || other.eventDate == eventDate)&&(identical(other.eventTime, eventTime) || other.eventTime == eventTime)&&(identical(other.venueName, venueName) || other.venueName == venueName)&&(identical(other.address, address) || other.address == address)&&(identical(other.districtId, districtId) || other.districtId == districtId)&&(identical(other.districtName, districtName) || other.districtName == districtName)&&(identical(other.provinceName, provinceName) || other.provinceName == provinceName)&&(identical(other.locationLabel, locationLabel) || other.locationLabel == locationLabel)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.hasLocation, hasLocation) || other.hasLocation == hasLocation)&&(identical(other.organizer, organizer) || other.organizer == organizer)&&(identical(other.ticketPrice, ticketPrice) || other.ticketPrice == ticketPrice)&&(identical(other.isFree, isFree) || other.isFree == isFree)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.coverImageId, coverImageId) || other.coverImageId == coverImageId)&&(identical(other.coverImageUrl, coverImageUrl) || other.coverImageUrl == coverImageUrl)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,title,description,categoryId,categoryName,eventDate,eventTime,venueName,address,latitude,longitude,hasLocation,organizer,ticketPrice,isFree,isLocal,coverImageId,coverImageUrl,status,createdAt]);
+int get hashCode => Object.hashAll([runtimeType,id,title,description,categoryId,categoryName,eventDate,eventTime,venueName,address,districtId,districtName,provinceName,locationLabel,latitude,longitude,hasLocation,organizer,ticketPrice,isFree,isLocal,coverImageId,coverImageUrl,status,createdAt]);
 
 @override
 String toString() {
-  return 'Event(id: $id, title: $title, description: $description, categoryId: $categoryId, categoryName: $categoryName, eventDate: $eventDate, eventTime: $eventTime, venueName: $venueName, address: $address, latitude: $latitude, longitude: $longitude, hasLocation: $hasLocation, organizer: $organizer, ticketPrice: $ticketPrice, isFree: $isFree, isLocal: $isLocal, coverImageId: $coverImageId, coverImageUrl: $coverImageUrl, status: $status, createdAt: $createdAt)';
+  return 'Event(id: $id, title: $title, description: $description, categoryId: $categoryId, categoryName: $categoryName, eventDate: $eventDate, eventTime: $eventTime, venueName: $venueName, address: $address, districtId: $districtId, districtName: $districtName, provinceName: $provinceName, locationLabel: $locationLabel, latitude: $latitude, longitude: $longitude, hasLocation: $hasLocation, organizer: $organizer, ticketPrice: $ticketPrice, isFree: $isFree, isLocal: $isLocal, coverImageId: $coverImageId, coverImageUrl: $coverImageUrl, status: $status, createdAt: $createdAt)';
 }
 
 
@@ -285,7 +303,7 @@ abstract mixin class _$EventCopyWith<$Res> implements $EventCopyWith<$Res> {
   factory _$EventCopyWith(_Event value, $Res Function(_Event) _then) = __$EventCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String title, String description, String? categoryId, String? categoryName, DateTime eventDate, String eventTime, String? venueName, String? address, double? latitude, double? longitude, bool hasLocation, String? organizer, double? ticketPrice, bool isFree, bool isLocal, String? coverImageId, String? coverImageUrl, String status, DateTime? createdAt
+ String id, String title, String description, String? categoryId, String? categoryName, DateTime eventDate, String eventTime, String? venueName, String? address, String? districtId, String? districtName, String? provinceName, String? locationLabel, double? latitude, double? longitude, bool hasLocation, String? organizer, double? ticketPrice, bool isFree, bool isLocal, String? coverImageId, String? coverImageUrl, String status, DateTime? createdAt
 });
 
 
@@ -302,7 +320,7 @@ class __$EventCopyWithImpl<$Res>
 
 /// Create a copy of Event
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? description = null,Object? categoryId = freezed,Object? categoryName = freezed,Object? eventDate = null,Object? eventTime = null,Object? venueName = freezed,Object? address = freezed,Object? latitude = freezed,Object? longitude = freezed,Object? hasLocation = null,Object? organizer = freezed,Object? ticketPrice = freezed,Object? isFree = null,Object? isLocal = null,Object? coverImageId = freezed,Object? coverImageUrl = freezed,Object? status = null,Object? createdAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? description = null,Object? categoryId = freezed,Object? categoryName = freezed,Object? eventDate = null,Object? eventTime = null,Object? venueName = freezed,Object? address = freezed,Object? districtId = freezed,Object? districtName = freezed,Object? provinceName = freezed,Object? locationLabel = freezed,Object? latitude = freezed,Object? longitude = freezed,Object? hasLocation = null,Object? organizer = freezed,Object? ticketPrice = freezed,Object? isFree = null,Object? isLocal = null,Object? coverImageId = freezed,Object? coverImageUrl = freezed,Object? status = null,Object? createdAt = freezed,}) {
   return _then(_Event(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -313,6 +331,10 @@ as String?,eventDate: null == eventDate ? _self.eventDate : eventDate // ignore:
 as DateTime,eventTime: null == eventTime ? _self.eventTime : eventTime // ignore: cast_nullable_to_non_nullable
 as String,venueName: freezed == venueName ? _self.venueName : venueName // ignore: cast_nullable_to_non_nullable
 as String?,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
+as String?,districtId: freezed == districtId ? _self.districtId : districtId // ignore: cast_nullable_to_non_nullable
+as String?,districtName: freezed == districtName ? _self.districtName : districtName // ignore: cast_nullable_to_non_nullable
+as String?,provinceName: freezed == provinceName ? _self.provinceName : provinceName // ignore: cast_nullable_to_non_nullable
+as String?,locationLabel: freezed == locationLabel ? _self.locationLabel : locationLabel // ignore: cast_nullable_to_non_nullable
 as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
 as double?,hasLocation: null == hasLocation ? _self.hasLocation : hasLocation // ignore: cast_nullable_to_non_nullable

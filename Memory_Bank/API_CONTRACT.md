@@ -2,7 +2,14 @@
 
 > **Amaç:** Flutter mobil istemcisinin tek referansı. Zarf şeması, hata kodları, auth akışı, sayfalama, tarih/görsel kuralları ve public uç envanteri.
 > **Makine-okur şema:** `docs/openapi.json` (OpenAPI 3.0; `openapi_generator`/`dio` ile kod üretimi için). Bu doküman insan rehberi, openapi.json kesin şema — **çeliştiğinde openapi.json + mevcut kod kazanır.**
-> Son gözden geçirme: **6 Ağustos 2026 (Faz 12.2b)** — public yüzeyde **değişiklik yok.**
+> Son gözden geçirme: **9 Ağustos 2026 (Faz 12.4)** — **etkinlik uçları additive olarak genişledi.**
+> `EventResponseDto`'ya dört alan (`districtId` · `districtName` · `provinceName` · **`locationLabel`**),
+> `GET /v1/events`'e üç süzgeç (`districtId` · **`locationScope`** · `onlyLocal`) eklendi.
+> **Hiçbir alan silinmedi/yeniden adlandırılmadı** → mağazadaki eski sürümler tek satır değişmeden
+> çalışır; yalnız `isLocal` artık **doğru** değeri taşıyor (12.4 öncesinde her kayıtta `false`'tu).
+> 🔑 `locationLabel` **sunucuda** üretilir ve `districts` için public bir lookup ucu **bilinçli olarak
+> eklenmedi**: istemcinin ilçe listesine ihtiyacı yok, etiket zaten DTO'da hazır geliyor.
+> Önceki: **6 Ağustos 2026 (Faz 12.2b)** — public yüzeyde **değişiklik yok.**
 > 12.2b bildirim *gönderimini* panele taşıdı ama kampanya bir **panel kavramı**: yeni public uç
 > eklenmedi, `NotificationDto`'ya `campaignId` **bilinçli olarak konmadı** (istemcinin gönderim
 > tarihçesiyle işi yok) ve `GET /v1/notifications` şekli aynı kaldı — yani mağazadaki eski
@@ -235,6 +242,12 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
 ### Etkinlik / Kampanya / İşletme
 - `GET /v1/events` (sayfalı; `?search=` başlık+mekan, `?categoryId=`, `?startDate=`/`?endDate=` (`yyyy-MM-dd`, gün dahil), `?isFree=`, **`?sort=date_asc|date_desc|title_asc|title_desc`** — varsayılan `date_desc`, bilinmeyen değer varsayılana düşer; `title_*` Faz 11.18'de panel sütun sıralaması için eklendi). ⚠️ **Yalnız `approved` döner** (`status` parametresi public uçta yok sayılır); `eventDate` "TR günü 00:00 UTC", `eventTime` ayrı `"HH:mm:ss"` alanı → **saat dilimi kaydırılmaz**.
 - `GET /v1/events/{id}`, `/events/categories` (sayfasız `{id,name,slug}` listesi), `/events/calendar?year=&month=` (sayfasız, o ayın onaylı etkinlikleri — ince DTO)
+- **Faz 12.4 — konum (additive, hem listede hem detayda):** `districtId` · `districtName` ("Kadirli", "Merkez") · `provinceName` ("Osmaniye", "Adana") · **`locationLabel`** — kullanıcıya gösterilecek **hazır** metin: `"Kadirli"` · `"Osmaniye / Merkez"` · `"Adana"`.
+  🔴 **Etiketi istemci kurmaz**, sunucuda tek yerde üretilir (`DistrictLabel`); ayrı kurulsaydı panel ile mobil aynı etkinliği farklı yazardı ve kimse hata almazdı (görünmez sözleşme #43). Konumu bilinmeyen kayıtta dördü de `null` — istemci rozeti **hiç çizmez**.
+  `isLocal` alanı 10.x'ten beri vardı ama panel hiç yazmıyordu (her kayıtta `false`); 12.4'ten beri **türetiliyor**: "ilçesi Kadirli mi" (#44). Alan adı ve tipi **değişmedi** → eski sürümler kırılmaz, yalnız değer artık doğru.
+- **Faz 12.4 — konum süzgeçleri:** `?districtId=` (tek ilçe) · **`?locationScope=local|province|nearby|away`** · `?onlyLocal=true|false` (kısayol, aynı enum'a çevrilir).
+  `local` = Kadirli · `province` = Osmaniye'nin tamamı (Kadirli dâhil) · `nearby` = **Osmaniye dışı** · `away` = Kadirli dışı.
+  🔴 **"Çevre iller" bir SUNUCU tanımıdır** — istemci yalnız `nearby` der, kümeyi kendisi hesaplamaz: sözlüğe yarın eklenen bir Osmaniye ilçesini eski sürümler çevre il sayardı. ⚠️ Bilinmeyen değer **varsayılana düşer** (liste boşalmaz, 400 gelmez).
 - `GET /v1/campaigns` (sayfalı; `?search=` kampanya başlığı + işletme adı, **`?sort=created_desc|created_asc|title_asc|title_desc|end_asc|end_desc`** — 11.18, varsayılan `created_desc`). ⚠️ Public uç **yalnız onaylı VE tarihi geçerli** kampanyaları döner (`OnlyActive` sabit) → süresi dolan kampanya listede de detayda da yok (`{id}` **404**). ⚠️ `discountCode` gövdede geliyor ama mobil onu göstermez; kod `view-code` ile açılır (sayaç esnafın ölçümü).
 - `GET /v1/campaigns/{id}`; `POST /v1/campaigns/{id}/view-code` `[A]` → `{code, viewedAt}`; aynı kullanıcı ikinci kez isterse **aynı kayıt** döner (sayaç artmaz), **kodsuz kampanyada 400 VALIDATION_ERROR**
 

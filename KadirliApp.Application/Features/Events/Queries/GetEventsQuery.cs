@@ -47,6 +47,13 @@ public class GetEventsQueryHandler : IRequestHandler<GetEventsQuery, PagedResult
         if (dto.IsFree.HasValue)
             query = query.Where(x => x.IsFree == dto.IsFree.Value);
 
+        // Faz 12.4 — konum. İlçe süzgeci tek bir kaydı, kapsam ise bir bölgeyi seçer;
+        // ikisi birlikte verilebilir (panelde "Osmaniye" + "Düziçi" gibi bir daralma).
+        if (dto.DistrictId.HasValue)
+            query = query.Where(x => x.DistrictId == dto.DistrictId.Value);
+
+        query = EventLocationScopes.Apply(query, EventLocationScopes.Parse(dto.LocationScope, dto.OnlyLocal));
+
         if (!string.IsNullOrWhiteSpace(dto.Search))
         {
             var search = dto.Search.ToLower();
@@ -64,32 +71,13 @@ public class GetEventsQueryHandler : IRequestHandler<GetEventsQuery, PagedResult
         // QueryEventDto'da yazılı) — SortMap'in rejectUnknown'ı bu modülde bilerek KAPALI.
         query = Common.Sorting.PanelSorts.Events.Apply(query, dto.Sort);
 
-        var items = await query
+        var rows = await query
             .Skip((page - 1) * limit)
             .Take(limit)
-            .Select(x => new EventResponseDto
-            {
-                Id = x.Id,
-                Title = x.Title,
-                Description = x.Description,
-                CategoryId = x.CategoryId,
-                CategoryName = x.Category.Name,
-                EventDate = x.EventDate,
-                EventTime = x.EventTime,
-                VenueName = x.VenueName,
-                Address = x.Address,
-                Latitude = x.Latitude,
-                Longitude = x.Longitude,
-                Organizer = x.Organizer,
-                TicketPrice = x.TicketPrice,
-                IsFree = x.IsFree,
-                IsLocal = x.IsLocal,
-                CoverImageId = x.CoverImageId,
-                CoverImageUrl = x.CoverImage != null ? x.CoverImage.CdnUrl : null,
-                Status = x.Status,
-                CreatedAt = x.CreatedAt
-            })
+            .Select(EventProjection.Select)
             .ToListAsync(cancellationToken);
+
+        var items = rows.Select(EventProjection.Finish).ToList();
 
         return new PagedResult<EventResponseDto>
         {

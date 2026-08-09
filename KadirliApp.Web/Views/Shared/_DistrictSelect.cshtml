@@ -1,0 +1,22 @@
+@model KadirliApp.Web.Models.DistrictSelectViewModel
+@*
+    Faz 12.4 — il başlıklarına göre gruplu ilçe seçimi.
+    Seçenek metni PanelDisplay.DistrictLabel()'dan gelir: panel ile mobil aynı konum adını yazar.
+*@
+<select name="@Model.Name" required="@(Model.Required ? "required" : null)" class="@Model.CssClass">
+    @if (Model.EmptyLabel is { } empty)
+    {
+        <option value="">@empty</option>
+    }
+    @foreach (var group in Model.Groups())
+    {
+        <optgroup label="@group.Key">
+            @foreach (var district in group)
+            {
+                <option value="@district.Id" selected="@(Model.Selected == district.Id ? "selected" : null)">
+                    @KadirliApp.Web.Common.PanelDisplay.DistrictLabel(district)@(district.IsActive ? null : " (pasif)")
+                </option>
+            }
+        </optgroup>
+    }
+</select>

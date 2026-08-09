@@ -13,6 +13,24 @@ public class EventResponseDto
     public TimeSpan EventTime { get; set; }
     public string? VenueName { get; set; }
     public string? Address { get; set; }
+
+    // ---- Faz 12.4: konum (additive — eski istemciler bu alanları yok sayar) ----
+
+    /// <summary>Sözlükteki ilçe kimliği; <c>null</c> = konumu bilinmeyen eski kayıt.</summary>
+    public Guid? DistrictId { get; set; }
+
+    /// <summary>İlçe adı ("Kadirli", "Merkez").</summary>
+    public string? DistrictName { get; set; }
+
+    /// <summary>İl adı ("Osmaniye", "Adana").</summary>
+    public string? ProvinceName { get; set; }
+
+    /// <summary>
+    /// 🔴 Kullanıcıya gösterilecek <b>hazır</b> konum metni ("Kadirli" · "Osmaniye / Merkez" ·
+    /// "Adana"). Sunucuda tek yerde üretilir (<c>DistrictLabel</c>) — istemcide üretilseydi
+    /// panel ile mobil aynı etkinliği farklı yazardı ve kimse hata almazdı.
+    /// </summary>
+    public string? LocationLabel { get; set; }
     public decimal? Latitude { get; set; }
     public decimal? Longitude { get; set; }
     public bool HasLocation => Latitude.HasValue && Longitude.HasValue;

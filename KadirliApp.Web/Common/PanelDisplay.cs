@@ -151,6 +151,23 @@ public static class PanelDisplay
     public static string? ModuleController(string moduleKey) =>
         PanelMenu.Items.FirstOrDefault(i => i.Module == moduleKey)?.Controller;
 
+    // ── Konum etiketi (Faz 12.4) ────────────────────────────────────────────────
+
+    /// <summary>
+    /// İlçenin kullanıcıya gösterilen konum adı ("Kadirli" · "Osmaniye / Merkez" · "Adana").
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>Kendi kuralını yazmaz</b>, <see cref="Application.Features.Lookups.DistrictLabel"/>'a
+    /// delege eder — mobil de aynı metni <c>locationLabel</c> alanından okuyor. Panelde ikinci
+    /// bir gerçekleme yazılsaydı aynı etkinlik panelde bir şey, mobilde başka bir şey yazardı
+    /// ve <b>kimse hata almazdı</b> (görünmez sözleşme #23'ün sınıfı).
+    /// </remarks>
+    public static string DistrictLabel(string? name, string? provinceName, bool isCenter)
+        => Application.Features.Lookups.DistrictLabel.For(name, provinceName, isCenter) ?? "—";
+
+    public static string DistrictLabel(Application.Features.Lookups.DistrictAdminDto district)
+        => DistrictLabel(district.Name, district.ProvinceName, district.IsCenter);
+
     /// <summary>Modülün menüdeki ikonu (arama sonuçlarını gruplarken kullanılıyor).</summary>
     public static string ModuleIcon(string moduleKey) =>
         PanelMenu.Items.FirstOrDefault(i => i.Module == moduleKey)?.Icon ?? "fa-circle";
@@ -201,6 +218,8 @@ public static class PanelDisplay
         ["delete-option"] = new("Seçenek sildi", "bg-red-100 text-red-800", "fa-trash"),
         ["create-neighborhood"] = new("Mahalle ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
         ["update-neighborhood"] = new("Mahalle güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
+        ["create-district"] = new("İlçe ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["update-district"] = new("İlçe güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
         ["create-cemetery"] = new("Mezarlık ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
         ["update-cemetery"] = new("Mezarlık güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
         ["create-mosque"] = new("Cami ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),

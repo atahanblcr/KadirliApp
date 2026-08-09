@@ -8,7 +8,7 @@
 > öğretici bir rehber değil (o `DOTNET_MASTERCLASS.md`), istemci kontratı değil
 > (o `Memory_Bank/API_CONTRACT.md`). Burası **harita**: bugün neyin nerede olduğu.
 >
-> Son güncelleme: 7 Ağustos 2026 (Faz 12.3 — kesinti mahalle referansı + mahalle bazlı bildirim).
+> Son güncelleme: 9 Ağustos 2026 (Faz 12.4 — etkinlik konumu: il / ilçe).
 
 ## Hangi dokümanı ne zaman okumalı
 
@@ -86,6 +86,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | Yol | İçerik |
 |---|---|
 | `KadirliApp.Domain/Entities/` | 50+ EF varlığı (`Ad`, `Announcement`, `Place`…) |
+| `KadirliApp.Infrastructure/Persistence/*Backfill.cs` | 🔑 Açılışta koşan **idempotent geri doldurmalar** (`PowerOutageNeighborhoodBackfill` 12.3, `EventDistrictBackfill` 12.4) — migration'da kör SQL değil, çünkü eşleştirme kuralı uygulama kodunda (§7 madde 40/45) |
 | `KadirliApp.Domain/Enums/` | `AdStatus`, `UserRole`, `PropertyType`… |
 | `KadirliApp.Domain/Common/` | `BaseEntity` (Id/CreatedAt/UpdatedAt), `ISoftDeletable` |
 | `KadirliApp.Application/Features/<Modül>/` | **24 modül**, her biri `Commands/`, `Queries/`, `Dtos/` |
@@ -147,7 +148,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | 15 | **Kimlik** | `Auth/` | `auth/login`, `auth/verify-otp`, `auth/register`, `auth/refresh`, `auth/logout` | `Account` | — | `auth/` | `/giris`, `/kayit` |
 | 16 | **Kullanıcı** | `Users/` | `users/me`, `users/me/notifications`, `users/me/ads`, `users/me/favorites`, `DELETE users/me` | `UsersAdmin` | `users` | `profile/`, `settings/` | Profil sekmesi, `/ayarlar` |
 | 17 | **Dosyalar** | `Files/` | `files/upload`, `DELETE files/{id}` | *(yok)* | — | `files/` | *(ekran yok — ortak repo)* |
-| 18 | **Sözlükler** | `Lookups/` | `neighborhoods` (+ modül içi `cemeteries`/`mosques`/`categories`) | `LookupsAdmin` | `lookups` | `lookups/` | *(ekran yok)* |
+| 18 | **Sözlükler** | `Lookups/` | `neighborhoods` (+ modül içi `cemeteries`/`mosques`/`categories`) · **`districts` public uç YOK** (etiket DTO'da hazır geliyor) | `LookupsAdmin` | `lookups` | `lookups/` | *(ekran yok)* |
 | 19 | **Personel** | `Staff/` | *(public uç yok)* | `StaffAdmin` | *(matris dışı — yalnız admin, **12.2'de düzeltildi**)* | *(yok)* | — |
 | 20 | **Panel istatistik** | `Dashboard/` | *(public uç yok)* | `Dashboard` | `dashboard` | *(yok)* | — |
 | 21 | **Denetim izi** | `Audit/` | *(public uç yok)* | `AuditLogsAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
@@ -385,7 +386,8 @@ Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıkla
 `Unit/Application/Security/`, **37–39 (Faz 12.2b)**
 `Integration/Panel/PanelPushCampaignTests.cs` + `Unit/Application/Notifications/`,
 **40–42 (Faz 12.3)** `Integration/Panel/PanelPowerOutageNeighborhoodTests.cs` +
-`Unit/Application/PowerOutages/`
+`Unit/Application/PowerOutages/`, **43–45 (Faz 12.4)**
+`Integration/Panel/PanelEventDistrictTests.cs` + `Unit/Application/Events/`
 içinde (panelin canlı denetiminde bulundular ve
 gerçek Postgres isterler). Biri kırmızıya dönerse ya sözleşme
 bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te güncelle) ya da kazadır.
@@ -434,6 +436,9 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | 40 | **`power_outages.neighborhood` metni `NeighborhoodId` doluyken SÖZLÜKTEN TÜRETİLİR** (`PowerOutageNeighborhoodResolver`), elle yazılmaz; geri doldurma da adı kanonikleştirir | Kolon bilerek duruyor: `GET /v1/power-outages` onu düz metin veriyor ve **mağazadaki eski sürümler mahalle eşleşmesini ad üzerinden** yapıyor (`power_outage.dart → matchesNeighborhood`). Türetme kalkarsa panelde "Cengiz Topel Mah." yazan bir kayıt, kullanıcının profilindeki "Cengiz Topel" ile tutmaz ve **"sadece mahallem" süzgeci sessizce boş kalır** — 12.3 öncesinde tam olarak bu oluyordu. ⚠️ Serbest metni sözlüğe bağlayan normalleştirmenin tek sahibi `SlugHelper` (madde 21): ikinci bir gerçekleme yazılırsa `'İ'` yüzünden kesinti **yanlış mahalleye** bağlanır ve o kaydın bildirimi **başka mahallenin sakinlerine** gider |
 | 41 | **Kesinti bildirimi ayrı bir tür değil, BİR DUYURUDUR** (`IPowerOutageAnnouncementWriter` — tek sahip): kesinti silinince duyurusu ve bildirimleri de silinir, **güncelleme ikinci duyuru üretmez** | Ayrı bir `relatedType` uydurulsaydı görünmez sözleşme #18 gereği eski sürümler bildirime dokunduğunda **sessizce hiçbir yere gitmezdi**. Silme temizliği #24'ün uzantısı: kalsalardı vatandaş bildirime dokunup **boş sayfaya** düşerdi (11.15c'de duyurularda birebir yaşandı, 9 ölü bildirim). Güncelleme yeniden üretseydi bir **yazım düzeltmesi** bile şehre ikinci bir push atardı. ⚠️ Yazıcı duyuruyu `Query(tracking: true)` ile almak zorunda — `Repository.Query()` varsayılan olarak **AsNoTracking**'tir ve `SoftRemove` bağlantısız nesneye yazınca duyuru "silinmiş görünür, `deleted_at` boş kalır", hiçbir hata oluşmaz (12.3'te canlı testte yakalandı) |
 | 42 | **Bildirim yalnız `NeighborhoodId` DOLU kesintide gönderilebilir**; hedefsiz kayıtta komut `NotTargetable` döner ve panel bunu **söyler** | Serbest metinli kayıt hedeflenemez. Kapı kalkarsa dispatcher'a **boş mahalle listesi** gider; `NotificationDispatcher`'da boş liste "kimseye" demek (null "herkese"), yani en iyi hâlde bildirim sessizce buharlaşır — panel "gönderildi" der, kimse almaz. Panel bu yüzden hem butonu kapatır hem sebebini yazar: sessizce "gönderildi" demek bu fazın savaştığı hasar sınıfının ta kendisi |
+| 43 | **`locationLabel` SUNUCUDA tek yerde üretilir** (`DistrictLabel.For`) ve liste ile detay **aynı** projeksiyondan (`EventProjection`) geçer. Panel de kendi biçimini yazmaz — `PanelDisplay.DistrictLabel()` aynı sınıfa delege eder | İstemcide üretilseydi panel "Osmaniye / Merkez", mobil "Merkez" yazardı ve **kimse hata almazdı** (madde 23'ün aynı sınıfı). Projeksiyon ayrışırsa daha sinsi: 12.4 öncesinde liste ve detay iki ayrı `Select` bloğuydu — yeni alanlar yalnız birine eklendiğinde **detay ekranı sessizce konumsuz kalır**, ne derleyici ne test yakalar. ⚠️ Ev ilçesi/ili karşılaştırması `SlugHelper`'dan geçer (madde 21): ham `ToLowerInvariant` ile Türkçe `İ` yüzünden **Kadirli etkinliği "çevre il" sayılırdı** |
+| 44 | **`Event.IsLocal` TÜRETİLMİŞTİR**: yazma anında `DistrictId`'den hesaplanır (`EventDistrictResolver` — tek sahip, Create ve Update aynı metottan geçer); formdan gelen değere **güvenilmez**. Ev ilçesinin çıpası `DistrictDefaults.HomeSlug` sabitidir, veritabanındaki bir bayrak değil | Kolon 10.x'ten beri DTO'da ve mobil onu okuyor — silmek kırıcı olurdu (§5), türetmek additive. İki komutta ayrı yazılsaydı biri güncellenip diğeri unutulduğunda kayıt **ilçesi Kadirli ama `IsLocal=false`** hâline düşer ve mobilin "Kadirli" süzgeci onu **hiç göstermezdi**. Çıpa bir DB bayrağı olsaydı panelden yanlışlıkla başka ilçeye taşınabilir ve o an **bütün etkinlikler sessizce "yerel değil"** olurdu — bu yüzden ev ilçesi panelden **yeniden adlandırılamaz ve pasifleştirilemez** |
+| 45 | **Etkinlikte ilçe ZORUNLUDUR** ve sözlükte **silme yoktur** (yalnız `IsActive`); `districts` FK'si `SetNull` | İkisi birlikte tek bir şeyi garanti eder: `district_id IS NULL` **yalnızca "12.4 öncesinden kalma"** demektir. `EventDistrictBackfill` her açılışta o satırları Kadirli'ye bağlıyor ve varsayımı ancak bu iki kapı ayakta tutuyor — biri kalkarsa yöneticinin **bilerek boş bıraktığı** bir kayıt bir sonraki açılışta sessizce "Kadirli" olur. ⚠️ Geri doldurma silinmişleri de tarar (`IgnoreQueryFilters`): çöp kutusundan geri gelen etkinlik ilçesiz olurdu |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 
@@ -498,6 +503,8 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | **Bildirim gönderimleri** | `Integration/Panel/PanelPushCampaignTests.cs` | §7 madde **37–39**: hedeflemenin tek sahibi mi (önizleme ↔ gönderim aynı sayı), bildirim tercihi manuel gönderimde de uygulanıyor mu, sayaçlar artımlı mı ve ikinci koşuda **artmıyor** mu, kampanya gerçekten **tamamlanıyor** mu, iptal yalnız gönderilmemişe dokunuyor mu, ekran matris dışında mı, istemciden gelmeyen ama panelde basılan metin **kaçırılıyor** mu |
 | **Kampanya durumu** | `Unit/Application/Notifications/PushCampaignStatusTests.cs` | Saf mantık, container'sız: durum önceliği (iptal > boş > tamamlandı > gönderiliyor > kuyrukta), bekleyen sayısının negatife düşmemesi |
 | **Kesinti mahalle referansı** | `Integration/Panel/PanelPowerOutageNeighborhoodTests.cs` | §7 madde **40–42**: mahalle adı formdan değil **sözlükten** yazılıyor mu, kesinti bildirimi duyuru üretip **yalnız o mahalleye** yazıyor mu, güncelleme **ikinci bildirim üretmiyor** mu, silme duyuru+bildirimleri götürüyor mu, FK'sız kayıt bildirim gönderemiyor mu, önizleme ↔ gerçek alıcı sayısı **aynı** mı, geri doldurma idempotent ve var olan bağı **ezmiyor** mu, uç hâlâ **düz dizi** mi (#1) |
+| **Etkinlik konumu (il/ilçe)** | `Integration/Panel/PanelEventDistrictTests.cs` | §7 madde **43–45**: `IsLocal` formdan değil **ilçeden** türetiliyor mu (güncellemede de), ilçesiz kayıt **reddediliyor** mu, `locationLabel` her kapsamda doğru mu, **liste ile detay aynı** konum alanlarını mı döndürüyor, kapsam süzgeçleri (`local`/`province`/`nearby`) doğru mu, **bilinmeyen kapsam listeyi boşaltmıyor** mu, panel/CSV aynı etiketi mi yazıyor, form ilçeleri `<optgroup>` ile mi grupluyor, **ev ilçesi yeniden adlandırılamıyor** mu |
+| **Konum etiketi / kapsam** | `Unit/Application/Events/` | Saf mantık, container'sız: etiket kuralının üç dalı ("Kadirli" · "Osmaniye / Merkez" · "Adana"), Türkçe `İ`'ye rağmen ev ilçesinin tanınması (madde 21), il+ilçe slug'ının çakışmaması (her ilin bir "Merkez"i var), kapsam değerlerinin gidiş-dönüşü ve **bilinmeyen değerin varsayılana düşmesi** |
 | **Mahalle eşleştirme / bildirim metni** | `Unit/Application/PowerOutages/` | Saf mantık, container'sız: "X Mahallesi" → sözlükteki "X" (ek kırpma), Türkçe `İ` (madde 21), eşleşmenin **tam** olması (yanlış mahalleye bağlamak hiç bağlamamaktan kötü); duyuru gövdesinde saatin **TR yerel** yazılması ve gün aşan kesintide bitiş **tarihinin** de yazılması |
 | **Önbellek sözleşmesi** | `Unit/Application/Caching/CacheContractTests.cs` | Grup adları sabit mi, her grubun invalidator'ı var mı, anahtar filtreyle değişiyor mu |
 | **Önbellek davranışı** | `Integration/Panel/CacheInvalidationTests.cs` | Gerçek Redis: önce **bayat veri döndüğü** gösterilir, sonra mutasyonun temizlediği |

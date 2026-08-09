@@ -51,16 +51,47 @@ final eventDetailProvider = FutureProvider.autoDispose.family<Event, String>(
 /// geçmiş ayrı bir chip'in arkasında.
 enum EventScope { upcoming, past }
 
+/// Listenin konum kapsamı (Faz 12.4).
+///
+/// ⚠️ Değerler sunucunun `locationScope` sözlüğüyle **birebir** aynı olmak
+/// zorunda: tanınmayan bir değer 400 üretmez, **sessizce yok sayılır** ve
+/// kullanıcı süzülmemiş listeye bakarken filtreyi seçili görür.
+enum EventPlace {
+  /// Süzgeç yok — her yer.
+  all(null, 'Tümü'),
+
+  /// Yalnız Kadirli.
+  local('local', 'Kadirli'),
+
+  /// Osmaniye ilinin tamamı (Kadirli dâhil).
+  province('province', 'Osmaniye'),
+
+  /// Osmaniye dışı — tanımın sahibi sunucu.
+  nearby('nearby', 'Çevre iller');
+
+  const EventPlace(this.query, this.label);
+
+  /// `?locationScope=` değeri; `null` ise parametre hiç gönderilmez.
+  final String? query;
+
+  final String label;
+}
+
 @immutable
 class EventFilter {
   const EventFilter({
     this.scope = EventScope.upcoming,
+    this.place = EventPlace.all,
     this.categoryId,
     this.search = '',
     this.onlyFree = false,
   });
 
   final EventScope scope;
+
+  /// Faz 12.4 — konum kapsamı.
+  final EventPlace place;
+
   final String? categoryId;
   final String search;
 
@@ -71,18 +102,21 @@ class EventFilter {
   /// Varsayılandan (yaklaşan + filtresiz) sapıldı mı — "Filtreleri temizle".
   bool get isActive =>
       scope != EventScope.upcoming ||
+      place != EventPlace.all ||
       categoryId != null ||
       search.trim().isNotEmpty ||
       onlyFree;
 
   EventFilter copyWith({
     EventScope? scope,
+    EventPlace? place,
     String? categoryId,
     bool clearCategory = false,
     String? search,
     bool? onlyFree,
   }) => EventFilter(
     scope: scope ?? this.scope,
+    place: place ?? this.place,
     categoryId: clearCategory ? null : (categoryId ?? this.categoryId),
     search: search ?? this.search,
     onlyFree: onlyFree ?? this.onlyFree,
@@ -92,12 +126,13 @@ class EventFilter {
   bool operator ==(Object other) =>
       other is EventFilter &&
       other.scope == scope &&
+      other.place == place &&
       other.categoryId == categoryId &&
       other.search == search &&
       other.onlyFree == onlyFree;
 
   @override
-  int get hashCode => Object.hash(scope, categoryId, search, onlyFree);
+  int get hashCode => Object.hash(scope, place, categoryId, search, onlyFree);
 }
 
 typedef EventsFeedState = PagedFeedState<Event, EventFilter>;
@@ -131,6 +166,7 @@ class EventsFeedController extends PagedFeedController<Event, EventFilter> {
           // ⚠️ Yaklaşan listede sıralama **artan** olmalı: sunucunun varsayılan
           // `date_desc`i ilk sayfaya en UZAK tarihli etkinlikleri koyuyordu.
           sort: isUpcoming ? 'date_asc' : 'date_desc',
+          locationScope: filter.place.query,
         );
   }
 
@@ -149,6 +185,14 @@ class EventsFeedController extends PagedFeedController<Event, EventFilter> {
 
   void selectScope(EventScope scope) =>
       applyFilter(state.filter.copyWith(scope: scope));
+
+  /// Faz 12.4 — konum kapsamı. Aynı chip'e tekrar dokunmak süzgeci kaldırır
+  /// (kategori şeridiyle aynı davranış).
+  void selectPlace(EventPlace place) => applyFilter(
+    state.filter.copyWith(
+      place: state.filter.place == place ? EventPlace.all : place,
+    ),
+  );
 
   void toggleFreeOnly() =>
       applyFilter(state.filter.copyWith(onlyFree: !state.filter.onlyFree));

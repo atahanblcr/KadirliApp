@@ -23,9 +23,13 @@ idempotent geri doldurma) ve **kendiliğinden bildirim gönderiyor** — kesinti
 *duyurudur*, yani mobilde tek satır değişmeden mağazadaki eski sürümler de alıyor.
 Ayrıca **12.2'den devralınan mobil çökmenin kök nedeni bulundu ve kilitlendi**
 (kabuk rotasına `push` → mükerrer sayfa anahtarı; tek sahip `core/router/app_nav.dart`).
-**729 backend + 696 mobil test, 42 görünmez sözleşme.**
+**12.4 bitti:** etkinlik artık sözlükteki bir **ilçeye** bağlı (`districts` + `Event.DistrictId`,
+idempotent geri doldurma); `IsLocal` o bağdan **türetiliyor** ve `locationLabel` **sunucuda tek
+yerde** üretiliyor. Mobilde kartta konum rozeti + **Kadirli · Osmaniye · Çevre iller** şeridi var —
+"çevre iller" bir *sunucu* tanımı, istemci yalnız `?locationScope=nearby` diyor.
+**784 backend + 703 mobil test, 45 görünmez sözleşme.**
 
-**⏭️ Sırada 12.4:** etkinlik konumu (il/ilçe).
+**⏭️ Sırada 12.5:** ulaşım alan modeli (araç tipi · kalkış noktası · sefer günleri).
 Plan: `Memory_Bank/Progress.md` → "FAZ 12".
 
 > 🔑 **Panel süper admin parolası** `secrets/panel-admin.json`'dadır (git'e girmez; biçim ve
@@ -69,14 +73,15 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 42 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 45 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
 31–33 `PanelErrorLogTests.cs` + `Unit/Application/Observability/`,
 34–36 `PanelLoginAttemptTests.cs` + `Unit/Application/Security/`,
 37–39 `PanelPushCampaignTests.cs` + `Unit/Application/Notifications/`,
-40–42 `PanelPowerOutageNeighborhoodTests.cs` + `Unit/Application/PowerOutages/`.
+40–42 `PanelPowerOutageNeighborhoodTests.cs` + `Unit/Application/PowerOutages/`,
+43–45 `PanelEventDistrictTests.cs` + `Unit/Application/Events/`.
 
 ## Değişmez kurallar
 

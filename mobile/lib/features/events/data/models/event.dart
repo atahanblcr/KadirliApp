@@ -24,6 +24,17 @@ abstract class Event with _$Event {
     @Default('00:00:00') String eventTime,
     String? venueName,
     String? address,
+
+    // ---- Faz 12.4: konum ----
+    String? districtId,
+    String? districtName,
+    String? provinceName,
+
+    /// Sunucuda üretilen hazır konum metni ("Kadirli" · "Osmaniye / Merkez" ·
+    /// "Adana"). ⚠️ İstemci bunu **kendisi kurmaz**: kural sunucuda tek yerde
+    /// (`DistrictLabel`) yaşıyor, burada da kurulsaydı panel ile mobil aynı
+    /// etkinliği farklı yazardı ve kimse hata almazdı.
+    String? locationLabel,
     double? latitude,
     double? longitude,
     @Default(false) bool hasLocation,
@@ -93,11 +104,24 @@ abstract class Event with _$Event {
     return AppMoney.amount(price);
   }
 
+  /// Kartta gösterilecek konum metni; sunucu göndermediyse (12.4 öncesinden kalan
+  /// kayıt ya da mağazadaki eski sunucu) rozet **hiç çizilmez** — "Konum yok"
+  /// yazmak bilgi değil gürültüdür.
+  String? get locationBadge {
+    final label = locationLabel?.trim();
+    return (label == null || label.isEmpty) ? null : label;
+  }
+
   bool get canOpenMap => latitude != null && longitude != null;
 
   /// Haritada aranabilir bir ipucu var mı (koordinat ya da adres/mekan adı).
+  ///
+  /// ⚠️ Faz 12.4'ten beri **ilçe ve il de eklenir**: koordinatsız bir Adana
+  /// etkinliğinde "Kültür Merkezi" araması kullanıcıyı Kadirli'deki bir yere
+  /// götürüyordu. Etiket (`locationLabel`) değil ham ad kullanılır — "Osmaniye /
+  /// Merkez" biçimindeki eğik çizgi harita aramasını bozar.
   String? get mapQuery {
-    final parts = [venueName, address]
+    final parts = [venueName, address, districtName, provinceName]
         .map((value) => value?.trim())
         .where((value) => value != null && value.isNotEmpty)
         .join(', ');

@@ -137,6 +137,8 @@ class _ListTabState extends ConsumerState<_ListTab> {
         AppSpacing.gapMd,
         const _ScopeFilter(),
         AppSpacing.gapSm,
+        const _PlaceFilter(),
+        AppSpacing.gapSm,
         const _CategoryFilter(),
         AppSpacing.gapSm,
         Expanded(child: _ListBody(scrollController: _scrollController)),
@@ -183,6 +185,50 @@ class _ScopeFilter extends ConsumerWidget {
             selected: filter.onlyFree,
             onTap: controller.toggleFreeOnly,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Konum şeridi (Faz 12.4): Kadirli · Osmaniye · Çevre iller.
+///
+/// ⚠️ Şerit **sabit** — bir uçtan beslenmiyor, çünkü üç kapsamın tanımı sunucuda
+/// (`locationScope`) yaşıyor ve ilçe listesinin kendisi kullanıcıya sorulmuyor.
+/// "Tümü" ayrı bir chip değil: seçili chip'e tekrar dokunmak süzgeci kaldırıyor
+/// (kategori şeridiyle aynı el alışkanlığı).
+class _PlaceFilter extends ConsumerWidget {
+  const _PlaceFilter();
+
+  static const _places = [
+    EventPlace.local,
+    EventPlace.province,
+    EventPlace.nearby,
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(
+      eventsFeedProvider.select((state) => state.filter.place),
+    );
+    final controller = ref.read(eventsFeedProvider.notifier);
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      child: Row(
+        children: [
+          for (final place in _places) ...[
+            if (place != _places.first) AppSpacing.wGapSm,
+            // ⚠️ `dense` + ikonsuz: üç chip 360 dp'de ikonlarıyla taşıyordu —
+            // zaman şeridinde (`_ScopeFilter`) aynı karar aynı sebeple alındı.
+            FilterChoiceChip(
+              label: place.label,
+              dense: true,
+              selected: selected == place,
+              onTap: () => controller.selectPlace(place),
+            ),
+          ],
         ],
       ),
     );

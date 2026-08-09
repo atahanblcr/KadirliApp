@@ -55,8 +55,13 @@ class EventDetailScreen extends ConsumerWidget {
   static String _shareText(Event event) {
     final buffer = StringBuffer('🎉 ${event.title}');
     buffer.write('\n🗓 ${AppDate.date(event.eventDate)} · ${event.timeLabel}');
-    final venue = (event.venueName ?? '').trim();
-    if (venue.isNotEmpty) buffer.write('\n📍 $venue');
+    // Faz 12.4: paylaşılan metinde konum da var — WhatsApp'ta dolaşan bir
+    // etkinlik duyurusunda "nerede" sorusu en çok sorulan ikinci şey.
+    final place = [
+      (event.venueName ?? '').trim(),
+      event.locationBadge ?? '',
+    ].where((value) => value.isNotEmpty).join(' · ');
+    if (place.isNotEmpty) buffer.write('\n📍 $place');
     final price = event.priceLabel;
     if (price != null) buffer.write('\n🎟 $price');
     if (event.description.trim().isNotEmpty) {
@@ -206,12 +211,23 @@ class _Content extends StatelessWidget {
         ),
 
         // --- Nerede ---
-        if (venue.isNotEmpty || address.isNotEmpty || event.canOpenMap) ...[
+        if (venue.isNotEmpty ||
+            address.isNotEmpty ||
+            event.canOpenMap ||
+            event.locationBadge != null) ...[
           AppSpacing.gapLg,
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Faz 12.4 — ilçe. Mekan adının ÜSTÜNDE: "Adana" bilgisi olmadan
+                // "Kültür Merkezi" yazan bir satır kullanıcıyı yanıltıyordu.
+                if (event.locationBadge case final location?)
+                  InfoRow(
+                    icon: Icons.location_city_rounded,
+                    label: 'İlçe',
+                    value: location,
+                  ),
                 if (venue.isNotEmpty)
                   InfoRow(
                     icon: Icons.place_rounded,

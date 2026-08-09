@@ -32,11 +32,16 @@ class EventCard extends StatelessWidget {
     final countdown = event.countdownLabel(now: now);
     final isPast = event.isPast(now: now);
     final price = event.priceLabel;
+    final location = event.locationBadge;
 
     return AppCard(
       onTap: onTap,
       padding: const EdgeInsets.all(AppSpacing.md),
-      semanticLabel: '${event.title}, ${DateFormat('d MMMM', 'tr_TR').format(day)}',
+      // Konum ekran okuyucuya da söylenir: rozet görsel bir ipucu olarak kalırsa
+      // "bu etkinlik nerede" sorusu erişilebilirlik tarafında cevapsız kalır.
+      semanticLabel:
+          '${event.title}, ${DateFormat('d MMMM', 'tr_TR').format(day)}'
+          '${location == null ? '' : ', $location'}',
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -72,6 +77,16 @@ class EventCard extends StatelessWidget {
                       _Meta(
                         icon: Icons.place_rounded,
                         text: event.venueName!.trim(),
+                      ),
+                    // Faz 12.4 — konum. Mekan adıyla aynı `Wrap` içinde: ikisi de
+                    // "nerede" sorusunun parçası ve dar sütunda alt satıra iniyor.
+                    // ⚠️ `_Meta` içi `Flexible`+ellipsis — bu projede `Row` içine
+                    // giren çıplak `Text` yedi kez taşma üretti.
+                    if (location != null)
+                      _Meta(
+                        icon: Icons.map_rounded,
+                        text: location,
+                        emphasized: event.isLocal,
                       ),
                   ],
                 ),
@@ -161,26 +176,38 @@ class _DateBadge extends StatelessWidget {
 }
 
 class _Meta extends StatelessWidget {
-  const _Meta({required this.icon, required this.text});
+  const _Meta({
+    required this.icon,
+    required this.text,
+    this.emphasized = false,
+  });
 
   final IconData icon;
   final String text;
+
+  /// Kendi ilçemizdeki etkinlik: renk vurgusu alır. ⚠️ Renk **tek başına** anlam
+  /// taşımaz — metin ("Kadirli") zaten orada, vurgu yalnız göz için.
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = theme.palette;
+    final color = emphasized ? theme.colorScheme.primary : palette.muted;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: palette.muted),
+        Icon(icon, size: 14, color: color),
         AppSpacing.wGapXs,
         // ⚠️ Wrap çocuğuna sınırlı genişlik verir → çıplak Text taşar.
         Flexible(
           child: Text(
             text,
-            style: theme.textTheme.bodySmall?.copyWith(color: palette.muted),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: color,
+              fontWeight: emphasized ? FontWeight.w600 : null,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

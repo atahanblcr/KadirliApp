@@ -33,6 +33,7 @@ public class AppDbContext : DbContext
     public DbSet<Cemetery> Cemeteries => Set<Cemetery>();
     public DbSet<Complaint> Complaints => Set<Complaint>();
     public DbSet<DeathNotice> DeathNotices => Set<DeathNotice>();
+    public DbSet<District> Districts => Set<District>();
     public DbSet<Event> Events => Set<Event>();
     public DbSet<EventCategory> EventCategories => Set<EventCategory>();
     public DbSet<EventImage> EventImages => Set<EventImage>();

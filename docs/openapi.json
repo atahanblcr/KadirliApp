@@ -2929,6 +2929,28 @@
                         }
                     },
                     {
+                        "name": "DistrictId",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "OnlyLocal",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "LocationScope",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
                         "name": "Sort",
                         "in": "query",
                         "schema": {
@@ -3107,6 +3129,28 @@
                         "in": "query",
                         "schema": {
                             "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "DistrictId",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "OnlyLocal",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "LocationScope",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     {
@@ -7586,6 +7630,11 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "districtId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
                     "latitude": {
                         "type": "number",
                         "format": "double",
@@ -7622,6 +7671,25 @@
                     },
                     "autoApprove": {
                         "type": "boolean"
+                    },
+                    "auditModule": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditAction": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditAffectedType": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditDetails": {
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "additionalProperties": false
@@ -8463,6 +8531,23 @@
                         "nullable": true
                     },
                     "address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "districtId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "districtName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "provinceName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "locationLabel": {
                         "type": "string",
                         "nullable": true
                     },
@@ -10015,6 +10100,11 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "districtId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
                     "latitude": {
                         "type": "number",
                         "format": "double",
@@ -10051,6 +10141,31 @@
                     "status": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "auditModule": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditAction": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditAffectedId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditAffectedType": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditDetails": {
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "additionalProperties": false
@@ -10796,7 +10911,7 @@
         "securitySchemes": {
             "Bearer": {
                 "type": "http",
-                "description": "JWT access token \u2014 sadece token'\u0131 yap\u0131\u015ft\u0131r\u0131n ('Bearer' \u00f6neki otomatik).",
+                "description": "JWT access token — sadece token'ı yapıştırın ('Bearer' öneki otomatik).",
                 "scheme": "bearer",
                 "bearerFormat": "JWT"
             }

@@ -25,6 +25,7 @@ class EventsRepository {
     String? endDate,
     bool? isFree,
     String? sort,
+    String? locationScope,
   }) => _api.getPaged(
     '/v1/events',
     Event.fromJson,
@@ -37,6 +38,10 @@ class EventsRepository {
       'endDate': ?_blankToNull(endDate),
       'isFree': ?isFree,
       'sort': ?_blankToNull(sort),
+      // Faz 12.4 — "Çevre iller"in ne demek olduğunu SUNUCU bilir; istemci yalnız
+      // `nearby` der. Burada "Osmaniye dışı" diye hesaplansaydı, sözlüğe yarın
+      // eklenen bir Osmaniye ilçesini mağazadaki eski sürümler çevre il sayardı.
+      'locationScope': ?_blankToNull(locationScope),
     },
   );
 

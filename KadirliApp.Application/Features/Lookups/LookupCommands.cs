@@ -366,6 +366,97 @@ public sealed class UpdatePlaceCategoryCommandHandler : IRequestHandler<UpdatePl
     }
 }
 
+// ---------- İl / ilçe (Faz 12.4) ----------
+//
+// ⚠️ Diğer lookup'lardan farkı: benzersizlik **ad üzerinden değil, il+ilçe üzerinden**dir.
+// Ada bakılsaydı ikinci bir "Merkez" hiç eklenemezdi — her ilin bir merkezi var.
+
+public sealed record CreateDistrictCommand(string ProvinceName, string Name, bool IsCenter, int DisplayOrder)
+    : LookupsInvalidatorBase, IRequest<Guid>, IAuditableCommand
+{
+    public string AuditModule => "lookups";
+    public string AuditAction => "create-district";
+    public string? AuditAffectedType => "District";
+    public object? AuditDetails => new { province = ProvinceName, name = Name };
+}
+
+public sealed class CreateDistrictCommandHandler : IRequestHandler<CreateDistrictCommand, Guid>
+{
+    private readonly IUnitOfWork _uow;
+    public CreateDistrictCommandHandler(IUnitOfWork uow) => _uow = uow;
+
+    public async Task<Guid> Handle(CreateDistrictCommand request, CancellationToken ct)
+    {
+        var repo = _uow.Repository<District>();
+        var (province, name, slug) = await LookupRules.ValidateDistrictAsync(repo.Query(), request.ProvinceName, request.Name, null, ct);
+
+        var district = new District
+        {
+            Name = name,
+            Slug = slug,
+            ProvinceName = province,
+            IsCenter = request.IsCenter,
+            DisplayOrder = request.DisplayOrder,
+            IsActive = true
+        };
+
+        await repo.AddAsync(district, ct);
+        await _uow.SaveChangesAsync(ct);
+        return district.Id;
+    }
+}
+
+public sealed record UpdateDistrictCommand(Guid Id, string ProvinceName, string Name, bool IsCenter, int DisplayOrder, bool IsActive)
+    : LookupsInvalidatorBase, IRequest<bool>, IAuditableCommand
+{
+    public string AuditModule => "lookups";
+    public string AuditAction => "update-district";
+    public Guid? AuditAffectedId => Id;
+    public string? AuditAffectedType => "District";
+    public object? AuditDetails => new { province = ProvinceName, name = Name, isActive = IsActive };
+}
+
+public sealed class UpdateDistrictCommandHandler : IRequestHandler<UpdateDistrictCommand, bool>
+{
+    private readonly IUnitOfWork _uow;
+    public UpdateDistrictCommandHandler(IUnitOfWork uow) => _uow = uow;
+
+    public async Task<bool> Handle(UpdateDistrictCommand request, CancellationToken ct)
+    {
+        var repo = _uow.Repository<District>();
+        var district = await repo.GetByIdAsync(request.Id, ct);
+        if (district == null) return false;
+
+        var wasHome = string.Equals(district.Slug, DistrictDefaults.HomeSlug, StringComparison.Ordinal);
+        var (province, name, slug) = await LookupRules.ValidateDistrictAsync(repo.Query(), request.ProvinceName, request.Name, request.Id, ct);
+
+        // 🔴 Ev ilçesi ne yeniden adlandırılabilir ne de pasifleştirilebilir. Kadirli'nin slug'ı
+        // `IsLocal` türetmesinin çıpası (DistrictDefaults.HomeSlug): değişirse o günden sonra
+        // yazılan HER etkinlik "yerel değil" olur, mobilin "Kadirli" süzgeci boşalır ve
+        // hiçbir yerde hata görünmez.
+        if (wasHome && !string.Equals(slug, DistrictDefaults.HomeSlug, StringComparison.Ordinal))
+            throw new AppException(
+                $"{DistrictDefaults.HomeDistrictName} ilçesinin adı veya ili değiştirilemez (uygulamanın kendi ilçesi).",
+                "VALIDATION_ERROR");
+
+        if (wasHome && !request.IsActive)
+            throw new AppException(
+                $"{DistrictDefaults.HomeDistrictName} ilçesi pasifleştirilemez (uygulamanın kendi ilçesi).",
+                "VALIDATION_ERROR");
+
+        district.Name = name;
+        district.Slug = slug;
+        district.ProvinceName = province;
+        district.IsCenter = request.IsCenter;
+        district.DisplayOrder = request.DisplayOrder;
+        district.IsActive = request.IsActive;
+
+        repo.Update(district);
+        await _uow.SaveChangesAsync(ct);
+        return true;
+    }
+}
+
 // ---------- Ortak kurallar ----------
 
 internal static class LookupRules
@@ -404,5 +495,31 @@ internal static class LookupRules
             throw new ConflictException($"Bu slug ile bir {label} kaydı zaten var.");
 
         return (name, slug);
+    }
+
+    /// <summary>
+    /// Faz 12.4 — il + ilçe denetimi. Slug <b>ikisinden birden</b> üretilir
+    /// (<see cref="DistrictDefaults.SlugFor"/>), benzersizlik de onun üzerinden kurulur:
+    /// ada bakan bir denetim ikinci bir "Merkez"i reddederdi.
+    /// </summary>
+    public static async Task<(string Province, string Name, string Slug)> ValidateDistrictAsync(
+        IQueryable<District> query, string? rawProvince, string? rawName, Guid? excludeId, CancellationToken ct)
+    {
+        var province = rawProvince?.Trim();
+        var name = rawName?.Trim();
+
+        if (string.IsNullOrWhiteSpace(province) || province.Length < 2)
+            throw new AppException("Geçerli bir il adı girin (en az 2 karakter).", "VALIDATION_ERROR");
+        if (string.IsNullOrWhiteSpace(name) || name.Length < 2)
+            throw new AppException("Geçerli bir ilçe adı girin (en az 2 karakter).", "VALIDATION_ERROR");
+
+        var slug = DistrictDefaults.SlugFor(province, name);
+        if (slug.Length == 0)
+            throw new AppException("İl/ilçe adı geçerli karakter içermiyor.", "VALIDATION_ERROR");
+
+        if (await query.AnyAsync(x => x.Slug == slug && (excludeId == null || x.Id != excludeId), ct))
+            throw new ConflictException("Bu il ve ilçe zaten kayıtlı.");
+
+        return (province, name, slug);
     }
 }

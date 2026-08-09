@@ -32,7 +32,13 @@ public class EventsAdminController : Controller
     private async Task LoadCategoriesAsync()
     {
         ViewBag.Categories = await _uow.Repository<EventCategory>().Query().OrderBy(x => x.Name).ToListAsync();
+        // Faz 12.4: ilçe listesi form ve süzgeç için aynı sorgudan gelir (il başlığına göre sıralı).
+        ViewBag.Districts = await _sender.Send(new Application.Features.Lookups.GetDistrictsAdminQuery());
     }
+
+    /// <summary>Faz 12.4 — yeni etkinlikte önceden seçili gelen ilçe: Kadirli.</summary>
+    private static Guid? HomeDistrictId(IReadOnlyList<Application.Features.Lookups.DistrictAdminDto> districts)
+        => districts.FirstOrDefault(d => d.IsHome)?.Id;
 
     private Guid GetAdminId()
     {
@@ -43,7 +49,15 @@ public class EventsAdminController : Controller
     [HttpGet]
     public async Task<IActionResult> Index([FromQuery] QueryEventDto query)
     {
-        var result = await _sender.Send(new GetEventsQuery(query ?? new QueryEventDto()));
+        query ??= new QueryEventDto();
+        var result = await _sender.Send(new GetEventsQuery(query));
+
+        // Faz 12.4 — ilçe süzgeci. Şeritteki değerler ekrana ham basılmaz
+        // (EventLocationScopes.Label → Türkçe), Değişmez Kural #6.
+        ViewBag.Districts = await _sender.Send(new Application.Features.Lookups.GetDistrictsAdminQuery());
+        ViewBag.DistrictId = query.DistrictId;
+        ViewBag.LocationScope = Application.Features.Events.EventLocationScopes.Parse(query.LocationScope, query.OnlyLocal);
+
         return View(result);
     }
 
@@ -77,6 +91,9 @@ public class EventsAdminController : Controller
         new("Tarih", x => x.EventDate.ToString("dd.MM.yyyy")),
         new("Saat", x => x.EventTime.ToString(@"hh\:mm")),
         new("Yer", x => x.VenueName),
+        // Faz 12.4: konum. Etiket sunucudan geldiği gibi yazılır — CSV'de ayrı bir
+        // biçimlendirme yazılsaydı dosya ile ekran farklı konum gösterirdi.
+        new("Konum", x => x.LocationLabel),
         new("Düzenleyen", x => x.Organizer),
         new("Bilet", x => x.IsFree ? "Ücretsiz" : Common.PanelCsv.Number(x.TicketPrice)),
         new("Oluşturulma", x => Common.PanelCsv.Date(x.CreatedAt)),
@@ -103,7 +120,13 @@ public class EventsAdminController : Controller
     public async Task<IActionResult> Create(DateTime? date)
     {
         await LoadCategoriesAsync();
-        return View(new CreateEventCommand { EventDate = date?.Date ?? DateTime.Today });
+        return View(new CreateEventCommand
+        {
+            EventDate = date?.Date ?? DateTime.Today,
+            // Etkinliklerin ezici çoğunluğu Kadirli'de; ilçe zorunlu olduğu için
+            // varsayılan seçili gelmezse her kayıtta bir tıklama daha gerekirdi.
+            DistrictId = HomeDistrictId((IReadOnlyList<Application.Features.Lookups.DistrictAdminDto>)ViewBag.Districts)
+        });
     }
 
     [HttpPost]
@@ -120,7 +143,19 @@ public class EventsAdminController : Controller
         command.CreatedBy = GetAdminId();
         command.AutoApprove = true;
 
-        await _sender.Send(command);
+        try
+        {
+            await _sender.Send(command);
+        }
+        catch (Application.Common.Exceptions.AppException ex)
+        {
+            // Faz 12.4: ilçe doğrulaması komutta — mesajı yutup boş bir "hata oluştu"
+            // göstermek, yöneticiye neyi düzelteceğini söylemezdi.
+            TempData["Error"] = ex.Message;
+            await LoadCategoriesAsync();
+            return View(command);
+        }
+
         TempData["Success"] = "Etkinlik başarıyla oluşturuldu.";
         return RedirectToAction(nameof(Index));
     }
@@ -145,6 +180,7 @@ public class EventsAdminController : Controller
             EventTime = ev.EventTime,
             VenueName = ev.VenueName,
             Address = ev.Address,
+            DistrictId = ev.DistrictId,
             Latitude = ev.Latitude,
             Longitude = ev.Longitude,
             Organizer = ev.Organizer,
@@ -173,7 +209,18 @@ public class EventsAdminController : Controller
         var newImageId = await UploadHelper.UploadAsync(_sender, CoverImage, "event", GetAdminId());
         if (newImageId.HasValue) command.CoverImageId = newImageId;
 
-        var success = await _sender.Send(command);
+        bool success;
+        try
+        {
+            success = await _sender.Send(command);
+        }
+        catch (Application.Common.Exceptions.AppException ex)
+        {
+            TempData["Error"] = ex.Message;
+            await LoadCategoriesAsync();
+            return View(command);
+        }
+
         if (success)
         {
             TempData["Success"] = "Etkinlik başarıyla güncellendi.";

@@ -19,6 +19,21 @@ public class QueryEventDto
     /// <summary>true → yalnızca ücretsiz, false → yalnızca ücretli etkinlikler.</summary>
     public bool? IsFree { get; set; }
 
+    /// <summary>Faz 12.4: tek bir ilçe (panelin ilçe süzgeci).</summary>
+    public Guid? DistrictId { get; set; }
+
+    /// <summary>
+    /// Faz 12.4 kısayolu: <c>true</c> → yalnız Kadirli, <c>false</c> → Kadirli dışı.
+    /// <see cref="LocationScope"/>'a çevrilir (tanımın tek sahibi <c>EventLocationScopes</c>).
+    /// </summary>
+    public bool? OnlyLocal { get; set; }
+
+    /// <summary>
+    /// Faz 12.4: <c>local</c> | <c>away</c> | <c>province</c> | <c>nearby</c>.
+    /// Bilinmeyen değer varsayılana (süzgeçsiz) düşer — istemci hatası listeyi bozmaz.
+    /// </summary>
+    public string? LocationScope { get; set; }
+
     /// <summary>
     /// Sıralama: <c>date_asc</c> (tarihi en yakın önce) | <c>date_desc</c> (varsayılan, en ileri tarih önce).
     /// Faz 11.10: mobil "Yaklaşan etkinlikler" listesi StartDate filtresiyle birlikte date_asc kullanır —
