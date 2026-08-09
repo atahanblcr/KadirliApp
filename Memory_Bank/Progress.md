@@ -1733,6 +1733,7 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 | 12.6 | Ulaşım mobil (ikili kalkış · gün rozetleri · "sıradaki sefer") | mobil | — | ~25 mobil |
 | 12.7 | Sosyal giriş — backend | backend + panel | ✔ | ~30 backend |
 | 12.8 | Sosyal giriş — mobil | mobil | — | ~20 mobil |
+| 12.9 | Panelin dış bağımlılıklarını yerelleştirme (CDN → self-host + SRI/CSP) | panel + yayın kapısı | — | ~8 backend |
 
 ---
 
@@ -2745,6 +2746,79 @@ iptal sessiz · Apple butonu bayrak kapalıyken görünmüyor.
 
 ---
 
+### 12.9 — Panelin dış bağımlılıklarını yerelleştirme (CDN → self-host + SRI/CSP) — [ ]
+
+> 📌 **Nereden çıktı:** 9 Ağustos 2026'da dış bir analiz (Gemini CLI) panelde Tailwind'in CDN'den
+> çekildiğini işaret etti. **Kodda doğrulandı ve bulgunun tarif edilenden ağır olduğu görüldü** —
+> aşağıdaki tablo tarama sonucudur, tahmin değil.
+
+**Hedef:** Panelin çalışması için **internet gerekmemesi** ve yöneticinin tarayıcısında üçüncü
+taraf kod çalışmaması.
+
+**Bugünkü durum — dört ayrı origin, SRI yok, CSP yok:**
+
+| Kaynak | Nerede | Erişilemezse ne olur |
+|---|---|---|
+| `cdn.tailwindcss.com` | `Views/Shared/_Layout.cshtml` **ve** `Views/Account/Login.cshtml` (iki ayrı kopya) | Panel tamamen **stilsiz** |
+| `cdnjs.cloudflare.com` (FontAwesome 6) | `_Layout.cshtml` | Tüm ikonlar kaybolur |
+| `fonts.googleapis.com` (Inter) | `Login.cshtml` | Yazı tipi geri düşer |
+| `unpkg.com` (Leaflet 1.9.4, CSS+JS) | `_LocationPickerScripts.cshtml` → **10 form, 5 modül** | 🔴 **Harita seçici tamamen ölür** |
+
+🔴 **Bu kozmetik bir sorun değil.** `_LocationPickerScripts` duyuru · vefat · rehber · etkinlik ·
+mekan formlarının **hepsinde** kullanılıyor (`Create` + `Edit` = 10 görünüm). Leaflet gelmezse
+`L.` çağrıları `undefined` üzerinde patlar: yönetici boş bir kutu görür, **koordinat seçemez** ve
+ekranda hiçbir hata mesajı çıkmaz. Yani "işlevsiz buton yok" kuralının panel karşılığı, ağ
+kesildiği anda sessizce ihlal olur.
+
+🔴 **Güvenlik ayağı — projenin kendi duruşuyla çelişiyor.** Dört üçüncü taraf origin,
+**`super_admin` oturumu açık** bir tarayıcıda sınırsız JavaScript çalıştırıyor; `integrity=` (SRI)
+**hiçbirinde yok** ve uygulamada **CSP başlığı hiç yok** (tarandı, 0 eşleşme). PII maskeleyen,
+giriş denemesi loglayan, `ProductionReadinessGuard` yazan bir projede bu tutarsız: cdnjs/unpkg
+tarafında bir tedarik zinciri olayı, panelin **tamamının** ele geçirilmesi demek.
+
+⚠️ Ayrıca `cdn.tailwindcss.com` Tailwind'in **tarayıcı-içi JIT derleyicisi**; kendi dokümantasyonu
+production'da kullanılmamasını söylüyor (her sayfa yüklemesinde CSS derleniyor + FOUC).
+
+📌 **Bu, `CODE_REVIEW_CHECKLIST.md` §11'in tam olarak var olma sebebi olan hata sınıfı:**
+*"hataları `flutter run` ile görünmez"*. Geliştiricinin makinesinde internet hep var, panel hep
+çalışır; sorun ilk kez **belediyenin kısıtlı ağında** ya da bir CDN kesintisinde görünür.
+
+#### Yapılacaklar
+
+- **Tailwind'i derle.** `KadirliApp.Web/package.json` + `tailwind.config.js` + giriş CSS'i;
+  çıktı `wwwroot/css/panel.css` olarak servis edilir. `content` taraması `Views/**/*.cshtml`
+  olmalı — yoksa üretilen CSS'te kullanılan sınıflar **eksik kalır** ve düzen sessizce bozulur.
+  ⚠️ Derlenmiş CSS **commit edilir** (repoyu klonlayan `npm` kurmadan paneli açabilmeli);
+  `npm` adımı CI'da doğrulanır, geliştirici makinesinde zorunlu olmaz.
+- **FontAwesome · Inter · Leaflet** `wwwroot/lib/` altına alınır (jQuery zaten orada — desen mevcut).
+- **`Login.cshtml`'in kendi `<head>`'i** ortak layout'la hizalanır: bugün Tailwind'in **ikinci bir
+  kopyasını** taşıyor, yani düzeltme iki yerde yapılmazsa giriş ekranı CDN'e bağlı kalır.
+- **CSP başlığı** eklenir (`default-src 'self'`). ⚠️ Panelde satır içi `<script>`/`onclick` var mı
+  önce taranmalı — CSP'yi `unsafe-inline` ile açmak korumayı büyük ölçüde iptal eder.
+- **`ProductionReadinessGuard`'a kapı:** Production'da panel görünümlerinde dış origin kalmışsa
+  uygulama **açılmaz** (11.16'daki `Otp:DevMode` kapısının aynı deseni).
+
+#### Test
+
+- 🔑 **Yapısal test (`release_config_test.dart`'ın panel karşılığı):** `Views/**/*.cshtml`
+  **taranır**, `src=`/`href=` içinde `http://`/`https://` **hiç** olmamalı. Elle liste tutulmaz —
+  liste çürür, yeni bir görünüm sessizce CDN'e döner.
+- `wwwroot/css/panel.css` var ve boş değil; `PanelPagesSmokeTests` hâlâ yeşil.
+- CSP başlığı yanıtta var ve `unsafe-inline` **içermiyor**.
+
+**Bitti kriteri:** **ağ kesilir** (ya da DNS'te dört origin bloklanır) → panel açılır, stiller
+yerinde, ikonlar görünür ve **etkinlik formundaki harita seçici koordinat kaydeder** ·
+`Views/` taramasında dış origin **sıfır** · Production'da bilerek bırakılan bir CDN satırı
+uygulamayı **açtırmıyor**.
+
+#### Doğacak görünmez sözleşme
+
+- **Panel dış origine bağlı olamaz** — bozulursa hata vermez, yalnız ağın iyi olduğu her yerde
+  çalışmaya devam eder ve *tam olarak* kötü koşulda (kısıtlı ağ, CDN kesintisi) kırılır.
+  Harita seçicide belirti bile yok: boş kutu, log yok, hata yok.
+
+---
+
 ## 🔚 Faz 12 dışında kalan, hâlâ açık maddeler
 
 > 📌 **5 Ağustos, ikinci geçiş — bu liste denetlendi ve iki maddesi BAYAT çıktı.**
@@ -2773,6 +2847,40 @@ iptal sessiz · Apple butonu bayrak kapalıyken görünmüyor.
 - 🤖 **Play bekleyenler:** `keytool` ile yayın anahtarı + Play Console hesabı → internal test.
 - 🧹 **Küçük borç:** `a165a62` commit'i `git add -A` yüzünden `uploads/` altına 35 test artığı
   almış. Faza bağlı değil, herhangi bir oturumda `git rm --cached` ile temizlenebilir.
+
+### 📥 9 Ağustos 2026 — dış analiz (Gemini CLI) maddelerinin denetimi
+
+> Dört madde **kaynak kodda doğrulandı**; dördü de gerçek. Ama "gerçek" ile "yapılmalı" aynı şey
+> değil — üçü bilinçli bir tercihin sonucu ya da başka bir fazın işi. Karar ve gerekçe burada
+> duruyor ki bir sonraki oturum aynı tartışmayı sıfırdan yapmasın.
+
+- ✅ **CDN bağımlılığı → `12.9` olarak faza alındı.** (Tek "yapılmalı" çıkan madde; analiz bunu
+  kozmetik sanıyordu, tarama Leaflet'in **10 formda işlevsel** bir kırılma ürettiğini gösterdi.)
+- ⏸️ **Anemik domain modeli — DOĞRU ama Faz 12'ye alınmadı.** Tarama: entity'lerin
+  **hiçbirinde** `private set` yok (0 dosya); `Ad`'da 24, `User`'da 32 public setter; Domain Event
+  altyapısı hiç yok. **Ama bu bir kaza değil:** proje iş kurallarını bilerek **saf, container'sız
+  test edilebilir** sınıflarda tutuyor (`AdSubmissionRules`, `PowerOutagePhaseRules`,
+  `SuspiciousLoginRules`, `PowerOutageNeighborhoodMatcher`, `DistrictLabel`…) ve "görünmez
+  sözleşmeyi testle kilitle" disiplininin taşıyıcısı tam olarak bu sınıflar. 50 entity'yi rich
+  domain'e çevirmek **her handler'a** dokunur, vatandaşa **sıfır** görünür fayda üretir ve
+  Faz 12'nin "hepsi additive" sözünü bozar. 🔑 İstenirse **ayrı bir faz** (Faz 13) olarak, modül
+  modül ve testler yeşil kalarak yapılabilir — 12'nin içine sıkıştırılamaz.
+- ⏸️ **`IQueryable` sızıntısı — DOĞRU ama en düşük öncelikli.** `IRepository<T>.Query()`
+  `IQueryable<T>` döndürüyor ve `KadirliApp.Application.csproj` doğrudan
+  `Microsoft.EntityFrameworkCore`'a referans veriyor, yani veri erişimi detayı Application'a
+  sızıyor. Analiz bunun ".NET dünyasında pragmatik olarak yaygın" olduğunu kendisi de söylüyor.
+  Kapatmanın bedeli: her sorgu için özelleşmiş repository metodu → bugün tek satırda yazılan
+  filtreler arayüze taşınır ve **`Features/` içindeki dikey dilimleme zayıflar**. Faydası mimari
+  saflık, maliyeti okunabilirlik. **Yapılmayacak diye karar verilmedi, sıraya alınmadı.**
+- ⏸️ **IaC / CD eksikliği — DOĞRU, ama Faz 12'nin konusu değil.** Tarama: `.github/workflows/`
+  altında yalnız **CI** var (`dotnet.yml`, `mobile.yml`); deploy job'ı, Dockerfile ve IaC dosyası
+  **yok**. Bu bir **deploy fazı** işi ve yukarıdaki `10.14/(3)` maddesiyle aynı kaderi paylaşıyor:
+  API henüz konteynerleştirilmedi, bağlanacak bir hedef ortam yok. Hedef ortam seçildiğinde
+  (VPS / Azure / Hetzner) tek bir "yayına alma" fazında Dockerfile + volume + CD + IaC birlikte
+  ele alınmalı — parça parça eklemek yarım bir pipeline bırakır.
+
+📌 **Analizde bayat olan iki şey:** proje "Faz 12.3'te" deniyor (12.4 bitti) ve "700'den fazla
+test" deniyor (**784 backend + 703 mobil = 1487**).
 
 **Faz 12'ye alınanlar:** `ForwardedHeaders` → **12.2** · bağımsız push ekranı → yeni **12.2b**
 (gerekçeleri kendi başlıklarında).
