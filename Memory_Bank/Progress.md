@@ -1730,7 +1730,7 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 | 12.3 | Kesinti mahalle referansı + mahalle bazlı bildirim ✅ | backend + panel + mobil | ✔ | **+40 backend, +11 mobil** |
 | 12.4 | Etkinlik konumu (il/ilçe) ✅ | backend + panel + mobil | ✔ | **+55 backend, +7 mobil** |
 | 12.5 | Ulaşım alan modeli (araç tipi · kalkış noktası · sefer günleri) ✅ | backend + panel | ✔ | **+59 backend** |
-| 12.6 | Ulaşım mobil (ikili kalkış · gün rozetleri · "sıradaki sefer") | mobil | — | ~25 mobil |
+| 12.6 | Ulaşım mobil (ikili kalkış · gün rozetleri · "sıradaki sefer") ✅ | mobil | — | **+48 mobil** |
 | 12.7 | Sosyal giriş — backend | backend + panel | ✔ | ~30 backend |
 | 12.8 | Sosyal giriş — mobil | mobil | — | ~20 mobil |
 | 12.9 | Panelin dış bağımlılıklarını yerelleştirme (CDN → self-host + SRI/CSP) | panel + yayın kapısı | — | ~8 backend |
@@ -2755,7 +2755,79 @@ seçili kaldı**. Bu turda yukarıdaki **2 numaralı hata bulundu.**
 
 ---
 
-### 12.6 — Ulaşım mobil: ikili kalkış · gün rozetleri · "sıradaki sefer" — [ ]
+### 12.6 — Ulaşım mobil: ikili kalkış · gün rozetleri · "sıradaki sefer" — [x] ✅ TAMAMLANDI (10 Ağustos 2026)
+
+> **Ne teslim edildi:** 12.5 sunucuya araç tipi, kalkış noktası ve sefer günlerini yazmıştı;
+> mobil bunların **hiçbirini okumuyordu**. Yani 12.5, vatandaş açısından hâlâ görünmezdi.
+> Artık şehirlerarası liste **Tümü / Otobüs / Minibüs** olarak süzülüyor, kart kalkış noktasını
+> ve **"Yol tarifi"** butonunu gösteriyor, kalkış saatlerinin altında **gün rozeti** var ve
+> "sıradaki sefer" hesabı **haftanın gününü** dikkate alıyor.
+> **Sunucuda tek satır değişmedi** — bu alt-faz tümüyle istemci tarafı.
+>
+> 🔴 **En önemli karar — "elemek ≠ bildirmek" kuralının istemci tarafı.** Uç seferleri günlere
+> göre elemiyor (§7 madde 46); **istemci de elemiyor**. Hafta içi seferi Pazar günü listede
+> *duruyor*, yalnız soluklaşıyor, rozeti gününü söylüyor ve "sıradaki sefer" onu atlıyor.
+> Süzseydik hafta içi çalışan bir hattın kartı Pazar günü **boş** görünürdü — sunucuda
+> kaçındığımız hasarın istemcide tekrarı.
+> **İkinci karar:** `days` **boş ya da hiç gelmemişse anlamı "her gün"**. 12.5 öncesi kayıtlarda
+> alan yok; "hiçbir gün" saymak onları ekrandan **sessizce silerdi**. Additive bir alanın
+> *yokluğu*, o alan eklenmeden önceki davranışı vermek zorunda.
+> **Üçüncü karar:** araç şeridi **üç** seçenekli (planda ikiliydi). Yalnız Otobüs/Minibüs
+> olsaydı sunucuya yarın eklenecek üçüncü bir tip mağazadaki eski sürümlerde **hiçbir süzgeçte
+> görünmezdi**; panelin şeridi de zaten aynı üçlüyü kullanıyor. Süzme **sunucuda** yapılıyor:
+> sayfalı listeyi istemcide süzmek `totalCount`'u ("N hat") ve sonsuz kaydırmayı yalancı yapardı.
+>
+> 🐛 **BİR TEST BOŞLUĞU BULUNDU (bozma denemesi sayesinde).** `_TimePill`'in "geçti" kuralından
+> gün kontrolü kaldırıldı ve **hiçbir test kırılmadı** — yani kural **kilitli değildi**.
+> Hasar sessiz ve gerçek: Pazar günü bakan vatandaş, o gün **hiç kalkmamış** bir 07:00 seferini
+> üstü çizili, yani "kalkmış" olarak görürdü. İki sebep birleşmişti: (a) golden'ın **%0.5 piksel
+> toleransı** (anti-aliasing için bilinçli) tek bir üstü çizili hapı yutuyor, (b) semantik etiket
+> `isOffDay`'i `isPast`'ten **önce** kontrol ettiği için ekran okuyucu zaten doğruyu söylüyordu.
+> Kural artık `Text.style.decoration`'a bakan **davranış** testiyle ve **iki yönlü** kilitli
+> (çizilmeyen kadar çizilen de denetleniyor — yoksa "hiç çizme" gerçeklemesi de yeşil kalırdı).
+> 🔑 **Ders (12.5'in dersinin doğrulanması):** yeşil kalan bir bozma denemesi "kural sağlam"
+> demek değil, **"test o kuralı tutmuyor"** demektir. Ve bu turda **golden'ın sınırı** öğrenildi:
+> tolerans düzen hatalarını (binlerce piksel) tutar, **tek öğelik stil kararlarını tutmaz**.
+>
+> 🐛 **CANLI EMÜLATÖR DENETİMİNDE BULUNAN HATA (düzeltildi):** giriş cümlesi `daysAhead`'e
+> bakıyordu, oysa **hattın bugün çalışıp çalışmadığına** bakmalıydı. Hafta sonu çalışan bir hat
+> Pazartesi *"Bugünkü seferler bitti · Cmt 06:30"* diyordu — o gün **hiç olmamış** bir sefer
+> dizisini ima ediyor. Artık "Bugün sefer yok · Cmt 06:30". Küçük bir metin farkı ama vatandaşın
+> kafasındaki modeli kuran şey bu; regresyon iki testle kilitlendi.
+>
+> ➕ **PLAN DIŞI:** `operating_days.dart` (**mobilde gün ↔ bit dönüşümünün tek sahibi** — plan
+> yalnız `departure_times.next`'in genişlemesini istiyordu, ama ikinci bir eşleme yazmamak için
+> değer nesnesi şart) · `transport_vehicle.dart` + **"Tümü"** seçeneği · `IntercityFilter`
+> (arama + araç tipi **tek nesnede**) · araç tipine göre **farklı kart ikonu** · tanınmayan araç
+> tipinde rozetin **hiç çizilmemesi** · süzgeç yüzünden boşalan listenin **sebebini söylemesi** ·
+> "Aramayı temizle" ile "Filtreleri temizle" ayrımı (araç şeridine dokunulmamışken "filtreler"
+> çoğulu yalan söyler) · `departureMapQuery`'nin **Kadirli ile sınırlanması** (12.4'te etkinlikte
+> yaşanan "başka şehre götürme" hatası) · paylaşım metnine araç tipi + kalkış noktası + gün bilgisi.
+>
+> 🔴 **GÖRÜNMEZ SÖZLEŞMELERE #49, #50 EKLENDİ.** Toplam **50**. İkisi de **istemci tarafı** —
+> §7 tablosundaki ilk mobil maddeler; karşılıkları `mobile/test/features/transport/` altında.
+>
+> **Doğrulama:** `flutter analyze` **0** · `flutter test` **751/751** (703 → **+48**) ·
+> `dotnet test` **843/843** (backend'e dokunulmadı, doküman testleri yeşil).
+> **Kuralı bilerek boz:** 5 deneme → 4'ü kırmızı (12, 3, 1, 3 test), **1'i yeşil kaldı ve o
+> boşluk kapatıldı**; hepsi geri alınınca yeşil.
+> **Golden:** yalnız **iki yeni PNG** doğdu, mevcut referansların **hiçbiri çürümedi**
+> (12.4'ün `AdCard` dersi tuttu) — PNG'ler açık/koyu temada **gözle incelendi**, 1.4 ölçekte
+> taşma yok.
+> **Canlı (gerçek panel + gerçek API + Android emülatörü):** panelden "Kadirli Otogarı"na
+> **gerçek koordinat** girildi ve Adana hattına bağlandı · Adana'ya **yalnız hafta sonu 21:00**
+> seferi eklendi · emülatörde araç şeridi çalıştı ve **"Toplam 1 hat"** doğru okundu (süzme
+> sunucuda) · açılan kartta kalkış noktası + adres + **"Yol tarifi"** göründü ve buton
+> **Google Haritalar'ı tam koordinatta açtı** (37.3745, 36.0972 — Kadirli) · gün rozetleri
+> "Her gün ×4 + Hafta sonu" olarak çıktı · Kozan minibüsü panelden hafta sonuna alındı ve kart
+> **"Bugün sefer yok · Cmt 06:30"** dedi (Pazartesi bakılıyordu) → **fazın asıl bitti kriteri**;
+> sonra panelden hafta içine geri alındı. **Çökme yok.**
+> ⚠️ Emülatörün **saati değiştirilemedi** (`date: Operation not permitted`) → "hafta sonunda
+> bakma" senaryosu saati değil **veriyi** değiştirerek doğrulandı; aynı dalı sınayan asıl kanıt
+> `departure_times_test.dart`'taki sabit tarihli testlerdir.
+> 📌 **Kalkış noktası koordinatları seed'de hâlâ `null`** ve bu **bilinçli** (12.5: tahmini
+> koordinat vatandaşı yanlış yere götürür). Yani "Yol tarifi" varsayılan kurulumda **adres
+> aramasına** düşer; koordinatı yönetici panelden girer.
 
 **Hedef:** 12.5'in mobil karşılığı.
 

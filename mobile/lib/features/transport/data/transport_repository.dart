@@ -15,16 +15,25 @@ class TransportRepository {
   final ApiClient _api;
 
   /// Şehirlerarası hatlar — arama **hedef şehir ve firma adında** koşar.
+  ///
+  /// [vehicleType] `"bus"` | `"minibus"`; `null` ise parametre **hiç
+  /// gönderilmez** ("Tümü"). ⚠️ Süzme **sunucuda** yapılır: sayfalı bir listeyi
+  /// istemcide süzmek `totalCount`'u ("N hat") ve sonsuz kaydırmayı yalancı
+  /// yapardı — 20'lik sayfadan 3 kayıt eleyip "17 hat" demek gibi.
   Future<PagedResult<IntercityRoute>> intercity({
     int page = 1,
     int limit = 20,
     String? search,
+    String? vehicleType,
   }) => _api.getPaged(
     '/v1/transport/intercity-routes',
     IntercityRoute.fromJson,
     page: page,
     limit: limit,
-    query: {'searchTerm': ?_blankToNull(search)},
+    query: {
+      'searchTerm': ?_blankToNull(search),
+      'vehicleType': ?_blankToNull(vehicleType),
+    },
   );
 
   /// Şehir içi hatlar — arama **hat adı ve numarasında** koşar.

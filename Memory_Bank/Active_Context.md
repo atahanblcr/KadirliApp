@@ -1,5 +1,74 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 10 Ağustos 2026 — **FAZ 12.6 TAMAMLANDI: ulaşım mobil (ikili kalkış · gün
+> rozetleri · "sıradaki sefer").**
+> Kod `features/transport/application/{operating_days,transport_vehicle}.dart` (yeni) +
+> `departure_times.dart` (`nextAmong` · `DepartureOption` · `NextDeparture.daysAhead/weekday`) +
+> `data/models/intercity_route.dart` (5 hat + 2 sefer alanı, `departures`/`runsToday`/
+> `departureMapQuery`) + `transport_repository.dart` (`?vehicleType`) +
+> `transport_providers.dart` (`IntercityFilter`) + `transport_screen.dart` (araç şeridi) +
+> `widgets/intercity_route_card.dart` (araç rozeti · `_DeparturePointSection` · gün rozetli
+> `_TimePill`) + 1 yeni test dosyası + 3 dosyaya ek + 2 yeni golden.
+> **Mobil 703 → 751 (+48), backend 843 (değişmedi — sunucuda tek satır yok), analyze 0.**
+>
+> 🔑 **TESLİM EDİLEN:** 12.5 sunucuya araç tipini, kalkış noktasını ve sefer günlerini yazmıştı;
+> **mobil hiçbirini okumuyordu** — yani 12.5 vatandaş açısından hâlâ görünmezdi. Artık liste
+> **Tümü / Otobüs / Minibüs** olarak süzülüyor, kartta kalkış noktası + **"Yol tarifi"** var,
+> saatlerin altında **gün rozeti** duruyor ve "sıradaki sefer" **haftanın gününü** hesaba katıyor.
+>
+> 🔴 **EN ÖNEMLİ KARAR: "elemek ≠ bildirmek" kuralının İSTEMCİ tarafı.** Uç seferleri günlere
+> göre elemiyor; **istemci de elemiyor**. Hafta içi seferi Pazar günü listede *duruyor*, yalnız
+> soluklaşıyor ve "sıradaki sefer" onu atlıyor — süzseydik hafta içi çalışan bir hattın kartı
+> Pazar günü **boş** görünürdü, yani sunucuda kaçındığımız hasarı istemcide üretirdik.
+> **İkinci karar:** `days` **boş/eksikse anlamı "her gün"**; "hiçbir gün" saymak 12.5 öncesi
+> kayıtları (alan yok) ekrandan **sessizce silerdi**. Additive bir alanın *yokluğu*, o alan
+> eklenmeden önceki davranışı vermek zorunda.
+> **Üçüncü karar:** araç şeridi **üç** seçenekli (plan ikili diyordu) ve süzme **sunucuda**:
+> ikili olsaydı yarın eklenecek üçüncü bir tip eski sürümlerde **hiçbir süzgeçte görünmezdi**;
+> istemcide süzmek de sayfalı listede `totalCount`'u ("N hat") yalancı yapardı.
+>
+> 🐛 **BİR TEST BOŞLUĞU BULUNDU (bozma denemesi sayesinde).** "Geçti" (üstü çizili saat)
+> kuralından gün kontrolü kaldırıldı → **hiçbir test kırılmadı**, yani kural kilitli değildi.
+> Hasar sessiz: Pazar günü bakan vatandaş o gün **hiç kalkmamış** bir 07:00 seferini "kalkmış"
+> görürdü. İki sebep birleşmişti: golden'ın **%0.5 piksel toleransı** (anti-aliasing için
+> bilinçli) tek bir hapı yutuyor, semantik etiket ise `isOffDay`'i `isPast`'ten **önce**
+> kontrol ettiği için zaten doğruydu. Kural artık `Text.style.decoration`'a bakan **davranış**
+> testiyle, **iki yönlü** kilitli.
+> 🔑 **Ders:** yeşil kalan bozma denemesi "kural sağlam" değil **"test kuralı tutmuyor"** demek
+> (12.5'in dersi doğrulandı) — ve **golden'ın sınırı** öğrenildi: tolerans düzen hatalarını
+> (binlerce piksel) tutar, **tek öğelik stil kararlarını tutmaz**.
+>
+> 🐛 **CANLI EMÜLATÖR DENETİMİNDE BULUNAN HATA (düzeltildi):** giriş cümlesi `daysAhead`'e
+> bakıyordu, oysa hattın **bugün çalışıp çalışmadığına** bakmalıydı → hafta sonu hattı
+> Pazartesi *"Bugünkü seferler bitti"* diyordu, o gün hiç sefer olmamışken. Artık
+> **"Bugün sefer yok · Cmt 06:30"**.
+>
+> ➕ **PLAN DIŞI:** `operating_days.dart` (mobilde gün ↔ bit dönüşümünün **tek sahibi**) ·
+> `transport_vehicle.dart` + "Tümü" · `IntercityFilter` (arama + araç **tek nesnede**; ayrı
+> olsalar şeride dokunmak aramayı düşürürdü) · araç tipine göre **farklı kart ikonu** ·
+> tanınmayan tipte rozetin **hiç çizilmemesi** · boşalan listenin **sebebini söylemesi** ·
+> `departureMapQuery`'nin **Kadirli ile sınırlanması** · paylaşım metnine araç + kalkış + gün.
+>
+> 🔴 **GÖRÜNMEZ SÖZLEŞMELERE #49, #50 EKLENDİ.** Toplam **50** — ikisi de §7'nin ilk **istemci
+> tarafı** maddeleri (karşılıkları `mobile/test/features/transport/` altında, C# değil).
+>
+> **Doğrulama:** `dotnet test` **843/843** · `flutter analyze` **0** · `flutter test` **751/751**.
+> **Kuralı bilerek boz:** 5 deneme → 4 kırmızı, **1 yeşil kaldı ve o boşluk kapatıldı**.
+> **Golden:** yalnız 2 yeni PNG doğdu, mevcut referanslar **çürümedi**; ikisi de gözle incelendi.
+> **Canlı (panel + API + Android emülatörü):** panelden gerçek koordinat girildi ve hatta
+> bağlandı · araç şeridi çalıştı, **"Toplam 1 hat"** doğru · "Yol tarifi" **Google Haritalar'ı
+> tam koordinatta açtı** · Kozan hafta sonuna alınınca kart **"Bugün sefer yok · Cmt 06:30"**
+> dedi (bitti kriteri), sonra geri alındı · **çökme yok**.
+> ⚠️ Emülatörün saati **değiştirilemedi** (`Operation not permitted`) → hafta sonu senaryosu
+> saati değil **veriyi** değiştirerek doğrulandı; sabit tarihli birim testleri asıl kanıt.
+> 📌 Kalkış noktası koordinatları seed'de hâlâ `null` ve bu **bilinçli** — "Yol tarifi"
+> varsayılan kurulumda **adres aramasına** düşer, koordinatı yönetici girer.
+>
+> ⏭️ **SIRADAKİ: 12.7** — sosyal giriş (backend). ⚠️ Apple aboneliği gerekiyor; kod bayrakla
+> kapalı yazılabilir ("bayrakla kapalı yol = hiç test edilmemiş yol" → her sağlayıcıya birim testi).
+>
+> ---
+>
 > Son güncelleme: 9 Ağustos 2026 — **FAZ 12.5 TAMAMLANDI: ulaşım alan modeli (araç tipi · kalkış noktası · sefer günleri).**
 > Kod `Domain/Enums/{TransportVehicleType,OperatingDays}.cs` + `Domain/Entities/TransportDeparturePoint.cs` +
 > `IntercityRoute.{VehicleType,DeparturePointId}` + `IntercitySchedule.OperatingDays` +

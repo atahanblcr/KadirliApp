@@ -32,9 +32,15 @@ bir **kalkış noktasına** bağlı, sefer de **hangi günler çalıştığını
 (`OperatingDays`, Pazartesi=1 … Pazar=64). 🔴 Uç seferleri günlere göre **elemiyor**, yalnız
 bildiriyor — mağazadaki eski sürümler için liste sebepsiz boşalmasın diye; migration mevcut
 satırlara `bus` + `127` yazdı, yani **davranış birebir korundu**.
-**843 backend + 703 mobil test, 48 görünmez sözleşme.**
+**12.6 bitti:** 12.5'in mobil karşılığı — liste **Tümü / Otobüs / Minibüs** olarak (sunucuda)
+süzülüyor, kartta kalkış noktası + **"Yol tarifi"**, saatlerin altında **gün rozeti** var ve
+"sıradaki sefer" **haftanın gününü** hesaba katıyor ("Bugün sefer yok · Cmt 06:30").
+🔴 İstemci de seferleri günlere göre **elemiyor** ve `days` boş/eksikse **"her gün"** sayıyor —
+ikisi de "12.5 öncesi kaydı sessizce gizleme" kuralının sonucu. Gün ↔ bit dönüşümünün mobildeki
+tek sahibi `features/transport/application/operating_days.dart`.
+**843 backend + 751 mobil test, 50 görünmez sözleşme.**
 
-**⏭️ Sırada 12.6:** ulaşım mobil (ikili kalkış · gün rozetleri · "sıradaki sefer").
+**⏭️ Sırada 12.7:** sosyal giriş — backend (`UserIdentity`, `POST /v1/auth/social`).
 Plan: `Memory_Bank/Progress.md` → "FAZ 12".
 
 > 🔑 **Panel süper admin parolası** `secrets/panel-admin.json`'dadır (git'e girmez; biçim ve
@@ -87,7 +93,9 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
 37–39 `PanelPushCampaignTests.cs` + `Unit/Application/Notifications/`,
 40–42 `PanelPowerOutageNeighborhoodTests.cs` + `Unit/Application/PowerOutages/`,
 43–45 `PanelEventDistrictTests.cs` + `Unit/Application/Events/`,
-46–48 `PanelTransportFieldModelTests.cs` + `Unit/Application/Transport/`.
+46–48 `PanelTransportFieldModelTests.cs` + `Unit/Application/Transport/`,
+**49–50 istemci tarafı** → `mobile/test/features/transport/`
+(`operating_days_test.dart` · `departure_times_test.dart` · `transport_screen_test.dart`).
 
 ## Değişmez kurallar
 

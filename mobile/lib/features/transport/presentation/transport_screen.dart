@@ -8,6 +8,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/utils.dart';
 import '../../../core/widgets/widgets.dart';
 import '../application/transport_providers.dart';
+import '../application/transport_vehicle.dart';
 import 'widgets/intercity_route_card.dart';
 import 'widgets/intracity_route_card.dart';
 
@@ -115,7 +116,7 @@ class _IntercityTabState extends ConsumerState<_IntercityTab> {
   @override
   void initState() {
     super.initState();
-    _searchController.text = ref.read(intercityFeedProvider).filter;
+    _searchController.text = ref.read(intercityFeedProvider).filter.search;
     _scrollController.addListener(_onScroll);
   }
 
@@ -141,7 +142,7 @@ class _IntercityTabState extends ConsumerState<_IntercityTab> {
     final expandedId = ref.watch(expandedIntercityProvider);
 
     // "Filtreleri temizle" arama kutusunu da temizlemeli (11.7/11.8 hatası).
-    ref.listen(intercityFeedProvider.select((state) => state.filter), (
+    ref.listen(intercityFeedProvider.select((state) => state.filter.search), (
       _,
       search,
     ) {
@@ -161,6 +162,26 @@ class _IntercityTabState extends ConsumerState<_IntercityTab> {
           ),
         ),
         AppSpacing.gapSm,
+        // ⚠️ Yatay `ListView` **tembeldir** — ekran dışı chip hiç kurulmaz ve
+        // testte bulunamaz → şeritlerde `SingleChildScrollView + Row` (§8).
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: AppSpacing.screenPadding,
+          child: Row(
+            children: [
+              for (final vehicle in TransportVehicle.filters) ...[
+                FilterChoiceChip(
+                  label: vehicle.label,
+                  icon: vehicle.icon,
+                  selected: state.filter.vehicle == vehicle,
+                  onTap: () => controller.selectVehicle(vehicle),
+                ),
+                AppSpacing.wGapSm,
+              ],
+            ],
+          ),
+        ),
+        AppSpacing.gapSm,
         Expanded(
           child: Builder(
             builder: (context) {
@@ -175,18 +196,34 @@ class _IntercityTabState extends ConsumerState<_IntercityTab> {
                 );
               }
               if (state.isEmpty) {
-                final hasFilter = state.filter.isNotEmpty;
+                final hasSearch = state.filter.search.isNotEmpty;
+                final hasVehicle =
+                    state.filter.vehicle != TransportVehicle.all;
+                final hasFilter = hasSearch || hasVehicle;
                 return EmptyView(
                   icon: Icons.directions_bus_rounded,
                   title: hasFilter
                       ? 'Sonuç bulunamadı'
                       : 'Henüz hat eklenmemiş',
-                  message: hasFilter
+                  message: hasVehicle && !hasSearch
+                      // Süzgeç yüzünden boşalan liste sebebini söylemeli:
+                      // "hiç hat yok" ile "bu araç tipinde hat yok" farklı.
+                      ? '${state.filter.vehicle.label} tipinde hat bulunmuyor. '
+                            '"Tümü" ile bütün hatları görebilirsiniz.'
+                      : hasSearch
                       ? 'Arama gideceğiniz şehirde ve firma adında yapılıyor.'
                       : 'Şehirlerarası otobüs hatları eklendiğinde burada '
                             'kalkış saatleriyle görünecek.',
-                  actionLabel: hasFilter ? 'Aramayı temizle' : null,
-                  onAction: hasFilter ? controller.clearFilters : null,
+                  // Yalnız arama varsa "Aramayı temizle" daha doğru: araç
+                  // şeridine dokunulmamışken "filtreler" çoğulu yalan söyler.
+                  actionLabel: !hasFilter
+                      ? null
+                      : (hasVehicle ? 'Filtreleri temizle' : 'Aramayı temizle'),
+                  onAction: !hasFilter
+                      ? null
+                      : (hasVehicle
+                            ? controller.clearFilters
+                            : controller.clearSearch),
                 );
               }
 

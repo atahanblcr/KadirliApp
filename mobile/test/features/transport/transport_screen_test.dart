@@ -15,6 +15,8 @@ import '../../helpers/pump_app.dart';
 void main() {
   const guest = {'auth.guestChoice': true};
 
+  const weekdayCodes = ['mon', 'tue', 'wed', 'thu', 'fri'];
+
   Map<String, dynamic> intercity({
     String id = 'ic-1',
     String destination = 'Adana',
@@ -22,6 +24,13 @@ void main() {
     int? durationMinutes = 105,
     String? company = 'Kadirli Seyahat',
     List<String> times = const ['07:00', '10:30', '14:00', '17:30'],
+    String vehicleType = 'bus',
+    String? departurePointName,
+    String? departurePointAddress,
+    num? departurePointLatitude,
+    num? departurePointLongitude,
+    // `null` → alan hiç gönderilmez (12.5 öncesi kayıt / eski sunucu).
+    List<String>? days,
   }) => {
     'id': id,
     'destination': destination,
@@ -29,9 +38,19 @@ void main() {
     'durationMinutes': durationMinutes,
     'company': company,
     'isActive': true,
+    'vehicleType': vehicleType,
+    'departurePointName': departurePointName,
+    'departurePointAddress': departurePointAddress,
+    'departurePointLatitude': departurePointLatitude,
+    'departurePointLongitude': departurePointLongitude,
     'schedules': [
       for (var i = 0; i < times.length; i++)
-        {'id': '$id-s$i', 'departureTime': times[i]},
+        {
+          'id': '$id-s$i',
+          'departureTime': times[i],
+          'days': ?days,
+          if (days != null) 'runsDaily': days.length == 7,
+        },
     ],
   };
 
@@ -324,6 +343,390 @@ void main() {
 
     expect(find.text('Henüz hat eklenmemiş'), findsOneWidget);
     expect(find.byType(IntercityRouteCard), findsNothing);
+  });
+
+  // ------------------------------------------------------------ Faz 12.6
+
+  group('araç tipi süzgeci (12.6)', () {
+    testWidgets('şerit üç seçenek gösterir ve "Tümü" uca parametre GÖNDERMEZ', (
+      tester,
+    ) async {
+      final adapter = await openTransport(tester);
+
+      expect(find.text('Tümü'), findsOneWidget);
+      expect(find.text('Otobüs'), findsWidgets);
+      expect(find.text('Minibüs'), findsOneWidget);
+
+      final query = adapter
+          .lastOf('/v1/transport/intercity-routes')
+          ?.queryParameters;
+      expect(query?.containsKey('vehicleType'), isFalse);
+    });
+
+    testWidgets('minibüs seçimi uca vehicleType olarak gider', (tester) async {
+      // 🔴 Süzme SUNUCUDA: sayfalı listeyi istemcide süzmek "N hat" sayacını
+      // ve sonsuz kaydırmayı yalancı yapardı.
+      final adapter = await openTransport(tester);
+
+      await tester.tap(find.text('Minibüs'));
+      await tester.pumpAndSettle();
+
+      final query = adapter
+          .lastOf('/v1/transport/intercity-routes')
+          ?.queryParameters;
+      expect(query?['vehicleType'], 'minibus');
+    });
+
+    testWidgets('araç şeridi MEVCUT ARAMAYI korur', (tester) async {
+      // 12.5'te panelde arama ve araç süzgeci bu yüzden tek forma alınmıştı:
+      // ayrı tutulsalardı şeride dokunmak aramayı sessizce düşürürdü.
+      final adapter = await openTransport(tester);
+
+      await tester.enterText(find.byType(TextField).first, 'adana');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Minibüs'));
+      await tester.pumpAndSettle();
+
+      final query = adapter
+          .lastOf('/v1/transport/intercity-routes')
+          ?.queryParameters;
+      expect(query?['searchTerm'], 'adana');
+      expect(query?['vehicleType'], 'minibus');
+    });
+
+    testWidgets('süzgeç yüzünden boşalan liste SEBEBİNİ söyler', (tester) async {
+      await openTransport(
+        tester,
+        routes: {
+          '/v1/transport/intercity-routes': (options) async => jsonResponse(
+            pagedBody(
+              options.queryParameters.containsKey('vehicleType')
+                  ? const []
+                  : [intercity()],
+            ),
+          ),
+        },
+      );
+
+      await tester.tap(find.text('Minibüs'));
+      await tester.pumpAndSettle();
+
+      // "Hiç hat yok" ile "bu tipte hat yok" farklı şeyler.
+      expect(find.textContaining('Minibüs tipinde hat bulunmuyor'), findsOneWidget);
+      await tester.tap(find.text('Filtreleri temizle'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kadirli → Adana'), findsOneWidget);
+    });
+
+    testWidgets('kartta araç rozeti görünür, tanınmayan tipte GÖRÜNMEZ', (
+      tester,
+    ) async {
+      await openTransport(
+        tester,
+        intercityItems: [
+          intercity(vehicleType: 'minibus'),
+          // Sunucu yarın üçüncü bir tip gönderirse kart "Otobüs" yazıp
+          // yalan söylememeli.
+          intercity(id: 'ic-2', destination: 'Kozan', vehicleType: 'dolmus'),
+        ],
+      );
+
+      expect(find.text('Minibüs'), findsNWidgets(2)); // şerit + rozet
+      expect(find.text('Otobüs'), findsOneWidget); // yalnız şerit
+    });
+  });
+
+  group('sefer günleri (12.6)', () {
+    testWidgets('gün rozeti kalkış saatinin yanında çıkar', (tester) async {
+      await openTransport(
+        tester,
+        intercityItems: [
+          intercity(times: const ['06:30'], days: weekdayCodes),
+        ],
+      );
+
+      await tester.tap(find.text('Kadirli → Adana'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('06:30'), findsOneWidget);
+      expect(find.text('Hafta içi'), findsOneWidget);
+    });
+
+    testWidgets('her gün çalışan hatta rozet şeridi yer kaplamaz', (
+      tester,
+    ) async {
+      await openTransport(
+        tester,
+        intercityItems: [
+          intercity(times: const ['07:00'], days: const [
+            'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun',
+          ]),
+        ],
+      );
+
+      await tester.tap(find.text('Kadirli → Adana'));
+      await tester.pumpAndSettle();
+      expect(find.text('Her gün'), findsNothing);
+    });
+
+    testWidgets('🔴 gün alanı HİÇ gelmeyen sefer gizlenmez (eski kayıt)', (
+      tester,
+    ) async {
+      // 12.5 öncesi kayıtlarda `days` yok. "Hiç gün seçilmemiş" sayılsaydı
+      // sefer ekrandan sessizce silinirdi.
+      await openTransport(
+        tester,
+        intercityItems: [intercity(times: const ['07:00', '14:00'])],
+      );
+
+      await tester.tap(find.text('Kadirli → Adana'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('07:00'), findsOneWidget);
+      expect(find.text('14:00'), findsOneWidget);
+    });
+
+    group('🔴 "kalktı" yalnız BUGÜN çalışan sefer için doğrudur', () {
+      // Bu üçlü bir **test boşluğunu** kapatıyor: bozma denemesinde `isPast`
+      // kuralından gün kontrolü çıkarıldı ve **hiçbir test kırılmadı** —
+      // golden'ın %0.5 toleransı tek bir üstü çizili hapı yutuyor (tolerans
+      // anti-aliasing için bilinçli, düzen hataları binlerce piksel değiştirir).
+      // Hasar sessiz ve gerçek: Pazar günü bakan vatandaş, o gün **hiç
+      // kalkmamış** bir seferi "kalkmış" olarak görürdü.
+      // 🔑 12.5'in dersi: yeşil kalan bir bozma denemesi "kural sağlam" demek
+      // değil, "test o kuralı tutmuyor" demektir.
+
+      /// Kartı sabit bir anda çizer ve [time] hapının üstünün çizili olup
+      /// olmadığını söyler.
+      Future<bool> isStruckThrough(
+        WidgetTester tester, {
+        required DateTime now,
+        required List<String> days,
+        String time = '07:00',
+      }) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 3;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: IntercityRouteCard(
+                  now: now,
+                  expanded: true,
+                  onToggle: () {},
+                  route: IntercityRoute.fromJson(
+                    intercity(times: [time], days: days),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final text = tester.widget<Text>(
+          find.descendant(
+            of: find.byType(IntercityRouteCard),
+            matching: find.text(time),
+          ),
+        );
+        return text.style?.decoration == TextDecoration.lineThrough;
+      }
+
+      // 9 Ağustos 2026 Pazar, Kadirli 12:00 (UTC+3).
+      final sunday = DateTime.utc(2026, 8, 9, 9);
+      // 3 Ağustos 2026 Pazartesi, Kadirli 12:00.
+      final monday = DateTime.utc(2026, 8, 3, 9);
+
+      testWidgets('bugün çalışmayan seferin üstü ÇİZİLMEZ', (tester) async {
+        expect(
+          await isStruckThrough(tester, now: sunday, days: weekdayCodes),
+          isFalse,
+          reason:
+              'Pazar günü hafta içi seferi kalkmadı; üstünü çizmek "bugünkü '
+              'sefer gitti" demektir ve yalandır.',
+        );
+      });
+
+      testWidgets('bugün çalışıp saati geçen seferin üstü ÇİZİLİR', (
+        tester,
+      ) async {
+        // Karşı yön: "hiçbir zaman çizme" gerçeklemesi de testi geçmesin.
+        expect(
+          await isStruckThrough(tester, now: monday, days: weekdayCodes),
+          isTrue,
+        );
+      });
+
+      testWidgets('bugün çalışan ama saati gelmemiş sefer çizilmez', (
+        tester,
+      ) async {
+        expect(
+          await isStruckThrough(
+            tester,
+            now: monday,
+            days: weekdayCodes,
+            time: '18:00',
+          ),
+          isFalse,
+        );
+      });
+    });
+
+    group('🐛 "bitti" ile "yok" aynı cümle değil', () {
+      // Canlı emülatör denetiminde bulundu: giriş cümlesi `daysAhead`'e değil
+      // hattın **bugün çalışıp çalışmadığına** bakmalı.
+      Future<void> pumpCard(
+        WidgetTester tester, {
+        required DateTime now,
+        required List<String> days,
+        required String time,
+      }) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 3;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: IntercityRouteCard(
+                  now: now,
+                  expanded: false,
+                  onToggle: () {},
+                  route: IntercityRoute.fromJson(
+                    intercity(times: [time], days: days),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+      }
+
+      // 3 Ağustos 2026 Pazartesi, Kadirli 20:00.
+      final mondayEvening = DateTime.utc(2026, 8, 3, 17);
+
+      testWidgets('bugün çalışıp saatleri geçen hat "bitti" der', (
+        tester,
+      ) async {
+        await pumpCard(
+          tester,
+          now: mondayEvening,
+          days: weekdayCodes,
+          time: '07:00',
+        );
+        expect(find.textContaining('Bugünkü seferler bitti'), findsOneWidget);
+        expect(find.textContaining('Yarın 07:00'), findsOneWidget);
+      });
+
+      testWidgets('bugün HİÇ çalışmayan hat "bugün sefer yok" der', (
+        tester,
+      ) async {
+        // Pazartesi bakılan hafta sonu hattı: bugün hiç sefer olmadı, "bitti"
+        // demek olmamış bir sefer dizisini ima eder.
+        await pumpCard(
+          tester,
+          now: mondayEvening,
+          days: const ['sat', 'sun'],
+          time: '21:00',
+        );
+        expect(find.textContaining('Bugün sefer yok'), findsOneWidget);
+        expect(find.textContaining('Cmt 21:00'), findsOneWidget);
+        expect(find.textContaining('bitti'), findsNothing);
+      });
+    });
+
+    testWidgets('gün rozeti ekran okuyucuya TAM gün adıyla okunur', (
+      tester,
+    ) async {
+      await openTransport(
+        tester,
+        intercityItems: [
+          intercity(times: const ['06:30'], days: const ['mon', 'wed']),
+        ],
+      );
+
+      await tester.tap(find.text('Kadirli → Adana'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.bySemanticsLabel(RegExp('Pazartesi, Çarşamba')),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('kalkış noktası ve yol tarifi (12.6)', () {
+    testWidgets('kalkış noktası kartta ve açık bölümde görünür', (tester) async {
+      await openTransport(
+        tester,
+        intercityItems: [
+          intercity(
+            departurePointName: 'Kadirli Otogarı',
+            departurePointAddress: 'Cumhuriyet Mah. Otogar Cad. No:1',
+            departurePointLatitude: 37.3745,
+            departurePointLongitude: 36.0972,
+          ),
+        ],
+      );
+
+      expect(find.text('Kadirli Otogarı'), findsOneWidget);
+
+      await tester.tap(find.text('Kadirli → Adana'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kalkış noktası'), findsOneWidget);
+      expect(find.text('Cumhuriyet Mah. Otogar Cad. No:1'), findsOneWidget);
+      expect(find.text('Yol tarifi'), findsOneWidget);
+    });
+
+    testWidgets('koordinatsız ama adresli noktada da yol tarifi çıkar', (
+      tester,
+    ) async {
+      await openTransport(
+        tester,
+        intercityItems: [
+          intercity(
+            departurePointName: 'Minibüs Garajı',
+            departurePointAddress: 'Savrun Cad.',
+          ),
+        ],
+      );
+
+      await tester.tap(find.text('Kadirli → Adana'));
+      await tester.pumpAndSettle();
+      expect(find.text('Yol tarifi'), findsOneWidget);
+    });
+
+    testWidgets('🔴 kalkış noktası GİRİLMEMİŞSE bölüm hiç çizilmez', (
+      tester,
+    ) async {
+      // "Otogardan kalkar" tahmini vatandaşı yanlış yere götürür — 12.5'in
+      // "geri doldurma YOK" kararının mobil karşılığı. İşlevsiz buton da yok.
+      await openTransport(tester, intercityItems: [intercity()]);
+
+      await tester.tap(find.text('Kadirli → Adana'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kalkış noktası'), findsNothing);
+      expect(find.text('Yol tarifi'), findsNothing);
+    });
+
+    testWidgets('harita araması Kadirli ile sınırlanır', (tester) async {
+      // Yalnız "Otogar" aratmak kullanıcıyı başka şehre götürür (12.4 dersi).
+      final route = IntercityRoute.fromJson(
+        intercity(departurePointName: 'Otogar', departurePointAddress: null),
+      );
+      expect(route.departureMapQuery, 'Otogar, Kadirli');
+
+      final named = IntercityRoute.fromJson(
+        intercity(departurePointName: 'Kadirli Otogarı'),
+      );
+      expect(named.departureMapQuery, 'Kadirli Otogarı');
+    });
   });
 
   group('kart yerleşimi', () {

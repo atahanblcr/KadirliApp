@@ -18,6 +18,8 @@ import 'package:kadirli_app/features/events/presentation/widgets/event_card.dart
 import 'package:kadirli_app/features/notifications/data/models/app_notification.dart';
 import 'package:kadirli_app/features/notifications/presentation/widgets/notification_tile.dart';
 import 'package:kadirli_app/features/pharmacies/presentation/widgets/pharmacy_tile.dart';
+import 'package:kadirli_app/features/transport/data/models/intercity_route.dart';
+import 'package:kadirli_app/features/transport/presentation/widgets/intercity_route_card.dart';
 
 import 'golden_harness.dart';
 
@@ -290,6 +292,99 @@ void main() {
               endDate: now.add(const Duration(days: 1)),
             ),
             onTap: () {},
+          ),
+        ),
+      ],
+    );
+  });
+
+  // 🔴 Faz 12.6 — açık kart: araç rozeti, kalkış noktası + "Yol tarifi",
+  // gün rozetli saat hapları. `now` **sabit ve Pazartesi** (3 Ağustos 2026,
+  // Kadirli 15:00): gün rozetli kart artık yalnız saate değil **haftanın
+  // gününe** de bakıyor, yani enjekte edilmeyen bir `now` bu referansı
+  // haftada bir değil **her gün** kırardı.
+  testWidgets('IntercityRouteCard — araç tipi · kalkış noktası · gün rozetleri', (
+    tester,
+  ) async {
+    IntercityRoute route({
+      required String id,
+      required String destination,
+      String? company,
+      String vehicleType = 'bus',
+      String? departurePointName,
+      String? departurePointAddress,
+      double? latitude,
+      double? longitude,
+      required List<(String, List<String>)> schedules,
+    }) => IntercityRoute(
+      id: id,
+      destination: destination,
+      company: company,
+      price: 220,
+      durationMinutes: 105,
+      vehicleType: vehicleType,
+      departurePointName: departurePointName,
+      departurePointAddress: departurePointAddress,
+      departurePointLatitude: latitude,
+      departurePointLongitude: longitude,
+      schedules: [
+        for (var i = 0; i < schedules.length; i++)
+          IntercityDeparture(
+            id: '$id-s$i',
+            departureTime: schedules[i].$1,
+            days: schedules[i].$2,
+            runsDaily: schedules[i].$2.length == 7,
+          ),
+      ],
+    );
+
+    const daily = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri'];
+
+    await expectGoldenSheet(
+      tester,
+      name: 'intercity_route_card',
+      height: 2600,
+      scenarios: [
+        GoldenScenario(
+          'Minibüs · uzun kalkış noktası · karışık günler',
+          IntercityRouteCard(
+            now: now,
+            expanded: true,
+            onToggle: () {},
+            onShare: () {},
+            route: route(
+              id: 'ic-1',
+              destination: 'Kahramanmaraş Elbistan',
+              company: 'Kadirli Öz Seyahat Turizm Taşımacılık',
+              vehicleType: 'minibus',
+              departurePointName: 'Kadirli Şehirlerarası Otobüs Terminali',
+              departurePointAddress:
+                  'Cumhuriyet Mahallesi Otogar Caddesi No:1, Kadirli/Osmaniye',
+              latitude: 37.3745,
+              longitude: 36.0972,
+              schedules: const [
+                ('06:30', weekdays),
+                ('09:15', ['mon', 'wed', 'fri']),
+                ('13:00', ['sat', 'sun']),
+                ('18:45', daily),
+              ],
+            ),
+          ),
+        ),
+        GoldenScenario(
+          'Otobüs · her gün · kalkış noktası girilmemiş',
+          IntercityRouteCard(
+            now: now,
+            expanded: true,
+            onToggle: () {},
+            onShare: () {},
+            route: route(
+              id: 'ic-2',
+              destination: 'Adana',
+              company: 'Kadirli Seyahat',
+              schedules: const [('07:00', daily), ('14:00', daily)],
+            ),
           ),
         ),
       ],

@@ -5,6 +5,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/utils.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../application/departure_times.dart';
+import '../../application/operating_days.dart';
 import '../../data/models/intercity_route.dart';
 
 /// Şehirlerarası hat kartı — kapalıyken "sıradaki kalkış", açıkken günün
@@ -57,7 +58,9 @@ class IntercityRouteCard extends StatelessWidget {
                   borderRadius: AppRadius.rSm,
                 ),
                 child: Icon(
-                  Icons.directions_bus_rounded,
+                  // 12.6: minibüsün ikonu da farklı — "Adana minibüsü" ile
+                  // "Adana otobüsü" listede **ilk bakışta** ayrılmalı.
+                  route.vehicle?.icon ?? Icons.directions_bus_rounded,
                   size: 20,
                   color: theme.colorScheme.onPrimaryContainer,
                 ),
@@ -73,14 +76,29 @@ class IntercityRouteCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (route.companyLabel != null) ...[
+                    if (route.companyLabel != null ||
+                        route.vehicle != null) ...[
                       AppSpacing.gapXs,
-                      Text(
-                        route.companyLabel!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: palette.muted,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                      // ⚠️ Firma adı + araç tipi yan yana: dar sütunda çıplak
+                      // `Row` bu projenin yedi kez tekrarlayan taşma tuzağı →
+                      // `Wrap`.
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.xs,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (route.companyLabel != null)
+                            Text(
+                              route.companyLabel!,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: palette.muted,
+                              ),
+                            ),
+                          // Tanınmayan araç tipinde rozet **hiç çizilmez**:
+                          // uydurma bir etiket basmak yalan söylemektir.
+                          if (route.vehicle != null)
+                            _VehicleBadge(label: route.vehicle!.label),
+                        ],
                       ),
                     ],
                   ],
@@ -97,10 +115,11 @@ class IntercityRouteCard extends StatelessWidget {
           ),
 
           AppSpacing.gapMd,
-          _NextDepartureLine(next: next),
+          _NextDepartureLine(next: next, runsToday: route.runsToday(now: now)),
 
           if (route.durationLabel != null ||
-              (route.price != null && route.price! > 0)) ...[
+              (route.price != null && route.price! > 0) ||
+              route.departurePointLabel != null) ...[
             AppSpacing.gapMd,
             // ⚠️ Dar sütunda `Row` içindeki çıplak `Text` bu projenin tekrar
             // eden taşma tuzağı (11.7→11.11) → meta satırı `Wrap`.
@@ -108,6 +127,11 @@ class IntercityRouteCard extends StatelessWidget {
               spacing: AppSpacing.lg,
               runSpacing: AppSpacing.xs,
               children: [
+                if (route.departurePointLabel != null)
+                  _MetaChip(
+                    icon: Icons.place_rounded,
+                    label: route.departurePointLabel!,
+                  ),
                 if (route.durationLabel != null)
                   _MetaChip(
                     icon: Icons.schedule_rounded,
@@ -126,6 +150,7 @@ class IntercityRouteCard extends StatelessWidget {
             AppSpacing.gapLg,
             Divider(color: palette.border, height: 1),
             AppSpacing.gapLg,
+            _DeparturePointSection(route: route),
             _DepartureGrid(route: route, now: now),
             if (onShare != null) ...[
               AppSpacing.gapLg,
@@ -146,9 +171,12 @@ class IntercityRouteCard extends StatelessWidget {
 
 /// "Sıradaki 14:00 · 2 sa 12 dk sonra" satırı.
 class _NextDepartureLine extends StatelessWidget {
-  const _NextDepartureLine({required this.next});
+  const _NextDepartureLine({required this.next, required this.runsToday});
 
   final NextDeparture? next;
+
+  /// Hattın bugün hiç seferi var mı — "bitti" ile "yok" ayrımı için.
+  final bool runsToday;
 
   @override
   Widget build(BuildContext context) {
@@ -162,21 +190,33 @@ class _NextDepartureLine extends StatelessWidget {
       );
     }
 
-    // Yarına kalan sefer sakin tonda: bugün için bir aciliyet yok.
-    final color = next!.isTomorrow
-        ? palette.muted
-        : (next!.isImminent ? palette.accent : theme.colorScheme.primary);
+    // Bugün olmayan sefer sakin tonda: bugün için bir aciliyet yok.
+    final color = next!.isToday
+        ? (next!.isImminent ? palette.accent : theme.colorScheme.primary)
+        : palette.muted;
 
-    final text = next!.isTomorrow
-        ? 'Bugünkü seferler bitti · Yarın ${next!.label}'
-        : 'Sıradaki ${next!.label} · ${DepartureTimes.untilLabel(next!.minutesUntil)}';
+    // 🔴 12.6 — üç dal: bugün / yarın / ilerideki bir gün. Üçüncüsü olmadan
+    // yalnız hafta içi çalışan bir hat Cumartesi "Yarın 06:30" derdi ve
+    // vatandaş **Pazar günü durakta beklerdi** — hata vermeyen yanlış cevap.
+    //
+    // 🐛 Canlı emülatör denetiminde bulundu: giriş cümlesi `daysAhead`'e değil
+    // **hattın bugün çalışıp çalışmadığına** bakmalı. "Bugünkü seferler bitti"
+    // cümlesi, o gün hiç seferi olmayan bir hatta *olmamış* bir sefer dizisini
+    // ima ediyordu.
+    final prefix = runsToday ? 'Bugünkü seferler bitti' : 'Bugün sefer yok';
+    final text = next!.isToday
+        ? 'Sıradaki ${next!.label} · '
+              '${DepartureTimes.untilLabel(next!.minutesUntil)}'
+        : '$prefix · ${next!.dayLabel} ${next!.label}';
 
     return Row(
       children: [
         Icon(
-          next!.isTomorrow
-              ? Icons.nightlight_round
-              : Icons.departure_board_rounded,
+          next!.isToday
+              ? Icons.departure_board_rounded
+              : (next!.isTomorrow
+                    ? Icons.nightlight_round
+                    : Icons.event_repeat_rounded),
           size: 16,
           color: color,
         ),
@@ -204,9 +244,9 @@ class _DepartureGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = theme.palette;
-    final times = route.departureTimes;
+    final departures = route.departures;
 
-    if (times.isEmpty) {
+    if (departures.isEmpty) {
       return const InfoBanner(
         tone: InfoBannerTone.info,
         message: 'Bu hat için kalkış saati henüz girilmemiş.',
@@ -214,7 +254,11 @@ class _DepartureGrid extends StatelessWidget {
     }
 
     final current = DepartureTimes.nowMinutes(now: now);
+    final today = DepartureTimes.nowWeekday(now: now);
     final next = route.next(now: now);
+    // Hattın tamamı her gün çalışıyorsa rozet hiçbir şey söylemez, yalnız yer
+    // kaplar — 12.5 öncesi kayıtların **tamamı** bu durumda.
+    final showDayBadges = !route.runsDaily;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,18 +272,33 @@ class _DepartureGrid extends StatelessWidget {
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
           children: [
-            for (final time in times)
+            for (final departure in departures)
               _TimePill(
-                time: time,
-                isNext: next != null && !next.isTomorrow && next.label == time,
-                isPast: (DepartureTimes.minutesOfDay(time) ?? 0) < current,
+                time: departure.label,
+                days: departure.days,
+                showDays: showDayBadges,
+                isNext:
+                    next != null &&
+                    next.isToday &&
+                    next.minutesOfDay == departure.minutesOfDay,
+                // 🔴 "Geçti" yalnız **bugün çalışan** sefer için doğru: hafta
+                // içi 07:00 seferi Pazar öğlen "kalktı" diye üstü çizilseydi
+                // ekran, aslında hiç kalkmamış bir seferi kalkmış gösterirdi.
+                isPast:
+                    departure.days.runsOnWeekday(today) &&
+                    departure.minutesOfDay < current,
+                isOffDay: !departure.days.runsOnWeekday(today),
               ),
           ],
         ),
         AppSpacing.gapSm,
         Text(
-          'Geçen seferler soluk gösterilir. Saatler firmadan alınan bilgiye '
-          'göredir, yolculuk öncesi teyit edin.',
+          showDayBadges
+              ? 'Bugün çalışmayan seferler soluk, geçenlerin üstü çizilidir. '
+                    'Saatler firmadan alınan bilgiye göredir, yolculuk öncesi '
+                    'teyit edin.'
+              : 'Geçen seferler soluk gösterilir. Saatler firmadan alınan '
+                    'bilgiye göredir, yolculuk öncesi teyit edin.',
           style: theme.textTheme.bodySmall?.copyWith(color: palette.muted),
         ),
       ],
@@ -250,13 +309,23 @@ class _DepartureGrid extends StatelessWidget {
 class _TimePill extends StatelessWidget {
   const _TimePill({
     required this.time,
+    required this.days,
+    required this.showDays,
     required this.isNext,
     required this.isPast,
+    required this.isOffDay,
   });
 
   final String time;
+  final OperatingDays days;
+
+  /// Hattın tamamı her gün çalışıyorsa gün satırı çizilmez.
+  final bool showDays;
   final bool isNext;
   final bool isPast;
+
+  /// Sefer **bugün** çalışmıyor (ör. Pazar günü bakılan hafta içi seferi).
+  final bool isOffDay;
 
   @override
   Widget build(BuildContext context) {
@@ -268,13 +337,16 @@ class _TimePill extends StatelessWidget {
         : theme.colorScheme.surface;
     final foreground = isNext
         ? theme.colorScheme.onPrimary
-        : (isPast ? palette.muted : theme.colorScheme.onSurface);
+        : ((isPast || isOffDay) ? palette.muted : theme.colorScheme.onSurface);
+
+    // Renk tek başına yetmez (11.6 kararı) → durum ekran okuyucuya **yazılır**.
+    final dayPart = showDays ? ', ${days.semanticsLabel}' : '';
+    final statePart = isNext
+        ? ', sıradaki kalkış'
+        : (isOffDay ? ', bugün sefer yok' : (isPast ? ', kalktı' : ''));
 
     return Semantics(
-      // Renk tek başına yetmez (11.6 kararı) → durum ekran okuyucuya yazılır.
-      label: isNext
-          ? '$time, sıradaki kalkış'
-          : (isPast ? '$time, kalktı' : time),
+      label: '$time$dayPart$statePart',
       excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -283,16 +355,133 @@ class _TimePill extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: background,
-          borderRadius: AppRadius.rPill,
+          borderRadius: AppRadius.rMd,
           border: Border.all(color: isNext ? background : palette.border),
         ),
-        child: Text(
-          time,
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: foreground,
-            decoration: isPast && !isNext ? TextDecoration.lineThrough : null,
-            decorationColor: palette.muted,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              time,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: foreground,
+                decoration: isPast && !isNext
+                    ? TextDecoration.lineThrough
+                    : null,
+                decorationColor: palette.muted,
+              ),
+            ),
+            if (showDays) ...[
+              const SizedBox(height: 2),
+              Text(
+                days.label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: isNext
+                      ? theme.colorScheme.onPrimary
+                      : (isOffDay ? palette.muted : theme.colorScheme.primary),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Kalkış noktası + **Yol tarifi** (12.5'in koordinat sözlüğünün varlık sebebi).
+///
+/// Kalkış noktası girilmemişse bölüm **hiç çizilmez** — "otogardan kalkar"
+/// tahmini vatandaşı yanlış yere götürür (12.5'in "geri doldurma YOK" kararı).
+class _DeparturePointSection extends StatelessWidget {
+  const _DeparturePointSection({required this.route});
+
+  final IntercityRoute route;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = route.departurePointLabel;
+    if (name == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final palette = theme.palette;
+    final address = route.departurePointAddressLabel;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Kalkış noktası',
+          style: theme.textTheme.labelMedium?.copyWith(color: palette.muted),
+        ),
+        AppSpacing.gapSm,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.place_rounded, size: 18, color: theme.colorScheme.primary),
+            AppSpacing.wGapSm,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: theme.textTheme.bodyMedium),
+                  if (address != null && address != name) ...[
+                    AppSpacing.gapXs,
+                    Text(
+                      address,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: palette.muted,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (route.canShowDirections) ...[
+          AppSpacing.gapMd,
+          // Ortak bileşen: koordinat varsa `geo:`, yoksa adres araması —
+          // "harita açılamadı" bilgi şeridi de orada tek yerde.
+          ContactActions(
+            latitude: route.departurePointLatitude,
+            longitude: route.departurePointLongitude,
+            mapLabel: name,
+            address: route.departureMapQuery,
           ),
+        ],
+        AppSpacing.gapLg,
+      ],
+    );
+  }
+}
+
+/// "Otobüs" / "Minibüs" rozeti.
+class _VehicleBadge extends StatelessWidget {
+  const _VehicleBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: AppRadius.rPill,
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSecondaryContainer,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

@@ -8,7 +8,7 @@
 > öğretici bir rehber değil (o `DOTNET_MASTERCLASS.md`), istemci kontratı değil
 > (o `Memory_Bank/API_CONTRACT.md`). Burası **harita**: bugün neyin nerede olduğu.
 >
-> Son güncelleme: 9 Ağustos 2026 (Faz 12.5 — ulaşım alan modeli: araç tipi · kalkış noktası · sefer günleri).
+> Son güncelleme: 10 Ağustos 2026 (Faz 12.6 — ulaşım mobil: ikili kalkış · gün rozetleri · "sıradaki sefer").
 
 ## Hangi dokümanı ne zaman okumalı
 
@@ -119,8 +119,9 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | `lib/core/observability/` | `ErrorReporter` — çökme/hata bildirimi (ateşle-unut, yeniden denemez, kendi hatasını raporlamaz) |
 | `lib/features/<modül>/data/` | Model + repository (yalnız burası Dio görür) |
 | `lib/features/<modül>/application/` | Provider'lar, denetleyiciler, saf mantık |
+| `lib/features/transport/application/` | 🔑 `operating_days.dart` (**mobilde gün ↔ bit dönüşümünün tek sahibi**, 12.6) · `departure_times.dart` (günü hesaba katan "sıradaki sefer") · `transport_vehicle.dart` |
 | `lib/features/<modül>/presentation/` | Ekranlar + `widgets/` |
-| `test/` | **696 test** (70 dosya); klasör yapısı `lib/`'i aynalar |
+| `test/` | **751 test** (71 dosya); klasör yapısı `lib/`'i aynalar |
 
 ---
 
@@ -391,7 +392,9 @@ Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıkla
 **46–48 (Faz 12.5)** `Integration/Panel/PanelTransportFieldModelTests.cs` +
 `Unit/Application/Transport/`
 içinde (panelin canlı denetiminde bulundular ve
-gerçek Postgres isterler). Biri kırmızıya dönerse ya sözleşme
+gerçek Postgres isterler). **49–50 (Faz 12.6)** istisnadır — tümüyle **istemci
+tarafı** oldukları için karşılıkları mobilde:
+`mobile/test/features/transport/{operating_days_test.dart,departure_times_test.dart,transport_screen_test.dart}`. Biri kırmızıya dönerse ya sözleşme
 bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 
 | # | Sözleşme | Bozulursa ne olur |
@@ -444,6 +447,8 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | 46 | **Sefer gün maskesinin tek sahibi `OperatingDays`** (Pazartesi=1 … Pazar=64); `0` **yasaktır** ve uç seferleri günlere göre **elemez**, yalnız `days`/`runsDaily` ile bildirir | Üç ayrı sessiz hasar tek maddede: (a) .NET `DayOfWeek` **Pazar=0**'dan başlar, maske Pazartesi'den — ikinci bir eşleme yazılırsa **"Salı seferi Pazartesi görünür"**, ne derleyici ne test yakalar; (b) `0` maskesi panelde *duran* ama mobilde *hiç görünmeyen* bir sefer üretir: yönetici saati girdiğini sanır, vatandaş asla göremez; (c) sunucu günlere göre elerse `days`'i tanımayan **mağazadaki eski sürümler için liste sebepsiz boşalır** — bugünkü davranış "her sefer her gün" olduğu için elememek regresyon değil, **uyumluluğun kendisidir**. ⚠️ Kodlar (`"mon"`…`"sun"`) DTO'ya çıkıyor, yani kontrat: yeniden adlandırılırsa eski sürümler günü tanımaz |
 | 47 | **`intercity_routes.vehicle_type` METİNDİR** (`bus`/`minibus`), enum sırası değil; kayıt yolunda `TransportVehicleTypes.Normalize`'dan geçer, **süzgeç yolunda** ise tanınmayan değer **süzmez** (`NormalizeFilter` → `null`) | Sayı saklansaydı araya üçüncü bir tip girdiğinde **bütün kayıtlar sessizce kayar** ve eski sürümler yanlış tip gösterir. İki dönüşümün ayrı olması da bilinçli: tek metot olsaydı `?vehicleType=otobus` yazan istemci, tüm listeyi görmesi gerekirken **yalnız otobüsleri** görürdü — hata vermeyen yanlış liste (`ARCHITECTURE.md` §5: bilinmeyen değer 400 değil **varsayılan**). 12.5 öncesi satırlar migration'da `bus` ile göç etti; varsayılan değişirse o satırların anlamı geriye dönük değişir |
 | 48 | **Hattın kalkış noktası SÖZLÜKTEN gelir** (`TransportDeparturePoint`); pasif nokta **yeni olarak seçilemez** ama var olan bağ korunur, o kayıtta **seçili kalır** ve **kaydın düzenlenmesini engellemez**; liste ile detay **aynı projeksiyondan** geçer (`IntercityRouteProjection`) | Serbest metin olsaydı "Kadirli Otogarı" on hatta ayrı yazılır ve **koordinatı düzeltmek on kaydı düzeltmek** olurdu — oysa koordinat bu tablonun varlık sebebi (12.6'nın "Yol tarifi" butonu). Pasif nokta seçili kayıttan düşseydi form kaydedildiğinde hattın kalkış noktası **sessizce boşalırdı** (12.4'te ilçe seçiminde birebir aynı karar). Projeksiyon ayrışırsa madde 43'ün aynısı: yeni bir alan yalnız listeye eklendiğinde **panelin düzenleme ekranı sessizce eksik** kalır ve ne derleyici ne test yakalar. 🐛 **"Yeni olarak" kaydı 12.5 canlı denetiminde eklendi:** kapı kaydın *şu anki* değerini tanımazsa, form pasif değeri seçili tuttuğu için (bu doğru bir karar) ikisi birlikte **düzenlenemeyen bir kayıt** üretir — yönetici yalnız fiyatı düzeltmek istese bile **hiç dokunmadığı bir alan** yüzünden reddedilir. Aynı hata 12.4'te `EventDistrictResolver`'da canlıda görüldü ve iki resolver aynı anda düzeltildi |
+| 49 | **İstemcide `days` BOŞ ya da EKSİK ise anlamı "her gün"dür** (`OperatingDays.fromCodes` — mobilde gün ↔ bit dönüşümünün **tek sahibi**), ve istemci de seferleri günlere göre **elemez**: hafta içi seferi Pazar günü listede **durur**, yalnız soluklaşır ve "sıradaki sefer" onu atlar | Üç ayrı sessiz hasar tek maddede: (a) boş listeyi "hiçbir gün" saymak, 12.5 **öncesinden kalan** (alanı hiç olmayan) her seferi ekrandan **sessizce siler** — panel saatleri gösterir, vatandaş hiçbir şey görmez, log temizdir; sunucunun `runsDaily` varsayılanı zaten `true` olduğu için "şüphede kalınca göster" tek tutarlı yön. (b) İstemci elemeye başlarsa hafta içi çalışan bir hattın kartı Pazar günü **boş** görünür — madde 46'nın "elemek ≠ bildirmek" kuralının istemci tarafı. (c) Dart'ın `DateTime.weekday`'i **Pazartesi=1 … Pazar=7** olduğu için maskeyle *tesadüfen* hizalıdır ve tam bu yüzden tehlikelidir: `1 << weekday` ya da `weekday % 7` yazan ikinci bir eşleme **derlenir, çalışır ve günü bir kaydırır** — .NET'teki Pazar=0 kaymasının (madde 46) aynası. Bağıntı tek satırda yaşamak zorunda: `bit = 1 << (weekday - 1)` |
+| 50 | **"Kalktı" (üstü çizili saat) yalnız BUGÜN çalışan sefer için doğrudur**; bugün çalışmayan sefer *soluk* gösterilir, **üstü çizilmez**. Aynı ayrım cümlede de var: "Bugünkü seferler bitti" ≠ "Bugün sefer yok" | İki *ayrı ayrı doğru* kural çarpışıyor: "saati geçen sefer geçmiştir" ve "sefer yalnız bazı günler çalışır". Gün kontrolü düşerse Pazar günü bakan vatandaş, o gün **hiç kalkmamış** bir 07:00 seferini "kalkmış" olarak görür — hata yok, log yok, yalnız yanlış bilgi. 🐛 **Bu madde bir test boşluğundan doğdu:** bozma denemesinde gün kontrolü kaldırıldı ve **hiçbir test kırılmadı** — golden'ın %0.5 piksel toleransı (anti-aliasing için bilinçli) tek bir üstü çizili hapı yutuyor, semantik etiket ise `isOffDay`'i `isPast`'ten **önce** kontrol ettiği için zaten doğru kalıyordu. Kural artık `Text.style.decoration`'a bakan **davranış** testiyle ve **iki yönlü** kilitli (çizilmeyen kadar çizilen de denetleniyor; yoksa "hiç çizme" gerçeklemesi de yeşil kalır). Cümle farkı canlı emülatör denetiminde bulundu |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 
@@ -518,6 +523,9 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | **Moderasyon** | `Integration/Panel/ModerationStateMachineTests.cs` | Vefat/etkinlik/kampanya/işletme onay-red geçişleri, soft-delete etkileşimi |
 | **Arka plan işleri** | `Integration/Panel/BackgroundJobTests.cs` | Sınır tarihleri + "iki kez koşarsa mükerrer üretmez" |
 | Mobil saf mantık | `mobile/test/core/**`, `features/*/…_test.dart` | `departure_times`, `paged_feed`, `AppDate`, `AppMoney`… |
+| **Sefer günleri (mobil)** | `mobile/test/features/transport/operating_days_test.dart` | §7 madde **49**: kod ↔ maske gidiş-dönüşü ve **kontrat sırası**, tanınmayan kodun yok sayılması, **boş/eksik listenin "her gün" sayılması**, `daysUntilNext`'in hafta sonunu doğru sarması, ham İngilizce kodun arayüze sızmaması; ⚠️ **gün kayması** her yedi gün için tek tek (`1 << weekday` yazımı Pazar'ı Pazartesi'ye çakar) |
+| **"Sıradaki sefer" (mobil)** | `mobile/test/features/transport/departure_times_test.dart` | Hafta içi seferinin **Cumartesi "Pzt" demesi** ("yarın" DEĞİL — vatandaşı Pazar günü durakta bekletirdi), yalnız bugün çalışan hattın saatleri geçtiyse **bir hafta sonrası** (ofset döngüsü 7'ye kadar), karışık maskelerde **en erken ulaşılabilir** seferin seçilmesi, maskesi boş bozuk seferin **elenmesi**, saat listesi alan eski API'nin davranışının **korunması** |
+| **Ulaşım mobil ekranı** | `mobile/test/features/transport/transport_screen_test.dart` | §7 madde **49–50**: araç süzgecinin **uca** gitmesi ("Tümü"de parametre yok) ve **aramayı koruması**, süzgeç yüzünden boşalan listenin **sebebini söylemesi**, tanınmayan araç tipinde rozetin **çizilmemesi**, gün alanı hiç gelmeyen seferin **gizlenmemesi**, **"kalktı" çizgisinin yalnız bugün çalışan seferde** çıkması (iki yönlü), "bitti" ile "yok" cümlelerinin ayrılması, kalkış noktası girilmemişse "Yol tarifi"nin **hiç çizilmemesi** |
 | Mobil ekran | `mobile/test/features/*/…_screen_test.dart` | Boş/yükleniyor/hata durumları, filtre, taşma |
 | Mobil **görsel regresyon** | `mobile/test/golden/` | Ortak bileşenler + liste kartları; 360 dp × (1.0 ve 1.4 ölçek) × açık/koyu |
 | Mobil **erişilebilirlik** | `mobile/test/core/accessibility_test.dart` | WCAG AA kontrast, 48 dp dokunma hedefi, ekran okuyucu etiketi, 1.4 ölçekte taşma yok |

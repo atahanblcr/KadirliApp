@@ -5,6 +5,8 @@ import 'package:kadirli_app/core/theme/app_colors.dart';
 import 'package:kadirli_app/core/theme/app_spacing.dart';
 import 'package:kadirli_app/core/theme/app_theme.dart';
 import 'package:kadirli_app/core/widgets/widgets.dart';
+import 'package:kadirli_app/features/transport/data/models/intercity_route.dart';
+import 'package:kadirli_app/features/transport/presentation/widgets/intercity_route_card.dart';
 
 /// Erişilebilirlik iddiaları — Faz 11.15.
 ///
@@ -221,6 +223,57 @@ void main() {
       );
 
       // `RenderFlex overflowed` bir istisna olarak raporlanır → burada null olmalı.
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('ulaşım kartı gün rozetleriyle 360 dp × 1.4 ölçekte taşmıyor', (
+      tester,
+    ) async {
+      // 🔴 Faz 12.6 — kart bu fazda üç yeni öge kazandı (araç rozeti, kalkış
+      // noktası satırı, saat hapları içinde gün etiketi). Üçü de `Row`/`Wrap`
+      // içine giren METİN: bu projenin yedi kez tekrarlayan taşma sınıfı.
+      tester.view.physicalSize =
+          const Size(360, 1400) * tester.view.devicePixelRatio;
+      addTearDown(tester.view.reset);
+
+      await pumpA11y(
+        tester,
+        textScale: 1.4,
+        SingleChildScrollView(
+          child: IntercityRouteCard(
+            now: DateTime.utc(2026, 8, 3, 12),
+            expanded: true,
+            onToggle: () {},
+            onShare: () {},
+            route: IntercityRoute(
+              id: 'ic-1',
+              destination: 'Kahramanmaraş Elbistan',
+              company: 'Kadirli Öz Seyahat Turizm Taşımacılık',
+              price: 220,
+              durationMinutes: 105,
+              vehicleType: 'minibus',
+              departurePointName: 'Kadirli Şehirlerarası Otobüs Terminali',
+              departurePointAddress:
+                  'Cumhuriyet Mahallesi Otogar Caddesi No:1, Kadirli/Osmaniye',
+              departurePointLatitude: 37.3745,
+              departurePointLongitude: 36.0972,
+              schedules: const [
+                IntercityDeparture(
+                  id: 's1',
+                  departureTime: '06:30',
+                  days: ['mon', 'tue', 'wed', 'thu', 'fri'],
+                ),
+                IntercityDeparture(
+                  id: 's2',
+                  departureTime: '09:15',
+                  days: ['mon', 'wed', 'fri'],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
       expect(tester.takeException(), isNull);
     });
   });

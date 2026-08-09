@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/network.dart';
@@ -5,6 +6,7 @@ import '../../../core/paging/paged_feed.dart';
 import '../data/models/intercity_route.dart';
 import '../data/models/intracity_route.dart';
 import '../data/transport_repository.dart';
+import 'transport_vehicle.dart';
 
 /// Ulaşım ekranının iki sekmesi.
 enum TransportTab {
@@ -30,31 +32,76 @@ final transportTabProvider =
 
 // ------------------------------------------------------- Şehirlerarası liste
 
-typedef IntercityFeedState = PagedFeedState<IntercityRoute, String>;
+/// Şehirlerarası listenin filtresi: arama **ve** araç tipi birlikte uygulanır
+/// (rehberdeki `GuideFilter` deseni).
+///
+/// 🔑 İkisi tek nesnede: ayrı tutulsalardı araç şeridine dokunmak aramayı
+/// sessizce düşürürdü — panelde 12.5'te tam bu yüzden arama ve araç süzgeci
+/// **tek forma** alınmıştı; mobilde karşılığı budur.
+@immutable
+class IntercityFilter {
+  const IntercityFilter({
+    this.search = '',
+    this.vehicle = TransportVehicle.all,
+  });
+
+  final String search;
+  final TransportVehicle vehicle;
+
+  IntercityFilter copyWith({String? search, TransportVehicle? vehicle}) =>
+      IntercityFilter(
+        search: search ?? this.search,
+        vehicle: vehicle ?? this.vehicle,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is IntercityFilter &&
+      other.search == search &&
+      other.vehicle == vehicle;
+
+  @override
+  int get hashCode => Object.hash(search, vehicle);
+}
+
+typedef IntercityFeedState = PagedFeedState<IntercityRoute, IntercityFilter>;
 
 /// ⚠️ Uç **sayfalı** (`PagedResult`) — planın "sayfasız düz liste olabilir"
 /// uyarısının aksine; bu yüzden ortak [PagedFeedController] kullanılıyor ve
 /// hat sayısı büyüse de ekran çalışır.
 class IntercityFeedController
-    extends PagedFeedController<IntercityRoute, String> {
+    extends PagedFeedController<IntercityRoute, IntercityFilter> {
   @override
-  String get initialFilter => '';
+  IntercityFilter get initialFilter => const IntercityFilter();
 
   @override
   Future<PagedResult<IntercityRoute>> fetchPage({
     required int page,
     required int limit,
-    required String filter,
+    required IntercityFilter filter,
   }) => ref
       .read(transportRepositoryProvider)
-      .intercity(page: page, limit: limit, search: filter);
+      .intercity(
+        page: page,
+        limit: limit,
+        search: filter.search,
+        vehicleType: filter.vehicle.apiValue,
+      );
 
   @override
   String idOf(IntercityRoute item) => item.id;
 
-  void search(String term) => applyFilter(term.trim());
+  void search(String term) =>
+      applyFilter(state.filter.copyWith(search: term.trim()));
 
-  void clearFilters() => applyFilter('');
+  void selectVehicle(TransportVehicle vehicle) =>
+      applyFilter(state.filter.copyWith(vehicle: vehicle));
+
+  /// "Aramayı temizle" **araç şeridine dokunmaz**: kullanıcı "Minibüs"ü seçip
+  /// arama yaptıysa aramayı temizlemek onu otobüslere geri döndürmemeli.
+  void clearSearch() => applyFilter(state.filter.copyWith(search: ''));
+
+  void clearFilters() => applyFilter(const IntercityFilter());
 }
 
 final intercityFeedProvider =

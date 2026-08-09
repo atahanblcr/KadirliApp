@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kadirli_app/features/transport/application/departure_times.dart';
+import 'package:kadirli_app/features/transport/application/operating_days.dart';
 
 /// Kalkış saati hesapları (11.12) — ekransız saf mantık.
 ///
@@ -74,6 +75,130 @@ void main() {
       final next = DepartureTimes.next(times, now: kadirli(13, 0));
       expect(next!.minutesUntil, 60);
       expect(next.isImminent, isFalse);
+    });
+  });
+
+  group('sıradaki kalkış — sefer günleri (12.6)', () {
+    // 2026 Ağustos: 3'ü Pazartesi → 8'i Cumartesi, 9'u Pazar.
+    DateTime at(int day, int hour, int minute) =>
+        DateTime.utc(2026, 8, day, hour, minute).subtract(
+          const Duration(hours: 3),
+        );
+
+    DepartureOption option(String time, List<String> days) => DepartureOption(
+      minutesOfDay: DepartureTimes.minutesOfDay(time)!,
+      days: OperatingDays.fromCodes(days),
+    );
+
+    const weekdayCodes = ['mon', 'tue', 'wed', 'thu', 'fri'];
+
+    test('fixture günleri doğru (test kendi varsayımını denetler)', () {
+      expect(at(3, 12, 0).toUtc().add(const Duration(hours: 3)).weekday,
+          DateTime.monday);
+      expect(at(8, 12, 0).toUtc().add(const Duration(hours: 3)).weekday,
+          DateTime.saturday);
+      expect(at(9, 12, 0).toUtc().add(const Duration(hours: 3)).weekday,
+          DateTime.sunday);
+    });
+
+    test('bugün çalışan seferde davranış eskisiyle aynı', () {
+      final next = DepartureTimes.nextAmong(
+        [option('07:00', weekdayCodes), option('14:00', weekdayCodes)],
+        now: at(3, 13, 40), // Pazartesi 13:40
+      );
+      expect(next!.label, '14:00');
+      expect(next.daysAhead, 0);
+      expect(next.isToday, isTrue);
+      expect(next.minutesUntil, 20);
+      expect(next.dayLabel, isNull);
+    });
+
+    test('🔴 hafta içi seferi CUMARTESİ sorulduğunda "Pzt" der, "yarın" DEMEZ', () {
+      // 12.6'nın bitti kriteri. "Yarın" deseydi vatandaş Pazar günü durakta
+      // beklerdi — hata vermeyen yanlış cevap.
+      final next = DepartureTimes.nextAmong(
+        [option('07:00', weekdayCodes)],
+        now: at(8, 12, 0), // Cumartesi öğlen
+      );
+      expect(next!.label, '07:00');
+      expect(next.daysAhead, 2);
+      expect(next.isTomorrow, isFalse);
+      expect(next.isLaterThanTomorrow, isTrue);
+      expect(next.dayLabel, 'Pzt');
+      expect(next.weekday, DateTime.monday);
+      // 2 gün + (07:00 - 12:00)
+      expect(next.minutesUntil, 2 * 24 * 60 - 5 * 60);
+    });
+
+    test('hafta içi seferi PAZAR sorulduğunda "yarın" der', () {
+      final next = DepartureTimes.nextAmong(
+        [option('07:00', weekdayCodes)],
+        now: at(9, 12, 0), // Pazar öğlen
+      );
+      expect(next!.daysAhead, 1);
+      expect(next.isTomorrow, isTrue);
+      expect(next.dayLabel, 'Yarın');
+    });
+
+    test('bugünün geçmiş seferi elenir, aynı günün sonraki seferi kalır', () {
+      final next = DepartureTimes.nextAmong(
+        [option('07:00', weekdayCodes), option('17:30', weekdayCodes)],
+        now: at(3, 10, 0),
+      );
+      expect(next!.label, '17:30');
+      expect(next.daysAhead, 0);
+    });
+
+    test('gün maskeleri karışıkken en erken ULAŞILABİLİR sefer seçilir', () {
+      // Cumartesi 12:00: hafta içi 06:00 seferi daha erken görünse de
+      // Cumartesi çalışan 20:00 seferi bugün ulaşılabilir olan.
+      final next = DepartureTimes.nextAmong(
+        [option('06:00', weekdayCodes), option('20:00', ['sat'])],
+        now: at(8, 12, 0),
+      );
+      expect(next!.label, '20:00');
+      expect(next.daysAhead, 0);
+    });
+
+    test('🔴 yalnız bugün çalışan hattın saatleri geçtiyse bir hafta sonrası', () {
+      // Ofset döngüsü 6'da bitseydi null dönerdi ve kart "kalkış saati
+      // girilmemiş" derdi — oysa saatler duruyor.
+      final next = DepartureTimes.nextAmong(
+        [option('07:00', ['mon'])],
+        now: at(3, 20, 0), // Pazartesi akşam, sefer geçmiş
+      );
+      expect(next!.label, '07:00');
+      expect(next.daysAhead, 7);
+      expect(next.dayLabel, 'Pzt');
+      expect(next.weekday, DateTime.monday);
+    });
+
+    test('hiçbir gün çalışmayan bozuk sefer elenir (olmayan sefer gösterilmez)', () {
+      final next = DepartureTimes.nextAmong(
+        [
+          DepartureOption(minutesOfDay: 7 * 60, days: const OperatingDays(0)),
+        ],
+        now: at(3, 6, 0),
+      );
+      expect(next, isNull);
+    });
+
+    test('yarına kalan sefer "acil" sayılmaz', () {
+      final next = DepartureTimes.nextAmong(
+        [option('07:00', weekdayCodes)],
+        now: at(9, 23, 50), // Pazar gece, yarın 07:00
+      );
+      expect(next!.isTomorrow, isTrue);
+      expect(next.isImminent, isFalse);
+    });
+
+    test('saat listesi alan eski API her gün varsayar (davranış korundu)', () {
+      final next = DepartureTimes.next(
+        const ['07:00', '14:00'],
+        now: at(8, 13, 0), // Cumartesi
+      );
+      expect(next!.label, '14:00');
+      expect(next.daysAhead, 0);
     });
   });
 

@@ -293,6 +293,22 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
     (400 gelmez, liste boşalmaz) — 12.4'te `locationScope` için verilen aynı karar.
   - ⚠️ **Kalkış noktasının public sözlük ucu YOK** (ilçelerdeki karar): hattın ihtiyacı olan
     ad/adres/koordinat zaten hat gövdesinde geliyor.
+  - 🆕 **Faz 12.6 — istemci tarafı (sunucuda değişiklik YOK).** 12.5'in alanları artık mobilde
+    okunuyor: araç rozeti + `?vehicleType` süzgeci, kalkış noktası + "Yol tarifi", gün rozetleri
+    ve **günü hesaba katan "sıradaki sefer"**.
+    - 🔴 **`days` boş ya da hiç gelmemişse istemci "HER GÜN" varsayar** (`OperatingDays.fromCodes`).
+      "Hiçbir gün" saymak, 12.5 öncesi kayıtları (alan yok) ve tanınmayan kod taşıyan kayıtları
+      ekrandan **sessizce silerdi** — sunucunun `runsDaily` varsayılanı zaten `true`. Şüphede
+      kalınca **göstermek** doğru yön; uç de zaten elemiyor.
+    - 🔴 **İstemci de günlere göre ELEMİYOR:** hafta içi seferi Pazar günü de listede duruyor,
+      yalnız rozeti soluk ve "sıradaki sefer" onu atlıyor. Süzseydi bir hafta içi hattının kartı
+      Pazar günü **boş** görünürdü.
+    - ⚠️ Gün ↔ bit dönüşümünün **mobildeki tek sahibi** `features/transport/application/operating_days.dart`.
+      Dart'ın `DateTime.weekday`'i Pazartesi=1 … Pazar=7 olduğu için maskeyle *tesadüfen* hizalı —
+      tam bu yüzden `1 << weekday` gibi bir ikinci eşleme derlenir, çalışır ve **günü bir kaydırır**.
+    - ⚠️ Araç süzgecinde istemci **üç** seçenek sunuyor (`Tümü` / `bus` / `minibus`); "Tümü"de
+      parametre **hiç gönderilmiyor**. İkili bir süzgeç olsaydı sunucuya yarın eklenecek üçüncü
+      bir tip mağazadaki eski sürümlerde **hiçbir süzgeçte görünmezdi**.
 
 ### Şikayet / Dosya / Lookup
 - `POST /v1/complaints` — **anonim gönderim açık**; oturum varsa sunucu `user_id` claim'ini kendisi bağlar (istemci kullanıcı kimliği yollamaz). Yanıt: oluşan kaydın **Guid**'i. Gövde: `{subject, message, type?, relatedModule?, relatedId?}`.
