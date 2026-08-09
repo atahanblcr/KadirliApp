@@ -457,6 +457,91 @@ public sealed class UpdateDistrictCommandHandler : IRequestHandler<UpdateDistric
     }
 }
 
+// ---------- Kalkış noktası (Faz 12.5) ----------
+//
+// 🔑 Koordinat bu tablonun asıl amacı: mobildeki "Yol tarifi" butonu (12.6) buradan besleniyor.
+// Serbest metin olsaydı "Kadirli Otogarı" on hatta ayrı ayrı yazılır ve koordinatı düzeltmek
+// on kaydı elle düzeltmek olurdu (12.3'ün mahalle, 12.4'ün ilçe dersi).
+
+public sealed record CreateDeparturePointCommand(
+    string Name, string? Address, decimal? Latitude, decimal? Longitude, int DisplayOrder)
+    : LookupsInvalidatorBase, IRequest<Guid>, IAuditableCommand
+{
+    public string AuditModule => "lookups";
+    public string AuditAction => "create-departure-point";
+    public string? AuditAffectedType => "TransportDeparturePoint";
+    public object? AuditDetails => new { name = Name };
+}
+
+public sealed class CreateDeparturePointCommandHandler : IRequestHandler<CreateDeparturePointCommand, Guid>
+{
+    private readonly IUnitOfWork _uow;
+    public CreateDeparturePointCommandHandler(IUnitOfWork uow) => _uow = uow;
+
+    public async Task<Guid> Handle(CreateDeparturePointCommand request, CancellationToken ct)
+    {
+        var repo = _uow.Repository<TransportDeparturePoint>();
+        var (name, slug) = await LookupRules.ValidateSluggedNameAsync(
+            repo.Query(), request.Name, excludeId: null, "kalkış noktası", ct);
+
+        var point = new TransportDeparturePoint
+        {
+            Name = name,
+            Slug = slug,
+            Address = LookupRules.Clean(request.Address),
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
+            DisplayOrder = request.DisplayOrder,
+            IsActive = true
+        };
+
+        await repo.AddAsync(point, ct);
+        await _uow.SaveChangesAsync(ct);
+        return point.Id;
+    }
+}
+
+public sealed record UpdateDeparturePointCommand(
+    Guid Id, string Name, string? Address, decimal? Latitude, decimal? Longitude, int DisplayOrder, bool IsActive)
+    : LookupsInvalidatorBase, IRequest<bool>, IAuditableCommand
+{
+    public string AuditModule => "lookups";
+    public string AuditAction => "update-departure-point";
+    public Guid? AuditAffectedId => Id;
+    public string? AuditAffectedType => "TransportDeparturePoint";
+    public object? AuditDetails => new { name = Name, isActive = IsActive };
+}
+
+public sealed class UpdateDeparturePointCommandHandler : IRequestHandler<UpdateDeparturePointCommand, bool>
+{
+    private readonly IUnitOfWork _uow;
+    public UpdateDeparturePointCommandHandler(IUnitOfWork uow) => _uow = uow;
+
+    public async Task<bool> Handle(UpdateDeparturePointCommand request, CancellationToken ct)
+    {
+        var repo = _uow.Repository<TransportDeparturePoint>();
+        var point = await repo.GetByIdAsync(request.Id, ct);
+        if (point == null) return false;
+
+        var (name, slug) = await LookupRules.ValidateSluggedNameAsync(
+            repo.Query(), request.Name, request.Id, "kalkış noktası", ct);
+
+        point.Name = name;
+        point.Slug = slug;
+        point.Address = LookupRules.Clean(request.Address);
+        point.Latitude = request.Latitude;
+        point.Longitude = request.Longitude;
+        point.DisplayOrder = request.DisplayOrder;
+        // ⚠️ Pasifleştirme var olan hattın bağını KOPARMAZ — "bundan sonra seçilemesin"
+        // demektir, "geçmişi sil" değil (12.4'teki ilçe kararı).
+        point.IsActive = request.IsActive;
+
+        repo.Update(point);
+        await _uow.SaveChangesAsync(ct);
+        return true;
+    }
+}
+
 // ---------- Ortak kurallar ----------
 
 internal static class LookupRules

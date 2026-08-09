@@ -5934,6 +5934,13 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "VehicleType",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -5988,6 +5995,13 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "VehicleType",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -6038,6 +6052,13 @@
                     },
                     {
                         "name": "SearchTerm",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "VehicleType",
                         "in": "query",
                         "schema": {
                             "type": "string"
@@ -6104,6 +6125,13 @@
                     },
                     {
                         "name": "SearchTerm",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "VehicleType",
                         "in": "query",
                         "schema": {
                             "type": "string"
@@ -6188,6 +6216,48 @@
                 }
             }
         },
+        "/v1/admin/transport/intercity/{id}": {
+            "put": {
+                "tags": [
+                    "TransportAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateIntercityRouteCommand"
+                            }
+                        },
+                        "text/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateIntercityRouteCommand"
+                            }
+                        },
+                        "application/*+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateIntercityRouteCommand"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/v1/admin/transport/intercity/{routeId}/schedules": {
             "post": {
                 "tags": [
@@ -6231,6 +6301,46 @@
             }
         },
         "/v1/admin/transport/intercity/schedules/{id}": {
+            "put": {
+                "tags": [
+                    "TransportAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateScheduleDto"
+                            }
+                        },
+                        "text/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateScheduleDto"
+                            }
+                        },
+                        "application/*+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateScheduleDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
             "delete": {
                 "tags": [
                     "TransportAdmin"
@@ -7812,6 +7922,34 @@
                     "company": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "vehicleType": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "departurePointId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "auditModule": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditAction": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditAffectedType": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditDetails": {
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "additionalProperties": false
@@ -8222,6 +8360,11 @@
                 "properties": {
                     "departureTime": {
                         "type": "string",
+                        "nullable": true
+                    },
+                    "operatingDays": {
+                        "type": "integer",
+                        "format": "int32",
                         "nullable": true
                     }
                 },
@@ -8872,6 +9015,33 @@
                     "isActive": {
                         "type": "boolean"
                     },
+                    "vehicleType": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "departurePointId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "departurePointName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "departurePointAddress": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "departurePointLatitude": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "departurePointLongitude": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "schedules": {
                         "type": "array",
                         "items": {
@@ -9352,6 +9522,16 @@
                         "nullable": true
                     },
                     "isActive": {
+                        "type": "boolean"
+                    },
+                    "days": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    },
+                    "runsDaily": {
                         "type": "boolean"
                     }
                 },
@@ -10276,6 +10456,71 @@
                 },
                 "additionalProperties": false
             },
+            "UpdateIntercityRouteCommand": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "destination": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "price": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "durationMinutes": {
+                        "type": "integer",
+                        "format": "int32",
+                        "nullable": true
+                    },
+                    "company": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "isActive": {
+                        "type": "boolean"
+                    },
+                    "vehicleType": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "departurePointId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "auditModule": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditAction": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditAffectedId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditAffectedType": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "auditDetails": {
+                        "nullable": true,
+                        "readOnly": true
+                    }
+                },
+                "additionalProperties": false
+            },
             "UpdateIntracityRouteCommand": {
                 "type": "object",
                 "properties": {
@@ -10771,6 +11016,23 @@
                             "format": "uuid"
                         },
                         "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "UpdateScheduleDto": {
+                "type": "object",
+                "properties": {
+                    "departureTime": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "operatingDays": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "isActive": {
+                        "type": "boolean"
                     }
                 },
                 "additionalProperties": false

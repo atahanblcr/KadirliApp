@@ -7,6 +7,9 @@ using KadirliApp.Application.Features.Transport.Dtos;
 using KadirliApp.Application.Common.Interfaces;
 using KadirliApp.Domain.Entities;
 using KadirliApp.Application.Features.Transport.Commands;
+using KadirliApp.Application.Features.Lookups;
+using KadirliApp.Web.Common;
+using System.Linq;
 using System.Threading.Tasks;
 using System;
 
@@ -193,23 +196,49 @@ public class TransportAdminController : Controller
 
     // ------------------------------------------------------ şehirlerarası hatlar (Faz 11.17)
 
+    /// <param name="vehicleType">Faz 12.5 — "bus"/"minibus". Tanınmayan değer <b>süzmez</b>
+    /// (sorgu tarafında normalize ediliyor): bir yazım hatası listeyi boşaltmamalı.</param>
     [HttpGet]
-    public async Task<IActionResult> Intercity([FromQuery] string? search, [FromQuery] int page = 1)
+    public async Task<IActionResult> Intercity([FromQuery] string? search, [FromQuery] string? vehicleType, [FromQuery] int page = 1)
     {
-        var queryDto = new QueryTransportDto { SearchTerm = search, Page = page, Limit = 20 };
+        var queryDto = new QueryTransportDto { SearchTerm = search, VehicleType = vehicleType, Page = page, Limit = 20 };
         var result = await _sender.Send(new GetIntercityRoutesQuery(queryDto));
 
         ViewBag.Search = search;
+        // Şeritte hangi seçeneğin vurgulanacağı: ham değil, kanonikleştirilmiş değer.
+        ViewBag.VehicleType = KadirliApp.Domain.Enums.TransportVehicleTypes.NormalizeFilter(vehicleType);
         return View(result);
     }
 
     [HttpGet]
-    public IActionResult IntercityCreate() => View(new CreateIntercityRouteCommand());
+    public async Task<IActionResult> IntercityCreate()
+    {
+        await LoadDeparturePointsAsync();
+        return View(new CreateIntercityRouteCommand());
+    }
+
+    /// <summary>
+    /// Formdaki kalkış noktası açılır listesinin kaynağı.
+    /// ⚠️ <b>Pasif noktalar da listelenir</b> ama yalnız o an seçili olan: düşselerdi form
+    /// kaydedildiğinde kaydın kalkış noktası <b>sessizce boşalırdı</b> (12.4'te ilçe seçiminde
+    /// birebir aynı karar verildi).
+    /// </summary>
+    private async Task LoadDeparturePointsAsync(Guid? selected = null)
+    {
+        var all = await _sender.Send(new GetDeparturePointsAdminQuery());
+        ViewBag.DeparturePoints = all
+            .Where(p => p.IsActive || (selected.HasValue && p.Id == selected.Value))
+            .ToList();
+    }
 
     [HttpPost]
     public async Task<IActionResult> IntercityCreate(CreateIntercityRouteCommand command)
     {
-        if (!ModelState.IsValid) return View(command);
+        if (!ModelState.IsValid)
+        {
+            await LoadDeparturePointsAsync(command.DeparturePointId);
+            return View(command);
+        }
 
         try
         {
@@ -221,6 +250,7 @@ public class TransportAdminController : Controller
         catch (Exception ex)
         {
             TempData["Error"] = $"Hat eklenirken bir hata oluştu: {ex.Message}";
+            await LoadDeparturePointsAsync(command.DeparturePointId);
             return View(command);
         }
     }
@@ -237,6 +267,7 @@ public class TransportAdminController : Controller
         }
 
         ViewBag.Schedules = route.Schedules;
+        await LoadDeparturePointsAsync(route.DeparturePointId);
         return View(new UpdateIntercityRouteCommand
         {
             Id = route.Id,
@@ -244,6 +275,8 @@ public class TransportAdminController : Controller
             Price = route.Price,
             DurationMinutes = route.DurationMinutes,
             Company = route.Company,
+            VehicleType = route.VehicleType,
+            DeparturePointId = route.DeparturePointId,
             IsActive = route.IsActive
         });
     }
@@ -256,6 +289,7 @@ public class TransportAdminController : Controller
             // Doğrulama hatasında da saat listesi çizilmeli — yoksa ekran yarım görünür.
             ViewBag.Schedules = (await _sender.Send(new GetIntercityRouteByIdQuery(command.Id)))?.Schedules
                                 ?? new System.Collections.Generic.List<IntercityRouteResponseDto.ScheduleDto>();
+            await LoadDeparturePointsAsync(command.DeparturePointId);
             return View(command);
         }
 
@@ -289,13 +323,45 @@ public class TransportAdminController : Controller
         return RedirectToAction(nameof(Intercity));
     }
 
+    /// <param name="days">
+    /// Faz 12.5 — işaretli gün bitleri (Pazartesi=1 … Pazar=64). Hiç gönderilmezse
+    /// <b>her gün</b>: 12.5 öncesindeki örtük varsayım, yani eski davranış.
+    /// </param>
     [HttpPost]
-    public async Task<IActionResult> AddSchedule(Guid routeId, string departureTime)
+    public async Task<IActionResult> AddSchedule(Guid routeId, string departureTime, int[]? days)
     {
         try
         {
-            await _sender.Send(new CreateIntercityScheduleCommand(routeId, departureTime));
-            TempData["Success"] = $"{departureTime} kalkışı eklendi.";
+            // 🔴 Maskeyi burada elle toplamıyoruz: bit→gün eşlemesinin tek sahibi OperatingDays.
+            var mask = days is { Length: > 0 }
+                ? KadirliApp.Domain.Enums.OperatingDays.FromBits(days).Mask
+                : KadirliApp.Domain.Enums.OperatingDays.Daily;
+
+            await _sender.Send(new CreateIntercityScheduleCommand(routeId, departureTime, mask));
+            TempData["Success"] = $"{departureTime} kalkışı eklendi ({PanelDisplay.OperatingDaysLabel(mask).ToLowerInvariant()}).";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(IntercityEdit), new { id = routeId });
+    }
+
+    /// <summary>
+    /// Faz 12.5 — seferin saatini/günlerini düzenler.
+    /// ⚠️ Aksiyon adı <c>UpdateSchedule</c>: izin eylemi önekten türetilir (görünmez sözleşme #19).
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> UpdateSchedule(Guid id, Guid routeId, string departureTime, int[]? days, bool isActive = true)
+    {
+        try
+        {
+            var mask = KadirliApp.Domain.Enums.OperatingDays.FromBits(days).Mask;
+            var result = await _sender.Send(new UpdateIntercityScheduleCommand(id, departureTime, mask, isActive));
+            TempData[result ? "Success" : "Error"] = result
+                ? $"{departureTime} kalkışı güncellendi ({PanelDisplay.OperatingDaysLabel(mask).ToLowerInvariant()})."
+                : "Kalkış saati bulunamadı.";
         }
         catch (Exception ex)
         {

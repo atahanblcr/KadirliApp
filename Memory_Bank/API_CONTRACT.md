@@ -269,6 +269,30 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
     orada pasif seferler de dönüp bu bayrakla işaretleniyor. **Mobil bu alanı okumak zorunda değil.**
   - 📌 **Faz 11.17'de bu hatlar panelden yönetilebilir oldu** (şehirlerarası hat + kalkış saati +
     şehir içi durak). Uç davranışı **değişmedi**; yalnız içeriğin kaynağı artık `psql` değil panel.
+  - 🆕 **Faz 12.5 (additive) — şehirlerarası hatta beş, sefere iki yeni alan:**
+
+    | Alan | Tip | Not |
+    |---|---|---|
+    | `vehicleType` | `"bus"` \| `"minibus"` | 12.5 öncesi satırlar **`"bus"`** ile göç etti. Türkçe karşılığı istemcide üretilir. |
+    | `departurePointId` | `guid?` | `null` = kalkış noktası **girilmemiş** (12.5 öncesinden kalma). |
+    | `departurePointName` | `string?` | Sözlükten gelir, hatta yazılmaz. |
+    | `departurePointAddress` | `string?` | Koordinat yoksa harita araması bununla yapılır. |
+    | `departurePointLatitude` / `…Longitude` | `decimal?` | Mobildeki "Yol tarifi" butonunun kaynağı (12.6). |
+    | `schedules[].days` | `["mon","tue","wed","thu","fri","sat","sun"]` | Sefer hangi günler çalışıyor; sıra **Pazartesi'den** başlar. |
+    | `schedules[].runsDaily` | `bool` | "7 günün hepsi" kısayolu; 12.5 öncesi seferlerde **`true`**. |
+
+    🔴 **Uç seferleri günlere göre ELEMEZ**, yalnız bildirir. Mağazadaki eski sürümler `days`'i
+    tanımadığı için Pazar günü de tüm saatleri gösterir — bu **bugünkü doğruluk seviyesinin
+    aynısıdır, regresyon değildir**. Sunucuda elenseydi eski sürümler için liste *sebepsiz*
+    boşalırdı.
+    ⚠️ `days` kodları **kontrattır**: değişirlerse eski sürümler günü tanımaz. Kod ↔ bit
+    dönüşümünün tek sahibi sunucudaki `OperatingDays` (Pazartesi=1 … Pazar=64) —
+    .NET `DayOfWeek` **Pazar=0**'dan başladığı için istemcide ikinci bir eşleme yazılırsa
+    **"Salı seferi Pazartesi görünür"** ve kimse hata almaz.
+  - 🆕 **Faz 12.5: `?vehicleType=bus|minibus` süzgeci.** ⚠️ Bilinmeyen değer **süzmez**
+    (400 gelmez, liste boşalmaz) — 12.4'te `locationScope` için verilen aynı karar.
+  - ⚠️ **Kalkış noktasının public sözlük ucu YOK** (ilçelerdeki karar): hattın ihtiyacı olan
+    ad/adres/koordinat zaten hat gövdesinde geliyor.
 
 ### Şikayet / Dosya / Lookup
 - `POST /v1/complaints` — **anonim gönderim açık**; oturum varsa sunucu `user_id` claim'ini kendisi bağlar (istemci kullanıcı kimliği yollamaz). Yanıt: oluşan kaydın **Guid**'i. Gövde: `{subject, message, type?, relatedModule?, relatedId?}`.

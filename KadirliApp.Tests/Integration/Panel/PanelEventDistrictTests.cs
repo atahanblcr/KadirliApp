@@ -396,6 +396,58 @@ public class PanelEventDistrictTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// 🐛 <b>12.5 canlı denetiminde bulunan hata (12.4 kodunda).</b> İlçesi sonradan
+    /// pasifleştirilen bir etkinlik, <b>başka hiçbir alanı</b> değiştirilemez hâle gelmişti:
+    /// yönetici yalnız başlıktaki bir yazım hatasını düzeltmek istese bile
+    /// "Seçilen ilçe bulunamadı veya pasif durumda" alıyordu — üstelik <b>hiç dokunmadığı bir
+    /// alan</b> için. Kaydedebilmesinin tek yolu etkinliği <b>başka bir ilçeye taşımak</b>tı,
+    /// yani başlığı düzeltmek için konumu değiştirmek.
+    ///
+    /// 🔑 Tek tek doğru olan iki kural çarpışıyordu: form pasif ilçeyi <b>seçili tutuyor</b>
+    /// (konum sessizce değişmesin diye) ve resolver pasif ilçeyi <b>reddediyordu</b> (emekli
+    /// ilçe yeniden seçilmesin diye). Kural artık "pasif ilçe <b>yeni olarak</b> seçilemez".
+    /// </summary>
+    [Fact]
+    public async Task EventInADeactivatedDistrict_CanStillBeEdited()
+    {
+        var admin = await _factory.SuperAdminAsync();
+        var title = $"{Marker} Pasif Ilce";
+        await admin.PostFormAsync("/EventsAdmin/Create", Form(title, _categoryId, _adana));
+
+        var created = await EventAsync(title);
+        await SetDistrictActiveAsync(_adana, false);
+        try
+        {
+            var newTitle = $"{Marker} Pasif Ilce (basligi duzeltildi)";
+            var form = Form(newTitle, _categoryId, _adana);
+            form["Id"] = created.Id.ToString();
+            form["Status"] = created.Status;
+
+            var response = await admin.PostFormAsync("/EventsAdmin/Edit", form,
+                tokenFromPath: $"/EventsAdmin/Edit/{created.Id}");
+
+            response.StatusCode.Should().Be(HttpStatusCode.Redirect,
+                "yalnız başlığı düzeltmek, dokunulmayan bir alan yüzünden reddedilmemeli");
+
+            var updated = await InDbAsync(db => db.Events.AsNoTracking().FirstAsync(e => e.Id == created.Id));
+            updated.Title.Should().Be(newTitle);
+            updated.DistrictId.Should().Be(_adana, "pasif de olsa var olan konum korunmalı");
+        }
+        finally
+        {
+            await SetDistrictActiveAsync(_adana, true);
+        }
+    }
+
+    private Task SetDistrictActiveAsync(Guid id, bool isActive) => _factory.WithScopeAsync(async sp =>
+    {
+        var db = sp.GetRequiredService<AppDbContext>();
+        var district = await db.Districts.FirstAsync(d => d.Id == id);
+        district.IsActive = isActive;
+        await db.SaveChangesAsync();
+    });
+
+    /// <summary>
     /// 🔴 Ev ilçesi ne yeniden adlandırılabilir ne de pasifleştirilebilir: slug'ı
     /// <c>IsLocal</c> türetmesinin çıpası. Değişseydi o günden sonra yazılan <b>her</b>
     /// etkinlik "yerel değil" olur ve mobilin "Kadirli" süzgeci sessizce boşalırdı.

@@ -168,6 +168,66 @@ public static class PanelDisplay
     public static string DistrictLabel(Application.Features.Lookups.DistrictAdminDto district)
         => DistrictLabel(district.Name, district.ProvinceName, district.IsCenter);
 
+    // ── Ulaşım: araç tipi ve sefer günleri (Faz 12.5) ────────────────────────────
+    //
+    // İkisi de DB'de İngilizce/sayısal sabit ("bus"/"minibus" · 7 bitlik maske) — ekrana ham
+    // basılamaz (Değişmez Kural #6). Durum rozetleriyle aynı kural, aynı gerekçe.
+
+    private static readonly Dictionary<string, PanelBadge> VehicleTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [TransportVehicleTypes.Bus] = new("Otobüs", "bg-indigo-100 text-indigo-800", "fa-bus"),
+        [TransportVehicleTypes.Minibus] = new("Minibüs", "bg-teal-100 text-teal-800", "fa-van-shuttle")
+    };
+
+    /// <summary>Araç tipi rozeti. Bilinmeyen değer ham geçmez, işaretlenir.</summary>
+    public static PanelBadge VehicleType(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return new PanelBadge("Belirtilmemiş", "bg-gray-100 text-gray-600", "fa-question");
+
+        return VehicleTypes.TryGetValue(raw, out var badge)
+            ? badge
+            : new PanelBadge($"Bilinmeyen araç tipi ({raw})", "bg-red-50 text-red-700", "fa-triangle-exclamation");
+    }
+
+    public static IReadOnlyCollection<string> KnownVehicleTypes => VehicleTypes.Keys;
+
+    /// <summary>Kısa gün adları — <b>maske sırasıyla</b> (Pazartesi'den başlar, Pazar=0 değil).</summary>
+    private static readonly (int Bit, string Short)[] DayLabels =
+    {
+        (OperatingDays.Monday, "Pzt"),
+        (OperatingDays.Tuesday, "Sal"),
+        (OperatingDays.Wednesday, "Çar"),
+        (OperatingDays.Thursday, "Per"),
+        (OperatingDays.Friday, "Cum"),
+        (OperatingDays.Saturday, "Cmt"),
+        (OperatingDays.Sunday, "Paz")
+    };
+
+    /// <summary>Panel formundaki 7 onay kutusunun kaynağı (bit + Türkçe kısa ad).</summary>
+    public static IReadOnlyList<(int Bit, string Label)> DayCheckboxes =>
+        DayLabels.Select(d => (d.Bit, d.Short)).ToList();
+
+    /// <summary>
+    /// Gün maskesinin Türkçe karşılığı: "Her gün" · "Hafta içi" · "Hafta sonu" · "Pzt · Çar · Cum".
+    /// </summary>
+    /// <remarks>
+    /// 🔴 Maskeyi <b>kendi</b> çözmez: bit sırasını <see cref="OperatingDays"/> tanımlar.
+    /// .NET <c>DayOfWeek</c> Pazar=0'dan başlıyor, maske Pazartesi'den — panelde ikinci bir
+    /// çözüm yazılsaydı "Salı seferi Pazartesi görünürdü" ve kimse hata almazdı.
+    /// </remarks>
+    public static string OperatingDaysLabel(int mask)
+    {
+        var days = new OperatingDays(mask);
+
+        if (!days.IsValid) return "Hiçbir gün — mobilde görünmez";
+        if (days.RunsDaily) return "Her gün";
+        if (days.RunsWeekdaysOnly) return "Hafta içi";
+        if (days.RunsWeekendOnly) return "Hafta sonu";
+
+        return string.Join(" · ", DayLabels.Where(d => (mask & d.Bit) != 0).Select(d => d.Short));
+    }
+
     /// <summary>Modülün menüdeki ikonu (arama sonuçlarını gruplarken kullanılıyor).</summary>
     public static string ModuleIcon(string moduleKey) =>
         PanelMenu.Items.FirstOrDefault(i => i.Module == moduleKey)?.Icon ?? "fa-circle";
@@ -230,6 +290,12 @@ public static class PanelDisplay
         ["update-place-category"] = new("Mekan kategorisi güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
         ["delete-schedule"] = new("Kalkış saati sildi", "bg-red-100 text-red-800", "fa-trash"),
         ["delete-stop"] = new("Durak sildi", "bg-red-100 text-red-800", "fa-trash"),
+
+        // Ulaşım alan modeli (Faz 12.5)
+        ["create-schedule"] = new("Kalkış saati ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["update-schedule"] = new("Kalkış saatini güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
+        ["create-departure-point"] = new("Kalkış noktası ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
+        ["update-departure-point"] = new("Kalkış noktası güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
 
         // Hata kayıtları (Faz 12.1)
         ["resolve-error"] = new("Hatayı çözdü", "bg-green-100 text-green-800", "fa-circle-check"),

@@ -1,0 +1,17 @@
+@model KadirliApp.Web.Models.DeparturePointSelectViewModel
+@*
+    Faz 12.5 — hattın kalkış noktası seçimi.
+
+    ⚠️ Pasif bir nokta listede yalnız O AN SEÇİLİYSE görünür (controller süzüyor): düşseydi
+    form kaydedildiğinde hattın kalkış noktası SESSİZCE boşalırdı — 12.4'te ilçe seçiminde
+    birebir aynı karar verildi.
+*@
+<select name="@Model.Name" class="@Model.CssClass">
+    <option value="">@Model.EmptyLabel</option>
+    @foreach (var point in Model.Points)
+    {
+        <option value="@point.Id" selected="@(Model.Selected == point.Id ? "selected" : null)">
+            @point.Name@(point.IsActive ? null : " (pasif)")@(point.HasCoordinates ? null : " — konum girilmemiş")
+        </option>
+    }
+</select>

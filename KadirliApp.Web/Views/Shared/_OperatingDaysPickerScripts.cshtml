@@ -1,0 +1,55 @@
+@*
+    Faz 12.5 — gün seçicinin kısayolları ve özeti. Sayfadaki HER seçiciye tek dinleyiciyle
+    bağlanır (olay delegasyonu): sefer satırları sunucudan geldiği için sayıları önceden bilinmez.
+
+    ⚠️ Özet metni yalnız bir YARDIM: doğruluk kaynağı sunucudaki PanelDisplay.OperatingDaysLabel.
+    Burada üretilen metin hiçbir yere kaydedilmiyor, yalnız kullanıcı seçerken gösteriliyor.
+*@
+<script>
+    (function () {
+        // 🔴 Bit sırası sunucudaki OperatingDays ile aynı: Pazartesi=1 … Pazar=64.
+        const LABELS = [[1, 'Pzt'], [2, 'Sal'], [4, 'Çar'], [8, 'Per'], [16, 'Cum'], [32, 'Cmt'], [64, 'Paz']];
+        const DAILY = 127, WEEKDAYS = 31, WEEKEND = 96;
+
+        function summarize(mask) {
+            if (mask === 0) return 'Hiçbir gün seçilmedi — kaydedilemez.';
+            if (mask === DAILY) return 'Her gün';
+            if (mask === WEEKDAYS) return 'Hafta içi';
+            if (mask === WEEKEND) return 'Hafta sonu';
+            return LABELS.filter(([bit]) => (mask & bit) !== 0).map(([, label]) => label).join(' · ');
+        }
+
+        function refresh(group) {
+            let mask = 0;
+            group.querySelectorAll('.day-bit:checked').forEach(c => mask |= parseInt(c.value, 10));
+            const out = group.querySelector('.day-summary');
+            if (out) {
+                out.textContent = summarize(mask);
+                out.classList.toggle('text-red-600', mask === 0);
+                out.classList.toggle('text-gray-500', mask !== 0);
+            }
+        }
+
+        document.addEventListener('click', function (e) {
+            const preset = e.target.closest('.day-preset');
+            if (!preset) return;
+
+            const group = preset.closest('.operating-days');
+            if (!group) return;
+
+            const mask = parseInt(preset.getAttribute('data-mask'), 10);
+            group.querySelectorAll('.day-bit').forEach(c => {
+                c.checked = (mask & parseInt(c.value, 10)) !== 0;
+            });
+            refresh(group);
+        });
+
+        document.addEventListener('change', function (e) {
+            if (!e.target.classList || !e.target.classList.contains('day-bit')) return;
+            const group = e.target.closest('.operating-days');
+            if (group) refresh(group);
+        });
+
+        document.querySelectorAll('.operating-days').forEach(refresh);
+    })();
+</script>

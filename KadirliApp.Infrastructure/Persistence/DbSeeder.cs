@@ -217,6 +217,52 @@ public static class DbSeeder
         await EnsureDistrictsAsync(db);
         await EventDistrictBackfill.RunAsync(
             db, scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger(nameof(EventDistrictBackfill)));
+
+        // Faz 12.5: kalkış noktası sözlüğü (satır bazında idempotent — aşağıdaki nota bak).
+        await EnsureDeparturePointsAsync(db);
+    }
+
+    /// <summary>
+    /// Faz 12.5 — kalkış noktası sözlüğü, <b>satır bazında</b> idempotent
+    /// (<see cref="EnsureDistrictsAsync"/> ile aynı gerekçe: "tablo boşsa" bloğu, listeye
+    /// sonradan eklenen bir satırı ayakta olan hiçbir veritabanına sokmaz).
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Var olan satır <b>ezilmez</b>: koordinatı panelden düzelten yönetici, bir sonraki
+    /// açılışta düzeltmesini geri alınmış bulmamalı. Koordinatlar burada bilerek <c>null</c>:
+    /// tahmini bir koordinat, "Yol tarifi" butonunu <b>yanlış yere</b> götürür — yanlış
+    /// bağlamak hiç bağlamamaktan kötüdür (12.3'ün mahalle dersi).
+    /// </remarks>
+    private static async Task EnsureDeparturePointsAsync(AppDbContext db)
+    {
+        var seed = new (string Name, string? Address, int Order)[]
+        {
+            ("Kadirli Otogarı", "Kadirli / Osmaniye", 0),
+            ("Minibüs Garajı", "Kadirli / Osmaniye", 1)
+        };
+
+        var known = new HashSet<string>(
+            await db.TransportDeparturePoints.Select(p => p.Slug).ToListAsync(), StringComparer.Ordinal);
+        var added = false;
+
+        foreach (var (name, address, order) in seed)
+        {
+            // 🔴 Slug'ın tek sahibi SlugHelper (görünmez sözleşme #21) — ikinci bir küçültme yok.
+            var slug = Application.Common.Utils.SlugHelper.Slugify(name);
+            if (!known.Add(slug)) continue;
+
+            db.TransportDeparturePoints.Add(new TransportDeparturePoint
+            {
+                Name = name,
+                Slug = slug,
+                Address = address,
+                DisplayOrder = order,
+                IsActive = true
+            });
+            added = true;
+        }
+
+        if (added) await db.SaveChangesAsync();
     }
 
     /// <summary>

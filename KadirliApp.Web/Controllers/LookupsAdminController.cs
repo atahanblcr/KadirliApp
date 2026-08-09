@@ -33,6 +33,7 @@ public class LookupsAdminController : Controller
         {
             Neighborhoods = await _sender.Send(new GetNeighborhoodsAdminQuery()),
             Districts = await _sender.Send(new GetDistrictsAdminQuery()),
+            DeparturePoints = await _sender.Send(new GetDeparturePointsAdminQuery()),
             Cemeteries = await _sender.Send(new GetCemeteriesQuery()),
             Mosques = await _sender.Send(new GetMosquesQuery()),
             EventCategories = await _sender.Send(new GetEventCategoriesQuery()),
@@ -110,6 +111,40 @@ public class LookupsAdminController : Controller
             TempData["Error"] = ex.Message;
         }
         return RedirectToAction(nameof(Index), new { open = "districts" });
+    }
+
+    // ---- Kalkış noktaları (Faz 12.5) ----
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeparturePointCreate(string name, string? address, decimal? latitude, decimal? longitude, int displayOrder)
+    {
+        try
+        {
+            await _sender.Send(new CreateDeparturePointCommand(name, address, latitude, longitude, displayOrder));
+            TempData["Success"] = $"\"{name?.Trim()}\" kalkış noktası eklendi.";
+        }
+        catch (AppException ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+        return RedirectToAction(nameof(Index), new { open = "departure-points" });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeparturePointUpdate(Guid id, string name, string? address, decimal? latitude, decimal? longitude, int displayOrder, bool isActive)
+    {
+        try
+        {
+            var success = await _sender.Send(new UpdateDeparturePointCommand(id, name, address, latitude, longitude, displayOrder, isActive));
+            TempData[success ? "Success" : "Error"] = success ? "Kalkış noktası güncellendi." : "Kalkış noktası bulunamadı.";
+        }
+        catch (AppException ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+        return RedirectToAction(nameof(Index), new { open = "departure-points" });
     }
 
     // ---- Mezarlıklar ----

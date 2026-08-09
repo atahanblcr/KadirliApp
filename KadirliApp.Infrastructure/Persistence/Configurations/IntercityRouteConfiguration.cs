@@ -1,4 +1,5 @@
 using KadirliApp.Domain.Entities;
+using KadirliApp.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -14,5 +15,21 @@ public class IntercityRouteConfiguration : IEntityTypeConfiguration<IntercityRou
 
         builder.Property(x => x.Destination).IsRequired();
         builder.Property(x => x.Price).HasPrecision(12, 2);
+
+        // Faz 12.5: araç tipi METİN olarak durur (enum sırası değil) — bkz. TransportVehicleTypes.
+        // Varsayılan DB tarafında da yazılı: 12.5 öncesi satırlar ve dışarıdan INSERT edilen
+        // kayıtlar "tipi olmayan hat" hâline düşmesin.
+        builder.Property(x => x.VehicleType)
+               .HasMaxLength(20)
+               .IsRequired()
+               .HasDefaultValue(TransportVehicleTypes.Default);
+
+        builder.HasOne(x => x.DeparturePoint)
+               .WithMany(x => x.Routes)
+               .HasForeignKey(x => x.DeparturePointId)
+               .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(x => x.VehicleType).HasDatabaseName("ix_intercity_routes_vehicle_type");
+        builder.HasIndex(x => x.DeparturePointId).HasDatabaseName("ix_intercity_routes_departure_point");
     }
 }

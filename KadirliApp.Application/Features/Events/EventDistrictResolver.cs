@@ -34,14 +34,28 @@ public readonly record struct ResolvedEventDistrict(Guid? Id, bool IsLocal, bool
 ///
 /// ⚠️ <b>Pasif ilçe seçilemez</b> ama var olan kayıt korunur: pasifleştirme "bundan sonra
 /// kullanılmasın" demektir, "geçmişi sil" değil.
+///
+/// 🐛 <b>12.5 canlı denetiminde bulunan hata (düzeltildi):</b> "pasif seçilemez" kuralı
+/// <paramref name="currentDistrictId"/> olmadan yazılmıştı ve form pasif ilçeyi seçili
+/// tuttuğu için (bu da doğru bir karardı — konum sessizce değişmesin diye) ikisi birlikte
+/// **düzenlenemeyen bir kayıt** üretiyordu: ilçesi sonradan pasifleştirilen bir etkinlikte
+/// yönetici yalnız <i>başlığı</i> düzeltmek istese bile "Seçilen ilçe bulunamadı veya pasif
+/// durumda" hatası alıyor, üstelik <b>hiç dokunmadığı bir alan</b> için. Kaydedebilmesinin
+/// tek yolu etkinliği <b>başka bir ilçeye taşımak</b>tı — yani başlığı düzeltmek için konumu
+/// değiştirmek. Kural artık "pasif bir ilçe <b>yeni olarak</b> seçilemez"; kayıtta zaten
+/// duran değer korunur.
 /// </remarks>
 public static class EventDistrictResolver
 {
     public const string MissingMessage = "İlçe seçilmelidir.";
     public const string NotFoundMessage = "Seçilen ilçe bulunamadı veya pasif durumda.";
 
+    /// <param name="currentDistrictId">
+    /// Kaydın <b>şu anki</b> ilçesi (güncellemede verilir, oluşturmada <c>null</c>). Değer
+    /// değişmiyorsa pasiflik kapısı uygulanmaz — bkz. yukarıdaki 🐛 notu.
+    /// </param>
     public static async Task<ResolvedEventDistrict> ResolveAsync(
-        IUnitOfWork uow, Guid? districtId, CancellationToken ct)
+        IUnitOfWork uow, Guid? districtId, CancellationToken ct, Guid? currentDistrictId = null)
     {
         if (districtId is not { } id || id == Guid.Empty)
             return new ResolvedEventDistrict(null, false, false, Missing: true);
@@ -49,7 +63,9 @@ public static class EventDistrictResolver
         var district = await uow.Repository<District>().Query()
             .FirstOrDefaultAsync(d => d.Id == id, ct);
 
-        if (district is null || !district.IsActive)
+        var unchanged = currentDistrictId is { } current && current == id;
+
+        if (district is null || (!district.IsActive && !unchanged))
             return new ResolvedEventDistrict(null, false, NotFound: true, false);
 
         return new ResolvedEventDistrict(

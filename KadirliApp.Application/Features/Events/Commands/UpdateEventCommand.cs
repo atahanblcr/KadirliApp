@@ -63,7 +63,11 @@ public class UpdateEventCommandHandler : IRequestHandler<UpdateEventCommand, boo
 
         // Faz 12.4 — Create ile AYNI kuraldan geçer; ikinci bir gerçekleme yazılsaydı
         // kayıt "ilçesi Kadirli ama IsLocal=false" hâline düşebilirdi (bkz. EventDistrictResolver).
-        var district = await EventDistrictResolver.ResolveAsync(_uow, request.DistrictId, cancellationToken);
+        // 🐛 12.5 canlı denetimi: kaydın ŞU ANKİ ilçesi de veriliyor. Verilmezse, ilçesi
+        // sonradan pasifleştirilen bir etkinlik hiç düzenlenemez hâle gelir — yönetici yalnız
+        // başlığı düzeltmek istese bile dokunmadığı bir alan yüzünden hata alır.
+        var district = await EventDistrictResolver.ResolveAsync(
+            _uow, request.DistrictId, cancellationToken, currentDistrictId: ev.DistrictId);
         if (district.Missing)
             throw new AppException(EventDistrictResolver.MissingMessage, "VALIDATION_ERROR");
         if (district.NotFound)

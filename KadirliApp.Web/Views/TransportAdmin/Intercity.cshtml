@@ -1,6 +1,17 @@
 @model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Transport.Dtos.IntercityRouteResponseDto>
 @{
     ViewData["Title"] = "Şehirlerarası Hatlar";
+    var vehicleType = ViewBag.VehicleType as string;
+
+    // 🔴 Şerit bağlantıları mevcut sorgu dizesini AYNEN taşır (PanelQuery.With) — 12.4'te bu
+    // şeritler `asp-route-*` ile elle sayılmış ve `sort` unutulmuştu: sıralı bir listede
+    // süzgeç değiştirmek sıralamayı SESSİZCE varsayılana döndürüyordu.
+    (string? Value, string Label, string Icon)[] vehicleTabs =
+    {
+        (null, "Tümü", "fa-list"),
+        (KadirliApp.Domain.Enums.TransportVehicleTypes.Bus, "Otobüs", "fa-bus"),
+        (KadirliApp.Domain.Enums.TransportVehicleTypes.Minibus, "Minibüs", "fa-van-shuttle")
+    };
 }
 
 <div class="mb-6 flex justify-between items-center">
@@ -19,13 +30,28 @@
 
 <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
     <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="relative w-full md:w-64">
+        @* Arama ve araç tipi TEK formda: ayrı formlar olsaydı arama yapıldığında araç
+           süzgeci sessizce düşerdi (12.4'te etkinlik ekranında aynı birleştirme yapıldı). *@
+        <form asp-action="Intercity" method="get" class="relative w-full md:w-64">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <i class="fas fa-search text-gray-400"></i>
             </div>
-            <form asp-action="Intercity" method="get">
-                <input type="text" name="search" placeholder="Varış yeri veya firma ara..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="@ViewBag.Search">
-            </form>
+            <input type="text" name="search" placeholder="Varış yeri veya firma ara..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="@ViewBag.Search">
+            @if (!string.IsNullOrEmpty(vehicleType))
+            {
+                <input type="hidden" name="vehicleType" value="@vehicleType" />
+            }
+        </form>
+
+        <div class="flex flex-wrap gap-2" role="group" aria-label="Araç tipi süzgeci">
+            @foreach (var tab in vehicleTabs)
+            {
+                var active = string.Equals(vehicleType, tab.Value, StringComparison.Ordinal);
+                <a href="@KadirliApp.Web.Common.PanelQuery.With(Context.Request, "vehicleType", tab.Value)"
+                   class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors @(active ? "border-indigo-600 bg-indigo-600 text-white" : "border-gray-300 bg-white text-gray-600 hover:border-indigo-300")">
+                    <i class="fas @tab.Icon"></i> @tab.Label
+                </a>
+            }
         </div>
     </div>
 
@@ -34,6 +60,8 @@
             <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">Varış Yeri</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Araç</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Kalkış Noktası</th>
                     <th scope="col" class="px-6 py-3 font-medium">Firma</th>
                     <th scope="col" class="px-6 py-3 font-medium">Ücret</th>
                     <th scope="col" class="px-6 py-3 font-medium">Süre</th>
@@ -49,6 +77,27 @@
                     {
                         <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
                             <td class="px-6 py-4 font-medium text-gray-900">@item.Destination</td>
+                            <td class="px-6 py-4">
+                                @* Ham "bus"/"minibus" basılmaz — Değişmez Kural #6. *@
+                                <partial name="_StatusBadge" model="PanelDisplay.VehicleType(item.VehicleType)" />
+                            </td>
+                            <td class="px-6 py-4">
+                                @if (!string.IsNullOrWhiteSpace(item.DeparturePointName))
+                                {
+                                    <span class="text-gray-900">@item.DeparturePointName</span>
+                                    @if (item.DeparturePointLatitude == null || item.DeparturePointLongitude == null)
+                                    {
+                                        @* Koordinatsız nokta mobilde "Yol tarifi" butonunu adres aramasına düşürür. *@
+                                        <span class="block text-xs text-amber-700" title="Sözlükte koordinat girilmemiş">konum girilmemiş</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 text-xs font-medium">
+                                        <i class="fas fa-location-dot"></i> Girilmemiş
+                                    </span>
+                                }
+                            </td>
                             <td class="px-6 py-4">@(string.IsNullOrWhiteSpace(item.Company) ? "—" : item.Company)</td>
                             <td class="px-6 py-4">@PanelDisplay.TL(item.Price, "—")</td>
                             <td class="px-6 py-4">@(item.DurationMinutes.HasValue ? $"{item.DurationMinutes} dk" : "—")</td>
@@ -59,6 +108,16 @@
                                     @if (item.Schedules.Count > 4)
                                     {
                                         <span class="text-gray-400"> +@(item.Schedules.Count - 4)</span>
+                                    }
+
+                                    @* Faz 12.5: "her gün olmayan" sefer varsa listede söylenir — yoksa
+                                       yönetici saati görür ve seferin Pazar da çalıştığını sanır. *@
+                                    @if (item.Schedules.Any(s => !s.RunsDaily))
+                                    {
+                                        <span class="block mt-1 text-xs text-gray-500">
+                                            <i class="fas fa-calendar-day mr-1"></i>
+                                            @(item.Schedules.Count(s => !s.RunsDaily)) sefer her gün değil
+                                        </span>
                                     }
                                 }
                                 else
@@ -96,7 +155,7 @@
                 else
                 {
                     <tr>
-                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="9" class="px-6 py-8 text-center text-gray-500">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
                                 <p>Kayıt bulunamadı.</p>

@@ -63,6 +63,42 @@ public sealed class GetDistrictsAdminQueryHandler : IRequestHandler<GetDistricts
     }
 }
 
+/// <param name="RouteCount">Bu noktadan kalkan hat sayısı (pasifleştirmenin görünür etkisi).</param>
+/// <param name="HasCoordinates">Koordinatı var mı — mobildeki "Yol tarifi" butonu buna bakıyor (12.6).</param>
+public sealed record DeparturePointAdminDto(
+    Guid Id, string Name, string Slug, string? Address, decimal? Latitude, decimal? Longitude,
+    int DisplayOrder, bool IsActive, int RouteCount, bool HasCoordinates);
+
+/// <summary>Faz 12.5 — panel kalkış noktası yönetimi (pasifler de döner, cache'siz).</summary>
+public sealed record GetDeparturePointsAdminQuery : IRequest<IReadOnlyList<DeparturePointAdminDto>>;
+
+public sealed class GetDeparturePointsAdminQueryHandler
+    : IRequestHandler<GetDeparturePointsAdminQuery, IReadOnlyList<DeparturePointAdminDto>>
+{
+    private readonly IUnitOfWork _uow;
+    public GetDeparturePointsAdminQueryHandler(IUnitOfWork uow) => _uow = uow;
+
+    public async Task<IReadOnlyList<DeparturePointAdminDto>> Handle(GetDeparturePointsAdminQuery request, CancellationToken ct)
+    {
+        var routeCounts = await _uow.Repository<IntercityRoute>().Query()
+            .Where(r => r.DeparturePointId != null)
+            .GroupBy(r => r.DeparturePointId!.Value)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+
+        var items = await _uow.Repository<TransportDeparturePoint>().Query()
+            .OrderBy(p => p.DisplayOrder).ThenBy(p => p.Name)
+            .ToListAsync(ct);
+
+        return items
+            .Select(p => new DeparturePointAdminDto(
+                p.Id, p.Name, p.Slug, p.Address, p.Latitude, p.Longitude, p.DisplayOrder, p.IsActive,
+                routeCounts.TryGetValue(p.Id, out var c) ? c : 0,
+                p.Latitude.HasValue && p.Longitude.HasValue))
+            .ToList();
+    }
+}
+
 public sealed record GetNeighborhoodsAdminQuery : IRequest<IReadOnlyList<NeighborhoodAdminDto>>;
 
 public sealed class GetNeighborhoodsAdminQueryHandler : IRequestHandler<GetNeighborhoodsAdminQuery, IReadOnlyList<NeighborhoodAdminDto>>

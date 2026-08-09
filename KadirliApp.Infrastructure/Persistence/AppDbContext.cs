@@ -44,6 +44,7 @@ public class AppDbContext : DbContext
     public DbSet<IntercitySchedule> IntercitySchedules => Set<IntercitySchedule>();
     public DbSet<IntracityRoute> IntracityRoutes => Set<IntracityRoute>();
     public DbSet<IntracityStop> IntracityStops => Set<IntracityStop>();
+    public DbSet<TransportDeparturePoint> TransportDeparturePoints => Set<TransportDeparturePoint>();
     public DbSet<Mosque> Mosques => Set<Mosque>();
     public DbSet<Neighborhood> Neighborhoods => Set<Neighborhood>();
     public DbSet<Notification> Notifications => Set<Notification>();

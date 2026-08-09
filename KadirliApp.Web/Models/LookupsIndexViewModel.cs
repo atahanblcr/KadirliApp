@@ -9,6 +9,8 @@ public class LookupsIndexViewModel
 
     /// <summary>Faz 12.4 — il/ilçe sözlüğü (etkinlik konumunun kaynağı).</summary>
     public IReadOnlyList<DistrictAdminDto> Districts { get; set; } = [];
+    /// <summary>Faz 12.5 — kalkış noktası sözlüğü (şehirlerarası hattın kalkış yerinin kaynağı).</summary>
+    public IReadOnlyList<DeparturePointAdminDto> DeparturePoints { get; set; } = [];
     public IReadOnlyList<NamedLookupDto> Cemeteries { get; set; } = [];
     public IReadOnlyList<NamedLookupDto> Mosques { get; set; } = [];
     public IReadOnlyList<SluggedLookupDto> EventCategories { get; set; } = [];

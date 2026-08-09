@@ -1,0 +1,42 @@
+@model KadirliApp.Web.Models.OperatingDaysPickerViewModel
+@using KadirliApp.Web.Common
+@*
+    Faz 12.5 — seferin çalıştığı günler: 7 onay kutusu + "Her gün" / "Hafta içi" / "Hafta sonu"
+    kısayolları.
+
+    🔴 Gün adları ve bitleri PanelDisplay.DayCheckboxes'tan gelir, burada elle YAZILMAZ:
+    .NET DayOfWeek Pazar=0'dan başlıyor, maske Pazartesi'den. Sıra iki yerde ayrı yazılsaydı
+    "Salı seferi Pazartesi görünürdü" ve kimse hata almazdı (görünmez sözleşme #23'ün sınıfı).
+
+    ⚠️ Hiç kutu işaretlenmezse tarayıcı `days` alanını HİÇ göndermez → komut "en az bir gün"
+    diye reddeder. Bu bilinçli: sessizce "her gün"e düşseydi yönetici Pazar'ı kaldırdığını
+    sanır, sefer Pazar da çalışmaya devam ederdi.
+*@
+<div class="operating-days" data-group="@Model.GroupId">
+    <div class="flex flex-wrap items-center gap-1.5">
+        @foreach (var (bit, label) in PanelDisplay.DayCheckboxes)
+        {
+            var id = $"{Model.GroupId}-day-{bit}";
+            @* 🐛 Her gün KENDİ sarmalayıcısında olmak ZORUNDA. Tailwind'in `peer-checked:`
+               kuralı **genel kardeş seçicisi** (`~`) üretir: yedi kutu düz kardeş olsaydı
+               ilk kutu (Pzt) işaretlendiği anda kendisinden SONRAKİ bütün etiketler seçili
+               stilini alırdı. Sonuç: "Hafta içi" seçildiğinde Cmt ve Paz da seçili GÖRÜNÜR
+               ama veride yoktur — panel bir şey söyler, kayıt başka şey der ve kimse hata
+               almaz. 12.5'in canlı denetiminde tam olarak bu görüldü. *@
+            <span class="inline-flex">
+                <input type="checkbox" name="@Model.Name" value="@bit" id="@id" class="peer sr-only day-bit"
+                       checked="@((Model.Mask & bit) != 0 ? "checked" : null)" />
+                <label for="@id"
+                       class="cursor-pointer select-none rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-indigo-300 peer-checked:border-indigo-600 peer-checked:bg-indigo-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-400">
+                    @label
+                </label>
+            </span>
+        }
+    </div>
+    <div class="mt-2 flex flex-wrap items-center gap-3 text-xs">
+        <button type="button" class="day-preset text-indigo-600 hover:text-indigo-800" data-mask="@KadirliApp.Domain.Enums.OperatingDays.Daily">Her gün</button>
+        <button type="button" class="day-preset text-indigo-600 hover:text-indigo-800" data-mask="@KadirliApp.Domain.Enums.OperatingDays.Weekdays">Hafta içi</button>
+        <button type="button" class="day-preset text-indigo-600 hover:text-indigo-800" data-mask="@KadirliApp.Domain.Enums.OperatingDays.Weekend">Hafta sonu</button>
+        <span class="day-summary text-gray-500"></span>
+    </div>
+</div>

@@ -27,37 +27,15 @@ public class GetIntercityRouteByIdQueryHandler : IRequestHandler<GetIntercityRou
     public async Task<IntercityRouteResponseDto?> Handle(GetIntercityRouteByIdQuery request, CancellationToken cancellationToken)
     {
         // TimeSpan.ToString("hh\\:mm") SQL'e çevrilemez (10.4 notu) → ham çekip bellekte biçimle.
+        // Faz 12.5: projeksiyon artık liste sorgusuyla ORTAK (IntercityRouteProjection) —
+        // burada ikinci bir Select bloğu yazılırsa yeni alanlar birine eklenip diğerine
+        // eklenmediğinde panel sessizce eksik veri gösterir (görünmez sözleşme #43'ün sınıfı).
         var raw = await _uow.Repository<IntercityRoute>().Query()
             .Where(x => x.Id == request.Id)
-            .Select(x => new
-            {
-                x.Id,
-                x.Destination,
-                x.Price,
-                x.DurationMinutes,
-                x.Company,
-                x.IsActive,
-                Schedules = x.Schedules
-                    .OrderBy(s => s.DepartureTime)
-                    .Select(s => new { s.Id, s.DepartureTime, s.IsActive })
-                    .ToList()
-            })
+            .Select(IntercityRouteProjection.Select(onlyActiveSchedules: false))
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (raw == null) return null;
-
-        return new IntercityRouteResponseDto
-        {
-            Id = raw.Id,
-            Destination = raw.Destination,
-            Price = raw.Price,
-            DurationMinutes = raw.DurationMinutes,
-            Company = raw.Company,
-            IsActive = raw.IsActive,
-            Schedules = raw.Schedules
-                .Select(s => new IntercityRouteResponseDto.ScheduleDto(s.Id, s.DepartureTime.ToString(@"hh\:mm"), s.IsActive))
-                .ToList()
-        };
+        return raw == null ? null : IntercityRouteProjection.Finish(raw);
     }
 }
 

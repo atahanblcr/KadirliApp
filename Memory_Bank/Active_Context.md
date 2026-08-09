@@ -1,5 +1,106 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 9 Ağustos 2026 — **FAZ 12.5 TAMAMLANDI: ulaşım alan modeli (araç tipi · kalkış noktası · sefer günleri).**
+> Kod `Domain/Enums/{TransportVehicleType,OperatingDays}.cs` + `Domain/Entities/TransportDeparturePoint.cs` +
+> `IntercityRoute.{VehicleType,DeparturePointId}` + `IntercitySchedule.OperatingDays` +
+> migration `AddTransportFieldModel` + `Features/Transport/{IntercityRouteProjection,TransportDeparturePointResolver}` +
+> `UpdateIntercityScheduleCommand` + `DbSeeder.EnsureDeparturePointsAsync` + kalkış noktası lookup CRUD'u +
+> `Views/Shared/{_DeparturePointSelect,_OperatingDaysPicker,_OperatingDaysPickerScripts}.cshtml` +
+> `TransportAdmin` şerit/form/sefer satırı + `LookupsAdmin` "Kalkış Noktaları" bölümü +
+> `PanelDisplay.{VehicleType,OperatingDaysLabel,DayCheckboxes}` + 2 yeni test dosyası.
+> **Backend 784 → 843 (+59), mobil 703 (değişmedi — 12.6'nın işi), analyze 0.**
+>
+> 🔑 **TESLİM EDİLEN:** `IntercityRoute` 10.8'den beri **her seferi her gün** varsayıyordu; araç tipi ve
+> kalkış noktası **hiç yoktu**. Kadirli'de "Adana minibüsü" ile "Adana otobüsü" ayrı işlerdir — farklı
+> yerden kalkar, farklı sıklıkta gider — ve bu ayrım uygulamada hiçbir yerde temsil edilmiyordu.
+> Artık hat bir araç tipine + sözlükteki bir kalkış noktasına bağlı, sefer de hangi günler
+> çalıştığını söylüyor. Hiçbir DTO alanı silinmedi, hiçbir tablo düşürülmedi.
+>
+> 🔴 **EN ÖNEMLİ KARAR: "elemek" ile "bildirmek" aynı şey değildir.** Uç seferleri günlere göre
+> **elemiyor**, yalnız `days`/`runsDaily` ile bildiriyor. Elenseydi mağazadaki eski sürümler
+> (`days`'i tanımıyorlar) için liste **sebepsiz boşalırdı** — bugünkü davranış "her sefer her gün"
+> olduğu için elememek regresyon değil **uyumluluğun kendisi**. Migration da mevcut satırlara
+> `127` + `bus` yazdı ve bu canlıda doğrulandı: davranış birebir korundu.
+> **İkinci karar:** araç tipi DB'de **metin** (`bus`/`minibus`), enum sırası değil — araya üçüncü bir
+> tip girseydi sayısal kolon bütün kayıtları sessizce kaydırırdı.
+> **Üçüncü karar:** kalkış noktası **zorunlu değil ve geri doldurma YOK.** 12.4'te ilçe zorunluydu
+> çünkü geri doldurmanın varsayımı ona dayanıyordu; burada 12.5 öncesi hatların kalkış noktası
+> *gerçekten bilinmiyor* ve "hepsi otogardan kalkar" tahmini vatandaşı **yanlış yere** götürürdü.
+> Panel o boşluğu **uyarı** olarak gösteriyor, doldurmuyor.
+>
+> 🐛 **BULUNAN ÜÇ ŞEY:** (1) **Ulaşımda da liste ve detay iki ayrı `Select` bloğuydu** — 12.4'te
+> etkinlikte bulunan hatanın birebir aynısı, yani `EventProjection` dersinin **uygulanmamış ikinci
+> örneği**; beş yeni alan yalnız birine eklenseydi panelin hat düzenleme ekranı sessizce araç tipsiz
+> kalırdı → `IntercityRouteProjection`. 📌 Aynı sınıfın **başka modüllerde** de durup durmadığı
+> taranmadı — ayrı bir denetim adımı. (2) **Sefer yalnız "ekle + sil" ile yönetiliyordu**; gün maskesi
+> eklendiği anda bir *düzenleme* denetim izinde **silme** olarak görünürdü → `UpdateIntercityScheduleCommand`.
+> (3) `OperatingDays` bir **`struct`** olduğu için lambda içinde `this` kullanılamıyor (CS1673) —
+> değer nesnesi yazarken tekrar çıkacak bir tuzak.
+>
+> 🐛 **BU TURDA BİR TEST ZAYIF ÇIKTI (düzeltildi):** `UnknownVehicleTypeFilter_…` bozma denemesini
+> **yakalamadı**, çünkü fikstürü yalnız otobüs hattıydı — "bilinmeyen değeri `bus`a düşüren" bozuk
+> gerçekleme de testi geçiriyordu. Test iki tipi birden kapsayacak şekilde güçlendirildi, bozma
+> tekrar denendi ve kırmızıya döndüğü görüldü.
+> 🔑 **Ders:** *bozma denemesi yalnız kuralı değil, **testin kendisini** de sınar.* Yeşil kalan bir
+> bozma denemesi "kural sağlam" demek değil, "test o kuralı tutmuyor" demektir.
+>
+> 🐛 **CANLI CHROME DENETİMİNDE BULUNAN İKİ HATA (ikisi de düzeltildi):**
+> 1. **Gün seçicisinde panel yalan söylüyordu.** "Hafta içi" kısayoluna basıldığında **yedi rozetin
+>    hepsi seçili görünüyordu**, oysa veride yalnız Pzt–Cum vardı. Sebep Tailwind'in
+>    `peer-checked:` kuralının **genel kardeş seçicisi** (`~`) üretmesi: yedi kutu düz kardeş
+>    olduğu için ilk kutu (Pzt) işaretlendiği anda kendisinden **sonraki bütün** etiketler seçili
+>    stilini alıyordu. Yönetici Cumartesi/Pazar'ı da dâhil sanırdı; POST edilen veri doğru olduğu
+>    için **hiçbir entegrasyon testi bunu yakalayamazdı** (testler gövdeye bakar, CSS'e değil).
+>    İlginç olan: "Hafta sonu" kısayolu **tesadüfen doğru** görünüyordu (seçili günler listenin
+>    sonundaydı) — yani hata yalnız bazı seçimlerde ortaya çıkıyordu. Her gün kendi
+>    sarmalayıcısına alındı; regresyon **yapısal** testle kilitlendi
+>    (`DayPicker_WrapsEachCheckboxSoPeerStylingCannotLeak`).
+> 2. 🔴 **12.4'ün kodunda: ilçesi pasifleştirilen etkinlik HİÇ DÜZENLENEMİYORDU.** Yönetici formu
+>    açıp yalnız başlıktaki bir yazım hatasını düzeltmek istese bile
+>    *"Seçilen ilçe bulunamadı veya pasif durumda"* alıyordu — üstelik **hiç dokunmadığı bir alan**
+>    için. Kaydedebilmesinin tek yolu etkinliği **başka bir ilçeye taşımak**tı: başlığı düzeltmek
+>    için konumu değiştirmek. Tek tek **doğru** olan iki kural çarpışıyordu: form pasif ilçeyi
+>    *seçili tutuyor* (12.4'ün bilinçli kararı — konum sessizce değişmesin) ve resolver pasif
+>    ilçeyi *reddediyordu* (emekli ilçe yeniden seçilmesin). Kural artık **"pasif değer YENİ OLARAK
+>    seçilemez"**; kayıtta zaten duran değer korunur. ⚠️ **Aynı şekilli kod 12.5'te kendi
+>    yazdığım `TransportDeparturePointResolver`'da da vardı** — iki resolver aynı anda düzeltildi,
+>    iki regresyon testi eklendi. 🔑 **Ders:** bir kuralı yeni bir modüle kopyalarken *kuralın
+>    kendisi* kadar **çağrıldığı bağlam** da kopyalanıyor; 12.4'ün hatası 12.5'e sessizce miras kalmıştı.
+>
+> ➕ **PLAN DIŞI:** `IntercityRouteProjection` · `UpdateIntercityScheduleCommand` + panelde
+> **düzenlenebilir sefer satırı** · hat Create/Update artık **`IAuditableCommand`** (11.17'de
+> atlanmıştı — hattı kimin eklediği denetim izinde **hiç** görünmüyordu) · 4 yeni Türkçe denetim
+> eylemi · kalkış noktası sözlüğünde **koordinat + slug benzersizliği** · liste sorgusuna
+> **`ThenBy(Id)`** (görünmez sözleşme #30: `OrderBy(Destination)` tek başınaydı → eşit adlı hatlarda
+> sayfalı listede **sessiz kayıt kaybı** riski) · araç şeridi **`PanelQuery.With`** ile (12.4'ün
+> `sort` kaybı tekrarlanmasın) · arama ile araç süzgecinin **tek forma** alınması ·
+> "kalkış noktası girilmemiş" ve "N sefer her gün değil" uyarıları · admin API'ye
+> `PUT intercity/{id}` + `PUT intercity/schedules/{id}`.
+>
+> 🔴 **GÖRÜNMEZ SÖZLEŞMELERE #46, #47, #48 EKLENDİ.** Toplam **48**.
+>
+> **Doğrulama:** `dotnet test` **843/843** · `flutter analyze` **0** · `flutter test` **703/703**.
+> **Kuralı bilerek boz:** 4 deneme → **11 test kırmızı**, geri alınınca yeşil.
+> **Canlı (Chrome eklentisi + gerçek panel + curl):** migration gerçek dev veritabanına uygulandı;
+> mevcut hatlar `vehicleType:"bus"` + `runsDaily:true` (davranış değişmedi) · panelden **minibüs
+> hattı "Kozan" + "Minibüs Garajı" + yalnız hafta içi 06:30 seferi** eklendi ve uçta
+> `days:[mon…fri]`, `runsDaily:false` olarak göründü · bilinmeyen araç süzgeci listeyi
+> **boşaltmadı** · araç şeridi `?search=`'i **korudu** · gün seçilmeden kaydetme **reddedildi**
+> ve **kayıt ezilmedi**.
+> ⚠️ Panelin `admin` parolası bu makinede bilinmiyor (`secrets/panel-admin.json` yok, seed
+> varsayılanı geçerli değil) → panel oturumunu **kullanıcı açtı**.
+>
+> **Canlı — 12.4'ün yapılamamış denetimi de bu oturumda tamamlandı** (kullanıcı isteğiyle):
+> etiket kuralının üç dalı doğru · "Çevre iller" tıklaması `sort`'u **korudu** · CSV butonu
+> `sort`+`LocationScope` taşıyor · ev ilçesi kilitli ve sebebi yazılı · pasif ilçe formda
+> "(pasif)" olarak seçili kaldı. **Yukarıdaki 2 numaralı hata bu turda bulundu.**
+>
+> ⏭️ **SIRADAKİ: 12.6** — ulaşım mobil (ikili kalkış · gün rozetleri · "sıradaki sefer").
+> 🔑 12.6 için hazır: `OperatingDays.DaysUntilNext(DayOfWeek)` **zaten yazılı ve testli** —
+> "bugün 07:00 / yarın 06:30 / Pzt 07:00" hesabının çekirdeği.
+>
+> ---
+>
 > Son güncelleme: 9 Ağustos 2026 — **FAZ 12.4 TAMAMLANDI: etkinlik konumu (il / ilçe).**
 > Kod `Domain/Entities/District.cs` + `Event.{DistrictId,District}` + migration `AddEventDistricts` +
 > `Features/Lookups/DistrictLocation.cs` (`DistrictDefaults` + `DistrictLabel`) +

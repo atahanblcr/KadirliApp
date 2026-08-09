@@ -12,6 +12,12 @@ public class IntercityScheduleConfiguration : IEntityTypeConfiguration<Intercity
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
 
+        // Faz 12.5: 7 bitlik gün maskesi. 🔴 DB varsayılanı 127 ("her gün") — 12.5 öncesindeki
+        // örtük varsayımın ta kendisi, yani göç eden satırların davranışı değişmiyor.
+        builder.Property(x => x.OperatingDays)
+               .IsRequired()
+               .HasDefaultValue(Domain.Enums.OperatingDays.Daily);
+
         builder.HasOne(x => x.Route)
                .WithMany(x => x.Schedules)
                .HasForeignKey(x => x.RouteId)

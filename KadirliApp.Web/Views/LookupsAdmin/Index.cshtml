@@ -239,6 +239,130 @@
         </div>
     </details>
 
+    @* ---------------- Kalkış noktaları (Faz 12.5) ---------------- *@
+    <details class="bg-white rounded-lg border border-gray-200 shadow-sm" open="@Open("departure-points")">
+        <summary class="px-6 py-4 cursor-pointer flex items-center gap-3 hover:bg-gray-50 rounded-lg">
+            <i class="fas fa-bus text-indigo-500 w-5"></i>
+            <span class="font-medium text-gray-800">Kalkış Noktaları</span>
+            <span class="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">@Model.DeparturePoints.Count</span>
+            <span class="text-xs text-gray-400 ml-auto">Şehirlerarası hat formunda seçilir</span>
+        </summary>
+        <div class="border-t border-gray-100 px-6 pb-6">
+            <p class="text-xs text-gray-500 pt-4">
+                Şehirlerarası hattın nereden kalktığı buradan seçilir. <strong>Koordinat girilirse</strong>
+                mobilde kartta <strong>"Yol tarifi"</strong> butonu çıkar; girilmezse adres metniyle harita
+                araması yapılır. Yanlış koordinat vatandaşı yanlış yere götürür — emin değilseniz boş bırakın.
+            </p>
+            <form asp-action="DeparturePointCreate" method="post" class="flex flex-wrap items-end gap-3 py-4 border-b border-gray-100">
+                <div class="grow min-w-48">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Ad <span class="text-red-500">*</span></label>
+                    <input name="name" required maxlength="120" class="block w-full rounded-md border-gray-300 text-sm py-2 px-3 border" placeholder="Örn: Kadirli Otogarı" />
+                </div>
+                <div class="grow min-w-48">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Adres</label>
+                    <input name="address" maxlength="300" class="block w-full rounded-md border-gray-300 text-sm py-2 px-3 border" placeholder="Örn: Cengiz Topel Cad. No:1" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Enlem</label>
+                    <input name="latitude" type="number" step="any" class="block w-32 rounded-md border-gray-300 text-sm py-2 px-3 border" placeholder="37.3742" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Boylam</label>
+                    <input name="longitude" type="number" step="any" class="block w-32 rounded-md border-gray-300 text-sm py-2 px-3 border" placeholder="36.0965" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Sıra</label>
+                    <input name="displayOrder" type="number" value="10" class="block w-20 rounded-md border-gray-300 text-sm py-2 px-3 border" />
+                </div>
+                <button type="submit" class="rounded-md bg-indigo-600 py-2 px-5 text-sm font-medium text-white shadow hover:bg-indigo-700">Ekle</button>
+            </form>
+            <table class="w-full text-sm mt-2">
+                <thead>
+                    <tr class="text-left text-xs text-gray-500 uppercase">
+                        <th class="py-2 pr-4">Ad</th>
+                        <th class="py-2 pr-4">Adres</th>
+                        <th class="py-2 pr-4">Konum</th>
+                        <th class="py-2 pr-4">Sıra</th>
+                        <th class="py-2 pr-4">Hat</th>
+                        <th class="py-2 pr-4">Durum</th>
+                        <th class="py-2 text-right">İşlem</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @foreach (var p in Model.DeparturePoints)
+                    {
+                        <tr class="@(p.IsActive ? null : "opacity-60")">
+                            <td class="py-2.5 pr-4 font-medium text-gray-900">@p.Name</td>
+                            <td class="py-2.5 pr-4 text-gray-600">@(string.IsNullOrWhiteSpace(p.Address) ? "—" : p.Address)</td>
+                            <td class="py-2.5 pr-4">
+                                @if (p.HasCoordinates)
+                                {
+                                    <span class="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded" title="@p.Latitude, @p.Longitude">Var</span>
+                                }
+                                else
+                                {
+                                    @* "Yok" bir uyarıdır: mobilde yol tarifi adres aramasına düşer. *@
+                                    <span class="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded">Yok</span>
+                                }
+                            </td>
+                            <td class="py-2.5 pr-4 text-gray-600">@p.DisplayOrder</td>
+                            <td class="py-2.5 pr-4 text-gray-600" title="Bu noktadan kalkan hat sayısı">@p.RouteCount</td>
+                            <td class="py-2.5 pr-4">
+                                @if (p.IsActive)
+                                {
+                                    <span class="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded">Aktif</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-gray-200 text-gray-600 text-xs font-medium px-2 py-0.5 rounded">Pasif</span>
+                                }
+                            </td>
+                            <td class="py-2.5 text-right">
+                                <details class="relative inline-block text-left">
+                                    <summary class="cursor-pointer text-indigo-600 hover:text-indigo-800 list-none"><i class="fas fa-edit mr-1"></i>Düzenle</summary>
+                                    <form asp-action="DeparturePointUpdate" method="post" class="absolute right-0 z-10 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4 space-y-3">
+                                        <input type="hidden" name="id" value="@p.Id" />
+                                        <div>
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">Ad</label>
+                                            <input name="name" required maxlength="120" value="@p.Name" class="block w-full rounded-md border-gray-300 text-sm py-1.5 px-2 border" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">Adres</label>
+                                            <input name="address" maxlength="300" value="@p.Address" class="block w-full rounded-md border-gray-300 text-sm py-1.5 px-2 border" />
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">Enlem</label>
+                                                <input name="latitude" type="number" step="any" value="@p.Latitude" class="block w-28 rounded-md border-gray-300 text-sm py-1.5 px-2 border" />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">Boylam</label>
+                                                <input name="longitude" type="number" step="any" value="@p.Longitude" class="block w-28 rounded-md border-gray-300 text-sm py-1.5 px-2 border" />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">Sıra</label>
+                                                <input name="displayOrder" type="number" value="@p.DisplayOrder" class="block w-16 rounded-md border-gray-300 text-sm py-1.5 px-2 border" />
+                                            </div>
+                                        </div>
+                                        <label class="flex items-center gap-1.5 text-xs text-gray-700">
+                                            <input type="checkbox" name="isActive" value="true" checked="@(p.IsActive ? "checked" : null)" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" />
+                                            <span>Aktif</span>
+                                        </label>
+                                        @if (p.RouteCount > 0)
+                                        {
+                                            <p class="text-xs text-amber-600">@p.RouteCount hat bu noktadan kalkıyor — pasife almak yeni seçimi engeller, mevcut hatlar korunur.</p>
+                                        }
+                                        <button type="submit" class="w-full rounded-md bg-indigo-600 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">Kaydet</button>
+                                    </form>
+                                </details>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </details>
+
     @* ---------------- Mezarlıklar ---------------- *@
     <details class="bg-white rounded-lg border border-gray-200 shadow-sm" open="@Open("cemeteries")">
         <summary class="px-6 py-4 cursor-pointer flex items-center gap-3 hover:bg-gray-50 rounded-lg">
