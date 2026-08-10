@@ -1734,6 +1734,7 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 | 12.7 | Sosyal giriş — backend | backend + panel | ✔ | ~30 backend |
 | 12.8 | Sosyal giriş — mobil | mobil | — | ~20 mobil |
 | 12.9 | Panelin dış bağımlılıklarını yerelleştirme (CDN → self-host + nonce'lu CSP) ✅ | panel + yayın kapısı | — | **+20 backend** |
+| 12.10 | Moderasyon geçişinin tek sahibi (Düzenle formunun açtığı ikinci yol) | backend + panel | — | ~20 backend |
 
 ---
 
@@ -3108,6 +3109,127 @@ mahalle "Tümünü Seç/Temizle" **10/0**.
 
 ---
 
+### 12.10 — Moderasyon geçişinin tek sahibi: Düzenle formunun açtığı ikinci yol — [ ]
+
+> 📌 **Bu alt-faz 10 Ağustos 2026'daki dış analiz oturumunda doğdu — ama analizin *önerdiği*
+> madde bu değil.** Analiz "anemik domain modeli" diyordu (soyut, 50 entity'lik bir dönüşüm
+> öneriyordu ve 9 Ağustos'ta zaten ertelenmişti). O iddianın **somut ve kanamakta olan tek
+> örneği** aranınca bu çıktı: nesne kendi değişmezini korumadığı için **ikinci bir yazma yolu
+> onları atlıyor.** Soyut şikâyet reddedildi (aşağıdaki denetim bölümü), somut örneği faza alındı.
+
+**Hedef:** Bir kaydın moderasyon durumunu (`pending`/`approved`/`rejected`) değiştirmenin
+**tek yolu** Onayla/Reddet komutları olsun. Bugün panelin **Düzenle formundaki durum açılır
+menüsü** ikinci bir yol ve o yol hiçbir kuralı uygulamıyor.
+
+#### 🔬 Kanıt (10 Ağustos 2026, gerçek Postgres üzerinde koşturuldu)
+
+Süresi 3 gün önce dolmuş bir ilan, panelin Düzenle formunun gönderdiği `UpdateAdCommand` ile
+`approved` yapıldı:
+
+```
+Status      = approved
+ExpiresAt   = 2026-08-07 12:02:34Z   (şimdi: 2026-08-10 12:02:36Z)
+ApprovedBy  = NULL
+ApprovedAt  = NULL
+--> Vatandaş bu ilanı görebilir mi? HAYIR
+```
+
+Reddedilmiş bir ilan aynı yoldan `approved` yapıldı:
+
+```
+Status         = approved
+RejectedReason = Uygunsuz gorsel.
+--> Panelde yan yana: 'Onaylandı' rozeti + 'Reddedilme sebebi: Uygunsuz gorsel.'
+```
+
+Bu tam olarak **11.15c'de kapatılan iki hatanın geri gelmiş hâli** — kapatıldıkları yer
+`ApproveAdCommandHandler`'dı, ama ikinci yol hiç kapatılmamıştı.
+
+#### Kapsam: 4 modül × 2 yüzey
+
+| Modül | Update handler | Panel Düzenle formunda durum menüsü | Atlanan kural |
+|---|---|---|---|
+| İlanlar | `UpdateAdCommandHandler:34` | ✔ (`pending`/`approved`/`rejected`) | #25 taze pencere · `RejectedReason` temizliği · `ApprovedBy/At` |
+| Kampanyalar | `UpdateCampaignCommand:49` | ✔ (+`expired`) | `RejectedReason` temizliği · `ApprovedBy/At` |
+| Vefat | `UpdateDeathNoticeCommandHandler:36` | ✔ (+`archived`) | onay izi |
+| Etkinlikler | `UpdateEventCommand:90` | ✔ | onay izi |
+
+İkinci yüzey **admin API**: `PUT /v1/admin/ads/{id}` yalnız `[RequirePermission("ads","update")]`
+taşıyor ama gövdesinde `status` kabul ediyor (kampanya/etkinlik/vefat aynı).
+
+#### 🔴 Üç ayrı sessiz hasar — hiçbiri hata vermiyor
+
+1. **Yetki yükselmesi.** `PanelPermissionAttribute`'un kendi belgesi şunu söylüyor:
+   *"Moderasyon kararları tek yetkide toplanır: 'içeriği yayına alabilir mi?' sorusu,
+   'düzenleyebilir mi?'den ayrı bir güvendir."* Ama `Edit` aksiyonu **`update`** iznine düşüyor
+   (§7 madde 19 — türetme **doğru**), form ise `approved` sunuyor. Yani **yalnız düzenleme
+   yetkisi verilmiş moderatör moderasyon kararı verebiliyor.** Bu, §7 madde 29'daki
+   `BulkApprove` hatasının **üçüncü biçimi** ve 11.15b'nin "karşılığı olmayan yetki"sinin tersi:
+   burada yetki *fazladan* çalışıyor.
+2. **Denetim izi yalan söylüyor.** Dört Update komutundan **üçünde `IAuditableCommand` hiç yok**
+   (`UpdateAd`, `UpdateCampaign`, `UpdateDeathNotice`); dördüncüsü (`UpdateEvent`) izi
+   **`update`** olarak yazıyor. Yani bu yoldan verilen bir onay kararı denetim izinde ya
+   **hiç görünmüyor** ya da moderasyon kararı gibi görünmüyor → "bu ilanı kim onayladı?"
+   sorusunun cevabı yok.
+3. **İş kuralı atlanıyor.** Yukarıdaki kanıt. Panel "güncellendi" diyor, vatandaş hiçbir şey
+   görmüyor, `ExpireAdsJob` bir saat içinde durumu sessizce geri alıyor.
+
+#### Yapılacaklar
+
+**Backend — tek sahip**
+
+- Her moderasyonlu modül için **saf, container'sız test edilebilir** bir geçiş sınıfı
+  (`AdSubmissionRules` / `PowerOutagePhaseRules` deseni): `AdModeration.Approve(ad, adminId, now)`
+  ve `.Reject(ad, reason, now)`. #25'in taze penceresi, `RejectedReason`/`RejectedAt` temizliği
+  ve `ApprovedBy`/`ApprovedAt` yazımı **yalnız burada** yaşar.
+- `ApproveXCommandHandler` ve `RejectXCommandHandler` bu sınıfa **delege eder** (bugünkü
+  davranış birebir korunur — kural taşınıyor, değişmiyor).
+- `UpdateXCommandHandler` artık `Status`'e **dokunmaz.**
+  ⚠️ **Alan DTO'dan SİLİNMEZ** (§5 — silmek kırıcı olurdu, faz "hepsi additive"). Ama
+  **sessizce yok da sayılmaz**: gelen `Status` kaydın mevcut durumundan farklıysa komut
+  **reddeder ve sebebini söyler** ("Durum değişikliği Onayla/Reddet ile yapılır"). Sessizce
+  yutmak §7 madde 37'nin savaştığı sınıf — hiçbir şey yapmayan buton, işlevsiz butondan kötüdür.
+
+**Panel**
+
+- Dört Düzenle görünümünden durum açılır menüsü kaldırılır; yerine **salt-okunur**
+  `_StatusBadge` + zaten var olan **Onayla / Reddet** butonları.
+  🔑 Bu, "işlevsiz buton yok" kuralının **tersi**: burada sorun butonun bir şey yapmaması değil,
+  **yapmaması gerekeni yapması**.
+
+**Testler (~20)**
+
+- Davranış: süresi dolmuş ilan Düzenle yolundan onaylanamaz (komut **reddeder**, kaydı **ezmez**
+  — §7 madde 46'nın "reddetme kaydı ezmemeli" kuralı).
+- Davranış: `Approve` → taze pencere **hâlâ** çalışıyor (mevcut `PanelBusinessRuleTests` korunur;
+  kural taşındı, kaybolmadı).
+- Davranış: yalnız `update` izni olan moderatör durumu değiştiremiyor.
+- **Yapısal** (kaynak taraması, `PanelExternalOriginTests` deseni — elle liste **tutulmaz**):
+  moderasyonlu modüllerin Düzenle görünümlerinde `asp-for="Status"` **yok**, ve hiçbir
+  `Update*CommandHandler` `.Status =` **yazmıyor**. Elle liste tutulursa yeni modülde çürür.
+- Denetim: `Approve`/`Reject` izlerinin `approve` olarak düştüğü doğrulanır.
+
+#### Yeni görünmez sözleşme
+
+**#52 — Moderasyon durumu yalnız `Approve`/`Reject` komutlarından yazılır; `Update*` komutları
+`Status`'e dokunmaz.** Bozulursa: yetki matrisi delinir, denetim izi kararı kaydetmez ve
+modülün onay kuralları (taze pencere, bayat gerekçe temizliği) atlanır — **üçü de hata
+vermeden**. Karşılığı hem davranış hem **yapısal** testte olmalı: yalnız davranış testi yazılırsa
+beşinci bir modül eklendiğinde kural sessizce delinir.
+
+#### Neden bu faza sığar
+
+Şema değişikliği **yok**, migration **yok**, DTO alanı **silinmiyor**, mobilde **tek satır
+değişmiyor** — mağazadaki eski sürümler etkilenmez. Faz 12'nin "hepsi additive" sözü korunur.
+
+#### Bitti kriteri
+
+`dotnet test` + `flutter analyze` + `flutter test` yeşil · **kuralı bilerek boz → kırmızı
+görüldü** (en az: durum menüsünü geri koy · `Update` handler'ına `.Status =` geri koy ·
+taze pencereyi kaldır) · canlı panelde dört modülde doğrulandı · Memory Bank güncel · commit.
+
+---
+
 ## 🔚 Faz 12 dışında kalan, hâlâ açık maddeler
 
 > 📌 **5 Ağustos, ikinci geçiş — bu liste denetlendi ve iki maddesi BAYAT çıktı.**
@@ -3173,3 +3295,48 @@ test" deniyor (**784 backend + 703 mobil = 1487**).
 
 **Faz 12'ye alınanlar:** `ForwardedHeaders` → **12.2** · bağımsız push ekranı → yeni **12.2b**
 (gerekçeleri kendi başlıklarında).
+
+### 📥 10 Ağustos 2026 — ikinci dış analiz (Gemini CLI) denetimi
+
+> 🔑 **Sonuç: analizin dört maddesinden ÜÇÜ, 9 Ağustos'ta denetlenip gerekçeli olarak
+> ertelenmiş maddelerin birebir tekrarı.** Yeni bilgi getirmiyorlar; kararlar bir gün önce
+> ve daha ayrıntılı gerekçeyle verilmişti (yukarıdaki bölüm). Bu not, üçüncü bir analizin
+> aynı üç maddeyi üçüncü kez "CRITICAL FAILED" diye getirmesi hâlinde tartışmanın sıfırdan
+> başlamaması için var.
+
+- ✅ **CDN bağımlılığı → kapandı.** Analiz **12.9'u doğru tespit etti** ve frontend'i 10/10'a
+  çıkardı. Tek "gerçekten değişti" maddesi bu.
+- 🔁 **Anemik domain + Domain Event eksikliği — 9 Ağustos'ta ertelendi, karar değişmedi.**
+  Tarama tekrarlandı, olgular doğru: `private set` **0 dosya**, Domain Event altyapısı **yok**,
+  `KadirliApp.Domain/Class1.cs` hâlâ duran boş bir şablon artığı. Karar aynı: 50 entity'yi
+  dönüştürmek her handler'a dokunur, vatandaşa **sıfır** görünür fayda üretir ve fazın
+  "additive" sözünü bozar → **Faz 13 adayı.**
+  ⚠️ **Domain Event için ek gerekçe (bu turda ölçüldü):** olay güdümlü mimarinin klasik
+  kazancı "önbellek geçersizleştirmesini handler'dan ayırmak"tır — ama **ilan listesi
+  cache'li değil** (`CacheGroups`'ta yalnız `guide`/`pharmacies`/`dashboard`/`lookups`/
+  `ads-lookup` var). Proje zaten **açık tek-sahip arayüzleri** kullanıyor
+  (`INotificationDispatcher`, `IPowerOutageAnnouncementWriter`) ve bunlar örtük olay
+  dağıtımından **daha test edilebilir**. Somut kazanç bulunamadı.
+- 🔁 **`IQueryable` sızıntısı — 9 Ağustos'ta ertelendi, karar değişmedi.** ⚠️ Analiz bunu
+  "CRITICAL CHECK FAILED" diye işaretlemiş **ama aynı cümlede bilinçli bir tercih olduğunu da
+  yazmış** — yani kendi notumuzu okuyup yine kritik saymış. Bu turda **canlı zarar arandı ve
+  bulunamadı:** sızıntının bu kod tabanındaki bilinen tek tuzağı `Query()`'nin varsayılan
+  **`AsNoTracking`** olması (12.3 canlı hatası) ve **12 `SoftRemove` çağrısının hepsi** izlenen
+  nesne üzerinde; **15 dosya** bilinçli `Query(tracking: true)` yazmış, bir tanesi de yorumla
+  gerekçelendirmiş. **Bugün hiçbir yerde kanamıyor** → sıraya alınmadı.
+- 🔁 **IaC / CD — 9 Ağustos'ta ertelendi, karar değişmedi.** Tarama tekrarlandı:
+  `Dockerfile` **yok**, `.tf`/`.bicep` **yok**, `dotnet.yml`'de deploy adımı **yok**
+  (dosyanın adı "CI/CD Pipeline" ama içerik yalnız CI). Hedef ortam seçilmeden IaC yazmak
+  çürüyecek kod üretir → **deploy fazı.**
+
+📌 **Analizde bayat olan:** "Gelecek Vizyonu" bölümü projeyi **"Faz 12.4"** sanıyor (12.9 bitti).
+
+#### 🔴 Analizin BULAMADIĞI ama denetimden çıkan şey → yeni **12.10**
+
+"Anemik domain" soyut bir şikâyet olarak reddedildi; ama iddianın **somut karşılığı** aranınca
+gerçek bir hata çıktı: `Status` alanı public olduğu için **panelin Düzenle formu ikinci bir
+moderasyon yolu** açıyor ve o yol yetki kapısını, denetim izini ve onay kurallarını birden
+atlıyor. **4 modül × 2 yüzey**, gerçek Postgres üzerinde kanıtlandı (çıktı 12.10'da).
+🔑 **Ders:** soyut mimari eleştiriler bu projede doğrudan uygulanabilir olmuyor, ama
+**"bu iddianın kanayan bir örneği var mı?"** diye sorulduğunda kanıtlanabilir bir hataya
+götürebiliyor — reddedilen madde bile ücretsiz değil, aranmayı hak ediyor.
