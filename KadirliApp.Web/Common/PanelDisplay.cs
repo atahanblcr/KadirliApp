@@ -251,6 +251,8 @@ public static class PanelDisplay
         ["unverify"] = new("Doğrulamayı kaldırdı", "bg-gray-200 text-gray-700", "fa-ban"),
         ["ban"] = new("Yasakladı", "bg-red-100 text-red-800", "fa-user-slash"),
         ["unban"] = new("Yasağı kaldırdı", "bg-green-100 text-green-800", "fa-user-check"),
+        // Faz 12.10: arşivleme de bir moderasyon kararı — kaydı public listeden düşürür.
+        ["archive"] = new("Arşivledi", "bg-gray-200 text-gray-700", "fa-box-archive"),
 
         // Genel CRUD
         ["create"] = new("Oluşturdu", "bg-indigo-100 text-indigo-800", "fa-plus"),

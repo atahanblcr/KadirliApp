@@ -24,7 +24,14 @@ public sealed class BulkToolbarViewModel
     public string FormId => FormIdFor(Controller);
 
     /// <summary>Onay/red/silme üçlüsü — moderasyon kuyruğu olan modüller için.</summary>
-    public static BulkToolbarViewModel Moderation(string controller, string itemLabel, bool includeReject = true)
+    /// <remarks>
+    /// 📌 <b>Faz 12.10: <c>includeReject</c> bayrağı kaldırıldı.</b> Tek kullanıcısı vefat
+    /// listesiydi ve sebebi "vefatta reddetme komutu yok"tu — moderasyon kuyruğu olan bir
+    /// modülün reddetme yolu olmaması bir tasarım değil, bir <b>boşluktu</b>. 12.10
+    /// <c>RejectDeathNoticeCommand</c>'i yazınca bayrağın anlamı kalmadı; durması,
+    /// bir sonraki modülün "ben de reddetmesiz olayım" diyebileceği bir kapı bırakırdı.
+    /// </remarks>
+    public static BulkToolbarViewModel Moderation(string controller, string itemLabel)
     {
         var actions = new List<BulkActionButton>
         {
@@ -34,12 +41,8 @@ public sealed class BulkToolbarViewModel
                 Label = "Seçilenleri Onayla",
                 Icon = "fas fa-check",
                 CssClass = "text-white bg-emerald-600 hover:bg-emerald-700"
-            }
-        };
-
-        if (includeReject)
-        {
-            actions.Add(new BulkActionButton
+            },
+            new()
             {
                 Action = "RejectSelected",
                 Label = "Seçilenleri Reddet",
@@ -47,10 +50,9 @@ public sealed class BulkToolbarViewModel
                 CssClass = "text-white bg-amber-600 hover:bg-amber-700",
                 Destructive = true,
                 ConfirmText = $"Seçili {itemLabel} kayıtlarını reddetmek istediğinize emin misiniz?"
-            });
-        }
-
-        actions.Add(DeleteButton(itemLabel));
+            },
+            DeleteButton(itemLabel)
+        };
 
         return new BulkToolbarViewModel { Controller = controller, Actions = actions };
     }

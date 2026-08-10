@@ -10,7 +10,7 @@ push canlı, golden + erişilebilirlik testleri var; panel gerçek bir yönetim 
 ve güvenlik kapanışı yapılmış (oturum iptali · zorunlu parola değişimi · parola politikası ·
 hesap kilidi). Yayın hazırlığının Apple gerektirmeyen kısmı tamam.
 
-**Şimdi Faz 12** — gözlem, alan modeli ve giriş kolaylığı; 9 alt-faz, **hepsi additive**
+**Şimdi Faz 12** — gözlem, alan modeli ve giriş kolaylığı; 10 alt-faz, **hepsi additive**
 (hiçbir DTO alanı silinmiyor, hiçbir tablo düşürülmüyor). **12.1 bitti:** hata günlüğü modülü
 (`ErrorLogsAdmin`). **12.2 bitti:** şüpheli giriş günlüğü — "kim, nereden, ne zaman girmeye
 çalıştı?" artık panelden görülüyor (`LoginAttemptsAdmin`), `super_admin`'e kısılmış e-posta
@@ -46,9 +46,23 @@ nonce yalnız `<script>` bloklarını kapsadığı için **47 satır içi `on*=`
 dinleyicilere taşındı (`wwwroot/js/panel.js`). Tailwind derleniyor (`npm run build`), çıktı
 **commit ediliyor** ve CI sürüklenmeyi denetliyor. ⚠️ `tailwind.config.js`'in `content` listesi
 `Views/**` ile sınırlı **değil** — rozet renkleri üç `.cs` dosyasında yaşıyor.
-**863 backend + 751 mobil test, 51 görünmez sözleşme.**
+**12.10 bitti:** moderasyon geçişinin **tek sahibi** — bir kaydın durumunu değiştirmenin tek
+yolu artık Onayla/Reddet(/Arşivle). Panelin **Düzenle formundaki durum menüsü** ikinci bir
+yoldu ve **üç kuralı birden** atlıyordu, üçü de sessizce: iş kuralı (süresi dolmuş ilan
+"onaylanıp" mobilde hiç görünmüyordu), **yetki** (`Edit` → `update` iznine düştüğü için yalnız
+düzenleme yetkisi olan moderatör moderasyon kararı verebiliyordu) ve **denetim izi** (karar ya
+hiç ya da `update` olarak düşüyordu). Kural dört saf sınıfta (`AdModeration` · `CampaignModeration`
+· `DeathNoticeModeration` · `EventModeration`), kapı `ModerationStatusGuard`'da.
+🔴 Alan **DTO'dan silinmedi** (§5) ama **sessizce de yutulmuyor**: farklı değer gelirse komut
+**reddedip sebebini söylüyor**. ➕ Vefatta durum menüsü aynı zamanda **reddetmenin ve
+arşivlemenin tek yoluydu** → iki komut plan dışı olarak **yazıldı** (yoksa hata düzeltilirken
+iki işlev silinirdi).
+**909 backend + 751 mobil test, 52 görünmez sözleşme.**
 
 **⏭️ Sırada 12.7:** sosyal giriş — backend (`UserIdentity`, `POST /v1/auth/social`).
+⚠️ Panelde bir kaydın **durumunu yazan ikinci bir yol açma** (§7 madde 52) ve daha önce
+kullanılmamış bir Tailwind sınıfı yazdıysan `npm run build` çalıştır — yoksa buton
+**beyaz üstüne beyaz** çizilir (12.10 canlı bulgusu).
 Plan: `Memory_Bank/Progress.md` → "FAZ 12".
 
 > 🔑 **Panel süper admin parolası** `secrets/panel-admin.json`'dadır (git'e girmez; biçim ve
@@ -94,7 +108,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 51 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 52 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
@@ -108,7 +122,9 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
 (`operating_days_test.dart` · `departure_times_test.dart` · `transport_screen_test.dart`),
 **51** → `Integration/Architecture/PanelExternalOriginTests.cs` (kaynak taraması) +
 `Integration/Panel/PanelContentSecurityPolicyTests.cs` (canlı yanıt) +
-`Unit/Web/PanelAssetGuardTests.cs` (yayın kapısı).
+`Unit/Web/PanelAssetGuardTests.cs` (yayın kapısı),
+**52** → `Integration/Architecture/ModerationSingleOwnerTests.cs` (yapısal) +
+`Integration/Panel/PanelModerationOwnershipTests.cs` (davranış) + `Unit/Application/Moderation/`.
 
 ## Değişmez kurallar
 

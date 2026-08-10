@@ -23,9 +23,9 @@ public class ApproveDeathNoticeCommandHandler : IRequestHandler<ApproveDeathNoti
 
         if (notice == null) return false;
 
-        notice.Status = "approved";
-        notice.ApprovedBy = request.AdminId;
-        notice.ApprovedAt = DateTime.UtcNow;
+        // Faz 12.10: kuralın tek sahibi DeathNoticeModeration.
+        DeathNoticeModeration.Approve(notice, request.AdminId, DateTime.UtcNow);
+
         repo.Update(notice);
         await _uow.SaveChangesAsync(cancellationToken);
 

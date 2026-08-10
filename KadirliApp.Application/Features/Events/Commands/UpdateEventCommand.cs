@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using KadirliApp.Application.Common.Auditing;
 using KadirliApp.Application.Common.Exceptions;
 using KadirliApp.Application.Common.Interfaces;
+using KadirliApp.Application.Common.Moderation;
 using KadirliApp.Domain.Entities;
 using MediatR;
 
@@ -34,7 +35,16 @@ public class UpdateEventCommand : IRequest<bool>, IAuditableCommand
 
     public Guid? CoverImageId { get; set; }
     public bool RemoveCoverImage { get; set; }
-    public string Status { get; set; } = "pending";
+
+    /// <summary>
+    /// ☠️ Faz 12.10'dan beri <b>yazılamaz</b> — moderasyon durumunun tek sahibi
+    /// <c>ApproveEventCommand</c>/<c>RejectEventCommand</c> (görünmez sözleşme #52).
+    /// Alan DTO'da duruyor (§5), ama farklı bir değer gelirse komut reddeder
+    /// (<c>ModerationStatusGuard</c>).
+    /// ⚠️ Nullable: non-nullable bir referans tipi MVC'de <b>örtük olarak zorunludur</b>;
+    /// alan formdan kaldırılınca <c>ModelState</c> kırılırdı (§5 — gevşetmek güvenlidir).
+    /// </summary>
+    public string? Status { get; set; }
 
     // Faz 12.4 (plan dışı): etkinlik düzenlemesi de ize düşer. Kapsam kararı "salt içerik
     // düzenlemesi gürültüdür" diyordu; etkinlikte durum başka — 12.4'ten sonra düzenleme
@@ -60,6 +70,10 @@ public class UpdateEventCommandHandler : IRequestHandler<UpdateEventCommand, boo
         var repo = _uow.Repository<Event>();
         var ev = await repo.GetByIdAsync(request.Id, cancellationToken);
         if (ev == null) return false;
+
+        // Faz 12.10 — moderasyon durumu bu yoldan yazılamaz (#52). Guard ilçe çözümlemesiyle
+        // birlikte, ilk yazmadan ÖNCE: reddedilen bir istek kaydı ezmemeli (#46).
+        ModerationStatusGuard.EnsureUnchanged(ev.Status, request.Status);
 
         // Faz 12.4 — Create ile AYNI kuraldan geçer; ikinci bir gerçekleme yazılsaydı
         // kayıt "ilçesi Kadirli ama IsLocal=false" hâline düşebilirdi (bkz. EventDistrictResolver).
@@ -87,7 +101,6 @@ public class UpdateEventCommandHandler : IRequestHandler<UpdateEventCommand, boo
         ev.IsFree = request.IsFree;
         ev.DistrictId = district.Id;
         ev.IsLocal = district.IsLocal;
-        ev.Status = request.Status;
 
         if (request.RemoveCoverImage)
             ev.CoverImageId = null;

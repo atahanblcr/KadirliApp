@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using KadirliApp.Application.Common.Interfaces;
+using KadirliApp.Application.Common.Moderation;
 using KadirliApp.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -25,13 +26,17 @@ public class UpdateAdCommandHandler : IRequestHandler<UpdateAdCommand, bool>
 
         if (ad == null) return false;
 
+        // Faz 12.10 — moderasyon durumu bu yoldan yazılamaz (görünmez sözleşme #52).
+        // ⚠️ Guard ilk yazmadan ÖNCE çağrılıyor: sonra çağrılsaydı reddedilen bir istek
+        // başlığı/fiyatı yine de ezerdi (#46'nın "reddetme kaydı ezmemeli" kuralı).
+        ModerationStatusGuard.EnsureUnchanged(ad.Status, request.Status);
+
         ad.CategoryId = request.CategoryId;
         ad.Title = request.Title;
         ad.Description = request.Description;
         ad.Price = request.Price;
         ad.SellerName = request.SellerName;
         ad.ContactPhone = request.ContactPhone;
-        ad.Status = request.Status;
 
         var imageRepo = _uow.Repository<AdImage>();
 

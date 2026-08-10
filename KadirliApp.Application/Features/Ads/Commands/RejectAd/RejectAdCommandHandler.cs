@@ -23,14 +23,8 @@ public class RejectAdCommandHandler : IRequestHandler<RejectAdCommand, bool>
 
         if (ad == null) return false;
 
-        // Faz 10.14(1): red gerekçesi RejectedReason/RejectedAt'e yazılır (MyAdDto sahibe bunu döner).
-        // "Kim reddetti" izi ApprovedBy'ı ezerek DEĞİL, IAuditableCommand üzerinden tutulur (RejectCampaign deseni).
-        // Bir ilan aynı anda hem onaylı hem reddedilmiş olamaz → onay izleri temizlenir.
-        ad.Status = "rejected";
-        ad.RejectedReason = request.Reason;
-        ad.RejectedAt = DateTime.UtcNow;
-        ad.ApprovedBy = null;
-        ad.ApprovedAt = null;
+        // Faz 12.10: kuralın tek sahibi AdModeration (bkz. ApproveAdCommandHandler).
+        AdModeration.Reject(ad, request.Reason, DateTime.UtcNow);
 
         repo.Update(ad);
         await _uow.SaveChangesAsync(cancellationToken);

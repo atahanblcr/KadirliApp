@@ -129,24 +129,44 @@ public class DeathsAdminController : Controller
     public async Task<IActionResult> Edit(Guid id, KadirliApp.Application.Features.Deaths.Dtos.UpdateDeathNoticeDto dto, IFormFile? Photo)
     {
         if (!ModelState.IsValid)
-        {
-            ViewBag.Id = id;
-            await LoadLookupsAsync();
-            return View(dto);
-        }
+            return await RedisplayEditAsync(id, dto);
 
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var adminId);
         var photoId = await UploadHelper.UploadAsync(_sender, Photo, "death_notice", adminId);
         if (photoId.HasValue) dto = dto with { PhotoFileId = photoId };
 
-        var result = await _sender.Send(new KadirliApp.Application.Features.Deaths.Commands.UpdateDeathNoticeCommand(id, dto));
+        bool result;
+        try
+        {
+            result = await _sender.Send(new KadirliApp.Application.Features.Deaths.Commands.UpdateDeathNoticeCommand(id, dto));
+        }
+        catch (Application.Common.Exceptions.AppException ex) // 12.10: durum bu yoldan değiştirilemez
+        {
+            TempData["Error"] = ex.Message;
+            return await RedisplayEditAsync(id, dto);
+        }
+
         if (result)
         {
             TempData["Success"] = "Vefat ilanı başarıyla güncellendi.";
             return RedirectToAction(nameof(Index));
         }
         TempData["Error"] = "Bir hata oluştu.";
+        return await RedisplayEditAsync(id, dto);
+    }
+
+    /// <summary>
+    /// Düzenle formunu hatadan sonra yeniden çizer; durumu <b>veritabanından tazeler</b>
+    /// (12.10 — form artık <c>Status</c> göndermiyor, bkz. <c>AdsAdminController</c>).
+    /// </summary>
+    private async Task<IActionResult> RedisplayEditAsync(
+        Guid id, KadirliApp.Application.Features.Deaths.Dtos.UpdateDeathNoticeDto dto)
+    {
+        var current = await _sender.Send(new GetDeathNoticeByIdQuery(id));
+        dto = dto with { Status = current?.Status };
+
         ViewBag.Id = id;
+        ViewBag.PhotoUrl = current?.PhotoUrl;
         await LoadLookupsAsync();
         return View(dto);
     }
@@ -170,6 +190,50 @@ public class DeathsAdminController : Controller
         {
             TempData["Success"] = "İlan başarıyla onaylandı.";
         }
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    // Faz 12.10 — 12.10 öncesinde vefatta reddetmenin TEK yolu Düzenle formundaki durum
+    // menüsüydü ve o yol ne izi ne gerekçeyi tutuyordu. Menü kaldırıldı, karşılığı burada.
+    // Sebep alanı ilanlardaki "JS'siz details popover" desenini izliyor.
+    [HttpPost]
+    public async Task<IActionResult> Reject(System.Guid id, string? reason)
+    {
+        var adminIdStr = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (!System.Guid.TryParse(adminIdStr, out var adminId))
+        {
+            return Unauthorized();
+        }
+
+        var success = await _sender.Send(
+            new KadirliApp.Application.Features.Deaths.Commands.RejectDeathNoticeCommand(id, adminId, reason));
+
+        TempData[success ? "Success" : "Error"] = success
+            ? "İlan reddedildi."
+            : "İlan bulunamadı veya reddedilemedi.";
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    // Faz 12.10 — elle arşivleme (ArchiveDeathsJob'ın yaptığı geçişin insan eliyle yapılan hâli).
+    // ⚠️ Aksiyon adı "Archive": izin eylemi önekten türer (#19) ve 12.10'da "Archive" moderasyon
+    // listesine eklendi — yoksa POST olduğu için sessizce "update"e düşerdi.
+    [HttpPost]
+    public async Task<IActionResult> Archive(System.Guid id)
+    {
+        var adminIdStr = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (!System.Guid.TryParse(adminIdStr, out var adminId))
+        {
+            return Unauthorized();
+        }
+
+        var success = await _sender.Send(
+            new KadirliApp.Application.Features.Deaths.Commands.ArchiveDeathNoticeCommand(id, adminId));
+
+        TempData[success ? "Success" : "Error"] = success
+            ? "İlan arşivlendi."
+            : "İlan bulunamadı veya arşivlenemedi.";
 
         return RedirectToAction(nameof(Index));
     }
@@ -199,6 +263,18 @@ public class DeathsAdminController : Controller
         var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(
             new KadirliApp.Application.Features.Deaths.Commands.ApproveDeathNoticeCommand(id, adminId)));
         outcome.Report(TempData, "vefat kaydı", "onaylandı");
+        return BackToList(returnUrl);
+    }
+
+    // Faz 12.10: toplu red artık mümkün (komut doğdu). Diğer üç moderasyonlu modülde
+    // zaten vardı; vefatta yalnız reddetme komutu olmadığı için eksikti.
+    [HttpPost]
+    public async Task<IActionResult> RejectSelected(System.Guid[] ids, string? reason, [FromQuery] string? returnUrl)
+    {
+        var adminId = CurrentAdminId();
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(
+            new KadirliApp.Application.Features.Deaths.Commands.RejectDeathNoticeCommand(id, adminId, reason)));
+        outcome.Report(TempData, "vefat kaydı", "reddedildi");
         return BackToList(returnUrl);
     }
 

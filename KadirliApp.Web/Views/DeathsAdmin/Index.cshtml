@@ -4,7 +4,7 @@
 
     // Faz 11.18 — toplu işlem çubuğu ve satır kutuları tek yerden kurulur.
     var bulkController = "DeathsAdmin";
-    var bulkToolbar = KadirliApp.Web.Models.BulkToolbarViewModel.Moderation("DeathsAdmin", "vefat kaydı", includeReject: false);
+    var bulkToolbar = KadirliApp.Web.Models.BulkToolbarViewModel.Moderation("DeathsAdmin", "vefat kaydı");
 
     // Faz 11.18 — tıklanabilir sütun başlıkları etkin sıralamayı buradan okur.
     var currentSort = Context.Request.Query["sort"].ToString();
@@ -95,6 +95,41 @@
                                         <input type="hidden" name="id" value="@item.Id" />
                                         <button type="submit" class="text-green-600 hover:text-green-900 mr-3" title="Onayla">
                                             <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                }
+                                @*
+                                    Faz 12.10: reddetmenin tek yolu Düzenle formundaki durum menüsüydü;
+                                    menü kaldırıldı, karşılığı burada (ilanlardaki JS'siz details popover deseni).
+                                *@
+                                @if (item.Status != "rejected")
+                                {
+                                    <details class="relative inline-block align-middle mr-3">
+                                        <summary class="list-none cursor-pointer text-yellow-600 hover:text-yellow-800" title="Reddet">
+                                            <i class="fas fa-ban" aria-hidden="true"></i>
+                                            <span class="sr-only">Reddet</span>
+                                        </summary>
+                                        <div class="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-lg text-left">
+                                            <form asp-action="Reject" method="post">
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <label class="block text-xs font-medium text-gray-600 mb-1">Red sebebi <span class="text-gray-400">(opsiyonel)</span></label>
+                                                <input type="text" name="reason" maxlength="500" placeholder="Örn: Bilgiler doğrulanamadı"
+                                                       class="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-500" />
+                                                <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium py-1.5 rounded-md">
+                                                    İlanı Reddet
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </details>
+                                }
+                                @* Faz 12.10: ArchiveDeathsJob'ın yaptığı geçişin elle hâli (ailenin erken kaldırma talebi). *@
+                                @if (item.Status == "approved")
+                                {
+                                    <form asp-action="Archive" method="post" class="inline"
+                                          data-confirm="“@item.DeceasedName” vefat ilanını arşivlemek istediğinize emin misiniz? Vatandaş artık göremeyecek.">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="text-gray-500 hover:text-gray-800 mr-3" title="Arşivle">
+                                            <i class="fas fa-box-archive"></i>
                                         </button>
                                     </form>
                                 }

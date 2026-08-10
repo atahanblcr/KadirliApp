@@ -140,13 +140,7 @@ public class AdsAdminController : Controller
     public async Task<IActionResult> Edit(KadirliApp.Application.Features.Ads.Commands.UpdateAd.UpdateAdCommand command, List<IFormFile> Images)
     {
         if (!ModelState.IsValid)
-        {
-            ViewBag.Images = await _sender.Send(new KadirliApp.Application.Features.Ads.Queries.GetAdImagesQuery(command.Id));
-            ViewBag.PropertyValues = await _sender.Send(new KadirliApp.Application.Features.Ads.Queries.GetAdPropertyValuesQuery(command.Id));
-            ViewBag.Engagement = await _sender.Send(new KadirliApp.Application.Features.Ads.Queries.GetAdAdminStatsQuery(command.Id));
-            await LoadCategoriesAsync();
-            return View(command);
-        }
+            return await RedisplayEditAsync(command);
 
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var adminId);
         foreach (var image in Images)
@@ -155,7 +149,17 @@ public class AdsAdminController : Controller
             if (fileId.HasValue) command.NewImageFileIds.Add(fileId.Value);
         }
 
-        var success = await _sender.Send(command);
+        bool success;
+        try
+        {
+            success = await _sender.Send(command);
+        }
+        catch (Application.Common.Exceptions.AppException ex) // 12.10: durum bu yoldan değiştirilemez
+        {
+            TempData["Error"] = ex.Message;
+            return await RedisplayEditAsync(command);
+        }
+
         if (success)
         {
             TempData["Success"] = "İlan başarıyla güncellendi.";
@@ -163,7 +167,28 @@ public class AdsAdminController : Controller
         }
 
         TempData["Error"] = "İlan güncellenirken bir hata oluştu.";
+        return await RedisplayEditAsync(command);
+    }
+
+    /// <summary>
+    /// Düzenle formunu hatadan sonra yeniden çizer.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <b>Faz 12.10:</b> durumu veritabanından <b>tazeliyor</b>. Form artık
+    /// <c>Status</c> göndermiyor (moderasyonun tek sahibi Onayla/Reddet), yani hatadan
+    /// sonra gelen komut nesnesinde alan <c>null</c>. Tazelenmeseydi zaten onaylı bir
+    /// ilanın formunda durum "—" görünür ve <b>"Onayla" butonu belirirdi</b> — panelin
+    /// yalan söylemesinin küçük ama gerçek bir biçimi.
+    /// </remarks>
+    private async Task<IActionResult> RedisplayEditAsync(
+        KadirliApp.Application.Features.Ads.Commands.UpdateAd.UpdateAdCommand command)
+    {
+        var current = await _sender.Send(new KadirliApp.Application.Features.Ads.Queries.GetAdByIdForEditQuery(command.Id));
+        command.Status = current?.Status;
+
         ViewBag.Images = await _sender.Send(new KadirliApp.Application.Features.Ads.Queries.GetAdImagesQuery(command.Id));
+        ViewBag.PropertyValues = await _sender.Send(new KadirliApp.Application.Features.Ads.Queries.GetAdPropertyValuesQuery(command.Id));
+        ViewBag.Engagement = await _sender.Send(new KadirliApp.Application.Features.Ads.Queries.GetAdAdminStatsQuery(command.Id));
         await LoadCategoriesAsync();
         return View(command);
     }

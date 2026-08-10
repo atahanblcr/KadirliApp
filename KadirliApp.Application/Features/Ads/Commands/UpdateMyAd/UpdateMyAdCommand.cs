@@ -86,13 +86,11 @@ public class UpdateMyAdCommandHandler : IRequestHandler<UpdateMyAdCommand, bool>
         ad.SellerName = request.SellerName;
         ad.ContactPhone = request.ContactPhone.Trim();
 
-        // Her kullanıcı düzenlemesi yeniden moderasyona düşer; önceki onay/red izleri temizlenir
-        // (rejected ilanın düzeltilip yeniden gönderilme yolu da budur). ExpiresAt'e DOKUNULMAZ — süre işi extend'in.
-        ad.Status = "pending";
-        ad.ApprovedBy = null;
-        ad.ApprovedAt = null;
-        ad.RejectedReason = null;
-        ad.RejectedAt = null;
+        // Her kullanıcı düzenlemesi yeniden moderasyona düşer (rejected ilanın düzeltilip
+        // yeniden gönderilme yolu da budur). Faz 12.10: geçişin tek sahibi AdModeration —
+        // burada elle yazılan onay/red izi temizliği, Approve/Reject'teki aynı bilginin
+        // ÜÇÜNCÜ kopyasıydı ve sessizce ayrışabilirdi.
+        AdModeration.Resubmit(ad);
 
         if (removeImageIds.Count > 0)
         {

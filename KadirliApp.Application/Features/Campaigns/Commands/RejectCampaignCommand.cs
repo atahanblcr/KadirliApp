@@ -32,8 +32,9 @@ public class RejectCampaignCommandHandler : IRequestHandler<RejectCampaignComman
         var campaign = await repo.GetByIdAsync(request.Id, cancellationToken);
         if (campaign == null) return false;
 
-        campaign.Status = "rejected";
-        campaign.RejectedReason = request.Reason;
+        // Faz 12.10: kuralın tek sahibi CampaignModeration — onay izlerinin temizlenmesi
+        // (12.10'da düzeltilen simetri hatası) de orada.
+        CampaignModeration.Reject(campaign, request.Reason, DateTime.UtcNow);
 
         repo.Update(campaign);
         await _uow.SaveChangesAsync(cancellationToken);

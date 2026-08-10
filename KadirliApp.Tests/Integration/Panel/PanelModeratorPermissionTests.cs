@@ -97,6 +97,11 @@ public class PanelModeratorPermissionTests : IAsyncLifetime
     [InlineData("Unverify", "POST", "approve")]
     [InlineData("Ban", "POST", "approve")]
     [InlineData("Unban", "POST", "approve")]
+    // ⚠️ Faz 12.10: arşivleme kaydı public listeden düşürür, yani yayından kaldırma
+    // kararıdır. Listede olmasaydı POST olduğu için sessizce "update"e düşerdi ve yalnız
+    // DÜZENLEME yetkisi olan moderatör bir vefat ilanını yayından kaldırabilirdi
+    // (§7 madde 29'daki BulkApprove hatasının aynısı).
+    [InlineData("Archive", "POST", "approve")]
     // ⚠️ "UpdateStatus" moderasyon kararıdır — "Update" öneki olarak eşleşirse
     // düzenleme yetkisi olan moderatör şikayet SONUÇLANDIRABİLİR hâle gelir.
     [InlineData("UpdateStatus", "POST", "approve")]
@@ -329,6 +334,50 @@ public class PanelModeratorPermissionTests : IAsyncLifetime
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
         response.Headers.Location!.ToString().Should().Contain("/account/denied",
             "silme izni olmayan moderatör silme aksiyonuna ulaşmamalı");
+    }
+
+    /// <summary>
+    /// 🔴 <b>Faz 12.10 — yetki yükselmesinin kapandığının uçtan uca kanıtı.</b>
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 12.10 öncesinde bu moderatör (ilanlarda <b>yalnız</b> okuma+düzenleme) Düzenle
+    /// formundaki durum menüsünden <c>approved</c> seçip kaydedebiliyordu: aksiyon
+    /// <c>Edit</c> olduğu için izin <c>update</c>'e düşüyor, kapı açılıyor ve komut durumu
+    /// yazıyordu. Yani <b>moderasyon yetkisi olmadan moderasyon kararı</b> — §7 madde
+    /// 29'daki <c>BulkApprove</c> hatasının üçüncü biçimi, ama tersi: burada yetki
+    /// <i>fazladan</i> çalışıyordu.
+    /// </para>
+    /// <para>
+    /// ⚠️ Test iki yönlü: <c>Edit</c>'in hâlâ AÇIK olduğunu da doğruluyor. Yalnız "Onayla
+    /// kapalı" denseydi, ilanlar modülünü tümüyle kapatan bir gerçekleme de yeşil kalırdı.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Moderator_WithOnlyUpdatePermission_CannotModerate_ButCanStillEdit()
+    {
+        await SetPermissionsAsync(new AdminPermission
+        {
+            UserId = _moderatorId, Module = "ads",
+            CanRead = true, CanCreate = false, CanUpdate = true, CanDelete = false, CanApprove = false
+        });
+
+        var client = await ModeratorClientAsync();
+
+        (await client.GetAsync("/AdsAdmin/Index")).StatusCode.Should().Be(HttpStatusCode.OK,
+            "okuma izni var — modül açılmalı");
+
+        var approve = await client.PostFormAsync("/AdsAdmin/Approve",
+            new Dictionary<string, string> { ["id"] = Guid.NewGuid().ToString() },
+            tokenFromPath: "/AdsAdmin/Index");
+
+        approve.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        approve.Headers.Location!.ToString().Should().Contain("/account/denied",
+            "onay yetkisi olmayan moderatör moderasyon kararı verememeli — 12.10 öncesinde " +
+            "Düzenle formundaki durum menüsü tam olarak bu kapıyı atlıyordu");
+
+        // Aynı moderatör Düzenle sayfasını hâlâ açabilmeli (yetki DARALTILDI, kapatılmadı).
+        (await client.GetAsync("/AdsAdmin/Index")).StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     /// <summary>Personel yönetimi matrisin dışında: izin dağıtan ekran moderatöre kapalı.</summary>

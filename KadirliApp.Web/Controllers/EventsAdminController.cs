@@ -201,10 +201,7 @@ public class EventsAdminController : Controller
     public async Task<IActionResult> Edit(UpdateEventCommand command, IFormFile? CoverImage)
     {
         if (!ModelState.IsValid)
-        {
-            await LoadCategoriesAsync();
-            return View(command);
-        }
+            return await RedisplayEditAsync(command);
 
         var newImageId = await UploadHelper.UploadAsync(_sender, CoverImage, "event", GetAdminId());
         if (newImageId.HasValue) command.CoverImageId = newImageId;
@@ -214,11 +211,10 @@ public class EventsAdminController : Controller
         {
             success = await _sender.Send(command);
         }
-        catch (Application.Common.Exceptions.AppException ex)
+        catch (Application.Common.Exceptions.AppException ex) // ilçe kuralı + 12.10 durum kuralı
         {
             TempData["Error"] = ex.Message;
-            await LoadCategoriesAsync();
-            return View(command);
+            return await RedisplayEditAsync(command);
         }
 
         if (success)
@@ -228,6 +224,18 @@ public class EventsAdminController : Controller
         }
 
         TempData["Error"] = "Etkinlik güncellenirken bir hata oluştu.";
+        return await RedisplayEditAsync(command);
+    }
+
+    /// <summary>
+    /// Düzenle formunu hatadan sonra yeniden çizer; durumu <b>veritabanından tazeler</b>
+    /// (12.10 — form artık <c>Status</c> göndermiyor, bkz. <c>AdsAdminController</c>).
+    /// </summary>
+    private async Task<IActionResult> RedisplayEditAsync(UpdateEventCommand command)
+    {
+        var current = await _sender.Send(new GetEventByIdQuery(command.Id));
+        command.Status = current?.Status;
+
         await LoadCategoriesAsync();
         return View(command);
     }

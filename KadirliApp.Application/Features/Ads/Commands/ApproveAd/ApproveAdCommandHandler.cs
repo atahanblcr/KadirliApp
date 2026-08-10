@@ -7,15 +7,11 @@ using MediatR;
 
 namespace KadirliApp.Application.Features.Ads.Commands.ApproveAd;
 
+// `Ads` namespace'i (AdModeration) bu dosyanın namespace'inin atasında olduğu için
+// ayrıca using gerekmiyor.
+
 public class ApproveAdCommandHandler : IRequestHandler<ApproveAdCommand, bool>
 {
-    /// <summary>
-    /// Süresi dolmuş bir ilan onaylandığında verilen yeni yayın süresi.
-    /// <c>CreateAdCommandHandler</c>'ın ilk yayın süresi ve <c>ExtendMyAdCommand</c>'in
-    /// uzatma süresiyle aynı: 30 gün.
-    /// </summary>
-    private const int PublishDays = 30;
-
     private readonly IUnitOfWork _uow;
 
     public ApproveAdCommandHandler(IUnitOfWork uow)
@@ -30,29 +26,10 @@ public class ApproveAdCommandHandler : IRequestHandler<ApproveAdCommand, bool>
 
         if (ad == null) return false;
 
-        // 🔴 Faz 11.15c: ONAY, İLANI GERÇEKTEN GÖRÜNÜR KILMALI.
-        //
-        // Canlı denetimde görülen çelişki: süresi geçmiş (expired) bir ilan panelden
-        // onaylandığında "İlan başarıyla onaylandı." yazıyor, ama ExpiresAt geçmişte
-        // kaldığı için mobil listede HİÇ görünmüyor (GetAdsQueryHandler:32) ve saatlik
-        // ExpireAdsJob durumu sessizce yeniden "expired" yapıyor. Yönetici ile vatandaş
-        // farklı gerçeklik görüyordu.
-        //
-        // Aynı sessiz hata expired olmayan ilanlarda da vardı: onay kuyruğunda 30 günden
-        // fazla bekleyen "pending" bir ilan onaylandığı anda süresi dolmuş oluyordu.
-        // Bu yüzden koşul duruma değil, TARİHE bakıyor.
-        //
-        // Karar: yayın penceresi ilanın gönderildiği an değil, GÖRÜNÜR OLDUĞU an başlar.
-        var now = DateTime.UtcNow;
-        if (ad.ExpiresAt <= now)
-            ad.ExpiresAt = now.AddDays(PublishDays);
-
-        // Faz 10.14(1) yan düzeltmesi: reddedilmiş bir ilan sonradan onaylanırsa bayat red gerekçesi kalmasın.
-        ad.Status = "approved";
-        ad.ApprovedBy = request.AdminId;
-        ad.ApprovedAt = DateTime.UtcNow;
-        ad.RejectedReason = null;
-        ad.RejectedAt = null;
+        // Faz 12.10: kuralın tek sahibi AdModeration (taze pencere #25 + bayat gerekçe
+        // temizliği orada). Handler artık yalnız veriyi getirip kaydediyor — kural burada
+        // yazılırsa Düzenle formunun açtığı ikinci yol onu yine atlar.
+        AdModeration.Approve(ad, request.AdminId, DateTime.UtcNow);
 
         repo.Update(ad);
         await _uow.SaveChangesAsync(cancellationToken);

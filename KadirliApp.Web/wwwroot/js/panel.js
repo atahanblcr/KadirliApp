@@ -32,11 +32,40 @@
     // HTML-encode ettiği için tırnak içeren bir başlık ("Ali'nin arabası") JS dizesini
     // bozuyordu. data-confirm özniteliği bu sorunun ikisini birden çözer: metin
     // öznitelikte güvenle taşınır, buradan getAttribute ile okunur.
+    //
+    // Faz 12.10 — GÖNDEREN BUTONUN kendi onayı da okunuyor (`e.submitter`) ve toplu
+    // işlemin ayrı `click` dinleyicisi buraya KATILDI (tek sahip).
+    //
+    // Sebep: moderasyon bloğu (_ModerationStatusField) Düzenle formunun İÇİNDE duruyor
+    // ve HTML'de form iç içe olamıyor, bu yüzden Reddet/Arşivle butonları hedefi
+    // `formaction` ile değiştiriyor. Yani tek formda üç ayrı aksiyon var ve her biri
+    // farklı bir onay metni ister — formun tek özniteliği bunu taşıyamaz.
+    //
+    // 🐛 Buton desteği PanelConfirmDialogTests kırmızıya dönünce eklendi: buton üzerindeki
+    // data-confirm, dinleyici olmadan SESSİZCE hiç açılmıyordu — testin var olma sebebi.
+    // ⚠️ Önce BUTONA bakılır: buton `formaction` ile farklı bir aksiyona gidiyorsa formun
+    // genel metni yanlış şeyi anlatırdı.
+    // ⚠️ {count} yer tutucusu toplu işlem içindir (11.18): orada asıl risk "yanlış satır"
+    // değil, KAÇ satır olduğunu fark etmemektir. Ayrı bir `click` dinleyicisi olarak
+    // yaşıyordu; 12.10'da buraya alındı, yoksa iki dinleyici aynı butonda üst üste
+    // binip onay penceresini İKİ KEZ açardı (ilki ham "{count}" metniyle).
     // ————————————————————————————————————————————————————————————
     document.addEventListener('submit', function (e) {
         var form = e.target;
-        if (!form || !form.hasAttribute || !form.hasAttribute('data-confirm')) return;
-        if (!window.confirm(form.getAttribute('data-confirm'))) {
+        if (!form || !form.hasAttribute) return;
+
+        var submitter = e.submitter;
+        var message = (submitter && submitter.getAttribute && submitter.getAttribute('data-confirm'))
+            || (form.hasAttribute('data-confirm') ? form.getAttribute('data-confirm') : null);
+
+        if (!message) return;
+
+        if (message.indexOf('{count}') !== -1) {
+            var scope = submitter && submitter.closest ? submitter.closest('[data-bulk-scope]') : null;
+            message = message.replace('{count}', String(scope ? selectedBulkCount(scope) : 0));
+        }
+
+        if (!window.confirm(message)) {
             e.preventDefault();
         }
     });
@@ -52,8 +81,13 @@
         return Array.prototype.slice.call(scope.querySelectorAll('[data-bulk-row]'));
     }
 
+    // 12.10: onay metnindeki {count} de buradan besleniyor (yukarıdaki submit dinleyicisi).
+    function selectedBulkCount(scope) {
+        return bulkRows(scope).filter(function (c) { return c.checked; }).length;
+    }
+
     function bulkRefresh(scope) {
-        var count = bulkRows(scope).filter(function (c) { return c.checked; }).length;
+        var count = selectedBulkCount(scope);
 
         // Butonlar hiçbir şey seçilmeden çalışmaz: boş POST atıp "Hiçbir kayıt
         // seçilmedi" hatası almak, yöneticiye hiçbir şey öğretmeyen bir tur olurdu.
@@ -90,20 +124,10 @@
         bulkRefresh(scope);
     });
 
-    // Onay metnindeki {count} yer tutucusunu tıklanan butonun kendi sayısıyla doldur.
-    // Toplu silmede asıl risk "yanlış satır" değil, KAÇ satır olduğunu fark etmemektir.
-    document.addEventListener('click', function (e) {
-        var button = e.target && e.target.closest ? e.target.closest('[data-bulk-submit]') : null;
-        if (!button || !button.getAttribute('data-confirm')) return;
-
-        var scope = button.closest('[data-bulk-scope]');
-        if (!scope) return;
-
-        var count = bulkRows(scope).filter(function (c) { return c.checked; }).length;
-        if (!window.confirm(button.getAttribute('data-confirm').replace('{count}', String(count)))) {
-            e.preventDefault();
-        }
-    });
+    // 📌 Faz 12.10: buradaki `click` dinleyicisi (toplu işlem onayı + {count} doldurma)
+    // yukarıdaki tek `submit` dinleyicisine taşındı. İki ayrı dinleyici kalsaydı
+    // 12.10'un buton desteğiyle birlikte aynı butonda üst üste biner ve onay penceresi
+    // İKİ KEZ açılırdı — ilki ham "{count}" metniyle.
 
     document.querySelectorAll('[data-bulk-scope]').forEach(bulkRefresh);
 

@@ -1,0 +1,91 @@
+@using KadirliApp.Web.Common
+@using KadirliApp.Web.Models
+@model ModerationStatusFieldViewModel
+@*
+    Faz 12.10 — Düzenle formundaki SALT-OKUNUR durum bloğu.
+
+    12.10 öncesinde burada bir açılır menü vardı ve o menü moderasyon durumunu doğrudan
+    yazıyordu: üç kural birden atlanıyordu (taze onay penceresi, bayat red gerekçesinin
+    temizlenmesi, "kim onayladı" izi) ve yalnız DÜZENLEME yetkisi olan moderatör moderasyon
+    kararı verebiliyordu (izin eylemi aksiyon adından türüyor — görünmez sözleşme #19).
+
+    🔑 "İşlevsiz buton yok" kuralının TERSİ: sorun butonun bir şey yapmaması değil,
+    yapmaması gerekeni yapmasıydı.
+*@
+<div>
+    <label class="block text-sm font-semibold text-gray-700 mb-2">Durum</label>
+
+    <div class="flex flex-wrap items-center gap-2">
+        <partial name="_StatusBadge" model="PanelDisplay.Status(Model.Status)" />
+        <span class="text-xs text-gray-500">Durum bu formdan değiştirilmez.</span>
+    </div>
+
+    @*
+        ⚠️ Sebep kutusu butonların YANINDA değil ÜSTÜNDE: blok yarım genişlikte bir ızgara
+        hücresinde duruyor ve yan yana dizildiğinde etiket üç satıra kırılıp kutu okunmaz
+        hâle geliyordu (canlı panelde görüldü).
+    *@
+    @if (!Model.IsRejected && Model.SupportsRejectReason)
+    {
+        <div class="mt-3">
+            <label for="moderation-reject-reason" class="block text-xs font-medium text-gray-600 mb-1">
+                Red sebebi <span class="text-gray-400">(opsiyonel — gönderen görür)</span>
+            </label>
+            <input type="text" id="moderation-reject-reason" name="reason" maxlength="500"
+                   placeholder="Örn: Bilgiler eksik"
+                   class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+        </div>
+    }
+
+    <div class="mt-3 flex flex-wrap items-center gap-2">
+        @if (!Model.IsApproved)
+        {
+            <button type="submit"
+                    formaction="@Url.Action("Approve", Model.Controller)"
+                    formmethod="post"
+                    formenctype="application/x-www-form-urlencoded"
+                    class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+                <i class="fas fa-check" aria-hidden="true"></i>Onayla
+            </button>
+        }
+
+        @if (!Model.IsRejected)
+        {
+            @* 11.15c: genel "emin misiniz?" değil — NEYİN reddedildiğini yazıyoruz (data-confirm, panel.js'te tek dinleyici). *@
+            <button type="submit"
+                    formaction="@Url.Action("Reject", Model.Controller)"
+                    formmethod="post"
+                    formenctype="application/x-www-form-urlencoded"
+                    data-confirm="Bu @Model.ItemLabel kaydını reddetmek istediğinize emin misiniz?"
+                    class="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700">
+                <i class="fas fa-ban" aria-hidden="true"></i>Reddet
+            </button>
+        }
+
+        @*
+            ⚠️ Arşivle yalnız YAYINDAKİ kayıtta. "Arşivlemek" yayından kaldırmaktır; bekleyen
+            ya da reddedilmiş bir kayıt zaten yayında değil — o butonu göstermek "işlevsiz
+            buton" olurdu (listedeki koşulla birebir aynı).
+        *@
+        @if (Model.SupportsArchive && Model.IsApproved)
+        {
+            <button type="submit"
+                    formaction="@Url.Action("Archive", Model.Controller)"
+                    formmethod="post"
+                    formenctype="application/x-www-form-urlencoded"
+                    data-confirm="Bu @Model.ItemLabel kaydını arşivlemek istediğinize emin misiniz? Vatandaş artık göremeyecek."
+                    class="inline-flex items-center gap-2 rounded-lg bg-gray-600 px-3 py-2 text-sm font-medium text-white hover:bg-gray-700">
+                <i class="fas fa-box-archive" aria-hidden="true"></i>Arşivle
+            </button>
+        }
+    </div>
+
+    @*
+        ⚠️ Bu uyarı kozmetik değil: butonlar formu moderasyon aksiyonuna gönderiyor,
+        Update komutuna değil. Yazılmasaydı yönetici başlığı düzeltip "Onayla"ya basar,
+        kayıt onaylanır ve düzeltmesi sessizce kaybolurdu.
+    *@
+    <p class="mt-2 text-xs text-gray-400">
+        Bu işlemler formu kaydetmez — önce değişikliklerinizi kaydedin.
+    </p>
+</div>

@@ -51,9 +51,14 @@ public sealed class PanelPermissionFilter : IAsyncAuthorizationFilter
     /// </summary>
     internal static string ActionFor(string actionName, string httpMethod)
     {
-        // Moderasyon kararları (onay/ret/doğrulama/yasaklama) tek yetkide toplanır:
+        // Moderasyon kararları (onay/ret/doğrulama/yasaklama/arşivleme) tek yetkide toplanır:
         // "içeriği yayına alabilir mi?" sorusu, "düzenleyebilir mi?"den ayrı bir güvendir.
-        if (StartsWithAny(actionName, "Approve", "Reject", "Verify", "Unverify", "Ban", "Unban", "UpdateStatus", "Resolve"))
+        //
+        // Faz 12.10'da "Archive" eklendi: arşivleme kaydı public listeden düşürür, yani
+        // yayından kaldırma kararıdır. Eklenmeseydi POST olduğu için sessizce "update"e
+        // düşerdi — yalnız düzenleme yetkisi olan moderatör bir vefat ilanını yayından
+        // kaldırabilirdi (#29'daki BulkApprove hatasının aynısı).
+        if (StartsWithAny(actionName, "Approve", "Reject", "Verify", "Unverify", "Ban", "Unban", "UpdateStatus", "Resolve", "Archive"))
             return "approve";
 
         if (Contains(actionName, "Delete") || Contains(actionName, "Remove")) return "delete";

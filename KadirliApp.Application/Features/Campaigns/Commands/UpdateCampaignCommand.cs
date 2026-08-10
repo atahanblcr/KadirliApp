@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using KadirliApp.Application.Common.Interfaces;
+using KadirliApp.Application.Common.Moderation;
 using KadirliApp.Domain.Entities;
 using MediatR;
 
@@ -20,7 +21,16 @@ public class UpdateCampaignCommand : IRequest<bool>
     public DateTime EndDate { get; set; }
     public Guid? CoverImageId { get; set; }
     public bool RemoveCoverImage { get; set; }
-    public string Status { get; set; } = "pending";
+
+    /// <summary>
+    /// ☠️ Faz 12.10'dan beri <b>yazılamaz</b> — moderasyon durumunun tek sahibi
+    /// <c>ApproveCampaignCommand</c>/<c>RejectCampaignCommand</c> (görünmez sözleşme #52).
+    /// Alan DTO'da duruyor (§5), ama farklı bir değer gelirse komut reddeder
+    /// (<c>ModerationStatusGuard</c>).
+    /// ⚠️ Nullable: non-nullable bir referans tipi MVC'de <b>örtük olarak zorunludur</b>;
+    /// alan formdan kaldırılınca <c>ModelState</c> kırılırdı (§5 — gevşetmek güvenlidir).
+    /// </summary>
+    public string? Status { get; set; }
 }
 
 public class UpdateCampaignCommandHandler : IRequestHandler<UpdateCampaignCommand, bool>
@@ -38,6 +48,9 @@ public class UpdateCampaignCommandHandler : IRequestHandler<UpdateCampaignComman
         var campaign = await repo.GetByIdAsync(request.Id, cancellationToken);
         if (campaign == null) return false;
 
+        // Faz 12.10 — moderasyon durumu bu yoldan yazılamaz (#52); guard ilk yazmadan ÖNCE.
+        ModerationStatusGuard.EnsureUnchanged(campaign.Status, request.Status);
+
         campaign.BusinessId = request.BusinessId;
         campaign.Title = request.Title;
         campaign.Description = request.Description;
@@ -46,7 +59,6 @@ public class UpdateCampaignCommandHandler : IRequestHandler<UpdateCampaignComman
         campaign.Terms = request.Terms;
         campaign.StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc);
         campaign.EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc);
-        campaign.Status = request.Status;
 
         if (request.RemoveCoverImage)
             campaign.CoverImageId = null;

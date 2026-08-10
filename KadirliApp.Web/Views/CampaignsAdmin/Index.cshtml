@@ -92,14 +92,30 @@
                                             </button>
                                         </form>
                                     }
+                                    @*
+                                        Faz 12.10: red sebebi artık soruluyor. Komut sebebi 11.15b'den beri
+                                        kabul ediyordu ama panel hiç göndermiyordu — işletme sahibi kampanyasının
+                                        NEDEN reddedildiğini hiçbir yerde göremiyordu.
+                                    *@
                                     @if (item.Status != "rejected")
                                     {
-                                        <form asp-action="Reject" method="post" class="inline">
-                                            <input type="hidden" name="id" value="@item.Id" />
-                                            <button type="submit" class="text-yellow-600 hover:text-yellow-900" title="Reddet">
-                                                <i class="fas fa-ban"></i>
-                                            </button>
-                                        </form>
+                                        <details class="relative inline-block align-middle">
+                                            <summary class="list-none cursor-pointer text-yellow-600 hover:text-yellow-900" title="Reddet">
+                                                <i class="fas fa-ban" aria-hidden="true"></i>
+                                                <span class="sr-only">Reddet</span>
+                                            </summary>
+                                            <div class="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-lg text-left">
+                                                <form asp-action="Reject" method="post">
+                                                    <input type="hidden" name="id" value="@item.Id" />
+                                                    <label class="block text-xs font-medium text-gray-600 mb-1">Red sebebi <span class="text-gray-400">(opsiyonel — işletme görür)</span></label>
+                                                    <input type="text" name="reason" maxlength="500" placeholder="Örn: Kampanya koşulları belirsiz"
+                                                           class="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-500" />
+                                                    <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium py-1.5 rounded-md">
+                                                        Kampanyayı Reddet
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </details>
                                     }
                                     <a asp-action="Edit" asp-route-id="@item.Id" class="text-indigo-600 hover:text-indigo-900" title="Düzenle">
                                         <i class="fas fa-edit"></i>

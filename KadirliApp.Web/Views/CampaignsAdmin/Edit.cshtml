@@ -40,13 +40,15 @@
 
                 <!-- Status -->
                 <div>
-                    <label asp-for="Status" class="block text-sm font-semibold text-gray-700 mb-2">Durum</label>
-                    <select asp-for="Status" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm">
-                        <option value="pending">Bekliyor</option>
-                        <option value="approved">Onaylı</option>
-                        <option value="rejected">Reddedildi</option>
-                        <option value="expired">Süresi Doldu</option>
-                    </select>
+                    @*
+                        Faz 12.10: durum menüsü kaldırıldı. "Süresi Doldu" seçeneği de gitti ve
+                        bu ayrıca doğru: kampanyanın yayında olup olmadığını durum değil TARİH
+                        belirliyor (GetCampaignsQuery: StartDate <= now <= EndDate) ve hiçbir iş
+                        kampanya durumunu "expired" yapmıyor. Kampanyayı erken bitirmenin dürüst
+                        yolu bitiş tarihini değiştirmek — o alan aynı formda.
+                    *@
+                    @{ var moderationStatus = new KadirliApp.Web.Models.ModerationStatusFieldViewModel { Status = Model.Status, Controller = "CampaignsAdmin", ItemLabel = "kampanya" }; }
+                    <partial name="_ModerationStatusField" model="moderationStatus" />
                 </div>
 
                 <!-- Title -->

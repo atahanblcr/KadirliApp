@@ -31,14 +31,8 @@ public class ApproveCampaignCommandHandler : IRequestHandler<ApproveCampaignComm
         var campaign = await repo.GetByIdAsync(request.Id, cancellationToken);
         if (campaign == null) return false;
 
-        // Faz 11.15b: reddedilmiş bir kampanya sonradan onaylanırsa bayat red gerekçesi
-        // kalmasın. Aynı düzeltme ilanlarda 10.14(1)'de yapılmıştı ama kampanyaya
-        // taşınmamıştı: panelde "Onaylandı" rozetiyle "Reddedilme sebebi: …" satırı
-        // yan yana görünüyor, işletme sahibi kampanyasının durumundan emin olamıyordu.
-        campaign.Status = "approved";
-        campaign.ApprovedBy = request.AdminId;
-        campaign.ApprovedAt = DateTime.UtcNow;
-        campaign.RejectedReason = null;
+        // Faz 12.10: kuralın tek sahibi CampaignModeration.
+        CampaignModeration.Approve(campaign, request.AdminId, DateTime.UtcNow);
 
         repo.Update(campaign);
         await _uow.SaveChangesAsync(cancellationToken);

@@ -3109,7 +3109,7 @@ mahalle "Tümünü Seç/Temizle" **10/0**.
 
 ---
 
-### 12.10 — Moderasyon geçişinin tek sahibi: Düzenle formunun açtığı ikinci yol — [ ]
+### 12.10 — Moderasyon geçişinin tek sahibi: Düzenle formunun açtığı ikinci yol — [x] (10 Ağustos 2026)
 
 > 📌 **Bu alt-faz 10 Ağustos 2026'daki dış analiz oturumunda doğdu — ama analizin *önerdiği*
 > madde bu değil.** Analiz "anemik domain modeli" diyordu (soyut, 50 entity'lik bir dönüşüm
@@ -3227,6 +3227,74 @@ değişmiyor** — mağazadaki eski sürümler etkilenmez. Faz 12'nin "hepsi add
 `dotnet test` + `flutter analyze` + `flutter test` yeşil · **kuralı bilerek boz → kırmızı
 görüldü** (en az: durum menüsünü geri koy · `Update` handler'ına `.Status =` geri koy ·
 taze pencereyi kaldır) · canlı panelde dört modülde doğrulandı · Memory Bank güncel · commit.
+
+#### ✅ Ne yapıldı (10 Ağustos 2026)
+
+**Backend — tek sahip.** Dört saf geçiş sınıfı (`AdModeration` · `CampaignModeration` ·
+`DeathNoticeModeration` · `EventModeration`) + ortak `Common/Moderation/ModerationStatusGuard`.
+Altı Approve/Reject handler'ı bu sınıflara **delege ediyor** (kural taşındı, değişmedi), dört
+`Update*` handler'ı `Status`'e **dokunmuyor** ve farklı değer gelirse **reddedip sebebini
+söylüyor**.
+
+**Alan silinmedi.** `Status` dört DTO'da duruyor (§5), yalnız `string?` yapıldı.
+⚠️ Bu nullable dönüşüm kozmetik değil **zorunluydu**: MVC'de non-nullable referans tipi
+**örtük olarak zorunludur**, alan formdan kaldırıldığı anda `ModelState` kırılır ve
+hiçbir düzenleme kaydedilemezdi. (§5: doğrulama gevşetmek güvenli, sıkılaştırmak kırıcı.)
+
+**Panel.** Dört Düzenle görünümünde menü yerine ortak `_ModerationStatusField` partial'ı:
+salt-okunur `_StatusBadge` + Onayla/Reddet(/Arşivle). Butonlar `formaction` kullanıyor —
+HTML'de form iç içe olamaz, ayrı bir `<form>` konsaydı tarayıcı onu **sessizce atardı**.
+`formenctype` override'ı da bilinçli: Düzenle formları `multipart` ve olmasaydı "Onayla"ya
+basmak henüz kaydedilmemiş fotoğrafı yükleyip çöpe atardı.
+
+**➕ PLAN DIŞI ve ZORUNLU — vefatta iki yol AÇILDI.** Planın tablosu vefatta "atlanan kural:
+onay izi" diyordu; taramada çıkan şey daha ağırdı: durum menüsü o modülde **reddetmenin ve
+arşivlemenin TEK yoluydu.** Karşılığı yazılmasaydı bir hatayı düzeltirken iki işlev silinmiş
+olurdu. `RejectDeathNoticeCommand` (+ sebep) ve `ArchiveDeathNoticeCommand` yazıldı, panel
+aksiyonları + Index butonları + admin API uçları eklendi, toplu red açıldı
+(`BulkToolbarViewModel.includeReject` bayrağı **silindi** — tek kullanıcısı bu boşluktu).
+⚠️ `Archive` öneki `PanelPermissionFilter`'ın **moderasyon listesine eklendi**: eklenmeseydi
+POST olduğu için sessizce `update`'e düşer ve yayından kaldırma kararı düzenleme yetkisine
+açılırdı (#29'un aynısı).
+
+**➕ PLAN DIŞI (diğer).** Kampanya reddine **sebep alanı** (komut 11.15b'den beri kabul
+ediyordu, panel hiç göndermiyordu → işletme sahibi *neden* reddedildiğini hiç göremiyordu) ·
+`CampaignModeration.Reject`'in **onay izlerini temizlemesi** (ilanlarda 10.14(1)'de çözülmüş,
+kampanyaya taşınmamıştı) · `RedisplayEditAsync` (hata sonrası durumu **DB'den tazeliyor**;
+yoksa onaylı bir kaydın formunda "—" rozeti ve **"Onayla" butonu** belirirdi) ·
+`panel.js`'te iki onay dinleyicisinin **tek sahibe** birleşmesi.
+
+**🐛 YAPISAL TESTİN BULDUĞU, PLANDA OLMAYAN ÜÇÜNCÜ KOPYA.** `UpdateMyAdCommandHandler` — yani
+**vatandaşın kendi ilanını düzenlemesi** — durumu `pending`'e çekip onay/red izlerini elle
+temizliyordu. Meşru bir geçiş ama **üçüncü bir sahip**: ilana yarın bir onay izi alanı
+eklendiğinde iki yer güncellenip üçüncüsü unutulur ve kayıt "pending ama onaylayanı dolu"
+hâline düşerdi. `AdModeration.Resubmit`'e taşındı.
+
+**🐛 `PanelConfirmDialogTests` KIRMIZIYA DÖNDÜ VE HAKLIYDI.** Yeni butonlardaki `data-confirm`
+dinleyici tarafından **hiç okunmuyordu** (dinleyici yalnız formun özniteliğine bakıyordu) →
+onay penceresi sessizce açılmayacaktı. `e.submitter` eklendi; toplu işlemin ayrı `click`
+dinleyicisi de aynı sahibe birleştirildi (kalsaydı aynı butonda üst üste binip onayı **iki
+kez** açardı, ilki ham `{count}` metniyle).
+⚠️ İlk yazımda testin yeni iddiası **zayıftı** ve bozma denemesi **yeşil kaldı**; iddia
+`submitter.getAttribute('data-confirm')` arayacak biçimde güçlendirildi.
+
+**🐛 CANLI DENETİMDE BULUNAN GÖRÜNMEZ BUTON.** "Arşivle" `bg-gray-600` kullanıyordu, o sınıf
+derlenmiş `panel.css`'te **yoktu** → buton **beyaz üstüne beyaz** çizildi: DOM'da var,
+ölçüleri doğru (91×36), erişilebilirlik ağacı buluyor — **insan gözüyle yok.** 12.9'un "C#'ta
+üretilen rozet sınıfı" maddesinin kardeşi. `npm run build` ile çözüldü.
+
+**Testler (+46).** `Unit/Application/Moderation/` (saf) ·
+`Integration/Architecture/ModerationSingleOwnerTests.cs` (**yapısal**, moderasyonlu modül
+kümesini `Approve*.cs` varlığından **türetir**) · `Integration/Panel/PanelModerationOwnershipTests.cs`
+(davranış, gerçek Postgres) + `PanelModeratorPermissionTests`'e iki ekleme.
+
+**Görünmez sözleşme #52 eklendi.** Toplam **52**.
+
+**Bitti kriteri karşılandı:** `dotnet test` **909/909** · `flutter analyze` **0** ·
+`flutter test` **751/751** · kuralı bilerek boz **5 deneme → 4 kırmızı, 1 yeşil kaldı ve o test
+güçlendirildi → kırmızı** · canlı panelde dört modülde doğrulandı.
+
+---
 
 ---
 

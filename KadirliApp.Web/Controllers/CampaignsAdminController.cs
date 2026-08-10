@@ -157,15 +157,22 @@ public class CampaignsAdminController : Controller
     public async Task<IActionResult> Edit(UpdateCampaignCommand command, IFormFile? CoverImage)
     {
         if (!ModelState.IsValid)
-        {
-            await LoadBusinessesAsync();
-            return View(command);
-        }
+            return await RedisplayEditAsync(command);
 
         var newImageId = await UploadHelper.UploadAsync(_sender, CoverImage, "campaign", GetAdminId());
         if (newImageId.HasValue) command.CoverImageId = newImageId;
 
-        var success = await _sender.Send(command);
+        bool success;
+        try
+        {
+            success = await _sender.Send(command);
+        }
+        catch (Application.Common.Exceptions.AppException ex) // 12.10: durum bu yoldan değiştirilemez
+        {
+            TempData["Error"] = ex.Message;
+            return await RedisplayEditAsync(command);
+        }
+
         if (success)
         {
             TempData["Success"] = "Kampanya başarıyla güncellendi.";
@@ -173,6 +180,18 @@ public class CampaignsAdminController : Controller
         }
 
         TempData["Error"] = "Kampanya güncellenirken bir hata oluştu.";
+        return await RedisplayEditAsync(command);
+    }
+
+    /// <summary>
+    /// Düzenle formunu hatadan sonra yeniden çizer; durumu <b>veritabanından tazeler</b>
+    /// (12.10 — form artık <c>Status</c> göndermiyor, bkz. <c>AdsAdminController</c>).
+    /// </summary>
+    private async Task<IActionResult> RedisplayEditAsync(UpdateCampaignCommand command)
+    {
+        var current = await _sender.Send(new GetCampaignByIdQuery(command.Id));
+        command.Status = current?.Status;
+
         await LoadBusinessesAsync();
         return View(command);
     }
@@ -189,10 +208,14 @@ public class CampaignsAdminController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // Faz 12.10 (plan dışı): red sebebi artık panelden de girilebiliyor. Komut sebebi
+    // 11.15b'den beri kabul ediyordu ama panel hiç göndermiyordu — işletme sahibi
+    // kampanyasının NEDEN reddedildiğini hiçbir yerde göremiyordu (Campaign.RejectedReason
+    // boş kalıyordu). İlanlardaki "JS'siz details popover" deseninin aynısı.
     [HttpPost]
-    public async Task<IActionResult> Reject(Guid id)
+    public async Task<IActionResult> Reject(Guid id, string? reason)
     {
-        var success = await _sender.Send(new RejectCampaignCommand(id, GetAdminId()));
+        var success = await _sender.Send(new RejectCampaignCommand(id, GetAdminId(), reason));
         if (success)
             TempData["Success"] = "Kampanya reddedildi.";
         else
@@ -224,10 +247,10 @@ public class CampaignsAdminController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> RejectSelected(Guid[] ids, [FromQuery] string? returnUrl)
+    public async Task<IActionResult> RejectSelected(Guid[] ids, string? reason, [FromQuery] string? returnUrl)
     {
         var adminId = GetAdminId();
-        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(new RejectCampaignCommand(id, adminId)));
+        var outcome = await Common.PanelBulk.RunAsync(ids, id => _sender.Send(new RejectCampaignCommand(id, adminId, reason)));
         outcome.Report(TempData, "kampanya", "reddedildi");
         return BackToList(returnUrl);
     }

@@ -45,6 +45,23 @@ public class DeathsAdminController : AdminApiControllerBase
         return Success(await Sender.Send(new ApproveDeathNoticeCommand(id, CurrentAdminId)));
     }
 
+    // Faz 12.10: reddetme ve arşivleme artık komut — panelin Düzenle formundaki durum
+    // menüsü kaldırıldığı için admin API'sinde de karşılıkları olmalı, yoksa iki yüzey
+    // ayrışır (aynı işi bir yüzeyde yapabilip diğerinde yapamamak).
+    [HttpPost("{id}/reject")]
+    [RequirePermission("deaths", "approve")]
+    public async Task<IActionResult> Reject(Guid id, [FromQuery] string? reason = null)
+    {
+        return Success(await Sender.Send(new RejectDeathNoticeCommand(id, CurrentAdminId, reason)));
+    }
+
+    [HttpPost("{id}/archive")]
+    [RequirePermission("deaths", "approve")]
+    public async Task<IActionResult> Archive(Guid id)
+    {
+        return Success(await Sender.Send(new ArchiveDeathNoticeCommand(id, CurrentAdminId)));
+    }
+
     [HttpDelete("{id}")]
     [RequirePermission("deaths", "delete")]
     public async Task<IActionResult> Delete(Guid id)

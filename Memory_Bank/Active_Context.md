@@ -1,5 +1,97 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 10 Ağustos 2026 — **FAZ 12.10 TAMAMLANDI: moderasyon geçişinin tek sahibi
+> (Düzenle formunun açtığı ikinci yol kapatıldı).**
+> Kod `Common/Moderation/ModerationStatusGuard.cs` (yeni) +
+> `Features/{Ads/AdModeration,Campaigns/CampaignModeration,Deaths/DeathNoticeModeration,Events/EventModeration}.cs` (yeni) +
+> `Deaths/Commands/{Reject,Archive}DeathNoticeCommand.cs` (**yeni komutlar**) +
+> 6 Approve/Reject handler'ı delege + 4 Update handler'ı guard'a bağlandı +
+> `Web/Models/ModerationStatusFieldViewModel.cs` + `Views/Shared/_ModerationStatusField.cshtml` (yeni) +
+> 4 Düzenle görünümü + 2 Index görünümü + 4 panel controller (`RedisplayEditAsync`) +
+> `PanelPermissionAttribute` (`Archive` öneki) + `panel.js` (`e.submitter`) +
+> 3 yeni test dosyası. **Backend 863 → 909 (+46), mobil 751 (değişmedi — sunucuda tek DTO alanı
+> silinmedi, mobilde tek satır yok), analyze 0.**
+>
+> 🔑 **TESLİM EDİLEN:** Bir kaydın moderasyon durumunu değiştirmenin **tek yolu** artık
+> Onayla/Reddet(/Arşivle). 12.10 öncesinde panelin **Düzenle formundaki durum açılır menüsü**
+> ikinci bir yoldu ve o yol **hiçbir kuralı uygulamıyordu**.
+>
+> 🔴 **ÜÇ SESSİZ HASAR BİRDEN (hiçbiri hata vermiyordu):**
+> 1. **İş kuralı atlanıyordu.** Canlı Postgres'te doğrulandı: süresi dolmuş bir ilan bu yoldan
+>    `approved` yapılınca `ExpiresAt` geçmişte kalıyor, `ApprovedBy` **NULL** oluyor ve
+>    **vatandaş ilanı göremiyordu**; `ExpireAdsJob` bir saat içinde durumu geri alıyordu.
+>    12.10 sonrası aynı ilan Düzenle formundaki **Onayla** ile onaylandı →
+>    `expires_at = 2026-09-09` (taze 30 gün) + `approved_by` dolu + `GET /v1/ads` **döndürdü**.
+> 2. **Yetki yükseliyordu.** İzin eylemi aksiyon adından türüyor (#19): `Edit` → `update`.
+>    Yani **yalnız düzenleme yetkisi verilmiş moderatör moderasyon kararı verebiliyordu** —
+>    #29'daki `BulkApprove` hatasının üçüncü biçimi, ama tersi: yetki *fazladan* çalışıyordu.
+> 3. **Denetim izi yalan söylüyordu.** Dört `Update` komutundan üçünde `IAuditableCommand`
+>    hiç yoktu. Artık vefat reddi `audit_logs`'a `reject/deaths/DeathNotice` olarak düşüyor.
+>
+> 🔴 **EN ÖNEMLİ KARAR: alanı silmemek ama sessizce de yutmamak.** `Status` dört DTO'da
+> **duruyor** (§5 — silmek kırıcı olurdu, faz "hepsi additive"), ama farklı bir değer gelirse
+> komut **reddedip sebebini söylüyor**: *"Durum değişikliği düzenleme formundan yapılamaz;
+> listedeki Onayla / Reddet işlemlerini kullanın."* Canlıda forma elle `Status=rejected`
+> enjekte edildi → Türkçe uyarı çıktı, **kayıt ezilmedi**.
+> **İkinci karar:** guard handler'ın **ilk yazmasından ÖNCE** çağrılıyor — sonra çağrılsaydı
+> reddedilen istek başlığı/fiyatı yine de ezerdi (#46'nın "reddetme kaydı ezmemeli" kuralı).
+> **Üçüncü karar:** alanlar `string?` yapıldı. Sezgiye ters ama zorunlu: MVC'de non-nullable
+> referans tipi **örtük olarak zorunludur**, yani alan formdan kaldırıldığı anda `ModelState`
+> "Status gereklidir" diye kırılır ve **hiçbir düzenleme kaydedilemezdi**.
+> **Dördüncü karar:** yapısal test moderasyonlu modül kümesini **türetiyor** (`Approve*.cs`
+> var mı) — elle liste tutulsaydı beşinci modül eklendiğinde kural sessizce delinirdi (12.9'un dersi).
+>
+> ➕ **PLAN DIŞI ve ZORUNLU: vefatta iki yol AÇILDI.** O modülde durum menüsü aynı zamanda
+> **reddetmenin ve arşivlemenin tek yoluydu** — karşılığı yazılmasaydı bir hatayı düzeltirken
+> iki işlev silinmiş olurdu. `RejectDeathNoticeCommand` (+ sebep) ve `ArchiveDeathNoticeCommand`
+> doğdu, `Archive` öneki `PanelPermissionFilter`'ın **moderasyon listesine eklendi** (yoksa POST
+> olduğu için sessizce `update`'e düşerdi), toplu red açıldı (`includeReject` bayrağı **silindi** —
+> tek kullanıcısı bu boşluktu) ve admin API'sine iki uç eklendi.
+>
+> ➕ **PLAN DIŞI (diğer):** kampanya reddine **sebep alanı** (komut 11.15b'den beri kabul
+> ediyordu, panel hiç göndermiyordu → işletme sahibi *neden* reddedildiğini hiç göremiyordu) ·
+> `CampaignModeration.Reject`'in **onay izlerini temizlemesi** (ilanlarda 10.14(1)'de çözülmüş,
+> kampanyaya taşınmamıştı: reddedilmiş kampanyanın kaydında hâlâ "onaylayan" duruyordu) ·
+> `AdModeration.Resubmit` · `_ModerationStatusField` ortak bileşeni · `RedisplayEditAsync`
+> (hata sonrası durumu **DB'den tazeliyor**; yoksa onaylı bir ilanın formunda "—" rozeti ve
+> **"Onayla" butonu** belirirdi) · `panel.js`'te iki onay dinleyicisinin **tek sahibe** birleşmesi.
+>
+> 🐛 **YAPISAL TESTİN BULDUĞU ŞEY (planda yoktu):** `UpdateMyAdCommandHandler` — yani
+> **vatandaşın kendi ilanını düzenlemesi** — durumu `pending`'e çekip onay/red izlerini *elle*
+> temizliyordu. Approve/Reject'teki aynı bilginin **üçüncü kopyası**: ilana yarın bir onay izi
+> alanı eklendiğinde iki yer güncellenip üçüncüsü unutulur ve kayıt "pending ama onaylayanı
+> dolu" hâline düşerdi. `AdModeration.Resubmit`'e taşındı.
+>
+> 🐛 **`PanelConfirmDialogTests` KIRMIZIYA DÖNDÜ VE HAKLIYDI:** yeni Reddet/Arşivle butonları
+> `data-confirm` taşıyor ama dinleyici yalnız **formun** özniteliğine bakıyordu → onay penceresi
+> **sessizce hiç açılmayacaktı** (testin var olma sebebinin birebir tekrarı). `e.submitter`
+> eklendi; bu sırada toplu işlemin ayrı `click` dinleyicisi de aynı sahibe **birleştirildi**
+> (kalsaydı aynı butonda üst üste binip onayı **iki kez** açardı, ilki ham `{count}` metniyle).
+> ⚠️ İlk yazımda testin iddiası **zayıftı** (`"e.submitter"` arıyordu, oysa `var submitter =
+> e.submitter;` satırı bozma denemesinde de duruyordu) → **bozma denemesi yeşil kaldı**, test
+> `submitter.getAttribute('data-confirm')` arayacak biçimde güçlendirildi. 12.5/12.6'nın dersi
+> **dördüncü kez** doğrulandı.
+>
+> 🐛 **CANLI CHROME DENETİMİNDE BULUNAN GÖRÜNMEZ BUTON:** yeni "Arşivle" butonu `bg-gray-600`
+> kullanıyordu ve o sınıf derlenmiş `panel.css`'te **yoktu** → buton **beyaz üstüne beyaz**
+> çizildi. DOM'da var, ölçüleri doğru (91×36), tıklanabilir — **insan gözüyle yok.** Erişilebilirlik
+> ağacı onu buluyordu, ekran görüntüsü bulmuyordu; fark tam olarak buydu. `npm run build` ile
+> çözüldü. 12.9'un "C#'ta üretilen rozet sınıfı" maddesinin kardeşi: derlenmiş Tailwind yalnız
+> **gördüğünü** üretir. CI sürüklenme kapısı bunu zaten yakalardı, ama yönetici canlıda görürdü.
+>
+> **Doğrulama:** `dotnet test` **909/909** · `flutter analyze` **0** · `flutter test` **751/751**.
+> **Kuralı bilerek boz:** 5 deneme → 4 kırmızı (4 · 5 · 2 · 1 test), **1 yeşil kaldı ve o test
+> güçlendirilip tekrar denendi → kırmızı**.
+> **Canlı (Chrome, panel + API + Postgres):** dört Düzenle formunda durum menüsü **yok**,
+> salt-okunur rozet + Onayla/Reddet **var** · süresi dolmuş ilan formdaki Onayla ile onaylandı →
+> taze pencere + onay izi + **vatandaş gördü** (`GET /v1/ads`) · vefat sebepli reddedildi →
+> `rejected_reason` doldu, onay izi temizlendi, `audit_logs`'a `reject` düştü · elle enjekte
+> edilen `Status` **reddedildi ve kayıt ezilmedi** · konsolda CSP ihlali **yok**.
+>
+> ⏭️ **SIRADAKİ: 12.7** — sosyal giriş (backend). ⚠️ Apple aboneliği hâlâ bekliyor.
+>
+> ---
+
 > Son güncelleme: 10 Ağustos 2026 — **FAZ 12.9 TAMAMLANDI: panelin dış bağımlılıkları
 > yerelleştirildi (CDN → self-host + nonce'lu CSP).**
 > ⚠️ **Sıra bilinçli olarak değiştirildi** (kullanıcı isteği): 12.7/12.8 (sosyal giriş) atlandı,

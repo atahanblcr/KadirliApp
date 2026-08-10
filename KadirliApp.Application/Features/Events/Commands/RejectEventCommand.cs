@@ -31,7 +31,8 @@ public class RejectEventCommandHandler : IRequestHandler<RejectEventCommand, boo
         var ev = await repo.GetByIdAsync(request.Id, cancellationToken);
         if (ev == null) return false;
 
-        ev.Status = "rejected";
+        // Faz 12.10: kuralın tek sahibi EventModeration.
+        EventModeration.Reject(ev);
 
         repo.Update(ev);
         await _uow.SaveChangesAsync(cancellationToken);

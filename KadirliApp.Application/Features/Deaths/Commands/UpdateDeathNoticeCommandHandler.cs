@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using KadirliApp.Application.Common.Interfaces;
+using KadirliApp.Application.Common.Moderation;
 using KadirliApp.Domain.Entities;
 using MediatR;
 
@@ -23,6 +24,10 @@ public class UpdateDeathNoticeCommandHandler : IRequestHandler<UpdateDeathNotice
         if (notice == null) return false;
 
         var dto = request.Dto;
+
+        // Faz 12.10 — moderasyon durumu bu yoldan yazılamaz (#52); guard ilk yazmadan ÖNCE.
+        ModerationStatusGuard.EnsureUnchanged(notice.Status, dto.Status);
+
         notice.DeceasedName = dto.DeceasedName;
         notice.PhotoFileId = dto.PhotoFileId;
         notice.FuneralDate = DateTime.SpecifyKind(dto.FuneralDate, DateTimeKind.Utc);
@@ -33,7 +38,6 @@ public class UpdateDeathNoticeCommandHandler : IRequestHandler<UpdateDeathNotice
         notice.CondolenceAddress = dto.CondolenceAddress;
         notice.CondolenceLatitude = dto.CondolenceLatitude;
         notice.CondolenceLongitude = dto.CondolenceLongitude;
-        notice.Status = dto.Status;
         notice.AutoArchiveAt = DateTime.SpecifyKind(dto.FuneralDate, DateTimeKind.Utc).AddDays(7);
 
         repo.Update(notice);
