@@ -9,8 +9,8 @@ namespace KadirliApp.Tests.Integration.Panel;
 /// </summary>
 /// <remarks>
 /// 🐛 <b>Bu test bir gerçek hatadan doğdu.</b> Panelin geri alınamaz aksiyonları
-/// <c>data-confirm</c> özniteliğiyle onay soruyor ve dinleyici <c>_Layout</c>'ta <b>tek
-/// yerde</b>: <c>submit</c> olayında <b>form</b>un özniteliğine bakıyor. Öznitelik yanlışlıkla
+/// <c>data-confirm</c> özniteliğiyle onay soruyor ve dinleyici <b>tek yerde</b>
+/// (12.9'dan beri <c>wwwroot/js/panel.js</c>, öncesinde <c>_Layout</c>'un satır içi bloğu): <c>submit</c> olayında <b>form</b>un özniteliğine bakıyor. Öznitelik yanlışlıkla
 /// <c>&lt;button&gt;</c>'a yazıldığında hiçbir şey olmaz — kod doğru görünür, öznitelik
 /// yerinde durur, Razor derlenir, hiçbir test kırılmaz ve <b>onay penceresi hiç açılmaz</b>.
 /// Yani "geri alınamaz aksiyonda onay al" kuralı sessizce devre dışı kalır.
@@ -64,7 +64,7 @@ public class PanelConfirmDialogTests
         }
 
         offenders.Should().BeEmpty(
-            "`data-confirm` yalnız <form> üzerinde çalışır (_Layout'taki dinleyici submit olayında " +
+            "`data-confirm` yalnız <form> üzerinde çalışır (panel.js'teki dinleyici submit olayında " +
             "formun özniteliğine bakıyor). Başka bir etikete yazılırsa onay penceresi SESSİZCE hiç " +
             "açılmaz ve geri alınamaz aksiyon onaysız koşar. İhlaller: {0}",
             string.Join(", ", offenders));
@@ -74,14 +74,34 @@ public class PanelConfirmDialogTests
     /// Ters yön: dinleyicinin kendisi kaybolursa <b>bütün</b> onaylar sessizce ölür ve
     /// yukarıdaki test yine yeşil kalırdı (öznitelikler yerli yerinde çünkü).
     /// </summary>
+    /// <remarks>
+    /// 📌 <b>Faz 12.9'da dinleyicinin YERİ değişti</b>, sözleşme değişmedi: kod artık
+    /// <c>_Layout</c>'un satır içi bloğunda değil <c>wwwroot/js/panel.js</c>'te.
+    /// (12.9 satır içi 47 <c>on*=</c> işleyicisini taşırken ortak davranışı da harici
+    /// dosyaya aldı.) 🐛 Bu testin <b>o taşımada kırmızıya dönmesi doğrudur ve testin
+    /// kendisinin çalıştığının kanıtıdır</b> — yapılan şey testi gevşetmek değil,
+    /// beklentiyi yeni tek sahibe taşımak oldu.
+    ///
+    /// 🔑 İddia iki parçalı ve ikisi de şart: dinleyici <b>panel.js'te var</b> <i>ve</i>
+    /// panel.js <b>_Layout tarafından yükleniyor</b>. Yalnız birincisine bakan bir test,
+    /// dosya var ama sayfaya hiç dâhil edilmiyorken de yeşil kalırdı — yani onaylar
+    /// yine sessizce ölürdü.
+    /// </remarks>
     [Fact]
-    public void Layout_StillListensForTheConfirmAttribute()
+    public void PanelScript_StillListensForTheConfirmAttribute_AndIsLoadedByTheLayout()
     {
+        var script = File.ReadAllText(
+            Path.Combine(RepositoryRoot(), "KadirliApp.Web", "wwwroot", "js", "panel.js"));
+
+        script.Should().Contain("hasAttribute('data-confirm')",
+            "onay dinleyicisi panel.js'te tek yerde; kaldırılırsa panelin TÜM onayları sessizce kaybolur");
+        script.Should().Contain("window.confirm(form.getAttribute('data-confirm'))");
+
         var layout = File.ReadAllText(
             Path.Combine(RepositoryRoot(), "KadirliApp.Web", "Views", "Shared", "_Layout.cshtml"));
 
-        layout.Should().Contain("hasAttribute('data-confirm')",
-            "onay dinleyicisi _Layout'ta tek yerde; kaldırılırsa panelin TÜM onayları sessizce kaybolur");
-        layout.Should().Contain("window.confirm(form.getAttribute('data-confirm'))");
+        layout.Should().Contain("~/js/panel.js",
+            "panel.js her sayfaya _Layout üzerinden giriyor; bağlantı düşerse dinleyici " +
+            "dosyada durur ama HİÇBİR sayfada çalışmaz");
     }
 }

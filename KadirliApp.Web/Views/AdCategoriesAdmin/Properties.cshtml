@@ -33,14 +33,17 @@
         <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">Tip <span class="text-red-500">*</span> <span class="text-gray-400 font-normal">(sonradan değiştirilemez)</span></label>
             <select name="propertyType" class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm py-2 px-3 border"
-                    onchange="document.getElementById('newPropOptions').style.display = (this.value === 'Select' || this.value === 'MultiSelect') ? '' : 'none';">
+                    @* Faz 12.9: satır içi JS yerine ortak data-toggle davranışı (panel.js).
+                       Görünürlük artık style.display değil `hidden` sınıfı ile değişiyor —
+                       satır içi stil yazmak CSP'nin style-src'ında istisna gerektirirdi. *@
+                    data-toggle-target="#newPropOptions" data-toggle-when="Select MultiSelect">
                 @foreach (var t in typeLabels)
                 {
                     <option value="@t.Key">@t.Value (@t.Key)</option>
                 }
             </select>
         </div>
-        <div id="newPropOptions" class="md:col-span-2" style="display:none">
+        <div id="newPropOptions" class="md:col-span-2 hidden">
             <label class="block text-sm font-semibold text-gray-700 mb-1">Seçenekler <span class="text-gray-400 font-normal">(virgülle ayırın — Select/MultiSelect için zorunlu)</span></label>
             <input name="options" class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm py-2 px-3 border" placeholder="Benzin, Dizel, LPG, Elektrik" />
         </div>

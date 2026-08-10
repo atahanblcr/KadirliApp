@@ -88,7 +88,7 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-    <script>
+    <script nonce="@Context.Items["csp-nonce"]">
         (function () {
             const picker = document.getElementById('neighborhood-picker');
             const all = document.getElementById('target-all');

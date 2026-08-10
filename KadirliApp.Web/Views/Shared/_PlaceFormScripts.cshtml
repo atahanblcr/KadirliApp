@@ -1,4 +1,4 @@
-<script>
+<script nonce="@Context.Items["csp-nonce"]">
     // ================= Mekan formu ortak scriptleri =================
     // Konum
     initLocationPicker('locationMap', 'latInput', 'lngInput', null);
@@ -97,25 +97,31 @@
         input.value = '';
     }
 
-    // ---- Fotoğraf önizleme ----
-    function previewImage(input) {
-        var wrap = document.getElementById('imagePreviewWrap');
-        var img = document.getElementById('imagePreview');
-        if (input.files && input.files[0]) {
-            img.src = URL.createObjectURL(input.files[0]);
-            wrap.classList.remove('hidden');
-        }
-    }
-    function clearImage() {
-        document.getElementById('coverInput').value = '';
-        document.getElementById('imagePreviewWrap').classList.add('hidden');
-    }
 
     // ---- Submit: gizli alanları doldur ----
     function preparePlaceForm() {
         var lat = document.getElementById('latInput').value;
         var lng = document.getElementById('lngInput').value;
-        if (!lat || !lng) {
+
+        // 🐛 Faz 12.9 canlı denetiminde bulundu (12.9 kapsamı DIŞI, önceden var olan hata).
+        // Önceki koşul `!lat || !lng` idi ve YENİ KAYIT formunda hiç tetiklenmiyordu:
+        // `CreatePlaceCommand.Latitude` **decimal** (nullable değil), yani `asp-for`
+        // alana `value="0"` basıyor ve `"0"` JavaScript'te **truthy**. HTML'deki
+        // `required` de aynı sebeple geçiyordu (alan boş değil, "0").
+        //
+        // Sonuç tam olarak bu projenin "sessiz hasar" dediği sınıftı: form
+        // **"Konum *"** diyor, kapı **var**, kapı **hiç çalışmıyor** — mekan
+        // 0,0'a (Gine Körfezi, Afrika açıkları) kaydediliyor ve mobildeki
+        // "Konuma Git" vatandaşı oraya götürüyor. Ne hata, ne log, ne uyarı.
+        //
+        // Kadirli 37.37 / 36.09'da; 0 bu alanlar için hiçbir zaman geçerli bir
+        // değer değil, "işaretlenmedi" demek.
+        var isaretlenmedi = function (v) {
+            var n = parseFloat((v || '').replace(',', '.'));
+            return isNaN(n) || n === 0;
+        };
+
+        if (isaretlenmedi(lat) || isaretlenmedi(lng)) {
             alert('Lütfen haritaya tıklayarak mekanın konumunu işaretleyin.');
             return false;
         }
@@ -132,4 +138,20 @@
             Object.keys(amenityState).length ? JSON.stringify(amenityState) : '';
         return true;
     }
+
+    // ————————————————————————————————————————————————————————————
+    // Faz 12.9 — bağlamalar satır içi on*= özniteliğinden BURAYA taşındı.
+    // CSP `script-src 'self' 'nonce-…'` ile kurulu ve `unsafe-inline` YOK;
+    // nonce yalnız script BLOKLARINI kapsar, öznitelikleri kapsamaz.
+    // ————————————————————————————————————————————————————————————
+
+    document.querySelector('[data-always-open]')?.addEventListener('change', toggleAlwaysOpen);
+    document.querySelector('[data-add-amenity]')?.addEventListener('click', addAmenity);
+    // ⚠️ Eski hâl `onsubmit="return preparePlaceForm()"` idi: false dönmek gönderimi
+    // iptal ediyordu. addEventListener'da `return false` bir şey yapmaz — iptal
+    // AÇIKÇA preventDefault() ile yapılmalı. Bu fark sessizdir: dönüştürme sırasında
+    // atlanırsa konumsuz form doğrulamayı geçmiş gibi POST edilirdi.
+    document.querySelector('[data-place-form]')?.addEventListener('submit', function (e) {
+        if (preparePlaceForm() === false) e.preventDefault();
+    });
 </script>

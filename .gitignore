@@ -10,6 +10,13 @@ project.lock.json
 TestResults/
 [Cc]overage*/
 
+# ---- Panel varlık araç zinciri (Faz 12.9) ----
+# node_modules commit EDİLMEZ, ama ondan türeyen çıktılar (wwwroot/css/panel.css ve
+# wwwroot/lib/{leaflet,fontawesome,inter}) EDİLİR: depoyu klonlayan biri `npm install`
+# çalıştırmadan paneli açabilmeli. npm adımı CI'da doğrulanır, geliştirici makinesinde
+# zorunlu değildir.
+node_modules/
+
 # ---- IDE ----
 .vs/
 .vscode/

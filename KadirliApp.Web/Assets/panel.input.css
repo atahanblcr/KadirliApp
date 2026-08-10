@@ -1,0 +1,14 @@
+/*
+ * Faz 12.9 — panelin Tailwind giriş dosyası.
+ *
+ * Çıktı: wwwroot/css/panel.css (COMMIT EDİLİR).
+ * Yeniden üretmek için: cd KadirliApp.Web && npm install && npm run build:css
+ *
+ * 📌 Buradaki üç @tailwind satırından fazlası YOK ve olmamalı: panelin tasarımı
+ * görünümlerdeki yardımcı sınıflarda yaşıyor. Buraya özel CSS yazmak, Tailwind'in
+ * "sınıf nerede yazılıysa orada okunur" özelliğini kaybettirir ve bir sonraki
+ * geliştirici stili iki ayrı yerde aramak zorunda kalır.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

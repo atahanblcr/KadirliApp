@@ -109,7 +109,7 @@
                             <div>
                                 <img src="@ViewBag.PhotoUrl" class="h-24 rounded-lg border border-gray-200 object-cover" alt="Mevcut fotoğraf">
                                 <label class="flex items-center gap-2 text-xs text-gray-700 mt-2">
-                                    <input id="removePhotoCheck" type="checkbox" class="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500" onchange="toggleRemovePhoto(this)">
+                                    <input id="removePhotoCheck" type="checkbox" class="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500" data-remove-photo>
                                     <span>Fotoğrafı kaldır</span>
                                 </label>
                             </div>
@@ -117,11 +117,11 @@
                         <label for="photoInput" class="flex flex-col items-center justify-center w-36 h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
                             <i class="fas fa-camera text-gray-400 text-lg mb-1"></i>
                             <span class="text-xs text-gray-500">@(ViewBag.PhotoUrl != null ? "Değiştir" : "Fotoğraf Seç")</span>
-                            <input id="photoInput" name="Photo" type="file" accept="image/*" class="hidden" onchange="previewImage(this)">
+                            <input id="photoInput" name="Photo" type="file" accept="image/*" class="hidden" data-image-input data-image-preview="#imagePreviewWrap">
                         </label>
                         <div id="imagePreviewWrap" class="hidden relative">
                             <img id="imagePreview" class="h-24 rounded-lg border border-gray-200 object-cover" alt="Önizleme">
-                            <button type="button" onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Kaldır">
+                            <button type="button" data-image-clear="#photoInput" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Kaldır">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
@@ -168,25 +168,23 @@
 </div>
 
 <partial name="_LocationPickerScripts" />
-<script>
+<script nonce="@Context.Items["csp-nonce"]">
     initLocationPicker('locationMap', 'latInput', 'lngInput', 'clearLocationBtn');
 
-    function previewImage(input) {
-        var wrap = document.getElementById('imagePreviewWrap');
-        var img = document.getElementById('imagePreview');
-        if (input.files && input.files[0]) {
-            img.src = URL.createObjectURL(input.files[0]);
-            wrap.classList.remove('hidden');
-        }
-    }
-    function clearImage() {
-        document.getElementById('photoInput').value = '';
-        document.getElementById('imagePreviewWrap').classList.add('hidden');
-    }
     // "Fotoğrafı kaldır" işaretlenirse hidden PhotoFileId temizlenir; yeni dosya seçilirse controller onu üstün tutar.
     function toggleRemovePhoto(cb) {
         var hidden = document.getElementById('PhotoFileId');
         if (cb.checked) { hidden.dataset.prev = hidden.value; hidden.value = ''; }
         else { hidden.value = hidden.dataset.prev || ''; }
     }
+
+    // ————————————————————————————————————————————————————————————
+    // Faz 12.9 — bağlamalar satır içi on*= özniteliğinden BURAYA taşındı.
+    // CSP `script-src 'self' 'nonce-…'` ile kurulu ve `unsafe-inline` YOK;
+    // nonce yalnız script BLOKLARINI kapsar, öznitelikleri kapsamaz.
+    // ————————————————————————————————————————————————————————————
+
+    document.querySelector('[data-remove-photo]')?.addEventListener('change', function () {
+        toggleRemovePhoto(this);
+    });
 </script>

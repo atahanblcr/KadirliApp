@@ -48,7 +48,7 @@
                                     }
                                 }
                             </select>
-                            <button type="button" onclick="toggleNewTypePanel()" title="Yeni duyuru türü ekle"
+                            <button type="button" data-toggle-new-type title="Yeni duyuru türü ekle"
                                     class="shrink-0 inline-flex items-center px-3 py-2 border border-indigo-300 rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100 text-sm font-medium transition-colors">
                                 <i class="fas fa-plus"></i>
                             </button>
@@ -60,7 +60,7 @@
                             <label class="block text-xs font-medium text-indigo-700 mb-1">Yeni Tür Adı</label>
                             <div class="flex gap-2">
                                 <input type="text" id="newTypeName" class="block w-full text-sm border-gray-300 rounded-md py-1.5 px-2 border" placeholder="Örn: Afet Uyarısı">
-                                <button type="button" onclick="createType()" class="shrink-0 px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">Ekle</button>
+                                <button type="button" data-create-type class="shrink-0 px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">Ekle</button>
                             </div>
                             <p id="newTypeError" class="hidden text-red-500 text-xs mt-1"></p>
                         </div>
@@ -143,8 +143,8 @@
                             <div class="flex items-center justify-between mb-3">
                                 <label class="block text-sm font-medium text-gray-700">Hedef Mahalleler <span class="text-red-500">*</span></label>
                                 <div class="text-xs space-x-3">
-                                    <button type="button" onclick="setAllNeighborhoods(true)" class="text-indigo-600 hover:underline">Tümünü Seç</button>
-                                    <button type="button" onclick="setAllNeighborhoods(false)" class="text-gray-500 hover:underline">Temizle</button>
+                                    <button type="button" data-set-neighborhoods="all" class="text-indigo-600 hover:underline">Tümünü Seç</button>
+                                    <button type="button" data-set-neighborhoods="none" class="text-gray-500 hover:underline">Temizle</button>
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-2">
@@ -177,11 +177,11 @@
                     <label for="imageInput" class="flex flex-col items-center justify-center w-40 h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
                         <i class="fas fa-camera text-gray-400 text-xl mb-1"></i>
                         <span class="text-xs text-gray-500">Fotoğraf Seç</span>
-                        <input id="imageInput" name="Image" type="file" accept="image/*" class="hidden" onchange="previewImage(this)">
+                        <input id="imageInput" name="Image" type="file" accept="image/*" class="hidden" data-image-input data-image-preview="#imagePreviewWrap">
                     </label>
                     <div id="imagePreviewWrap" class="hidden relative">
                         <img id="imagePreview" class="h-28 rounded-lg border border-gray-200 object-cover" alt="Önizleme">
-                        <button type="button" onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Kaldır">
+                        <button type="button" data-image-clear="#imageInput" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Kaldır">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
@@ -255,7 +255,7 @@
         </div>
 
         <div class="pt-5 border-t border-gray-200 mt-8 flex justify-end">
-            <button type="button" onclick="window.history.back();" class="bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <button type="button" data-history-back class="bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                 İptal
             </button>
             <button type="submit" class="ml-3 inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
@@ -267,7 +267,7 @@
 
 <partial name="_LocationPickerScripts" />
 
-<script>
+<script nonce="@Context.Items["csp-nonce"]">
     // ---- Konum haritası ----
     initLocationPicker('locationMap', 'latInput', 'lngInput', 'clearLocationBtn');
 
@@ -348,17 +348,18 @@
         toggleNewTypePanel();
     }
 
-    // ---- Fotoğraf önizleme ----
-    function previewImage(input) {
-        var wrap = document.getElementById('imagePreviewWrap');
-        var img = document.getElementById('imagePreview');
-        if (input.files && input.files[0]) {
-            img.src = URL.createObjectURL(input.files[0]);
-            wrap.classList.remove('hidden');
-        }
-    }
-    function clearImage() {
-        document.getElementById('imageInput').value = '';
-        document.getElementById('imagePreviewWrap').classList.add('hidden');
-    }
+
+    // ————————————————————————————————————————————————————————————
+    // Faz 12.9 — bağlamalar satır içi on*= özniteliğinden BURAYA taşındı.
+    // CSP `script-src 'self' 'nonce-…'` ile kurulu ve `unsafe-inline` YOK;
+    // nonce yalnız script BLOKLARINI kapsar, öznitelikleri kapsamaz.
+    // ————————————————————————————————————————————————————————————
+
+    document.querySelector('[data-toggle-new-type]')?.addEventListener('click', toggleNewTypePanel);
+    document.querySelector('[data-create-type]')?.addEventListener('click', createType);
+    document.querySelectorAll('[data-set-neighborhoods]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            setAllNeighborhoods(b.getAttribute('data-set-neighborhoods') === 'all');
+        });
+    });
 </script>

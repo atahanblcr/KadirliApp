@@ -109,6 +109,13 @@ app.UseConfiguredForwardedHeaders(
     app.Configuration,
     app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ForwardedHeaders"));
 
+// 🔴 Faz 12.9 — Production'da panelin yerelleştirilmiş varlıkları eksikse AÇILMAZ.
+// Veritabanına dokunmadan ÖNCE: eksik CSS/JS ile açılan bir panel "çalışıyor" görünür
+// (uçlar 200 döner, log temizdir) ama yönetici stilsiz bir sayfada harita seçemez.
+KadirliApp.Web.Common.PanelAssetGuard.Validate(
+    app.Environment,
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("PanelAssets"));
+
 // Migration + idempotent başlangıç verisi (super_admin ve lookup tabloları)
 await DbSeeder.SeedAsync(app.Services);
 
@@ -119,6 +126,13 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+
+// 🔴 Faz 12.9 — CSP başlığı + istek başına nonce.
+// ⚠️ Sıra: statik dosyalardan ve durum kodu yeniden çalıştırmasından ÖNCE olmalı ki
+// panelin ÜRETTİĞİ HER yanıt (hata sayfaları ve 404 dâhil) başlığı taşısın. Yalnız
+// "normal" sayfalarda korunmak, saldırganın hedefleyeceği yanıtı korumasız bırakmaktır.
+// Nonce görünümlere Context.Items["csp-nonce"] ile ulaşır.
+app.UseMiddleware<KadirliApp.Web.Common.ContentSecurityPolicyMiddleware>();
 
 // Faz 12.1: panelde oluşan işlenmemiş hataları error_logs'a yazar.
 // ⚠️ Sıra kritik ve sezgiye ters: bu satır UseExceptionHandler'dan **SONRA** gelmeli.

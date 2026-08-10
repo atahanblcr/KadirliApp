@@ -38,7 +38,15 @@ süzülüyor, kartta kalkış noktası + **"Yol tarifi"**, saatlerin altında **
 🔴 İstemci de seferleri günlere göre **elemiyor** ve `days` boş/eksikse **"her gün"** sayıyor —
 ikisi de "12.5 öncesi kaydı sessizce gizleme" kuralının sonucu. Gün ↔ bit dönüşümünün mobildeki
 tek sahibi `features/transport/application/operating_days.dart`.
-**843 backend + 751 mobil test, 50 görünmez sözleşme.**
+**12.9 bitti (12.7/12.8'den ÖNCE — bilinçli sıra değişikliği):** panelin dört CDN bağımlılığı
+yerelleştirildi ve **nonce'lu CSP** kuruldu. Panel artık **internetsiz çalışıyor**; en işlevsel
+kazanç harita seçici — `unpkg` erişilemediğinde **10 formda** yönetici boş bir kutu görüyor ve
+**hiçbir hata mesajı çıkmıyordu**. 🔴 Bedeli `script-src`'ta `'unsafe-inline'` **açmamak** oldu:
+nonce yalnız `<script>` bloklarını kapsadığı için **47 satır içi `on*=` işleyicisi** delege
+dinleyicilere taşındı (`wwwroot/js/panel.js`). Tailwind derleniyor (`npm run build`), çıktı
+**commit ediliyor** ve CI sürüklenmeyi denetliyor. ⚠️ `tailwind.config.js`'in `content` listesi
+`Views/**` ile sınırlı **değil** — rozet renkleri üç `.cs` dosyasında yaşıyor.
+**863 backend + 751 mobil test, 51 görünmez sözleşme.**
 
 **⏭️ Sırada 12.7:** sosyal giriş — backend (`UserIdentity`, `POST /v1/auth/social`).
 Plan: `Memory_Bank/Progress.md` → "FAZ 12".
@@ -53,6 +61,8 @@ Plan: `Memory_Bank/Progress.md` → "FAZ 12".
 docker compose up -d                          # Postgres · Redis · Seq
 dotnet run --project KadirliApp.Api           # http://localhost:5005  (Swagger: /swagger)
 dotnet run --project KadirliApp.Web           # admin paneli
+# Panel varlıkları (YALNIZ Tailwind sınıflarını / 3. taraf sürümünü değiştirdiyseniz):
+cd KadirliApp.Web && npm install && npm run build   # → wwwroot/css/panel.css + wwwroot/lib/*
 cd mobile && flutter pub get && flutter run   # mobil (Android emülatörü / iOS simülatörü)
 ```
 
@@ -84,7 +94,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 48 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 51 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
@@ -95,7 +105,10 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
 43–45 `PanelEventDistrictTests.cs` + `Unit/Application/Events/`,
 46–48 `PanelTransportFieldModelTests.cs` + `Unit/Application/Transport/`,
 **49–50 istemci tarafı** → `mobile/test/features/transport/`
-(`operating_days_test.dart` · `departure_times_test.dart` · `transport_screen_test.dart`).
+(`operating_days_test.dart` · `departure_times_test.dart` · `transport_screen_test.dart`),
+**51** → `Integration/Architecture/PanelExternalOriginTests.cs` (kaynak taraması) +
+`Integration/Panel/PanelContentSecurityPolicyTests.cs` (canlı yanıt) +
+`Unit/Web/PanelAssetGuardTests.cs` (yayın kapısı).
 
 ## Değişmez kurallar
 

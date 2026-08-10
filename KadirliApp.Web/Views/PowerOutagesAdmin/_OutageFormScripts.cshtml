@@ -5,7 +5,7 @@
     formun özniteliğine bakıyor. Butona konursa öznitelik durur, kod doğru görünür ve
     onay penceresi hiç açılmaz — 12.2'de bu hata üç görünümde birden yaşandı.
 *@
-<script>
+<script nonce="@Context.Items["csp-nonce"]">
     (function () {
         const form = document.getElementById('outage-form');
         const send = document.getElementById('send-notification');

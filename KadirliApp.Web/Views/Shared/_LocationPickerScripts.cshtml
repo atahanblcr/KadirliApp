@@ -1,8 +1,53 @@
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
+@*
+    Faz 12.9 — Leaflet artık YEREL (wwwroot/lib/leaflet).
+
+    🔴 Bu partial duyuru · vefat · rehber · etkinlik · mekan formlarının HEPSİNDE
+    kullanılıyor (Create + Edit = 10 görünüm). 12.9 öncesinde CSS ve JS unpkg.com'dan
+    geliyordu ve o origin erişilemediğinde `L.` çağrıları `undefined` üzerinde
+    patlıyordu: yönetici BOŞ BİR KUTU görüyor, koordinat seçemiyor ve ekranda
+    hiçbir hata mesajı çıkmıyordu. "İşlevsiz buton yok" kuralının panel karşılığı,
+    ağ kesildiği anda sessizce ihlal oluyordu.
+
+    ⚠️ Harita KARELERİ (tile) hâlâ dışarıdan geliyor ve bu kaçınılmaz: bir dünya
+    haritasının görüntüsü self-host edilemez. Ama ikisi AYNI ŞEY DEĞİL ve fark
+    tam olarak bu partial'ın çözdüğü şey:
+      · Leaflet gelmezse  → seçici TAMAMEN ölür, koordinat girilemez.
+      · Kareler gelmezse  → harita gri kalır, tıklama ve koordinat kaydı ÇALIŞIR.
+    Bu yüzden CSP `img-src`'ında OpenStreetMap bilinçli olarak açık; `script-src`'ta
+    hiçbir dış origin yok.
+*@
+<link rel="stylesheet" href="~/lib/leaflet/leaflet.css" />
+<script src="~/lib/leaflet/leaflet.js"></script>
+<script nonce="@Context.Items["csp-nonce"]">
     // Haritaya tıklayarak konum seçtiren yardımcı. lat/lng inputlarını doldurur.
     function initLocationPicker(mapId, latInputId, lngInputId, clearBtnId) {
+        var latInput = document.getElementById(latInputId);
+        var lngInput = document.getElementById(lngInputId);
+
+        // 🔴 Faz 12.9 — Leaflet yüklenemediyse SUS DEĞİL, SÖYLE.
+        // Yerelleştirmeden sonra bu dalın tetiklenmesi çok daha zor (dosya depoda),
+        // ama imkânsız değil: statik dosya servisi yanlış yapılandırılırsa ya da
+        // dosya bir dağıtımda eksik kalırsa aynı duruma düşülür. Eski davranış
+        // "boş kutu + log yok"tu; yöneticinin elinde koordinat girmenin BİR yolu
+        // kalmalı, yoksa kayıt hiç oluşturulamaz.
+        if (typeof L === 'undefined') {
+            var container = document.getElementById(mapId);
+            if (container) {
+                container.classList.add('flex', 'items-center', 'justify-center',
+                                        'bg-amber-50', 'border', 'border-amber-200', 'p-4');
+                var note = document.createElement('p');
+                note.className = 'text-sm text-amber-800 text-center';
+                note.textContent = 'Harita bileşeni yüklenemedi. Konumu aşağıdaki ' +
+                                   'enlem/boylam alanlarına elle yazabilirsiniz.';
+                container.appendChild(note);
+            }
+            // Alanlar normalde salt-okunur/gizli tutuluyor olabilir; elle girişe aç.
+            [latInput, lngInput].forEach(function (el) {
+                if (el) { el.readOnly = false; el.removeAttribute('readonly'); }
+            });
+            return null;
+        }
+
         var defaultCenter = [37.3708, 36.0961]; // Kadirli merkez
         var map = L.map(mapId).setView(defaultCenter, 14);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -10,8 +55,6 @@
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        var latInput = document.getElementById(latInputId);
-        var lngInput = document.getElementById(lngInputId);
         var marker = null;
 
         function setMarker(latlng) {

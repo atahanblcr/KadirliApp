@@ -1,5 +1,76 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 10 Ağustos 2026 — **FAZ 12.9 TAMAMLANDI: panelin dış bağımlılıkları
+> yerelleştirildi (CDN → self-host + nonce'lu CSP).**
+> ⚠️ **Sıra bilinçli olarak değiştirildi** (kullanıcı isteği): 12.7/12.8 (sosyal giriş) atlandı,
+> 12.9 öne alındı. Sakıncası yok, hatta yönü doğru — 12.9 şema/DTO/mobil içermiyor ve
+> 12.7'nin `UsersAdmin`'e ekleyeceği "Bağlı hesaplar" bölümü artık doğduğu anda
+> "dış origin yok + satır içi işleyici yok" kuralına uyacak. **Sırada hâlâ 12.7.**
+> Kod `Web/{package.json,tailwind.config.js,Assets/,tools/copy-vendor.mjs}` (yeni) +
+> `wwwroot/{css/panel.css,js/panel.js,lib/{leaflet,fontawesome,inter}}` (türetilmiş, **commit edilir**) +
+> `Common/{ContentSecurityPolicyMiddleware,PanelAssetGuard}.cs` (yeni) +
+> `_Layout` · `Login` · `_LocationPickerScripts` + **17 görünümde 47 satır içi işleyici** +
+> 25 bloğa nonce + CI sürüklenme kapısı + 3 yeni test dosyası.
+> **Backend 843 → 863 (+20), mobil 751 (değişmedi), analyze 0.**
+>
+> 🔑 **TESLİM EDİLEN:** Panelin çalışması için artık **internet gerekmiyor** ve `super_admin`
+> oturumu açık bir tarayıcıda **üçüncü taraf kod koşmuyor**. Dört origin sıfırlandı; 37 panel
+> sayfası canlıda tarandı → **dış origin 0**. En işlevsel kazanç harita seçici: `unpkg`
+> erişilemediğinde **10 formda** `L.` çağrıları patlıyor, yönetici **boş bir kutu** görüyor ve
+> **hiçbir hata mesajı çıkmıyordu.**
+>
+> 🔴 **EN ÖNEMLİ KARAR: CSP'nin bedelini ödemek.** `'unsafe-inline'` yazmak beş dakikalık işti
+> ve korumayı **iptal ederdi** (panelde basılan metnin bir kısmı vatandaştan geliyor → §7 madde
+> 33). Nonce yalnız **blokları** kapsadığı için bedel **47 satır içi işleyicinin taşınması**
+> oldu; bu sırada 7 kopya fotoğraf önizlemesi de tekilleşti.
+> **İkinci karar:** `style-src`'ta `'unsafe-inline'` **kaldı** — Leaflet elemanların `style`
+> özniteliğine yazıyor ve `style-src-attr` Firefox/Safari'de yok sayılıp seçiciyi **o
+> tarayıcılarda** kırardı: 12.9'un düzelttiği hasarın aynısı.
+> **Üçüncü karar:** `img-src`'ta OpenStreetMap **açık** — "Leaflet gelmedi" seçiciyi *öldürür*,
+> "kareler gelmedi" haritayı gri bırakır ama **koordinat seçimi çalışır**.
+> **Dördüncü karar:** yapısal denetim **derleme zamanında**, kapı **çalışma anında.** Planın
+> "Production'da görünümlerde dış origin varsa açılmasın" maddesi **yapılamaz ve yalan
+> söylerdi** (Razor derleniyor → yayında `.cshtml` yok → kapı sıfır dosya bulup **yeşil geçer**).
+>
+> 🐛 **PLANIN YAZDIĞINDAN AĞIR ÇIKAN ŞEY:** Tailwind `content` listesi. Plan `Views/**` diyordu;
+> rozet renkleri **üç `.cs` dosyasında** yaşıyor. Harfiyen uygulansaydı panelin **bütün durum
+> rozetleri sessizce renksiz** kalırdı — CDN'in tarayıcı-içi JIT'i için sınıfın nerede yazıldığı
+> hiç önemli değildi, derlenmiş Tailwind yalnız **gördüğünü** üretir.
+>
+> 🐛 **BİR TEST ZAYIF ÇIKTI:** rozet testi **elle seçilmiş** dört sınıfa bakıyordu; ikisi
+> görünümlerde de geçiyordu, yani `content` bozulsa bile yeşil kalırlardı. Test artık listeyi
+> **türetiyor** ve küme boşalırsa kendi anlamsızlığını bildiriyor. (12.5/12.6'nın dersi üçüncü kez.)
+> 🐛 **`PanelConfirmDialogTests` kırmızıya döndü ve HAKLIYDI** (dinleyici `panel.js`'e taşındı):
+> beklenti gevşetilmedi, **yeni tek sahibe** taşındı ve iddia iki parçalı yapıldı.
+>
+> 🐛 **CANLI CHROME DENETİMİNDE İKİ ŞEY:**
+> 1. Nonce sayfaya **HTML-kaçırılmış** giriyordu (`+` → `&#x2B;`). Çalışıyordu ama başlık ile
+>    sayfa **bayt bayt ayrışmıştı** ve fark hiçbir yerde görünmüyordu → **base64url**.
+> 2. 🔴 **12.9 DIŞI, ÖNCEDEN VAR OLAN HATA: mekan 0,0'a kaydediliyordu.** `PlacesAdmin`
+>    "Konum **\***" diyor, `required` var, JS kapısı var — ama `Latitude` **decimal** olduğu
+>    için form `value="0"` ile doluyor ve `"0"` truthy. **Kapı var, kapı hiç çalışmıyordu**:
+>    yeni mekan Gine Körfezi'ne düşüyor, mobilde "Konuma Git" vatandaşı oraya götürüyordu.
+>    Düzeltildi, canlıda üç senaryoda doğrulandı.
+>
+> ➕ **PLAN DIŞI:** Leaflet yoksa panelin **susmaması** (Türkçe uyarı + elle girilebilir
+> koordinat alanları) · CI **sürüklenme kapısı** (commit edilen türetilmiş CSS'in çürümesi) ·
+> `asp-append-version` · 7 kopya önizlemenin tekilleştirilmesi · Inter'in **latin-ext**
+> altkümesi (Türkçe **ğ ş İ ı** `latin`'de yok — ancak yerelleştirdikten *sonra* doğabilecek
+> bir kayıp; aynı sınıf: Leaflet `images/` olmasa **işaretçi görünmezdi**) ·
+> Inter'in genel `font-sans`'a **eklenmemesi** (panelin tamamının yazı tipini değiştirirdi).
+>
+> **Doğrulama:** `dotnet test` **863/863** · `flutter analyze` **0** · `flutter test` **751/751**.
+> **Kuralı bilerek boz:** 5 deneme → **5 kırmızı**; biri ilk turda **testin kendisini** zayıf
+> gösterdi, test güçlendirilip tekrar denendi.
+> **Canlı (Chrome, 37 panel sayfası):** dış origin **0** · satır içi işleyici **0** · nonce'suz
+> blok **0** · CSP **hepsinde** (404 dâhil) · konsolda **tek ihlal yok** · harita yerel Leaflet
+> ile açıldı (8 kare), tıklamayla koordinat doldu ve **işaretçi görseli de yerelden** geldi ·
+> önizleme/toplu işlem/onay/`{count}`/toggle/submit-on-change hepsi doğrulandı.
+>
+> ⏭️ **SIRADAKİ: 12.7** — sosyal giriş (backend). ⚠️ Apple aboneliği hâlâ bekliyor.
+>
+> ---
+>
 > Son güncelleme: 10 Ağustos 2026 — **FAZ 12.6 TAMAMLANDI: ulaşım mobil (ikili kalkış · gün
 > rozetleri · "sıradaki sefer").**
 > Kod `features/transport/application/{operating_days,transport_vehicle}.dart` (yeni) +

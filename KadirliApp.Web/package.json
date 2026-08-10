@@ -1,0 +1,18 @@
+{
+  "name": "kadirliapp-panel-assets",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Panelin görsel bağımlılıklarını derleyen/yerelleştiren araç zinciri (Faz 12.9). Çıktılar wwwroot altına COMMIT EDİLİR — depoyu klonlayan biri npm kurmadan paneli açabilmeli.",
+  "scripts": {
+    "build:css": "tailwindcss -i ./Assets/panel.input.css -o ./wwwroot/css/panel.css --minify",
+    "watch:css": "tailwindcss -i ./Assets/panel.input.css -o ./wwwroot/css/panel.css --watch",
+    "vendor": "node tools/copy-vendor.mjs",
+    "build": "npm run build:css && npm run vendor"
+  },
+  "devDependencies": {
+    "@fortawesome/fontawesome-free": "6.0.0",
+    "@fontsource/inter": "5.3.0",
+    "leaflet": "1.9.4",
+    "tailwindcss": "3.4.19"
+  }
+}

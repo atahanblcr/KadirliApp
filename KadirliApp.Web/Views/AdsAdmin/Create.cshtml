@@ -75,7 +75,7 @@
                             <label for="imagesInput" class="flex flex-col items-center justify-center w-36 h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
                                 <i class="fas fa-images text-gray-400 text-lg mb-1"></i>
                                 <span class="text-xs text-gray-500">Görsel Seç</span>
-                                <input id="imagesInput" name="Images" type="file" accept="image/*" multiple class="hidden" onchange="previewImages(this)">
+                                <input id="imagesInput" name="Images" type="file" accept="image/*" multiple class="hidden" data-images-input>
                             </label>
                             <div id="imagesPreviewWrap" class="flex gap-3 flex-wrap"></div>
                         </div>
@@ -94,7 +94,7 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-    <script>
+    <script nonce="@Context.Items["csp-nonce"]">
         function previewImages(input) {
             var wrap = document.getElementById('imagesPreviewWrap');
             wrap.innerHTML = '';
@@ -115,5 +115,15 @@
                 wrap.appendChild(div);
             });
         }
-    </script>
+    
+    // ————————————————————————————————————————————————————————————
+    // Faz 12.9 — bağlamalar satır içi on*= özniteliğinden BURAYA taşındı.
+    // CSP `script-src 'self' 'nonce-…'` ile kurulu ve `unsafe-inline` YOK;
+    // nonce yalnız script BLOKLARINI kapsar, öznitelikleri kapsamaz.
+    // ————————————————————————————————————————————————————————————
+
+        document.querySelector('[data-images-input]')?.addEventListener('change', function () {
+            previewImages(this);
+        });
+</script>
 }

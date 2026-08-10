@@ -5,7 +5,7 @@
     ⚠️ Özet metni yalnız bir YARDIM: doğruluk kaynağı sunucudaki PanelDisplay.OperatingDaysLabel.
     Burada üretilen metin hiçbir yere kaydedilmiyor, yalnız kullanıcı seçerken gösteriliyor.
 *@
-<script>
+<script nonce="@Context.Items["csp-nonce"]">
     (function () {
         // 🔴 Bit sırası sunucudaki OperatingDays ile aynı: Pazartesi=1 … Pazar=64.
         const LABELS = [[1, 'Pzt'], [2, 'Sal'], [4, 'Çar'], [8, 'Per'], [16, 'Cum'], [32, 'Cmt'], [64, 'Paz']];

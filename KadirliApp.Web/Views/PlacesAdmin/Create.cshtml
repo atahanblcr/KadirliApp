@@ -17,7 +17,7 @@
     </div>
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-md p-6 sm:p-8">
-        <form asp-action="Create" method="post" enctype="multipart/form-data" class="space-y-6" onsubmit="return preparePlaceForm()">
+        <form asp-action="Create" method="post" enctype="multipart/form-data" class="space-y-6" data-place-form>
             @Html.AntiForgeryToken()
             <input type="hidden" asp-for="OpeningHours" id="openingHours" />
             <input type="hidden" asp-for="Amenities" id="amenitiesJson" />
@@ -93,7 +93,7 @@
                         <input type="time" id="closeTime" class="flex-1 px-3 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm" />
                     </div>
                     <label class="flex items-center gap-2 mt-2 text-xs text-gray-600">
-                        <input type="checkbox" id="alwaysOpen" class="h-4 w-4 rounded border-gray-300 text-indigo-600" onchange="toggleAlwaysOpen()">
+                        <input type="checkbox" id="alwaysOpen" class="h-4 w-4 rounded border-gray-300 text-indigo-600" data-always-open>
                         <span>Her zaman açık (7/24)</span>
                     </label>
                 </div>
@@ -120,7 +120,7 @@
                     <div id="amenityList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
                     <div class="flex gap-2 mt-3 max-w-sm">
                         <input type="text" id="newAmenityName" placeholder="Yeni özellik (örn: Mescit)" class="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 shadow-sm">
-                        <button type="button" onclick="addAmenity()" class="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-sm font-medium hover:bg-indigo-100">
+                        <button type="button" data-add-amenity class="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-sm font-medium hover:bg-indigo-100">
                             <i class="fas fa-plus mr-1"></i>Ekle
                         </button>
                     </div>
@@ -133,11 +133,11 @@
                         <label for="coverInput" class="flex flex-col items-center justify-center w-44 h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
                             <i class="fas fa-camera text-gray-400 text-xl mb-1"></i>
                             <span class="text-xs text-gray-500">Fotoğraf Seç</span>
-                            <input id="coverInput" name="CoverImage" type="file" accept="image/*" class="hidden" onchange="previewImage(this)">
+                            <input id="coverInput" name="CoverImage" type="file" accept="image/*" class="hidden" data-image-input data-image-preview="#imagePreviewWrap">
                         </label>
                         <div id="imagePreviewWrap" class="hidden relative">
                             <img id="imagePreview" class="h-28 rounded-lg border border-gray-200 object-cover" alt="Önizleme">
-                            <button type="button" onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Kaldır">
+                            <button type="button" data-image-clear="#coverInput" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Kaldır">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>

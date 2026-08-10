@@ -44,6 +44,35 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # ── Faz 12.9 — panel varlıklarının SÜRÜKLENME (drift) kapısı ──────────────
+    #
+    # 🔴 Neden gerekli: wwwroot/css/panel.css TÜRETİLMİŞ ama COMMİT EDİLMİŞ bir
+    # dosya (depoyu klonlayan biri npm kurmadan paneli açabilmeli). Commit edilmiş
+    # türetilmiş dosyanın bilinen çürüme biçimi şudur: biri bir görünüme yeni bir
+    # Tailwind sınıfı yazar, `npm run build:css` çalıştırmayı unutur ve o sınıf
+    # üretilen CSS'te YOKTUR. Sonuç bu projenin en sevmediği sınıftan:
+    # derleme geçer, testler yeşil kalır, panel açılır — yalnız o öğe stilsizdir.
+    #
+    # Kapı, CSS'i yeniden üretip `git diff` ile karşılaştırır: fark varsa kırmızı.
+    # Geliştirici makinesinde npm ZORUNLU DEĞİL; doğrulama burada yapılır.
+    - name: Setup Node (panel varlıkları)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Panel varlıklarını yeniden üret
+      working-directory: KadirliApp.Web
+      run: npm ci && npm run build
+
+    - name: Türetilmiş varlıklar güncel mi
+      run: |
+        if ! git diff --quiet -- KadirliApp.Web/wwwroot; then
+          echo '::error::Panel varlıkları güncel değil. "cd KadirliApp.Web && npm run build" çalıştırıp çıktıyı commit edin.'
+          git diff --stat -- KadirliApp.Web/wwwroot
+          exit 1
+        fi
+        echo "✓ wwwroot türetilmiş varlıkları kaynakla uyumlu"
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:

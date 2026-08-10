@@ -27,7 +27,7 @@
                        class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
             <select name="categoryId" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onchange="this.form.submit()">
+                    data-submit-on-change>
                 <option value="">Tüm Kategoriler</option>
                 @foreach (var c in categories)
                 {

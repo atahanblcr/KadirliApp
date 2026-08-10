@@ -191,7 +191,7 @@
 </div>
 
 @section Scripts {
-    <script>
+    <script nonce="@Context.Items["csp-nonce"]">
         // "+" tıklaması sayfayı yenilemeden üstteki formun tarihini doldurur (JS kapalıysa link server-side ön-dolumla çalışır)
         document.querySelectorAll('.schedule-day-add').forEach(function (el) {
             el.addEventListener('click', function (e) {

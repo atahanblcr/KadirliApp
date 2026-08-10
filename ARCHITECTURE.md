@@ -8,7 +8,7 @@
 > öğretici bir rehber değil (o `DOTNET_MASTERCLASS.md`), istemci kontratı değil
 > (o `Memory_Bank/API_CONTRACT.md`). Burası **harita**: bugün neyin nerede olduğu.
 >
-> Son güncelleme: 10 Ağustos 2026 (Faz 12.6 — ulaşım mobil: ikili kalkış · gün rozetleri · "sıradaki sefer").
+> Son güncelleme: 10 Ağustos 2026 (Faz 12.9 — panelin dış bağımlılıklarının yerelleştirilmesi: CDN → self-host + nonce'lu CSP).
 
 ## Hangi dokümanı ne zaman okumalı
 
@@ -100,6 +100,9 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | `KadirliApp.Api/Controllers/Admin/` | **18 admin controller** (`/v1/admin/*`) + ortak taban |
 | `KadirliApp.Api/Authorization/` | `RequirePermissionAttribute` + policy sağlayıcı |
 | `KadirliApp.Web/Controllers/` + `Views/` | **24 panel controller** + Razor görünümleri |
+| `KadirliApp.Web/{package.json,tailwind.config.js,Assets/,tools/}` | 🔑 **Panel varlık araç zinciri (12.9)** — Tailwind derlemesi + üçüncü taraf kopyalama. ⚠️ `tailwind.config.js`'in `content` listesi `Views/**` ile **sınırlı değil**: rozet renkleri `Common/PanelDisplay.cs`, `Common/PowerOutagePhase.cs` ve `Models/BulkToolbarViewModel.cs`'te yaşıyor; taranmazsa panelin **bütün durum rozetleri sessizce renksiz** kalır |
+| `KadirliApp.Web/wwwroot/{css/panel.css,js/panel.js,lib/}` | **Türetilmiş ama COMMİT EDİLEN** varlıklar (`leaflet` · `fontawesome` · `inter` · `jquery`) — depoyu klonlayan `npm` kurmadan paneli açabilmeli. `npm` adımı **CI'da doğrulanır** (sürüklenme kapısı), geliştirici makinesinde zorunlu değil |
+| `KadirliApp.Web/Common/{ContentSecurityPolicyMiddleware,PanelAssetGuard}.cs` | 🔑 CSP başlığı + istek başına nonce · Production'da varlıklar eksikse **uygulama açılmaz** (§7 madde 51) |
 | `KadirliApp.Tests/` | `Unit/` + `Integration/` (aşağıda test haritası) |
 | `secrets/` | **git'e girmez**; `secrets/README.md` neyin nasıl edinileceğini anlatır |
 
@@ -394,7 +397,15 @@ Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıkla
 içinde (panelin canlı denetiminde bulundular ve
 gerçek Postgres isterler). **49–50 (Faz 12.6)** istisnadır — tümüyle **istemci
 tarafı** oldukları için karşılıkları mobilde:
-`mobile/test/features/transport/{operating_days_test.dart,departure_times_test.dart,transport_screen_test.dart}`. Biri kırmızıya dönerse ya sözleşme
+`mobile/test/features/transport/{operating_days_test.dart,departure_times_test.dart,transport_screen_test.dart}`.
+**51 (Faz 12.9)** ikinci istisna: karşılığı **iki** yerde ve bu bilinçli —
+`Integration/Architecture/PanelExternalOriginTests.cs` **kaynağı tarar**
+(görünümlerde dış origin / satır içi işleyici / nonce'suz blok var mı),
+`Integration/Panel/PanelContentSecurityPolicyTests.cs` ise **canlı yanıta** bakar.
+Ayrı olmak zorundalar: politika metnini üretip pipeline'a **bağlamayı unutmak**
+mümkün ve o durumda kaynak taraması yeşil kalır, panel korumasız çalışır ve hiçbir
+belirti olmaz. Çalışma anındaki üçüncü ayak `Unit/Web/PanelAssetGuardTests.cs`.
+Biri kırmızıya dönerse ya sözleşme
 bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te güncelle) ya da kazadır.
 
 | # | Sözleşme | Bozulursa ne olur |
@@ -449,6 +460,7 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | 48 | **Hattın kalkış noktası SÖZLÜKTEN gelir** (`TransportDeparturePoint`); pasif nokta **yeni olarak seçilemez** ama var olan bağ korunur, o kayıtta **seçili kalır** ve **kaydın düzenlenmesini engellemez**; liste ile detay **aynı projeksiyondan** geçer (`IntercityRouteProjection`) | Serbest metin olsaydı "Kadirli Otogarı" on hatta ayrı yazılır ve **koordinatı düzeltmek on kaydı düzeltmek** olurdu — oysa koordinat bu tablonun varlık sebebi (12.6'nın "Yol tarifi" butonu). Pasif nokta seçili kayıttan düşseydi form kaydedildiğinde hattın kalkış noktası **sessizce boşalırdı** (12.4'te ilçe seçiminde birebir aynı karar). Projeksiyon ayrışırsa madde 43'ün aynısı: yeni bir alan yalnız listeye eklendiğinde **panelin düzenleme ekranı sessizce eksik** kalır ve ne derleyici ne test yakalar. 🐛 **"Yeni olarak" kaydı 12.5 canlı denetiminde eklendi:** kapı kaydın *şu anki* değerini tanımazsa, form pasif değeri seçili tuttuğu için (bu doğru bir karar) ikisi birlikte **düzenlenemeyen bir kayıt** üretir — yönetici yalnız fiyatı düzeltmek istese bile **hiç dokunmadığı bir alan** yüzünden reddedilir. Aynı hata 12.4'te `EventDistrictResolver`'da canlıda görüldü ve iki resolver aynı anda düzeltildi |
 | 49 | **İstemcide `days` BOŞ ya da EKSİK ise anlamı "her gün"dür** (`OperatingDays.fromCodes` — mobilde gün ↔ bit dönüşümünün **tek sahibi**), ve istemci de seferleri günlere göre **elemez**: hafta içi seferi Pazar günü listede **durur**, yalnız soluklaşır ve "sıradaki sefer" onu atlar | Üç ayrı sessiz hasar tek maddede: (a) boş listeyi "hiçbir gün" saymak, 12.5 **öncesinden kalan** (alanı hiç olmayan) her seferi ekrandan **sessizce siler** — panel saatleri gösterir, vatandaş hiçbir şey görmez, log temizdir; sunucunun `runsDaily` varsayılanı zaten `true` olduğu için "şüphede kalınca göster" tek tutarlı yön. (b) İstemci elemeye başlarsa hafta içi çalışan bir hattın kartı Pazar günü **boş** görünür — madde 46'nın "elemek ≠ bildirmek" kuralının istemci tarafı. (c) Dart'ın `DateTime.weekday`'i **Pazartesi=1 … Pazar=7** olduğu için maskeyle *tesadüfen* hizalıdır ve tam bu yüzden tehlikelidir: `1 << weekday` ya da `weekday % 7` yazan ikinci bir eşleme **derlenir, çalışır ve günü bir kaydırır** — .NET'teki Pazar=0 kaymasının (madde 46) aynası. Bağıntı tek satırda yaşamak zorunda: `bit = 1 << (weekday - 1)` |
 | 50 | **"Kalktı" (üstü çizili saat) yalnız BUGÜN çalışan sefer için doğrudur**; bugün çalışmayan sefer *soluk* gösterilir, **üstü çizilmez**. Aynı ayrım cümlede de var: "Bugünkü seferler bitti" ≠ "Bugün sefer yok" | İki *ayrı ayrı doğru* kural çarpışıyor: "saati geçen sefer geçmiştir" ve "sefer yalnız bazı günler çalışır". Gün kontrolü düşerse Pazar günü bakan vatandaş, o gün **hiç kalkmamış** bir 07:00 seferini "kalkmış" olarak görür — hata yok, log yok, yalnız yanlış bilgi. 🐛 **Bu madde bir test boşluğundan doğdu:** bozma denemesinde gün kontrolü kaldırıldı ve **hiçbir test kırılmadı** — golden'ın %0.5 piksel toleransı (anti-aliasing için bilinçli) tek bir üstü çizili hapı yutuyor, semantik etiket ise `isOffDay`'i `isPast`'ten **önce** kontrol ettiği için zaten doğru kalıyordu. Kural artık `Text.style.decoration`'a bakan **davranış** testiyle ve **iki yönlü** kilitli (çizilmeyen kadar çizilen de denetleniyor; yoksa "hiç çizme" gerçeklemesi de yeşil kalır). Cümle farkı canlı emülatör denetiminde bulundu |
+| 51 | **Panel DIŞ ORIGINE bağlı olamaz** ve satır içi `on*=` işleyicisi kullanamaz: görünümler yalnız `~/css`, `~/js`, `~/lib` altındaki yerel varlıkları yükler, her satır içi `<script>` bloğu **nonce** taşır ve CSP'de `script-src`'ta `'unsafe-inline'` **yoktur**. Tek bilinçli dış origin **harita kareleridir** (`img-src`) | Üç ayrı sessiz hasar tek maddede: (a) 12.9 öncesinde Leaflet `unpkg`'den geliyordu ve **10 formda** kullanılıyor — origin erişilemediğinde `L.` çağrıları `undefined` üzerinde patlıyor, yönetici **boş bir kutu** görüyor, koordinat seçemiyor ve **hiçbir hata mesajı çıkmıyordu**; hata yalnız *kötü koşulda* (belediyenin kısıtlı ağı, CDN kesintisi) doğduğu için geliştiricinin makinesinde **hiç görünmez** (`CODE_REVIEW_CHECKLIST` §11'in var olma sebebi). (b) Satır içi bir `on*=` işleyicisi CSP tarafından **çalıştırılmaz**: buton tıklanır, hiçbir şey olmaz, sunucuda iz kalmaz — "işlevsiz buton yok" kuralının panel karşılığı; nonce **yalnız blokları** kapsar, öznitelikleri kapsamaz (12.9'da **47** işleyici bu yüzden taşındı). (c) `script-src`'a `'unsafe-inline'` eklemek korumayı **iptal eder**: panelde basılan metnin bir kısmı *vatandaştan* geliyor (hata kaydı mesajı, şikayet başlığı) ve depolanmış XSS madde 33'ün zaten savaştığı sınıf. ⚠️ Harita **karesi** ile **Leaflet'in kendisi** aynı şey değil: kareler gelmezse harita gri kalır ama **koordinat seçimi çalışır**; bu yüzden istisna yalnız `img-src`'ta. ⚠️ `style-src`'taki `'unsafe-inline'` bilinçli bir tavizdir (Leaflet elemanların `style` özniteliğine yazıyor; `style-src-attr` Firefox/Safari'de yok sayılıp harita seçiciyi **o tarayıcılarda** kırardı). 🐛 Nonce **base64url** üretilir: düz base64'ün `+`'sı Razor tarafından `&#x2B;` olarak kaçırılıyor ve başlıktaki metin ile sayfadaki metin **bayt bayt ayrışıyordu** (çalışıyordu, ama fark hiçbir yerde görünmüyordu — canlı doğrulamada bulundu) |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 
@@ -497,6 +509,9 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | Yetki (yapısal) | `Integration/Security/EndpointAuthorizationSweepTests.cs` | `EndpointDataSource`'tan **tüm** uçlar — yeni uç kendiliğinden kapsanır |
 | Görünürlük | `Integration/Security/ModuleVisibilitySweepTests.cs` | Liste seviyesinde "gizli kayıt sızmıyor" |
 | Doküman tutarlılığı | `Integration/Architecture/ArchitectureDocTests.cs` | **Bu dosya** ↔ gerçek klasörler/modüller |
+| **Panel dış bağımlılığı (yapısal)** | `Integration/Architecture/PanelExternalOriginTests.cs` | §7 madde **51**'in *kaynak* ayağı, container gerektirmez: `Views/**` taranır → **alt kaynak** yükleyen hiçbir öznitelikte mutlak/protokol-göreli URL yok, satır içi `on*=` işleyicisi yok, her satır içi `<script>` **nonce** taşıyor, `~/…` başvurularının hepsi diskte var, türetilmiş varlıklar (`PanelAssetGuard.RequiredAssets`'ten **türetilerek**) depoda ve boş değil. ⚠️ Rozet sınıfı denetimi de **elle liste değil**: yalnız C#'ta geçen sınıflar hesaplanıp CSS'te aranır (`content`ten `**/*.cs` düşerse kırmızı) |
+| **Panel CSP (canlı)** | `Integration/Panel/PanelContentSecurityPolicyTests.cs` | §7 madde **51**'in *yanıt* ayağı: başlık **gerçekten gönderiliyor** mu, `script-src`'ta `'unsafe-inline'`/`'unsafe-eval'` **yok** mu, nonce **her istekte değişiyor** ve **sayfadakiyle aynı** mı, dış origin **yalnız `img-src`'ta (harita kareleri)** mı, giriş ekranı (`Layout = null`) da kapsanıyor mu, harita seçici taşıyan 5 form Leaflet'i **yerelden** mi yüklüyor. 🔑 Kaynak taramasından **ayrı** olmak zorunda: politikayı üretip pipeline'a bağlamayı unutmak mümkün ve o durumda tarama yeşil kalır |
+| **Panel varlık kapısı** | `Unit/Web/PanelAssetGuardTests.cs` | Saf, container'sız: Production'da türetilmiş varlık **eksikse** ve **boşsa** uygulama açılmıyor (0 baytlık bir `panel.css` yalnız varlığa bakan bir kapıyı geçerdi), hata mesajı **neyin kırıldığını** söylüyor, Development/Staging **engellenmiyor** |
 | Checklist tutarlılığı | `Integration/Architecture/CodeReviewChecklistDocTests.cs` | `CODE_REVIEW_CHECKLIST.md`'nin **atıfları** ↔ gerçek test sınıfları/yardımcılar (maddelerin *doğruluğu* değil, işaret ettikleri yerlerin *varlığı*) |
 | **Panel (Razor/MVC)** | `Integration/Panel/` | Gerçek panel + Postgres + Redis: oturum/yetki, her sayfanın render'ı, form yazımı + audit izi, moderatör izin matrisi |
 | **Panel görsel dili** | `Integration/Panel/PanelDisplayTests.cs` | Kodun ürettiği **her** durum/rolün Türkçe karşılığı var mı, para `¤` basıyor mu, izin matrisi ↔ menü ayrışması (container gerektirmez) |
@@ -618,6 +633,11 @@ dotnet run --project KadirliApp.Api          # http://localhost:5005 (Swagger: /
 # 3) Panel
 dotnet run --project KadirliApp.Web
 
+# 3b) Panel varlıkları — YALNIZ .cshtml/.cs içindeki Tailwind sınıflarını ya da
+#     üçüncü taraf sürümünü değiştirdiyseniz gerekir. Çıktılar depoda olduğu için
+#     depoyu klonlayan biri bu adımı ATLAYABİLİR; CI sürüklenmeyi zaten denetliyor.
+cd KadirliApp.Web && npm install && npm run build   # → wwwroot/css/panel.css + wwwroot/lib/*
+
 # 4) Mobil
 cd mobile && flutter pub get && flutter run
 ```
@@ -635,6 +655,7 @@ cd mobile && flutter pub get && flutter run
 | Hangfire dashboard | loopback serbest | temel kimlik doğrulama |
 | `uploads/` | yerel klasör | kalıcı Docker volume |
 | `Cors:Origins` | serbest | yalnız gerçek origin'ler |
+| **Panel varlıkları (12.9)** | depodan gelir | `wwwroot/{css/panel.css,js/panel.js,lib/*}` dağıtıma **dâhil** olmalı — eksikse `PanelAssetGuard` uygulamayı **açmaz** |
 
 **Sırlar:** `secrets/` klasörü `.gitignore`'da; `secrets/README.md` (commit edilir) neyin
 nasıl edinileceğini ve sızarsa ne yapılacağını anlatır. Mobil tarafta

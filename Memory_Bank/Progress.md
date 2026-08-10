@@ -1733,7 +1733,7 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 | 12.6 | Ulaşım mobil (ikili kalkış · gün rozetleri · "sıradaki sefer") ✅ | mobil | — | **+48 mobil** |
 | 12.7 | Sosyal giriş — backend | backend + panel | ✔ | ~30 backend |
 | 12.8 | Sosyal giriş — mobil | mobil | — | ~20 mobil |
-| 12.9 | Panelin dış bağımlılıklarını yerelleştirme (CDN → self-host + SRI/CSP) | panel + yayın kapısı | — | ~8 backend |
+| 12.9 | Panelin dış bağımlılıklarını yerelleştirme (CDN → self-host + nonce'lu CSP) ✅ | panel + yayın kapısı | — | **+20 backend** |
 
 ---
 
@@ -2928,7 +2928,7 @@ iptal sessiz · Apple butonu bayrak kapalıyken görünmüyor.
 
 ---
 
-### 12.9 — Panelin dış bağımlılıklarını yerelleştirme (CDN → self-host + SRI/CSP) — [ ]
+### 12.9 — Panelin dış bağımlılıklarını yerelleştirme (CDN → self-host + SRI/CSP) — [x] ✅ TAMAMLANDI (10 Ağustos 2026)
 
 > 📌 **Nereden çıktı:** 9 Ağustos 2026'da dış bir analiz (Gemini CLI) panelde Tailwind'in CDN'den
 > çekildiğini işaret etti. **Kodda doğrulandı ve bulgunun tarif edilenden ağır olduğu görüldü** —
@@ -2998,6 +2998,113 @@ uygulamayı **açtırmıyor**.
 - **Panel dış origine bağlı olamaz** — bozulursa hata vermez, yalnız ağın iyi olduğu her yerde
   çalışmaya devam eder ve *tam olarak* kötü koşulda (kısıtlı ağ, CDN kesintisi) kırılır.
   Harita seçicide belirti bile yok: boş kutu, log yok, hata yok.
+
+#### 12.9 kapanış notları
+
+**Teslim edilenler:** `KadirliApp.Web/{package.json,tailwind.config.js,Assets/panel.input.css,tools/copy-vendor.mjs}` ·
+`wwwroot/css/panel.css` (derlenmiş, **40 KB**) · `wwwroot/js/panel.js` (ortak davranış) ·
+`wwwroot/lib/{leaflet,fontawesome,inter}` · `Common/ContentSecurityPolicyMiddleware.cs` ·
+`Common/PanelAssetGuard.cs` · `_Layout` + `Login` + `_LocationPickerScripts` yerelleştirmesi ·
+**17 görünümde 47 satır içi işleyicinin taşınması** · 25 satır içi bloğa nonce ·
+CI'ya **sürüklenme kapısı** · 3 yeni test dosyası.
+**Backend 843 → 863 (+20), mobil 751 (değişmedi — sunucuda/mobilde tek satır yok), analyze 0.**
+
+🔑 **TESLİM EDİLEN:** Panel artık **internet olmadan çalışıyor** ve yöneticinin tarayıcısında
+üçüncü taraf kod koşmuyor. Dört origin (`cdn.tailwindcss.com`, `cdnjs.cloudflare.com`,
+`fonts.googleapis.com`, `unpkg.com`) sıfırlandı; 37 panel sayfası canlıda tarandı, **dış origin 0**.
+
+🔴 **EN ÖNEMLİ KARAR: CSP'nin bedelini ödemek.** `script-src`'a `'unsafe-inline'` yazmak beş
+dakikalık işti ve **korumanın kendisini iptal ederdi** — panelde basılan metnin bir kısmı
+*vatandaştan* geliyor (hata kaydı mesajı, şikayet başlığı) ve depolanmış XSS §7 madde 33'ün
+zaten savaştığı sınıf. Nonce yalnız `<script>` **bloklarını** kapsadığı için bedel **47 satır
+içi işleyicinin taşınması** oldu. Bu sırada 7 kopya `previewImage`/`clearImage` çifti de
+tekilleşti (11.15c'de 21 kopya `confirm()`, 11.18'de 5 kopya toplu işlem JS'i — bu üçüncüsü).
+**İkinci karar:** `style-src`'ta `'unsafe-inline'` **kaldı** ve bu bilinçli bir taviz — Leaflet
+elemanların `style` özniteliğine yazıyor; CSP3'ün `style-src-attr`'ı daha dar olurdu ama
+Firefox/Safari onu yok sayıp `style-src`'a düşer, yani harita seçici **o tarayıcılarda**
+kırılırdı: 12.9'un düzeltmek için var olduğu hasarın aynısı.
+**Üçüncü karar:** `img-src`'ta OpenStreetMap **açık.** "Leaflet gelmedi" ile "kareler gelmedi"
+aynı şey değil — ilki seçiciyi **öldürüyordu**, ikincisinde harita gri kalır ve **koordinat
+seçimi çalışır.** Bir dünya haritasının görüntüsü self-host edilemez; bunu "tamamlanmamışlık"
+saymak, gerçek kırılganlığı gizlerdi.
+**Dördüncü karar:** yapısal denetim **derleme zamanında**, kapı **çalışma anında.** Planın metni
+"Production'da görünümlerde dış origin kalmışsa açılmasın" diyordu; bu **yapılamaz ve yapılsaydı
+yalan söylerdi** — Razor derlenip assembly'ye gömülüyor, yayında `.cshtml` bulunması garanti
+değil, dosya tarayan bir kapı **sıfır dosya bulup yeşil geçerdi.** Çalışma anında
+*gözlenebilir* olan denetleniyor: türetilmiş varlıklar yerinde mi (`PanelAssetGuard`).
+
+🐛 **PLANIN YAZDIĞINDAN AĞIR ÇIKAN ŞEY — Tailwind `content` listesi.** Plan `Views/**/*.cshtml`
+diyordu. Tarama, rozet/buton renklerinin **üç `.cs` dosyasında** yaşadığını gösterdi
+(`PanelDisplay`, `PowerOutagePhase`, `BulkToolbarViewModel` — 19 sınıf dizisi). CDN sürümü
+tarayıcı-içi JIT olduğu için sınıfın nerede yazıldığı **hiç önemli değildi**; derlenmiş Tailwind
+yalnız gördüğünü üretir. Plan harfiyen uygulansaydı panelin **bütün durum rozetleri renksiz**
+kalırdı ve ne derleyici, ne test, ne log söylerdi.
+
+🐛 **BİR TEST ZAYIF ÇIKTI (bozma denemesi sayesinde).** Rozet sınıfı testi başta **elle seçilmiş
+dört sınıfa** bakıyordu; ikisi (`bg-amber-100`, `bg-red-200`) meğer görünümlerde de geçiyordu,
+yani `content`ten `**/*.cs` düşse bile **yeşil kalırlardı**. Test artık listeyi **türetiyor**
+(C#'ta geçip görünümlerde geçmeyenler) ve küme boşalırsa **kendi anlamsızlığını** bildiriyor.
+🔑 12.5/12.6'nın dersi üçüncü kez doğrulandı: *yeşil kalan bozma denemesi "kural sağlam" değil
+"test kuralı tutmuyor" demektir.* ⚠️ Testin ilk düzeltmesi de kırmızı verdi ve **haklıydı**:
+`\b` ile başlayan desen `hover:bg-amber-700` içindeki `bg-amber-700`'ü de yakalıyordu, oysa
+varyantlı yardımcı CSS'e `.hover\:…` olarak çıkıyor.
+
+🐛 **`PanelConfirmDialogTests` KIRMIZIYA DÖNDÜ VE DOĞRUYDU.** Onay dinleyicisi `_Layout`'un satır
+içi bloğundan `panel.js`'e taşınınca test kırıldı — yani test gerçekten o kuralı tutuyormuş.
+Yapılan şey testi gevşetmek değil beklentiyi **yeni tek sahibe** taşımak oldu; ayrıca iddia
+**iki parçalı** yapıldı (dinleyici panel.js'te **var** *ve* panel.js `_Layout` tarafından
+**yükleniyor**) — yalnız birincisine bakan bir test, dosya var ama sayfaya hiç dâhil
+edilmiyorken de yeşil kalırdı.
+
+🐛 **CANLI CHROME DENETİMİNDE BULUNAN İKİ ŞEY:**
+1. **Nonce sayfaya HTML-kaçırılmış giriyordu.** Düz base64 `+` üretiyor, Razor öznitelikleri
+   kaçırdığı için sayfada `…ErK&#x2B;7Mf…` görünüyordu. Tarayıcı doğru çözüyor, yani
+   *çalışıyordu* — ama güvenlik kritik bir değeri karşılaştırmadan önce bir kodlama
+   gidiş-dönüşünden geçirmek bir gün ayrışacak türden kırılganlık ve fark **hiçbir yerde
+   görünmüyordu**. Nonce artık **base64url**; başlık ile sayfa **bayt bayt aynı**.
+2. 🔴 **12.9 KAPSAMI DIŞI, ÖNCEDEN VAR OLAN GERÇEK HATA — mekan 0,0'a kaydediliyordu.**
+   `PlacesAdmin` formu "Konum **\***" diyor, alanlarda `required` var ve JS kapısı
+   (`preparePlaceForm`) "haritaya tıklayın" diyor. Ama `CreatePlaceCommand.Latitude`
+   **decimal** (nullable değil) → `asp-for` alana `value="0"` basıyor, `"0"` JavaScript'te
+   **truthy**, `required` de doluyu görüyor. Yani **kapı var, kapı hiç çalışmıyordu**: yeni
+   mekan Gine Körfezi'ne (0,0) kaydediliyor ve mobildeki "Konuma Git" vatandaşı oraya
+   götürüyordu. Kapı artık 0'ı "işaretlenmedi" sayıyor; canlıda üç senaryoda doğrulandı
+   (0,0 → engellendi + Türkçe mesaj · gerçek koordinat → serbest · boş → engellendi).
+
+➕ **PLAN DIŞI EKLENENLER (kullanıcı onaylı serbest kapsam):**
+- **Leaflet yoksa panel SUSMUYOR.** Eski davranış "boş kutu, log yok, hata yok"tu; yerelleştirme
+  bunu çok zorlaştırdı ama imkânsız kılmadı (yanlış statik dosya yapılandırması, eksik dağıtım).
+  Artık Türkçe bir uyarı çıkıyor ve enlem/boylam alanları **elle girilebilir** hâle geliyor —
+  yöneticinin elinde kaydı oluşturmanın bir yolu kalıyor. Canlıda simüle edilip doğrulandı.
+- **CI sürüklenme kapısı.** `panel.css` türetilmiş **ama commit edilen** bir dosya; bilinen
+  çürüme biçimi "görünüme yeni sınıf yazılır, `npm run build` unutulur, sınıf CSS'te yoktur".
+  CI çıktıyı yeniden üretip `git diff` ile karşılaştırıyor.
+- **`asp-append-version="true"`** — içeriği değişip adı değişmeyen bir dosya yöneticinin
+  tarayıcısında günlerce eski kalırdı ("bende düzelmedi").
+- **7 kopya fotoğraf önizlemesinin tekilleştirilmesi** (yukarıda).
+- **Inter'in `latin-ext` altkümesi.** Türkçe'nin **ğ · ş · İ · ı** harfleri `latin`'de **yok**;
+  Google Fonts CDN'i iki altkümeyi de kendiliğinden servis ediyordu, yani bu ancak
+  yerelleştirdikten **sonra** doğabilecek bir kayıptı. Aynı sınıf: Leaflet'in `images/`
+  klasörü — kopyalanmasaydı harita açılır, **seçilen noktanın işaretçisi görünmezdi**.
+- **Inter genel `font-sans`'a EKLENMEDİ.** Bugün Inter'i yalnız giriş ekranı kullanıyor;
+  `sans` yığınına koymak "yerelleştirme" değil **bütün panelin yazı tipini değiştirmek** olurdu.
+
+🔴 **GÖRÜNMEZ SÖZLEŞMELERE #51 EKLENDİ.** Toplam **51**. Karşılığı **iki** yerde ve bu bilinçli:
+`PanelExternalOriginTests` kaynağı tarar, `PanelContentSecurityPolicyTests` canlı yanıta bakar —
+politikayı üretip pipeline'a **bağlamayı unutmak** mümkün ve o durumda kaynak taraması yeşil kalır.
+
+**Doğrulama:** `dotnet test` **863/863** · `flutter analyze` **0** · `flutter test` **751/751**.
+**Kuralı bilerek boz:** 5 deneme → 5 kırmızı (CDN satırı geri kondu · görünüme `onclick=`
+eklendi · CSP'ye `'unsafe-inline'` eklendi · `content`ten `**/*.cs` düşürüldü · onay dinleyicisi
+taşındı). **Biri ilk turda testin kendisini zayıf gösterdi** ve test güçlendirilip tekrar denendi.
+**Canlı (Chrome + curl, 37 panel sayfası):** dış origin **0** · satır içi işleyici **0** ·
+nonce'suz blok **0** · CSP **hepsinde** (404 sayfası dâhil) · konsolda **tek CSP ihlali yok** ·
+harita yerel Leaflet ile açıldı, **8 kare** yüklendi, tıklamayla koordinat doldu
+(`37.3736700 / 36.0973835`) ve **işaretçi görseli de yerelden** geldi · tekilleştirilmiş fotoğraf
+önizlemesi uçtan uca çalıştı (seç → önizleme → kaldır → gizlendi) · toplu işlem 0/4/3 +
+belirsiz hâl doğru, onay metnindeki `{count}` **3** oldu, iptal edilince form **gönderilmedi** ·
+`data-toggle` dört değerde de doğru · `data-submit-on-change` formu gönderdi ·
+mahalle "Tümünü Seç/Temizle" **10/0**.
 
 ---
 
