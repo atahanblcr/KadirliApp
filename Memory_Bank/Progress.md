@@ -1736,6 +1736,10 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 | 12.9 | Panelin dış bağımlılıklarını yerelleştirme (CDN → self-host + nonce'lu CSP) ✅ | panel + yayın kapısı | — | **+20 backend** |
 | 12.10 | Moderasyon geçişinin tek sahibi (Düzenle formunun açtığı ikinci yol) ✅ | backend + panel | — | **+46 backend** |
 | 12.11 | Tek sahipliğin derleyiciye devri (`init` + varlıkta geçişler) ✅ **plan dışı — dış analizden doğdu** | backend | — | **+4 backend** |
+| 12.12 | **Haberler — alım çekirdeği** (WP istemcisi · senkron/mutabakat işleri · sanitizasyon · görsel aynalama) **plan dışı — kullanıcı isteği** | backend | ✔ | ~45 backend |
+| 12.13 | **Haberler — panel** (liste/ayrıntı/override · kategori görünürlüğü · senkron panosu) | panel | ✔ | ~40 backend |
+| 12.14 | **Haberler — mobil** (liste · detay · kategori süzgeci · `flutter_html`) | mobil | — | ~35 mobil |
+| 12.15 | **Haberler — bildirim** (elle gönderim · `relatedType="news"` · deep-link) | backend + panel + mobil | ✔ | ~20 backend, ~8 mobil |
 
 ---
 
@@ -3517,3 +3521,598 @@ kendisi **derleme hatası olarak** ortaya çıktı ve bulguyu kanıtlayan da bu 
 bayat olabiliyor — 12.10 ve 12.11'de de öyleydi, alıntılanan hatalar zaten düzeltilmişti. Ama
 *"bu iddianın bugün kanayan bir örneği var mı?"* sorusu iki oturumda da **kanıtlanabilir bir
 hataya** götürdü. Reddedilen madde bile ücretsiz değil, aranmayı hak ediyor.
+
+---
+
+# 📰 HABERLER MODÜLÜ (12.12 – 12.15) — 11 Ağustos 2026'da planlandı
+
+> **Bu blok planda YOKTU** — 12.11 bittikten sonra kullanıcı isteğiyle açıldı ve Faz 12'nin
+> sonuna eklendi. **Sıra: 12.7/12.8 (sosyal giriş) hâlâ önce mi sonra mı, karar kullanıcının** —
+> teknik bir bağımlılık yok, iki blok birbirine dokunmuyor.
+>
+> **Ne isteniyor?** Kendi haber sitemiz `silagazetesi.com.tr` (WordPress) bir REST API sunuyor.
+> Haberleri **kendi veritabanımıza** çekip panelden özelleştirerek uygulamada yeni bir
+> **Haberler** modülünde göstereceğiz.
+>
+> 🔑 **Temel mimari karar (kullanıcı koydu, doğru): mobil WordPress'e ASLA bağlanmaz.**
+> Zincir tek yönlü: `WordPress → (Hangfire senkron) → bizim Postgres → /v1/news → mobil`.
+> Gerekçe kullanıcının kendi cümlesi: *"bu modül ile alakalı özellik geliştirmesi yapabilmemiz
+> lazım."* Mobil WP'ye bağlansaydı override, kategori görünürlüğü, bildirim, arama ve önbellek —
+> hepsi imkânsız olurdu; üstelik uygulama **başka birinin çalışma süresine** bağımlı olurdu.
+> Bu, projedeki **ilk dış servis entegrasyonu** (FCM ve SMS dışında) — yeni bir hasar sınıfı
+> getiriyor: *kaynak sessizce değişebilir ve biz haberi hiç alamayabiliriz.*
+
+## 📊 Planlamadan önce ÖLÇÜLEN gerçekler (11 Ağustos 2026, canlı API)
+
+> Aşağıdakiler varsayım değil; `curl` + 400 haberlik korpus taramasıyla doğrulandı.
+> Plandaki kararların çoğu **doğrudan bu ölçümlerden** çıktı.
+
+| Ölçüm | Değer | Plana etkisi |
+|---|---|---|
+| Yayınlanmış haber | **27.284** (`X-WP-Total`), 273 sayfa | İlk dolum bir "tek istek" işi değil → **iki imleçli** tasarım |
+| Yeni/güncellenen | **~5/gün** | Senkron 15 dk'da bir fazlasıyla yeter; otomatik push **zehirli** olur |
+| Kategori | **15** (Gündem 9753 · Haberler 4999 · Yerel Haberler 4673 · Son Dakika 2520 · Genel 1392 · Siyaset 983 · Eğitim 920 · Spor 541 · Kültür&Sanat 510 · E-Gazete 366 · Ekonomi 296 · Tarım 264 · Özel Haber 242 · Resmi İlanlar 145 · Bilim-Teknoloji 77) | Sözlük tablosu; **`LookupsAdmin`'e bölüm**, ayrı ekran değil |
+| **Çoklu kategori** | Bir haber birden çok kategoride (`[49,51,52]`) | 🔴 Görünürlük semantiğini belirleyen tek olgu — bkz. 12.13 |
+| **Öne çıkan görsel `full` boyutu** | 40 haberin **39'unda 650×368** | 🔴 **"Büyük görsel" YOK.** Detayda bile 650px; 3x telefonda yukarı ölçeklenir |
+| Evrensel boyutlar | `thumbnail` 150×85 · `medium` 300×170 · `full` 650×368 | Liste = `medium`, detay = `full` |
+| `large` / `medium_large` | 40 haberde **1** | ⚠️ **Bağlanılamaz** |
+| `jannah-image-*` | 40/40 var **ama WP temasından geliyor** | ⚠️ Tema değişirse **sessizce kaybolur** → yalnız yedek zincirde, asla tek kaynak değil |
+| Metin arası görsel | Haberlerin **%35'inde** (1–3 adet) | `content.rendered` içinde ham `<img>` |
+| Metin arası görsel origin'i | 247 kendi sitesi · **25'i `fbcdn.net` / `outlook.live.net`** | 🔴 İmzalı, **süreli** URL'ler — zamanla 403 olur |
+| İçerik HTML'i | `p` 3674 · `div` 864 · `figure` 720 · `img` 272 · `br` 260 · `a` 106 · `span` 88 · `strong` 24 · **`object` 14 · `video` 4 · `form` 2** | Basit; ama `object`/`video`/`form` **temizlenmek zorunda** |
+| İçerik uzunluğu | ortalama 2008, medyan 1457, max 11438 karakter | 27k haber ≈ 55 MB metin — Postgres için önemsiz |
+| `modified_after` semantiği | 🔴 **SİTE-YEREL saat (UTC+3)**, `gmt_offset=3` | Aşağıdaki kanıta bak — bu fazın 1 numaralı tuzağı |
+| Desteklenen parametreler | `_embed` · `_fields` · `per_page=100` · `orderby=modified\|date` · `modified_after` · `categories` | Artımlı senkron ve yük azaltma mümkün |
+| **Kaynağın güvenilirliği** | Örnekleme sırasında bir sayfa **`error code: 520`** döndü | 🔴 Kaynak *kararsız* → senkron hata toleranslı olmak **zorunda** |
+| `flutter_html` | **3.0.0** + `list_counter 1.0.2`, Flutter 3.44.2 ile temiz çözülüyor (`pub add --dry-run`) | Mobilde kullanılabilir |
+
+### 🔴 Kanıt: `modified_after` yerel saatte çalışıyor
+
+En son değişen haberin damgaları: `modified = 2026-08-11T10:11:36` (yerel), `modified_gmt = 2026-08-11T07:11:36` (UTC).
+
+```
+modified_after=2026-08-11T10:11:36  (yerel değer)  ->  X-WP-Total: 0
+modified_after=2026-08-11T07:11:36  (UTC değer)    ->  X-WP-Total: 4
+```
+
+Yani WP, parametreyi **`post_modified` (yerel)** ile karşılaştırıyor. UTC damgası gönderilince
+pencere 3 saat **geriye** kaydı ve 4 kayıt fazladan geldi.
+
+🔑 **Bu, §7 madde 6'daki *"TR günü, 00:00 UTC"* tuzağının birebir kardeşi** — ve o sınıf bu
+projede **4 kez** tekrarlamış (11.7/11.10/11.11/11.13). Yön kritik:
+- Yerel yerine **UTC** göndermek → pencere genişler → **mükerrer kayıt** → upsert idempotent
+  olduğu için **zararsız**.
+- Ters yön (damgayı "UTC'ye çevireyim" diye 3 saat **ileri** almak) → her koşuda **3 saatlik
+  haber sessizce atlanır**, hiçbir hata oluşmaz, panelde hiçbir belirti yok.
+
+**Karar:** imleç `modified_gmt`'den (UTC) saklanır, sorguya **site-yerel** olarak çevrilerek
+gönderilir, üstüne **bilinçli bir çakışma payı** (30 dk) eklenir. Dönüşümün **tek sahibi**
+`WordPressTimeWindow` olur (`OperatingDays` / `SlugHelper` deseni) ve gidiş-dönüş testle kilitlenir.
+⚠️ `DateTime.UtcNow` **asla** doğrudan `modified_after`'a yazılmaz.
+
+## ⚙️ Blok başında alınan kararlar (kullanıcı onayladı, 11 Ağustos 2026)
+
+| Karar | Seçim | Gerekçe |
+|---|---|---|
+| **Görseller** | **Aynalanır** (kapak görseli indirilip `files` modülüne yazılır) | Kaynak kararsız (520 görüldü) ve metin içi görsellerin %9'u **süreli** `fbcdn` linki. Ayrıca panelde WP görselini basmak **CSP'ye takılır** (aşağıda) ve §7 madde 9 (göreli görsel URL) bedavaya sağlanır |
+| **İlk dolum derinliği** | **50 haber** | Kullanıcının gerekçesi: *"biz bunu ilk başta test edeceğiz."* Doğru karar — ama derinlik **yapılandırmadan** okunur (`News:Backfill:MaxPosts`), kod değişmeden artırılabilir |
+| **Bildirim türü** | **`relatedType = "news"`** | Kullanıcı seçti, sınırı bilerek: mağazadaki **eski sürümler** bu türü tanımaz (§7 madde 18) → bildirimi listede **okur**, dokununca **hiçbir yere gitmez**. Karşı öneri ve neden reddedildiği 12.15'te |
+| **Moderasyon** | **YOK** — otomatik yayın + geri alınabilir gizleme | Aşağıda, 12.13'te ayrıntılı |
+| **Mobil ↔ WP** | **Doğrudan bağ yok** | Kullanıcı koydu; yukarıdaki gerekçe |
+
+## 🔴 Bu bloğun taşıdığı ÜÇ YENİ HASAR SINIFI
+
+Projedeki 24 modülün hiçbirinde olmayan, tamamen yeni riskler. Alt-fazların şekli bunlara göre:
+
+1. **Kaynak sessizce susabilir.** Senkron durursa (WP kapandı, imleç bozuldu, job kuyruğu takıldı)
+   uygulama **eski haberi göstermeye devam eder**, uçlar 200 döner, log temizdir, kimse hata almaz.
+   → 12.13'te **bayatlık göstergesi** zorunlu (Dashboard kutusu + eşik).
+2. **Kaynak, panelin yaptığını ezebilir.** Yönetici başlığı düzeltir, bir sonraki senkron üstüne
+   yazar. Klasik "iki sahip" hasarı (§7 madde 23'ün sınıfı) → 12.12'de **`Source*` / `*Override`
+   kolon ayrımı** ve ayrımın **derleyiciyle** korunması.
+3. **Kaynakta silinen haber bizde sonsuza kadar yaşar.** `modified_after` **silmeyi hiç bildirmez** —
+   WP'de yayından kalkan haber uygulamada durmaya devam eder. → 12.12'de ayrı bir **mutabakat işi**.
+
+## 🧭 Alt-faz sırası ve gerekçesi
+
+**12.12 (alım) → 12.13 (panel) → 12.14 (mobil) → 12.15 (bildirim).**
+Sıra Faz 12'nin kendi kuralını izliyor: *önce veri doğru olsun, sonra görünsün.* Panel mobilden
+**önce** geliyor çünkü kategori dışlamalarının ve override'ların uygulama açılmadan **önce**
+ayarlanabilmesi gerek; bildirim **en sona** çünkü gönderilmiş bir push **geri alınamaz**
+(§7 madde 37) ve elimizde önce doğrulanmış bir veri kümesi olmalı.
+
+⚠️ **Dört alt-faz, üç değil.** İlk bakışta "panel + mobil" iki oturum gibi duruyor; ama 12.12
+tek başına yeni bir entegrasyon katmanı (HTTP istemcisi + iki Hangfire işi + sanitizasyon +
+görsel aynalama + iki imleç) getiriyor ve 12.15 `INotificationDispatcher`'a — projenin en
+hassas **tek sahipli** arayüzüne — dokunuyor. Tarihsel ölçek karşılaştırması: 12.4 (+55),
+12.5 (+59), 12.10 (+46 test) birer oturumdu; bu blok toplamda onların **üçü kadar**.
+
+---
+
+### 12.12 — Haberler: alım çekirdeği — [ ]
+
+**Hedef:** WordPress'ten haberlerin **doğru, tekrarlanabilir ve ezmeyen** biçimde kendi
+veritabanımıza inmesi. Bu alt-fazda **panel ekranı ve mobil ekran YOK** — çıktı, `dotnet test`
+ve veritabanı üzerinden doğrulanır.
+
+#### Alan modeli
+
+**`NewsArticle : BaseEntity`** (`news_articles`, snake_case). Kolonlar **üç kümeye** ayrılır ve
+bu ayrım bu alt-fazın kalbidir:
+
+```
+// 1) KAYNAĞIN sahibi — panel BURAYA YAZAMAZ
+WpId (int, unique)          SourceTitle           SourceExcerpt
+SourceContentHtml (text)    SourcePlainText (text, arama + özet yedeği)
+SourceImageFileId (Guid?)   SourceImageWidth/Height
+SourceUrl                   SourcePublishedAt (UTC)   SourceModifiedAt (UTC)
+SourceChecksum              SourceState ("published" | "gone")
+
+// 2) YÖNETİCİNİN sahibi — senkron BURAYA YAZAMAZ (hepsi nullable)
+TitleOverride               ExcerptOverride        CoverImageFileIdOverride
+OverrideUpdatedAt           OverrideUpdatedBy
+
+// 3) BİZİM alanlarımız (WP'de karşılığı yok)
+IsArchived (bool)           ArchivedReason         ArchivedBy/At
+IsFeatured (bool)           FeaturedUntil (DateTime?)
+AnnouncementId (Guid?)      // 12.15
+```
+
+İndeksler: `(WpId)` unique · `(SourcePublishedAt desc)` · `(IsArchived, SourceState)` ·
+`(SourceModifiedAt desc)` · `SourceTitle` üzerinde arama indeksi (27k kayıt → indekssiz her
+arama tam tarama).
+
+**`NewsCategory : BaseEntity`** (`news_categories`): `WpId` unique · `Name` · `Slug` ·
+`ArticleCount` · **`IsExcluded`** (varsayılan `false`) · `ShowInFilterStrip` · `DisplayOrder`.
+**`news_article_categories`** çoka-çok bağ tablosu.
+📌 **Silme yok** — `LookupsAdmin`'in mevcut kuralı (FK'lı sözlük verisi, yalnız bayrakla pasifleşir).
+
+**`NewsSyncRun : BaseEntity`** (`news_sync_runs`): `StartedAt` · `CompletedAt` ·
+`Trigger` (`schedule`|`manual`) · `TriggeredBy` · `Fetched` · `Created` · `Updated` · `Skipped` ·
+`Failed` · `Status` · `ErrorMessage` · `CursorFrom`/`CursorTo`.
+🔑 Tasarımı **`PushCampaign`'den kopyalanır** (12.2b) — sayaçlar **artımlı** yazılır, sorgu anında
+`COUNT` ile hesaplanmaz (§7 madde 39).
+
+#### 🔴 Karar 1: iki sahip, tek kolon değil — ve ayrımı DERLEYİCİ korur
+
+Alternatif "kilitle bayrağı"ydı (`IsLocked` → senkron kilitli kaydı atlar). **Reddedildi:**
+
+| | Kilit bayrağı | Override kolonu ✅ |
+|---|---|---|
+| Kaynakta yazım hatası düzeltildi | Kilitli kayıt **hiç güncellenmez**, kilit sessizce eskir | `Source*` güncellenir, override yerinde durur |
+| "Kaynakta ne değişti?" | Bilgi **kaybolur** | `SourceModifiedAt` + `SourceChecksum` elde |
+| Geri alma | "Kilidi aç" → ne olacağı belirsiz | "Override'ı kaldır" → kayıt kaynağa döner, **deterministik** |
+| Koruma nerede | Senkron kodunun kilidi kontrol etmesine **güven** | Senkron o kolonu **göremez** |
+
+Son satır belirleyici ve **12.11'in dersinin birebir uygulanması**: *korumayı taramanın
+erişemeyeceği yere taşı.* `Source*` alanları **`init`** olur ve yalnız
+`NewsArticle.ApplySourceSnapshot(snapshot)` metodundan yazılır; override'lar
+`NewsArticle.SetOverrides(...)` / `ClearOverride(...)`'dan. Senkron bir gün override'a yazmaya
+kalkarsa **`CS8852` derleme hatası** alır.
+
+⚠️ Bedeli burada **sıfıra yakın** — varlık yepyeni, 12.11'deki gibi ~40 çağrı yerini fabrikaya
+çevirme sorunu yok. 📌 Bu yine **genel bir "zengin domain" kararı değil** (§7 madde 53'ün kapsam
+uyarısı aynen geçerli): tek bir değişmez kapatılıyor.
+
+⚠️ **Ama `Approve` kelimesini KULLANMA.** `ModerationSingleOwnerTests.ModeratedModules()`
+moderasyonlu modül kümesini `Features/<M>/` altında **`Approve*.cs` dosyası var mı** diye
+türetiyor (satır 69–73) ve `ModeratedEntities().Count`'la eşitliyor (satır 311). `Features/News/`
+altına `ApproveNewsCommand.cs` koyduğun **an** panel controller'ı, `_ModerationStatusField`,
+`ModerationStatusGuard` çağrısı ve beş moderasyon alanının `init` olması **zorunlu hâle gelir**.
+Bu blokta moderasyon **bilinçli olarak yok** (12.13) → dosya adları `Archive*` / `Unarchive*`.
+
+#### 🔴 Karar 2: iki imleç — ileri ve geri
+
+`modified_after` yalnız **ileri** gider. Kullanıcı ilk dolumu 50 haberle sınırladı; yarın 500 ya
+da 2000 istenirse **geriye doğru** gitmek gerekecek ve tek imleçli bir tasarım bunu yapamaz.
+
+- **İleri imleç (artımlı):** `orderby=modified&order=asc` + `modified_after=<yerel, 30 dk çakışmalı>`.
+  Her koşuda yeni/güncellenen haberleri getirir. Damga `modified_gmt`'den saklanır.
+- **Geri imleç (arşiv derinliği):** `orderby=date&order=desc&page=N`, `News:Backfill:MaxPosts`
+  (başlangıç **50**) sayısına ulaşana kadar. Ayrı bir `ArchiveCursorPage` alanında durur.
+  Ayar büyütülünce iş **kaldığı yerden** devam eder.
+
+🔑 İkisi de **aynı upsert'e** düşer (`WpId` üzerinden), yani mükerrer çekiş zararsız.
+⚠️ İki imleç **tek işte** birleşmez: artımlı iş 15 dk'da bir koşar, arşiv işi yalnız derinlik
+eksikse ve **istekle** koşar (12.13'ün "Senkronu başlat" butonu).
+
+#### 🔴 Karar 3: mutabakat işi (`ReconcileNewsJob`) — silmeyi öğrenmenin TEK yolu
+
+`modified_after` silinen/yayından kalkan haberi **hiç bildirmez**. Bu iş olmadan:
+WP'de kaldırılan bir haber uygulamada **sonsuza kadar** durur.
+
+- Gecelik (03:00), `_fields=id` ile **yalnız kimlik** çeker (27k kimlik ≈ birkaç yüz KB, 273 istek).
+- Bizde olup kaynakta olmayan `WpId` → `SourceState = "gone"`.
+- 🔑 **Kayıt SİLİNMEZ**, yalnız public uçtan düşer ve panelde **"Kaynakta yok"** rozeti alır.
+  Silinseydi *"haber neden gitti?"* sorusunun cevabı hiçbir yerde olmazdı.
+- 🔑 **Ters yön de var:** kaynağa geri dönen haber `"published"`a döner (idempotent).
+- ⚠️ İş yalnız **derinliğimiz kadarını** tarar — 50 haber çekiyorsak 27k kimlik taramak
+  anlamsız; tarama penceresi arşiv derinliğiyle **aynı** olmalı, yoksa "bizde yok" ile
+  "kaynakta yok" karışır ve **her eski haber `gone` işaretlenir**.
+
+#### Sanitizasyon ve içerik
+
+- 🔴 **Alım anında sunucuda temizlenir**, gösterim anında değil. Beyaz liste:
+  `p br strong em a figure figcaption img ul ol li blockquote h2 h3 h4`.
+  **Atılanlar:** `script style iframe object embed form input video` + tüm `on*=` öznitelikleri
+  + `style=`. Korpusta gerçekten bulunanlar: `object` ×14, `video` ×4, **`form` ×2**.
+- Yeni paket: **`Ganss.Xss` (HtmlSanitizer)** → `KadirliApp.Infrastructure`. (Katman kuralı:
+  Application yalnız `INewsSourceClient` / `INewsHtmlSanitizer` arayüzlerini görür.)
+- `SourcePlainText` de üretilir: arama ve **özet yedeği** için (WP `excerpt`'i HTML parçalı gelir).
+- ⚠️ Temizlenmiş HTML **panelde `@Html.Raw` ile basılmaz** (12.13) — depolanmış XSS yüzeyi
+  (checklist §11, §7 madde 33). Sanitizasyon bir kapı, tek kapı değil.
+
+#### Görsel aynalama (kullanıcı kararı)
+
+- Senkron kapak görselini indirir → var olan **`files` modülü / `IFileStorage`** üzerinden yazar →
+  `SourceImageFileId`. Uçlar **göreli** URL döner (`/uploads/…`) → §7 madde 9 korunur ve mobilin
+  `AppImage.url`'ü zaten doğru davranır.
+- Yedek zinciri (tek sahip, `NewsImagePicker`): kapak için `full`; küçük için
+  `medium → jannah-image-large → thumbnail → full`.
+  ⚠️ `large`/`medium_large` **zincirde yok** (40'ta 1) ve `jannah-*` **tek kaynak değil**
+  (tema değişirse kaybolur).
+- Aynı görsel iki haberde geçebilir → **`SourceChecksum`/URL bazlı tekilleştirme** (aksi hâlde
+  `uploads/` mükerrer dosyayla şişer).
+- 📌 **Metin arası görseller aynalanmaz** (ilk sürüm): hotlink kalır, açılmazsa **zarifçe gizlenir**.
+  Gerekçe: %35 haberde, %9'u süreli `fbcdn` linki — hepsini aynalamak bu alt-fazı ikiye katlar.
+  ⚠️ Bu bilinçli bir borç; ikinci sürümde ele alınabilir.
+- 🔴 **İndirme sınırı zorunlu:** boyut tavanı (2 MB), `Content-Type` denetimi (`image/*`),
+  zaman aşımı. Kaynak bizim olsa da doğrulanmamış bir indiriciyi sınırsız bırakmak yanlış.
+
+#### Dayanıklılık (kaynak kararsız — 520 görüldü)
+
+- `IHttpClientFactory` + adlandırılmış istemci; zaman aşımı 30 sn; **üstel geri çekilmeli** 3 deneme.
+- 🔴 **Bir sayfanın hatası bütün koşuyu düşürmez** — sayılır, `Failed`'a yazılır, koşu devam eder
+  (§7 madde 29'un "kayıt başına hata partiyi durdurmamalı" kuralının aynısı).
+- Senkron hatası **`ErrorLog`'a** düşer (12.1) → `ErrorFingerprint` tekilleştirmesi bedava:
+  WP 20 dk boyunca 502 verirse 300 satır değil **1 satır + `OccurrenceCount`** (§7 madde 32).
+- ⚠️ Hata yazma yolu isteği/koşuyu **düşüremez** (§7 madde 31).
+- **`User-Agent`** açıkça set edilir (`KadirliApp-Sync/1.0`) — kaynak tarafında tanınabilir olsun.
+- `[DisableConcurrentExecution]` + `[AutomaticRetry]` (mevcut job deseni).
+
+#### Public uç
+
+- **`GET /v1/news`** — sayfalı (`{items,…}`), süzgeçler: `categoryId` · `search` (§7 madde 4:
+  çoğunluk `search` kullanıyor, `searchTerm` yalnız taksi+ulaşım) · `featured`.
+- **`GET /v1/news/{id}`** · **`GET /v1/news/categories`**.
+- 🔴 **Görünürlük filtresi controller'da zorlanır** (Değişmez Kural #3): `IsArchived == false`
+  **ve** `SourceState == "published"` **ve** *dışlanmış kategorisi yok*.
+- Sıralama varsayılanı `publishedAt desc`, **`ThenBy(Id)`** (§7 madde 30 — 27k kayıtta eşit
+  tarih kesin var; ayraçsız **aynı kayıt iki sayfada, bir başkası hiç görünmez**).
+- **`CacheGroups.news`** + invalidator (§7 madde 22) — senkron ve panel yazmaları temizler.
+  ⚠️ Cache grubu invalidator'sız açılırsa panelde düzeltilen başlık mobilde 15 dk eski kalır.
+
+#### Yeni görünmez sözleşmeler (§7 tablosuna eklenecek, **54'ten devam**)
+
+- **`modified_after` site-yerel saattedir** (UTC+3); imleç `modified_gmt`'den saklanır, sorguya
+  yerele çevrilerek + çakışma payıyla gider. Ters yön **her koşuda 3 saatlik haberi sessizce atlar**.
+- **Senkron ile panel aynı kolona yazamaz** — `Source*` `init`, override ayrı kolon; ihlal `CS8852`.
+- **Silinen haber yalnız `ReconcileNewsJob` ile öğrenilir**; kayıt silinmez, `SourceState="gone"` olur.
+  İş kaldırılırsa kaldırılmış haber uygulamada **sonsuza kadar** durur ve kimse hata almaz.
+- **Görsel yedek zinciri `large`/`medium_large`'a bağlanamaz** (40'ta 1) ve `jannah-*` tek kaynak
+  olamaz (tema değişince kaybolur).
+
+**Bitti kriteri:** boş veritabanına senkron koşuyor ve **50 haber + 15 kategori** iniyor ·
+ikinci koşu **hiçbir mükerrer satır üretmiyor** (idempotent) · WP'de değişen bir başlık ikinci
+koşuda güncelleniyor · **elle yazılmış bir `TitleOverride` ikinci koşudan sonra hâlâ yerinde** ·
+kaynaktan düşürülen bir haber mutabakat işinden sonra `gone` oluyor **ve geri gelince
+`published`'a dönüyor** · `<script>`/`<form>` içeren bir gövde temizlenmiş kaydediliyor ·
+kapak görseli `uploads/` altında ve DTO **göreli URL** dönüyor · kaynak 500 verdiğinde koşu
+`Failed` sayacıyla **tamamlanıyor**, uygulama ayakta · `dotnet test` yeşil ·
+**kuralı bilerek boz:** `modified_after`'a UTC damgası → gidiş-dönüş testi kırmızı;
+`Source*` `init` → `set` → yapısal test kırmızı.
+
+---
+
+### 12.13 — Haberler: panel — [ ]
+
+> 📌 **Bu alt-fazın tasarımı bir Agent tartışmasından çıktı** (11 Ağustos 2026, kullanıcı isteği).
+> Agent `ARCHITECTURE.md` §3/§4/§7, `CODE_REVIEW_CHECKLIST.md` §4/§11 ve mevcut panel
+> controller'larını okuyup önerileri **var olan desenlere** bağladı. İki iddiası ayrıca
+> **kaynak kodda doğrulandı** (aşağıda 🔬 ile işaretli).
+
+#### Üç ekran, üç FARKLI izin deseni
+
+| Ekran | Desen | Gerekçe |
+|---|---|---|
+| **`NewsAdminController`** | `[Authorize(Roles="admin,super_admin,moderator")]` + `[PanelPermission("news")]` + `PanelMenu.Items` (`Module = "news"`) | Veri hassas değil — kendi gazetemizin **zaten yayınlanmış** içeriği. Başlık düzeltmek/haber gizlemek tam moderatör işi; `announcements`/`events` ile aynı sınıf |
+| **`NewsSyncAdminController`** | `[Authorize(Roles="admin,super_admin")]` + `[PanelPermission]` **YOK** + menü satırı `Module = **null**` + `PanelMenu.AdminOnlyControllers` += `"NewsSyncAdmin"` | `PushCampaignsAdmin`'in birebir gerekçesi: bu ekran yalnız göstermiyor, **tüm içerik kümesini etkileyen bir işi tetikliyor**. Matriste olsaydı aksiyon `update`'e düşer (§7 madde 19) ve yalnız düzenleme yetkisi olan moderatör senkron tetiklerdi |
+| **Kategori görünürlüğü** | `LookupsAdmin`'e **akordiyon bölümü** (`lookups` izni), ayrı controller yok | `LookupsAdminController`'ın kendi kuralı: *"silme yok (FK'lı sözlük verisi — `IsActive` ile pasifleşir)"*. 15 satırlık bir sözlük ayrı ekranı hak etmiyor |
+
+⚠️ **Unutulursa sessiz hasar:** `permissions` tablosuna `news` satırı + rollere dağıtım migration'ı
+(§4 adım 8 — yoksa moderatör **403 alır ve sebebi görünmez**) · `PanelMenu.Items`'a **iki** satır ·
+`PanelDisplay.NonMatrixModules`'a `["news-sync"] = "Haber Senkronu"` (yoksa denetim izi ekranı
+**ham İngilizce** basar) · `ARCHITECTURE.md` modül tablosuna satır (yoksa `ArchitectureDocTests` kırmızı).
+
+#### 🔴 Karar: MODERASYON YOK — otomatik yayın + geri alınabilir gizleme
+
+Haber WP'den geldiği anda **yayında** olur. Onay kuyruğu **yok**. Gerekçeler:
+
+1. **Editoryal karar zaten verilmiş.** WP bizim; `status=publish` demek insanın onayladığı demek.
+   İkinci bir onay kuyruğu aynı kararı iki kez vermektir.
+2. **Günde 5 haber × onay gecikmesi = ölü modül.** 6 saat gecikmiş "Son Dakika" yanlış bilgidir.
+3. **Bedeli somut** (🔬 doğrulandı): `Approve*.cs` yazıldığı an `ModerationSingleOwnerTests`
+   `News` varlığını 12.11 şekline sokmayı **zorunlu kılar** — `init` alanlar, `Ad.Approve` kardeşi
+   metotlar, `ModerationStatusGuard`, `_ModerationStatusField`. O bedel **canlı hasar üretmiş bir
+   değişmez** için ödendi (§7 madde 53'ün "kapsam dar" notu); haberde öyle bir hasar yok.
+
+**Bunun yerine tek yönlü, tek sahipli bir görünürlük kapısı:**
+
+- Geçişler yalnız **`ArchiveNewsCommand` / `UnarchiveNewsCommand`**'dan. Düzenle formunda
+  görünürlük anahtarı **olmayacak** — 12.10'un dersinin harfi harfine uygulanması
+  (checklist §11: *"bir kaydın durumunu yazan İKİNCİ bir yol"*). `UpdateNewsCommand`'a o alan
+  **hiç eklenmez**, böylece guard'a da gerek kalmaz.
+- **`ArchivedReason` panelde ZORUNLU** — "neden kaldırdın?" sorusunun cevabı kayıtta dursun.
+- **Toplu işlem:** `ArchiveSelected` / `UnarchiveSelected` (§7 madde 29 — `…Selected` ile biter),
+  `PanelBulk.RunAsync` ile **tek-kayıt komutunu** çağırır, toplu SQL değil.
+- 🔴 **`PanelPermissionAttribute.ActionFor`'a `"Unarchive"` EKLENMELİ.**
+  🔬 **Doğrulandı** (satır 61): önek listesi bugün
+  `Approve, Reject, Verify, Unverify, Ban, Unban, UpdateStatus, Resolve, Archive`.
+  `"Unarchive"` **yok** → `"Archive"` öneki onu yakalamaz (baştan eşleşme) → POST olduğu için
+  sessizce **`update`**'e düşer. Sonuç: *yayından kaldırmak `approve` isterken, yayına
+  döndürmek `update` ile yapılabilir.* §7 madde 19'un birebir tekrarı ve 12.10'da `Archive`'ın
+  eklenme sebebinin aynısı. Listede `Unverify`/`Unban` çiftleri zaten var → **deseni takip
+  etmek**, bozmak değil. `PanelModeratorPermissionTests`'e satır eklenir.
+- 🔴 **SİLME YOK.** `NewsArticle`'a `ISoftDeletable` **eklenmez**, panelde "Sil" butonu **olmaz**,
+  `TrashModules.Supported`'a `news` **girmez**. Sebep: kaynak hâlâ yayındayken silinen kayıt
+  **bir sonraki senkronda geri gelir** → yönetici *"sildim ama döndü"* der ve sebebi hiçbir
+  yerde yazmaz. Alternatif ("senkron `deleted_at` dolu kaydı diriltmesin") **yeni bir görünmez
+  sözleşme** doğurur; gizleme zaten aynı işi görüyor.
+  🔑 *İşlevini gizlemenin yaptığı bir butonu koymamak, "işlevsiz buton yok" kuralının doğru okunuşu.*
+- Rozetler `PanelDisplay.NewsState()` + `_StatusBadge`: **Yayında · Yayından kaldırıldı · Kaynakta yok**.
+  ⚠️ Daha önce kullanılmamış Tailwind sınıfı yazılırsa **`npm run build`** — yoksa buton
+  **beyaz üstüne beyaz** çizilir (12.10 canlı bulgusu).
+
+#### 🔴 Karar: yöneticinin düzenleyebilecekleri + "override bayatlaması"
+
+| Alan | Karar | Gerekçe |
+|---|---|---|
+| **Başlık** | ✅ Override | WP başlıkları SEO uzunluğunda ve **BÜYÜK HARFLE**; mobil kart 2 satır |
+| **Özet** | ✅ Override | WP `excerpt`'i HTML parçalı gelir, kartta çirkin |
+| **Kapak görseli** | ✅ Override (`files`'a yüklenen dosya) | 🔴 Ölçülen gerçek: `full` = **650px**, manşette yumuşak. Yöneticiye daha iyi görsel koyma yolu **şart** |
+| **Gövde** | ❌ (ilk sürüm) | Bir override tüm içeriği dondurur ve sanitizasyonun **ikinci sahibini** doğurur. İkinci sürümde "sona not ekle" gibi **eklemeli** bir alan daha güvenli |
+| **Kategori (kayıt bazında)** | ❌ | WP ile kalıcı ayrışma üretir. Karar **kategori bazında**, tek yerde |
+| **Öne çıkar** | ✅ `IsFeatured` + **`FeaturedUntil`** + aynı anda tavan (5) | Tarihsiz "öne çıkan" 3 ay sonra **bayat manşet** üretir ve kimse fark etmez. Tavan aşılırsa komut **sebebini söyler** (checklist §11'in sınıfı) |
+
+Efektif değer **türetilir ve tek sahibi vardır**: `NewsProjection` →
+`Title = TitleOverride ?? SourceTitle`. **Liste ile detay aynı projeksiyondan** geçer
+(§7 madde 43, `EventProjection` dersi: 12.4'te iki ayrı `Select` bloğu detay ekranını sessizce
+konumsuz bırakacaktı). Panel de kendi biçimini yazmaz, aynı sınıfa delege eder.
+
+🔴 **İkinci sessiz hasar — override bayatlar.** Senkron artık ezmiyor, ama kaynakta başlık
+değişince override eski metne dayanmaya devam eder ve **bunu kimse bilmez.**
+→ `SourceModifiedAt > OverrideUpdatedAt` olan kayıtlar için:
+- Index'te **sayaç + süzgeç**: *"Kaynağı güncellenmiş, elle düzenlenmiş 7 haber"*.
+- Details'te **yan yana**: "Kaynakta: … / Panelde: …" + tek tıkla **"kaynağa dön"**.
+
+📌 Bu, `PowerOutagesAdminController`'daki `ViewBag.UnmatchedCount` deseninin aynısı
+(*"sayı görünmezse yönetici sebebini hiçbir zaman anlamaz"*). **Opsiyonel değil** — 12.3'ün
+"eşleşmemiş mahalle" sayacı olmasaydı o faz da yarım kalırdı.
+
+#### 🔴 Karar: kategori görünürlüğü — semantik DIŞLAMA'dır
+
+```
+Görünürlük kuralı: haberin DIŞLANMIŞ bir kategorisi varsa uygulamada GÖRÜNMEZ.
+```
+
+Yani "en az bir görünür kategorisi olmalı" (OR) **değil**. Bu tercihi ölçüm zorluyor: bir haber
+`[49,51,52]` gibi çoklu üye. OR semantiğinde **E-Gazete'yi kapatmak işe yaramaz** — o haberler
+"Haberler"e de ait olduğu için görünmeye devam eder; yönetici anahtarı çevirir, **hiçbir şey olmaz**
+(§7 madde 37'nin *"panelin en sinsi yalan biçimi"*). Dışlama semantiği tek kurallı ve
+yöneticinin gerçekte istediği şey.
+
+- **Yeni kategori varsayılanı: DIŞLANMAMIŞ (görünür).** WP'de yarın açılan bir kategori sessizce
+  dışlanırsa oraya giren haberler **hiç görünmez** ve sebebi hiçbir yerde yazmaz. Panel bunun
+  yerine **bildirir**: *"Senkronda 1 yeni kategori bulundu: Tarım"* (12.5'in "kalkış noktası boş"
+  kararıyla aynı fikir: **doldurma, bildir**).
+- 🔴 **Dışlama önizlemesi zorunlu:** *"Bu kategoriyi dışlarsanız 366 haber uygulamadan kalkar
+  (41'i zaten başka bir dışlanmış kategoride)."* Ve bu sayı **gerçek sorgunun kendisinden**
+  gelmeli — 12.2b'nin `EstimateRecipients` dersi (§7 madde 38: önizleme "342 kişi" der, gönderim
+  280 yazar, fark hiçbir yerde görünmez).
+- **`ShowInFilterStrip` AYRI bir eksendir.** 15 kategori mobil şeride sığmaz; 5–6'sı şeritte,
+  gerisi yalnız süzgeçte. Görünürlük ile şerit üyeliğini **tek bayrakta birleştirme**.
+- 📌 **Yerel/çevre kapsam ekseni EKLENMEZ.** 12.4'ün `locationScope`'u etkinlik içindi çünkü
+  etkinliğin gerçekten bir yeri var. Gazete zaten yerel; "Yerel Haberler" **bir kategori**.
+
+#### 🔴 Karar: senkron gözlemlenebilirliği — Hangfire panosu cevap DEĞİL
+
+`/hangfire` *"job koştu mu"*yu gösterir, *"kaç haber geldi"*yi göstermez; ayrıca `ARCHITECTURE.md`
+§3 panoya erişimin kendisini bir risk olarak işaretliyor.
+
+| İhtiyaç | Yeniden kullanılan desen |
+|---|---|
+| "Kaç haber geldi, ne zaman, kim tetikledi" | **`PushCampaignsAdmin` panosunun birebir kopyası** → `NewsSyncAdmin` |
+| "Hata var mı" | **`ErrorLogsAdmin`** (12.1) — tekilleştirme bedava |
+| Liste + süzgeç + CSV + sayfalama | `PanelCsv.CollectAsync` · `_Pagination.cshtml` · `PanelSorts` (`ThenBy(Id)`) |
+| Tablo sınırsız büyümesin | `PurgeErrorLogsJob` deseninde **`PurgeNewsSyncRunsJob`** (30 gün). Günde 96 satır → yılda ~35k |
+
+🔴 **En kritik parça — bayatlık uyarısı.** Senkron sessizce durursa uygulama eski haberi
+göstermeye devam eder, uçlar 200 döner, log temizdir. → **Dashboard'a kutu:**
+*"Son başarılı senkron: 12 dk önce · 5 yeni"*, eşik aşılırsa (> 2 saat) kırmızı.
+⚠️ E-posta uyarısı **eklenirse kısma zorunlu** (§7 madde 36).
+
+#### 🔴 Karar: elle senkron butonu — VAR, ama kuyruğa atan ve kilitli
+
+Olmalı, çünkü checklist §11: *"kanalın kendisi bayrakla kapalı yoldur… panele elle tetiklenen
+bir 'kanalı dene' yolu koy."* Tuzaklar ve karşılıkları:
+
+1. **Uzun süren iş** → buton `BackgroundJob.Enqueue` yapıp **hemen döner**, yeni koşunun
+   detayına yönlendirir. İstek içinde koşturmak panelin timeout'unu yer, yönetici F5'ler,
+   **ikinci koşu** başlar.
+2. 🔴 **Çift tıklama / eşzamanlı koşu** → kilit **veritabanında**: `completed_at IS NULL` üzerinde
+   **partial unique index**. Redis kilidi **yanlış araç** — bu projede Redis bilinçli olarak
+   fail-open (§7 madde 36), yani **tam yarış anında** kilidi açar. §7 madde 32'nin dersi birebir:
+   *"benzersiz indeks Api/Web yarışını yakalar."*
+3. **Yalan buton (§7 madde 37)** → koşu sürerken buton **kapalı çizilir ve sebebini yazar**
+   (*"Bir senkron zaten çalışıyor — 14:02'de başladı"*); koşul **sunucudan** gelir (`CanTrigger`),
+   görünüm kendi koşulunu yazmaz (12.2b `CanCancel` dersi). Buton ne yaptığını da söyler:
+   *"Kaynaktan yeni/güncellenen haberleri çeker. Panelde yaptığınız düzenlemeler korunur."*
+4. 🔴 **Aksiyon adı `Create`** (`SyncNow` **değil**): `SyncNow` hiçbir önekle eşleşmez, POST
+   olduğu için `update`'e düşer (§7 madde 19). `Create` hem semantik olarak doğru ("yeni bir
+   **koşu kaydı** oluştur") hem `create` iznine düşer — `PushCampaignsAdminController.Create`'in
+   `Send` yerine seçilme gerekçesinin aynısı.
+5. `data-confirm="…"`; satır içi `onclick` **yasak** (§7 madde 51), dinleyici `panel.js`'te.
+6. `IAuditableCommand` + `AuditModule = "news-sync"` + `PanelDisplay.AuditActions` satırı.
+7. 📌 **"Tam yeniden çekme" (imleç sıfırlama) butonu KONULMAZ** — ayrı ve çok daha tehlikeli;
+   gerekirse CLI işi.
+
+#### Ekranlar
+
+```
+NewsAdmin/       Index (liste+süzgeç+toplu işlem+CSV+sayfalama) · Details · Edit
+NewsSyncAdmin/   Index (koşu geçmişi + son durum + "Senkronu başlat") · Details
+LookupsAdmin/    + "Haber Kategorileri" akordiyon bölümü
+```
+
+- **Index sütunları:** küçük görsel (**aynalanmış**, göreli URL) · başlık (+ override varsa
+  "Düzenlendi" rozeti) · kategoriler · yayın tarihi · durum rozeti · ⭐ öne çıkan.
+- **Süzgeçler:** kategori · durum · "elle düzenlenmiş" · **"kaynağı güncellenmiş"** · öne çıkanlar
+  · tarih aralığı · arama.
+- **Sıralama:** `published_desc` (varsayılan — modülün doğal sırası) · `modified_desc` ·
+  `title_asc`; hepsi **`ThenBy(Id)`**.
+- 🔴 **Details'te gövde `@Html.Raw` ile BASILMAZ.** WP HTML'i `<img>` içeriyor → hem dış origin
+  (CSP: 🔬 `PanelExternalOriginTests`'in regex'i **çalışma zamanında oluşan** URL'yi göremez,
+  yani **test yeşil kalır ama tarayıcı görseli engeller** — boş kutu, konsolda tek ihlal,
+  yöneticiye hiçbir mesaj) hem depolanmış XSS yüzeyi. Düz metin önizlemesi + "Kaynakta aç" bağlantısı.
+- **Edit'te görünmeyecekler:** durum/görünürlük anahtarı · kategori seçimi · gövde.
+  Her override alanının yanında **"kaynağa dön"** butonu — form içinde ikinci aksiyon olduğu için
+  `formaction` + `formenctype="application/x-www-form-urlencoded"` **şart**
+  (checklist §11: iç içe `<form>` tarayıcı tarafından **sessizce atılır**).
+- **Global arama:** `GlobalSearch`'e `news` eklenebilir; `SourceTitle` indeksi **şart**.
+
+**Bitti kriteri:** moderatör `news` iznini alınca listeyi görüyor, **senkron ekranını
+göremiyor** · Düzenle formunda görünürlük anahtarı **yok**, Arşivle/Geri al **var** ·
+`Unarchive` **`approve`** iznine düşüyor (bilerek bozup testin kırmızıya döndüğü görüldü) ·
+override yazıldı → senkron koştu → **override yerinde, `Source*` güncellendi** ·
+"kaynağı güncellenmiş" sayacı canlıda 0'dan 1'e çıkıyor · kategori dışlama önizlemesi
+**gerçek sorgudan** geliyor ve dışlanınca haber `GET /v1/news`'ten **düşüyor** ·
+"Senkronu başlat" **iki kez** basıldığında ikinci koşu **açılmıyor** ve sebebi yazıyor ·
+CSV BOM + `;` ile iniyor · konsolda **CSP ihlali yok** · panelde ham İngilizce/`¤` yok.
+
+---
+
+### 12.14 — Haberler: mobil — [ ]
+
+**Hedef:** 12 modüllük ızgaraya **13.'sü** olarak Haberler'in girmesi.
+
+- **Modül kaydı** `lib/core/navigation/app_modules.dart` → `kAppModules`'a
+  `AppModule(id: 'news', label: 'Haberler', route: '/haberler', ready: true, …)`.
+  `app_modules_test.dart` kartın açılabilir bir ekrana gittiğini kendiliğinden denetler.
+- **Rotalar kardeş:** `/haberler` ve `/haberler/:id` (§7 kod-dışı: iç içe rota üst ekranı da kurar).
+  ⚠️ Sekme **alt** rotasına gezinme `AppNav`'dan (§7 kod-dışı, 12.3'ün çökme kök nedeni).
+- **Liste:** `PagedFeedController` (yeniden yazma) + `AppScaffold` + `PagedListFooter`.
+  Her uç provider'ına **`retry: apiRetry`**.
+- **Kategori şeridi:** sunucudan gelen `ShowInFilterStrip` kategorileri + **"Tümü"**.
+  🔴 Süzme **sunucuda** (`?categoryId=`), istemcide değil — yoksa `totalCount` ve sonsuz
+  kaydırma **yalancı** olur (checklist §5). Şerit + arama **tek filtre nesnesinde**
+  (`IntercityFilter`/`GuideFilter` deseni) — ayrı tutulursa şeride dokunmak aramayı sessizce düşürür.
+  Boşalan liste **sebebini söyler** ("hiç haber yok" ≠ "bu kategoride haber yok").
+
+#### 🔴 Görseller — kullanıcının sorusunun ölçülmüş cevabı
+
+Kullanıcının önerisi doğru yönde ama kaynak beklenenden **fakir**:
+
+- **Liste kartı → `medium` (300×170).** 360dp genişlikte tam genişlik kart 3x'te ~1080px ister;
+  300px yetmez → kartlar **küçük görselli** (ör. 96–120dp) tasarlanmalı, tam genişlik manşet değil.
+  ⭐ **Öne çıkan** haber tam genişlik olacaksa **`full`** kullanılmalı.
+- **Detay → `full` (650×360).** 🔴 Bu bile 3x'te yukarı ölçeklenir; **kabul edilen bir yumuşaklık**.
+  Yöneticinin `CoverImageFileIdOverride` ile daha iyi görsel koyabilmesi (12.13) tam bu yüzden var.
+- `cached_network_image` zaten bağımlılıkta; `AppImage.url` mutlak/göreli ayrımını **zaten
+  doğru** yapıyor — aynalanmış görseller göreli geldiği için §7 madde 9 korunuyor.
+- Görsel açılmazsa **zarif yer tutucu** (metin arası hotlink'ler süreli — %9'u `fbcdn`).
+
+#### 🔴 İçerik gösterimi — `flutter_html`
+
+- **`flutter_html: ^3.0.0`** (Flutter 3.44.2 ile temiz çözüldüğü `pub add --dry-run` ile
+  doğrulandı: `+ flutter_html 3.0.0`, `+ list_counter 1.0.2`).
+- Gövde **sunucuda temizlenmiş** geliyor (12.12) → istemcide ikinci bir beyaz liste **yazılmaz**
+  (tek sahip kuralı). İstemci yalnız **stil** verir (tipografi token'ları, koyu tema).
+- `<a>` dokunuşu → `url_launcher` (`AppLinks` deseni). `<img>` → `cached_network_image`.
+- ⚠️ **Golden testte dikkat:** `flutter_html` çıktısı sürüm değişiminde kayabilir. Detay
+  ekranının golden'ı **sabit, kısa bir gövdeyle** kurulmalı; uzun Türkçe metin senaryosu
+  **kartlar** için (§8 kuralı).
+- ⚠️ Tarih gösteren kartlara **`now` enjekte edilebilmeli** (bu projede **4 kez** tekrarlamış
+  golden tuzağı).
+- 🔑 **Alternatif ölçüldü ve reddedilmedi, ertelendi:** gövdeyi sunucuda **blok JSON**'a
+  (`[{type:"paragraph"},{type:"image"}]`) çevirmek de mümkündü — korpusta yalnız
+  `p/figure/img/strong/a` var. Daha saf olurdu (paket yok, golden kararlı, XSS yüzeyi sıfır)
+  ama gazete yarın tablo/gömülü içerik kullanırsa **sessizce kaybolurdu**. `flutter_html`
+  şüphede kalınca **göstermek** yönünde — projenin "additive alanın yokluğu kaydı gizlememeli"
+  ilkesiyle aynı yön.
+
+#### Testler
+
+Model ayrıştırma · liste boş/yükleniyor/hata · kategori şeridi **uca gidiyor** ve aramayı koruyor ·
+görsel yokken kart bozulmuyor · 1.4 yazı ölçeğinde **taşma yok** (bu projede 7+ kez tekrarlamış
+`RenderFlex` sınıfı) · Türkçe hata sözlüğü (`turkish_ui_test.dart`) · golden: liste kartı +
+öne çıkan kart + detay (açık/koyu, 1.0 ve 1.4).
+
+**Bitti kriteri:** emülatörde ızgaradan Haberler açılıyor, 50 haber listeleniyor · kategori
+şeridi süzüyor ve **sayfalama tutarlı** · detayda gövde biçimli render ediliyor, görseller
+açılıyor, bağlantılar tarayıcıda açılıyor · **görsel olmayan haber** kartı bozmuyor ·
+`flutter analyze` 0 · `flutter test` yeşil.
+
+---
+
+### 12.15 — Haberler: bildirim — [ ]
+
+**Hedef:** Yöneticinin bir haberi **tek tıkla** push olarak gönderebilmesi.
+
+#### 🔴 Karar: `relatedType = "news"` (kullanıcı seçti) — ve bilinen sınırı
+
+Karşı öneri **değerlendirildi ve reddedildi**: kesinti modülünün yaptığı gibi (§7 madde 41)
+haber bildirimini **bir Duyuru** olarak üretmek, `relatedType="announcement"` demek. Avantajı:
+**eski sürümler dâhil herkes** dokununca bir yere gider. Bedeli: her haber push'u bir
+`Announcement` satırı açar → **haber, Duyurular listesinde de görünür** → iki modül birbirine
+karışır. Kullanıcı bu bedeli ödemek istemedi; karar onun.
+
+⚠️ **Kabul edilen sınır (§7 madde 18):** mağazadaki **eski sürümler** `news` türünü tanımaz →
+bildirimi listede **okur**, dokununca **hiçbir yere gitmez** ve hata da almaz.
+🔑 **Zorunlu hafifletme:** push gövdesi **kendi kendine yeterli** olmalı (başlık + özetin ilk
+cümlesi) — eski sürümdeki kullanıcı gezinemese bile **bilgiyi almış** olsun. Gövdesi
+*"Detay için dokunun"* diyen bir bildirim, o sürümlerde **yalan söyler**.
+⚠️ `app_notification.dart`'taki eşlemeye `news → /haberler/:id` eklenir (12.14 ile aynı sürümde).
+
+#### Gönderim
+
+- **ELLE, otomatik değil.** Günde 5 haber otomatik push'a çevrilirse kullanıcı bildirimleri
+  **tümden kapatır** ve o andan sonra *kesinti* bildirimini de almaz — yani otomatik haber
+  push'u **başka modüllerin bildirimlerini zehirler**. 5/gün için tek tık yeter.
+- 🔴 Hedeflemenin **tek sahibi `INotificationDispatcher`** (§7 madde 38) — ikinci bir gerçekleme
+  **yazılmaz**. Hedef `all` (haberin mahallesi yok); "kaç kişiye gidecek" önizlemesi
+  **aynı sorgudan** (`EstimateRecipientsAsync`).
+- `PushCampaignSources`'a `News = "news"` (additive) + `PanelDisplay.PushSources`'a Türkçe satır —
+  yoksa Bildirim Gönderimleri panosu **"Bilinmeyen kaynak"** basar ve `PanelDisplayTests` kırılır.
+- Panel deseni **`PowerOutagesAdminController`**: buton yalnız **arşivlenmemiş + kaynağı yayında**
+  kayıtta aktif; gönderilmişse buton **yerine** "Gönderildi → kampanyaya git"
+  (§7 madde 37: terminal alan geri alınmayı **teklif etmez**); koşul **sunucudan** gelir;
+  mesaj **sayıyı söyler** (*"Bildirim 1.243 kişiye yazıldı"* / *"Hedeflemeye uyan kullanıcı yok"*).
+- 🔴 **Temizlik:** haber arşivlenirse/`gone` olursa bildirimleri de **fiziksel** düşer
+  (§7 madde 24/41 — 11.15c'de silinen duyurunun **9 ölü bildirimi** canlıda yaşandı).
+  Güncelleme **ikinci bildirim üretmez** (bir başlık düzeltmesi şehre ikinci push atmamalı).
+
+📌 **Kategori bazlı abonelik: bu alt-fazda YOK.** Kullanıcının istediği özellik, ama yeni bir
+`NotificationPreferences` ekseni demek → mobil sürüm + eski sürümlerde tanımsız davranış +
+`INotificationDispatcher`'ın hedefleme sözleşmesinin genişlemesi. **Kendi alt-fazını hak ediyor**
+(12.16 adayı) ve önce 12.15'in elle gönderimi canlıda doğrulanmalı.
+⚠️ Genişletildiğinde **ikinci bir dispatcher yazılmaz**, var olan **tek sahip genişletilir**.
+
+**Bitti kriteri:** panelden bir haber gönderiliyor → kampanya satırı açılıyor, sayaçlar artıyor ·
+emülatörde bildirim düşüyor, dokununca **haber detayı** açılıyor · aynı haber **ikinci kez**
+gönderilemiyor (buton yerine bağlantı) · haber arşivlenince bildirimleri düşüyor ·
+bildirimi kapatmış kullanıcı **almıyor** · gövde **tek başına anlamlı**.
+
+---
+
+## 📌 Bu blok için açık kalan / bilinçli ertelenen maddeler
+
+- **Kategori bazlı bildirim aboneliği** → 12.16 adayı (yukarıda gerekçe).
+- **Metin arası görsellerin aynalanması** → ikinci sürüm. Bugün hotlink + zarif yer tutucu.
+  ⚠️ %9'u süreli `fbcdn` linki, yani **zamanla kırılacaklar** — bu bilinen bir borç.
+- **Gövde override'ı** → ikinci sürümde **eklemeli** bir alan olarak (tam override değil).
+- **Arşiv derinliği** bugün **50**. `News:Backfill:MaxPosts` büyütülünce geri imleç kaldığı
+  yerden devam eder; 27.284'ün tamamı istenirse ~273 istek + (aynalama ile) ~1.6 GB görsel —
+  **o karar ayrıca verilmeli**, kod değişikliği gerektirmiyor.
+- **`docs/openapi.json` + `Memory_Bank/API_CONTRACT.md`** her alt-fazda güncellenir (§4 adım 10).
+- **`ARCHITECTURE.md` modül tablosu** 12.12'de değil, modül **panelde göründüğünde** (12.13)
+  tam satırını alır; `ArchitectureDocTests` aksi hâlde kırılır.
