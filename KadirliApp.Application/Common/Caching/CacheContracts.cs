@@ -37,4 +37,12 @@ public static class CacheGroups
     public const string Lookups = "lookups";
     /// <summary>Faz 10.5: ilan kategori ağacı + kategori özellikleri. 10.9(c)'den beri CRUD'ları var — AdCategoryCommands invalidate eder.</summary>
     public const string AdsLookup = "ads-lookup";
+    /// <summary>
+    /// Faz 12.12: haber listesi/detayı/kategorileri. ⚠️ Bu grubu <b>iki</b> yazar temizler:
+    /// panel komutları (arşivle/override/öne çıkar) ve <b>senkronun kendisi</b> —
+    /// senkron bir MediatR komutu olmadığı için <c>ICacheInvalidator</c> ona uygulanamıyor,
+    /// <c>NewsSyncService</c> grubu doğrudan temizliyor. Temizlenmezse panelde düzeltilen
+    /// başlık mobilde 15 dk eski kalır (§7 madde 22).
+    /// </summary>
+    public const string News = "news";
 }

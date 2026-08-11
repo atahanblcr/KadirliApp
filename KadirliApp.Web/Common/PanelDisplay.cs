@@ -130,7 +130,14 @@ public static class PanelDisplay
         // AuditModule = "staff" yazıyor; bu satır olmasaydı denetim izi ekranı o
         // kayıtlarda MODÜL SÜTUNUNU ham İngilizce basmaya başlardı. Yani tutarsızlığın
         // düzeltilmesi, düzeltilmemiş hâlinde OLMAYAN yeni bir hatayı doğurabilirdi.
-        ["staff"] = "Personel"
+        ["staff"] = "Personel",
+        // Faz 12.12 — haber komutları (arşivle/override/öne çıkar/senkron) `AuditModule = "news"`
+        // yazıyor ama modülün panel ekranı **12.13'te** geliyor, yani menüde henüz satırı yok.
+        // Bu satır olmasaydı denetim izi ekranı o kayıtlarda modül sütununu **ham İngilizce**
+        // basardı (Değişmez Kural #6).
+        // 📌 12.13'te `PanelMenu.Items`'a "news" satırı eklendiğinde `ModuleLabel` önce menüye
+        // baktığı için burası ölü satıra döner — o zaman SİLİNMELİ.
+        ["news"] = "Haberler"
     };
 
     /// <summary>
@@ -306,6 +313,13 @@ public static class PanelDisplay
         // Bildirim gönderimleri (Faz 12.2b)
         ["send-push"] = new("Bildirim gönderdi", "bg-indigo-100 text-indigo-800", "fa-paper-plane"),
         ["cancel-push"] = new("Gönderimi iptal etti", "bg-orange-100 text-orange-800", "fa-rotate-left"),
+
+        // Haberler (Faz 12.12). ⚠️ "archive" zaten yukarıda (moderasyon) — haber modülünde
+        // arşivleme bir moderasyon kararı DEĞİL, geri alınabilir bir gizleme; etiketi aynı
+        // olduğu için ikinci bir satır yazılmıyor.
+        ["unarchive"] = new("Yayına aldı", "bg-green-100 text-green-800", "fa-box-open"),
+        ["feature"] = new("Öne çıkardı", "bg-amber-100 text-amber-800", "fa-star"),
+        ["sync"] = new("Senkron başlattı", "bg-indigo-100 text-indigo-800", "fa-rotate"),
     };
 
     // ── Hata kayıtları (Faz 12.1) ───────────────────────────────────────────────

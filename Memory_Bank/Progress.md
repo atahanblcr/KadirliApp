@@ -1736,7 +1736,7 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 | 12.9 | Panelin dış bağımlılıklarını yerelleştirme (CDN → self-host + nonce'lu CSP) ✅ | panel + yayın kapısı | — | **+20 backend** |
 | 12.10 | Moderasyon geçişinin tek sahibi (Düzenle formunun açtığı ikinci yol) ✅ | backend + panel | — | **+46 backend** |
 | 12.11 | Tek sahipliğin derleyiciye devri (`init` + varlıkta geçişler) ✅ **plan dışı — dış analizden doğdu** | backend | — | **+4 backend** |
-| 12.12 | **Haberler — alım çekirdeği** (WP istemcisi · senkron/mutabakat işleri · sanitizasyon · görsel aynalama) **plan dışı — kullanıcı isteği** | backend | ✔ | ~45 backend |
+| 12.12 | **Haberler — alım çekirdeği** (WP istemcisi · senkron/mutabakat işleri · sanitizasyon · görsel aynalama) **plan dışı — kullanıcı isteği** | backend | ✔ | **BİTTİ (11 Ağu) — +78 backend testi** |
 | 12.13 | **Haberler — panel** (liste/ayrıntı/override · kategori görünürlüğü · senkron panosu) | panel | ✔ | ~40 backend |
 | 12.14 | **Haberler — mobil** (liste · detay · kategori süzgeci · `flutter_html`) | mobil | — | ~35 mobil |
 | 12.15 | **Haberler — bildirim** (elle gönderim · `relatedType="news"` · deep-link) | backend + panel + mobil | ✔ | ~20 backend, ~8 mobil |
@@ -3640,7 +3640,7 @@ hassas **tek sahipli** arayüzüne — dokunuyor. Tarihsel ölçek karşılaşt�
 
 ---
 
-### 12.12 — Haberler: alım çekirdeği — [ ]
+### 12.12 — Haberler: alım çekirdeği — [x] ✅ TAMAMLANDI (11 Ağustos 2026)
 
 **Hedef:** WordPress'ten haberlerin **doğru, tekrarlanabilir ve ezmeyen** biçimde kendi
 veritabanımıza inmesi. Bu alt-fazda **panel ekranı ve mobil ekran YOK** — çıktı, `dotnet test`
@@ -3802,6 +3802,95 @@ WP'de kaldırılan bir haber uygulamada **sonsuza kadar** durur.
   İş kaldırılırsa kaldırılmış haber uygulamada **sonsuza kadar** durur ve kimse hata almaz.
 - **Görsel yedek zinciri `large`/`medium_large`'a bağlanamaz** (40'ta 1) ve `jannah-*` tek kaynak
   olamaz (tema değişince kaybolur).
+
+
+#### ✅ Teslim edildi (11 Ağustos 2026) — canlı doğrulamayla
+
+**Kod:** `Domain/Entities/{NewsArticle,NewsCategory,NewsSyncRun,NewsSyncState}.cs` ·
+`Application/Common/Interfaces/{INewsSourceClient,INewsHtmlSanitizer,INewsImageDownloader,INewsSyncService}.cs` ·
+`Application/Features/News/` (WordPressTimeWindow · NewsImagePicker · NewsHtmlPolicy · NewsChecksum ·
+NewsReadingTime · NewsSyncHealth · NewsVisibility · NewsProjection · NewsAudit · NewsSyncOptions +
+`Services/{NewsSyncService,NewsImageMirror}` + 3 sorgu + 5 komut) ·
+`Infrastructure/News/{WordPressNewsSourceClient,NewsHtmlSanitizer,HttpNewsImageDownloader}.cs` ·
+`Infrastructure/Jobs/{SyncNewsJob,ReconcileNewsJob}.cs` · 3 EF yapılandırması + migration
+(`AddNewsModule`) · `Api/Controllers/NewsController.cs` · `PanelDisplay` (3 denetim eylemi + modül
+etiketi) · 6 test dosyası. **Yeni paket:** `HtmlSanitizer` (`Ganss.Xss`) → Infrastructure.
+**Backend 913 → 991 (+78), mobil 751 (değişmedi — 12.14'e kadar mobilde tek satır yok).**
+
+🔑 **TESLİM EDİLEN:** Haberler artık **bizim veritabanımızda**. Zincir tek yönlü ve kullanıcının
+koyduğu gibi: `WordPress → (Hangfire, 15 dk) → Postgres → /v1/news → mobil`.
+
+🔴 **PLANDAN İKİ SAPMA (ikisi de sessiz bir hatayı kapattığı için):**
+1. **Arşiv imleci sayfa numarası DEĞİL, tarih** (`ArchiveCursorPage` → `ArchiveCursorUtc`).
+   Plan `orderby=date&order=desc&page=N` diyordu; ama koşular arasında **tek bir haber
+   yayınlandığı anda** bütün sayfalar bir kayar ve tam sınırdaki haber **hiçbir sayfada
+   görünmez** — sonsuza kadar atlanır, hiçbir hata oluşmaz. `before=<en eski aldığımız>`
+   bu sınıfa kapalı ve "derinlik büyüyünce kaldığı yerden devam etme" özelliğini birebir korur.
+   Aynı düzeltme mutabakatın kimlik taramasına da uygulandı.
+2. **Panel komutları 12.12'de yazıldı** (12.13'e bırakılmadı): `CacheGroups.news` eklendiği an
+   `CacheContractTests` "invalidate eden komutu olmayan grup" diye kırılıyor (§7 madde 22) —
+   ve haklı: grubu invalidator'sız açmak, panelde düzeltilen başlığın mobilde 15 dk eski
+   kalması demek. Beş komut yazıldı (`Archive`/`Unarchive`/`UpdateOverrides`/`SetFeatured`/
+   `TriggerSync`); 12.13 bunların **üstüne panel ekranı** koyacak, komut yazmayacak.
+
+🔴 **EN ÖNEMLİ KARAR: iki sahip, tek kolon değil — ve ayrımı DERLEYİCİ koruyor.**
+`Source*` alanları `init` ve yalnız `NewsArticle.ApplySourceSnapshot`'tan, `*Override` alanları
+yine `init` ve yalnız `SetOverrides`/`ClearOverrides`'tan yazılıyor. Alternatif "kilit bayrağı"
+reddedildi çünkü korumanın kendisi *senkron kodunun kilidi kontrol etmesine güvenmek* olurdu —
+12.11'in dersinin birebir uygulanması: **korumayı taramanın erişemeyeceği yere taşı.**
+
+🔑 **VE BU KEZ TARAMA DEĞİL YANSIMA:** `NewsSourceOwnershipTests` alan listesini **tipin
+kendisinden** türetiyor (`init` erişimcisi IL'de `modreq(IsExternalInit)` taşır). 12.11'in
+bulgusu *"bir taramanın KAPSAMI da elle tutulan bir listedir"* idi; yansıma o sınıfa kapalı ve
+yarın eklenen bir `Source*` kolonu kendiliğinden kapsama giriyor.
+🐛 **Yansıma daha ilk koşuşunda bir delik buldu:** `SourceImage` **gezinme özelliği** açık
+setter'lıydı — `article.SourceImage = başkaDosya` yazmak kaydedildiğinde FK'yı da değiştirir,
+yani ayrımın **üçüncü kapısı** açıktı. Kaynak taraması bunu asla göremezdi.
+
+🐛 **İKİ GERÇEK BULGU (ikisi de "kuralı bilerek boz" turundan çıktı):**
+1. **Kategori isteğinin hatası koşu defterine yazılmıyordu.** Koşu devam ediyordu (doğru) ama
+   `Failed` sayacı 0 kalıyordu: kategorileri hiç alamamış bir koşu panelde **tertemiz**
+   görünürdü. "0 hata" diyen bir koşu defteri, hiç defter tutmamaktan kötüdür.
+2. **Kolon tavanını aşan tek bir başlık BÜTÜN partiyi düşürüyordu.** §7 madde 29'un "kayıt
+   başına hata partiyi durdurmamalı" kuralı bu yolda **çalışmıyordu**, çünkü hata kayıt başına
+   değil **`SaveChanges` başına** doğuyor. Kaynak bizim ama içeriğini biz yazmıyoruz.
+   → `NewsColumnLimits` + kırpma; ayrıca koşu defteri zehirli bağlamda **`ExecuteUpdate`** ile
+   yazılıyor (yoksa koşu satırı sonsuza kadar "çalışıyor" görünürdü).
+
+⚠️ **DÜRÜST NOT — bir bozma denemesi KIRMIZIYA DÖNMEDİ:** sayfa hatasında `cursorIsSafe = false`
+satırını kaldırmak hiçbir testi kırmadı, çünkü imleci bugün koruyan şey hemen ardındaki
+`break`. Satır yine de duruyor (biri yarın "bir sayfa patladı diye durmayalım" derse koruma o
+gün kaybolur) ama koda dürüst bir yorum düşüldü. Yerine, gerçekten korumasız olan yol
+(toplu yazma tavanı) test edildi.
+
+🔑 **MODERASYON YOK — ve `Approve` kelimesi bilinçli olarak KULLANILMADI.**
+`ModerationSingleOwnerTests` moderasyonlu modül kümesini `Features/<M>/Approve*.cs` varlığından
+türetiyor; o adla bir dosya konsa panel controller'ı, `_ModerationStatusField`,
+`ModerationStatusGuard` ve beş alanın `init` olması **zorunlu** hâle gelirdi. Geçişlerin adı
+`Archive`/`Unarchive` ve bu tuzak ayrıca **açıklamalı bir testle** kilitlendi.
+
+➕ **PLAN DIŞI EKLER:** `ReadingMinutes` (türetilmiş okuma süresi, sunucuda tek yerde) ·
+`NewsSyncHealth` (bayatlık eşikleri — 12.13'ün Dashboard kutusunun altyapısı) · `NewsVisibility`
+(görünürlük tanımının tek sahibi; panel sayacı 12.13'te aynı sınıftan geçecek) ·
+`SetNewsFeaturedCommand` + `FeaturedUntil` (süresiz manşet bayat kalır) · `TriggerNewsSyncCommand`
+(checklist §11'in *"kanalı elle dene"* maddesi) · `NewsProjection.Select(includeContent)` —
+gövde listede taşınmıyor ama **iki ayrı projeksiyon yazılmadı** (§7 madde 43'ün tuzağı).
+
+**Canlı doğrulama (gerçek `silagazetesi.com.tr`, 11 Ağustos 2026):**
+ilk koşu **50 haber + 15 kategori**, 50/50 kapak görseli aynalandı, **0 hata** ·
+ikinci koşu `incremental`: 1 okundu, **1 atlandı, 0 mükerrer** · mutabakat: 50 kimlik, 0 `gone` ·
+`GET /v1/news` göreli `/uploads/…` URL'i döndürüyor ve görsel **200** veriyor ·
+DB'de `<script|form|iframe|object|video|onclick=|style=` içeren **0** kayıt, `<div|<span` **0** ·
+kategori sayaçları bizdeki görünür sayıyı veriyor (Haberler 38 · Yerel Haberler 13 · E-Gazete 0).
+**`dotnet test` 991/991.**
+
+**Kuralı bilerek boz → 4 kırmızı:** `QueryFloor` yerele çevirmeyi bıraktı → 2 test ·
+`SourceTitle` `init`→`set` → yansıma testi · `ApplySourceSnapshot` override'ı ezdi → geçiş testi ·
+mutabakatın boş-liste kapısı kaldırıldı → arşivin tamamı `gone` olurdu · başlık kırpması
+kaldırıldı → parti düştü. (5. deneme yukarıda: dürüst not.)
+
+⏭️ **Sırada 12.13** — panel. ⚠️ `PanelMenu.Items`'a "news" satırı eklendiğinde
+`PanelDisplay.NonMatrixModules`'taki geçici `["news"] = "Haberler"` satırı **silinmeli**.
 
 **Bitti kriteri:** boş veritabanına senkron koşuyor ve **50 haber + 15 kategori** iniyor ·
 ikinci koşu **hiçbir mükerrer satır üretmiyor** (idempotent) · WP'de değişen bir başlık ikinci

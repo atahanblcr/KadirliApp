@@ -310,6 +310,40 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
       parametre **hiç gönderilmiyor**. İkili bir süzgeç olsaydı sunucuya yarın eklenecek üçüncü
       bir tip mağazadaki eski sürümlerde **hiçbir süzgeçte görünmezdi**.
 
+### Haberler (Faz 12.12)
+
+> 🔑 **Mobil WordPress'e ASLA bağlanmaz.** Zincir tek yönlü:
+> `WordPress → (Hangfire senkron, 15 dk) → bizim Postgres → /v1/news → mobil`.
+> Kaynağa bağlansaydık override, kategori görünürlüğü, bildirim, arama ve önbellek imkânsız
+> olurdu; üstelik uygulama **başka birinin çalışma süresine** bağımlı olurdu.
+
+- `GET /v1/news` — **sayfalı** (`{items,totalCount,pageSize,currentPage,totalPages}`).
+  Süzgeçler: `?search=` (başlık + gövde metni; ⚠️ **`search`**, `searchTerm` değil — #4) ·
+  `?categoryId=` · `?featured=true`. Varsayılan sıralama **`publishedAt desc`** (+ `ThenBy(Id)`).
+- `GET /v1/news/{id}` — bulunamayan/gizlenen kayıt **404**.
+- `GET /v1/news/categories` — sayfasız; `{id,name,slug,articleCount,showInFilterStrip,displayOrder}`.
+
+**DTO alanları:** `id · title · excerpt · contentHtml · imageUrl · imageWidth · imageHeight ·
+sourceUrl · publishedAt · modifiedAt · readingMinutes · isFeatured · categories[{id,name,slug}]`
+
+- 🔴 **`contentHtml` YALNIZ detayda dolu, listede `null`.** 27k kayıtlık bir modülde sayfa
+  başına 20 gövde taşımak hiç okunmayacak ~40 KB demek. Liste kartı `excerpt` kullanır.
+- 🔴 **`title`/`excerpt`/`imageUrl` "etkin" değerdir**: yönetici bir override yazdıysa o, yoksa
+  kaynağınki. **İstemci iki alanı birleştirmez** — birleştirseydi mağazadaki eski sürümler
+  panel düzeltmesini hiç görmezdi.
+- `imageUrl` **göreli**dir (`/uploads/…`, görünmez sözleşme #9): kapak görseli kaynaktan
+  **indirilip aynalanır**. Kaynak görselinin `full` boyutu bile **650×368** (40 haberin 39'unda
+  ölçüldü) → istemci "büyük görsel" beklememeli; yöneticinin koyduğu kapak varsa `imageWidth`/
+  `imageHeight` **`null`** gelir (boyutu istemci ölçer).
+- `contentHtml` **alım anında sunucuda temizlenmiştir** (beyaz liste:
+  `p br strong em a figure figcaption img ul ol li blockquote h2 h3 h4`) → istemci **ikinci bir
+  beyaz liste yazmaz**. ⚠️ Metin arası görseller **aynalanmaz** (hotlink; %9'u süreli `fbcdn`
+  linki) → açılmayanı **zarifçe gizle**.
+- `readingMinutes` sunucuda üretilir (200 kelime/dk, en az 1) — istemcide hesaplanmaz; liste
+  ucu gövdeyi zaten taşımıyor.
+- **Görünürlük:** arşivlenmemiş **ve** kaynağı yayında (`gone` değil) **ve** dışlanmış
+  kategorisi olmayan kayıtlar. `articleCount` kaynağınki değil, **bizde görünen** sayıdır.
+
 ### Şikayet / Dosya / Lookup
 - `POST /v1/complaints` — **anonim gönderim açık**; oturum varsa sunucu `user_id` claim'ini kendisi bağlar (istemci kullanıcı kimliği yollamaz). Yanıt: oluşan kaydın **Guid**'i. Gövde: `{subject, message, type?, relatedModule?, relatedId?}`.
   - ⚠️ **Sunucuda doğrulayıcı YOK** → zorunlu alan denetimi istemcide.

@@ -10,7 +10,8 @@ push canlı, golden + erişilebilirlik testleri var; panel gerçek bir yönetim 
 ve güvenlik kapanışı yapılmış (oturum iptali · zorunlu parola değişimi · parola politikası ·
 hesap kilidi). Yayın hazırlığının Apple gerektirmeyen kısmı tamam.
 
-**Şimdi Faz 12** — gözlem, alan modeli ve giriş kolaylığı; 10 alt-faz, **hepsi additive**
+**Şimdi Faz 12** — gözlem, alan modeli ve giriş kolaylığı (+ plan dışı **Haberler** bloğu,
+12.12–12.15); **hepsi additive**
 (hiçbir DTO alanı silinmiyor, hiçbir tablo düşürülmüyor). **12.1 bitti:** hata günlüğü modülü
 (`ErrorLogsAdmin`). **12.2 bitti:** şüpheli giriş günlüğü — "kim, nereden, ne zaman girmeye
 çalıştı?" artık panelden görülüyor (`LoginAttemptsAdmin`), `super_admin`'e kısılmış e-posta
@@ -66,9 +67,24 @@ kararı değil** — 50 varlık dokunulmadı, yalnız canlı hasar üretmiş tek
 **reddedip sebebini söylüyor**. ➕ Vefatta durum menüsü aynı zamanda **reddetmenin ve
 arşivlemenin tek yoluydu** → iki komut plan dışı olarak **yazıldı** (yoksa hata düzeltilirken
 iki işlev silinirdi).
-**913 backend + 751 mobil test, 53 görünmez sözleşme.**
+**12.12 bitti (plan dışı blok — kullanıcı isteği): Haberler modülünün alım çekirdeği.**
+`silagazetesi.com.tr` (WordPress) artık **bizim veritabanımıza** iniyor; zincir tek yönlü:
+`WordPress → (Hangfire, 15 dk) → Postgres → /v1/news → mobil`. Projedeki **ilk dış içerik
+entegrasyonu** ve üç yeni hasar sınıfı: kaynak **sessizce susabilir** (→ bayatlık damgası),
+kaynak **panelin yaptığını ezebilir** (→ `Source*` / `*Override` ayrımı, ikisi de `init`,
+ihlal **CS8852**) ve `modified_after` **silmeyi hiç bildirmez** (→ gecelik `ReconcileNewsJob`;
+kayıt silinmez, `gone` olur). 🔴 `modified_after` **site-yerel saatte** (ölçüldü) — imleç UTC
+saklanır, sorguya çevrilerek + 30 dk payla gider; ters yön her koşuda **3 saatlik haberi
+sessizce atlar**. Tek sahip `WordPressTimeWindow`. ⚠️ Bu modülde **moderasyon YOK** ve
+`Approve*` dosya adı **yasak** (`ModerationSingleOwnerTests` modül kümesini o addan türetiyor)
+— gizleme geri alınabilir bir **arşivlemedir**. Canlı: 50 haber + 15 kategori, 50/50 görsel
+aynalandı, ikinci koşu 0 mükerrer.
+**991 backend + 751 mobil test, 57 görünmez sözleşme.**
 
-**⏭️ Sırada 12.7:** sosyal giriş — backend (`UserIdentity`, `POST /v1/auth/social`).
+**⏭️ Sırada 12.13:** Haberler paneli (liste/override · kategori görünürlüğü · senkron panosu).
+Açık duran diğer maddeler: 12.7/12.8 sosyal giriş · 12.14 mobil · 12.15 bildirim.
+⚠️ 12.13'te `PanelMenu.Items`'a "news" satırı eklenince `PanelDisplay.NonMatrixModules`'taki
+geçici `["news"] = "Haberler"` satırı **silinmeli**.
 ⚠️ Moderasyon alanına yazarken `CS8852` alırsan **çözüm alanı `set`'e açmak değil**, geçişi
 varlığın bir metoduna taşımaktır (§7 madde 53 — açarsan test kırılır, bilerek). Ayrıca daha önce
 kullanılmamış bir Tailwind sınıfı yazdıysan `npm run build` çalıştır — yoksa buton
@@ -118,7 +134,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 52 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 57 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
@@ -134,7 +150,10 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
 `Integration/Panel/PanelContentSecurityPolicyTests.cs` (canlı yanıt) +
 `Unit/Web/PanelAssetGuardTests.cs` (yayın kapısı),
 **52–53** → `Integration/Architecture/ModerationSingleOwnerTests.cs` (yapısal) +
-`Integration/Panel/PanelModerationOwnershipTests.cs` (davranış) + `Unit/Application/Moderation/`.
+`Integration/Panel/PanelModerationOwnershipTests.cs` (davranış) + `Unit/Application/Moderation/`,
+**54–57** → `Unit/Application/News/` + `Integration/News/` +
+`Integration/Architecture/NewsSourceOwnershipTests.cs` (yapısal — **kaynak taraması değil
+yansıma**).
 
 ## Değişmez kurallar
 

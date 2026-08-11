@@ -1,5 +1,94 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 11 Ağustos 2026 — **FAZ 12.12 TAMAMLANDI: Haberler modülünün ALIM ÇEKİRDEĞİ.**
+> Kod 4 yeni varlık + `Features/News/` (12 saf sınıf/servis + 3 sorgu + 5 komut) +
+> `Infrastructure/News/` (WP istemcisi · temizleyici · görsel indirici) + 2 Hangfire işi +
+> migration + `NewsController` + 6 test dosyası. **Yeni paket: `HtmlSanitizer` (Ganss.Xss).**
+> **Backend 913 → 991 (+78), mobil 751 (değişmedi — mobilde tek satır yok, o 12.14),
+> analyze koşulmadı (mobil dokunulmadı).**
+>
+> 🔑 **TESLİM EDİLEN:** Haberler artık **bizim veritabanımızda** ve zincir tek yönlü:
+> `WordPress → (Hangfire senkron, 15 dk) → Postgres → /v1/news → mobil`. Bu, projedeki
+> **ilk dış İÇERİK entegrasyonu** (FCM/SMS dışında) ve üç yepyeni hasar sınıfı getiriyor —
+> alt-fazın şekli tümüyle onlara göre kuruldu.
+>
+> 🔴 **HASAR SINIFI 1 — kaynak sessizce susabilir.** Senkron durursa uygulama **eski haberi
+> göstermeye devam eder**: uçlar 200 döner, liste dolu görünür, log temizdir, kimse hata almaz.
+> Diğer 26 modülde veriyi *biz* giriyoruz ve girilmediğini bilen bir insan var; burada yok.
+> → `news_sync_state.last_successful_run_at` + `NewsSyncHealth` eşikleri (45 dk gecikmiş,
+> 3 saat durmuş). Kısmi hatalı koşu **başarılıdır** (veri akıyor), tümden düşen koşu damgayı yazmaz.
+>
+> 🔴 **HASAR SINIFI 2 — kaynak panelin yaptığını ezer.** Çözüm iki kolon (`Source*` / `*Override`)
+> ve ayrımı **DERLEYİCİ** koruyor: ikisi de `init`, yazma yolları varlığın metotlarında
+> (`ApplySourceSnapshot` ↔ `SetOverrides`). Alternatif "kilit bayrağı" reddedildi — koruma
+> *senkron kodunun kilidi kontrol etmesine güvenmek* olurdu; ayrıca kilitli kayıt kaynaktaki
+> düzeltmeyi hiç almaz ve "geri alınca ne olur?" sorusu belirsiz kalır.
+> **12.11'in dersi birebir uygulandı: korumayı taramanın erişemeyeceği yere taşı.**
+>
+> 🔑 **VE BU KEZ TARAMA DEĞİL YANSIMA.** `NewsSourceOwnershipTests` alan listesini **tipin
+> kendisinden** türetiyor (`init` erişimcisi IL'de `modreq(IsExternalInit)` taşır) — 12.11'in
+> asıl bulgusu *"bir taramanın KAPSAMI da elle tutulan bir listedir"* idi ve yansıma o sınıfa
+> kapalı: yarın eklenen bir `Source*` kolonu kendiliğinden kapsama giriyor.
+> 🐛 **İlk koşuşunda bir delik buldu:** `SourceImage` **gezinme özelliği** açık setter'lıydı;
+> `article.SourceImage = başkaDosya` kaydedildiğinde FK'yı da değiştirir — yani ayrımın
+> **üçüncü kapısı** açıktı ve bir kaynak taraması bunu asla göremezdi.
+>
+> 🔴 **HASAR SINIFI 3 — kaynakta silinen haber bizde sonsuza kadar yaşar.** `modified_after`
+> **silmeyi hiç bildirmez**. `ReconcileNewsJob` (gecelik 03:00) kimlik taraması yapıyor; kayıt
+> **silinmiyor**, `SourceState = "gone"` oluyor (silinseydi *"haber neden gitti?"* sorusunun
+> cevabı hiçbir yerde olmazdı) ve kaynağa dönen haber `published`'a geri dönüyor.
+> ⚠️ **En tehlikeli senaryo bir kapıyla kapatıldı:** kaynak **boş liste** döndürürse iş hiçbir
+> şey işaretlemeden durur — yoksa tek bir 200 yanıtı **bütün arşivi** düşürürdü.
+>
+> 🔴 **ÖLÇÜLEN GERÇEK, VARSAYIM DEĞİL:** `modified_after` **site-yerel** saatle (UTC+3)
+> karşılaştırılıyor. Canlı kanıt: `…T10:11:36` (yerel) → 0 sonuç, aynı anın UTC'si
+> `…T07:11:36` → 4 sonuç. Bu, §7 madde 6'daki "TR günü 00:00 UTC" tuzağının **5. biçimi**.
+> Yön kritik: pencereyi geniş tutmak zararsız (upsert idempotent), **daraltmak** her koşuda
+> 3 saatlik haberi **sessizce atlar**. Tek sahip `WordPressTimeWindow`, gidiş-dönüş testli.
+>
+> 🔴 **PLANDAN İKİ BİLİNÇLİ SAPMA:**
+> 1. **Arşiv imleci sayfa numarası değil TARİH** (`before=`). Plandaki `page=N` yaklaşımı,
+>    koşular arasında yayınlanan **tek bir haber** yüzünden bütün sayfaları kaydırır ve tam
+>    sınırdaki haber **hiçbir sayfada görünmez** — sonsuza kadar atlanır, hata da vermez.
+>    "Derinlik büyüyünce kaldığı yerden devam" özelliği birebir korundu.
+> 2. **Panel komutları 12.12'de yazıldı.** `CacheGroups.news` eklendiği an `CacheContractTests`
+>    "invalidate eden komutu olmayan grup" diye kırılıyor (§7 madde 22) ve haklı. 12.13 artık
+>    komut değil **ekran** yazacak.
+>
+> 🐛 **İKİ GERÇEK BULGU ("kuralı bilerek boz" turundan):** (1) kategori isteğinin hatası
+> `Failed` sayacına **yazılmıyordu** — kategorileri hiç alamamış bir koşu panelde tertemiz
+> görünürdü; (2) kolon tavanını aşan **tek bir başlık BÜTÜN partiyi düşürüyordu**: §7 madde
+> 29'un "kayıt başına hata partiyi durdurmamalı" kuralı bu yolda çalışmıyor, çünkü hata kayıt
+> başına değil **`SaveChanges` başına** doğuyor. → `NewsColumnLimits` + kırpma, ve koşu defteri
+> zehirli bağlamda **`ExecuteUpdate`** ile yazılıyor (yoksa satır sonsuza kadar "çalışıyor" kalır).
+>
+> ⚠️ **DÜRÜST NOT:** bozma denemelerinden **biri kırmızıya dönmedi** — sayfa hatasında
+> `cursorIsSafe = false` satırını kaldırmak hiçbir testi kırmadı, çünkü imleci bugün koruyan şey
+> hemen ardındaki `break`. Satır (gelecekteki bir "devam edelim" değişikliğine karşı) duruyor
+> ama koda dürüst bir yorum düşüldü; yerine gerçekten korumasız olan yol test edildi.
+>
+> 🔑 **MODERASYON YOK ve `Approve` kelimesi bilinçli olarak kullanılmadı:**
+> `ModerationSingleOwnerTests` moderasyonlu modül kümesini `Features/<M>/Approve*.cs`
+> varlığından türetiyor — o adla bir dosya, bu modülde karşılığı olmayan **beş kuralı** zorunlu
+> kılardı. Geçişler `Archive`/`Unarchive`; tuzak ayrıca açıklamalı bir testle kilitlendi.
+>
+> ➕ **PLAN DIŞI:** `ReadingMinutes` (sunucuda türetilen okuma süresi) · `NewsSyncHealth` ·
+> `NewsVisibility` (görünürlüğün tek sahibi — 12.13'ün panel sayacı da buradan geçecek) ·
+> `SetNewsFeaturedCommand` + `FeaturedUntil` · `TriggerNewsSyncCommand` (checklist §11'in
+> "kanalı elle dene" maddesi) · `NewsProjection.Select(includeContent)` — gövde listede
+> taşınmıyor ama **iki ayrı projeksiyon yazılmadı** (§7 madde 43).
+>
+> **Doğrulama (CANLI kaynak, gerçek Postgres):** ilk koşu **50 haber + 15 kategori**, 50/50
+> görsel aynalandı, 0 hata · ikinci koşu **0 mükerrer** (1 atlandı) · mutabakat 50 kimlik,
+> 0 `gone` · `/v1/news` göreli `/uploads/…` döndürüyor, görsel 200 · DB'de tehlikeli etiket
+> içeren **0** kayıt · `dotnet test` **991/991**.
+>
+> ⏭️ **SIRADAKİ: 12.13** — Haberler paneli (liste/ayrıntı/override · kategori görünürlüğü ·
+> senkron panosu + bayatlık kutusu). ⚠️ `PanelMenu.Items`'a "news" satırı eklendiğinde
+> `PanelDisplay.NonMatrixModules`'taki geçici `["news"] = "Haberler"` satırı **silinmeli**.
+>
+> ---
+
 > Son güncelleme: 11 Ağustos 2026 — **FAZ 12.11 TAMAMLANDI: moderasyon geçişinin tek sahipliği
 > bir TARAMADAN DERLEYİCİYE devredildi.**
 > Kod `Domain/Entities/{Ad,Campaign,DeathNotice,Event}.cs` (moderasyon alanları `init` + geçiş

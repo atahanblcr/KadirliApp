@@ -109,8 +109,10 @@ public static class DependencyInjection
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-        
+
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
+
+        AddNewsSource(services, cfg);
 
         services.AddHangfire((sp, c) => c.UsePostgreSqlStorage(o => o.UseNpgsqlConnection(PostgresConn(sp))));
         services.AddHangfireServer();
@@ -123,6 +125,52 @@ public static class DependencyInjection
             .AddHangfire(o => o.MinimumAvailableServers = 1, name: "hangfire", tags: new[] { "ready" });
 
         return services;
+    }
+
+    /// <summary>
+    /// Faz 12.12 — haber alım hattı (projedeki ilk dış <b>içerik</b> entegrasyonu).
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <c>IHttpClientFactory</c> + <b>adlandırılmış</b> istemciler: soket tükenmesi ve
+    /// DNS bayatlaması bu fabrikanın çözdüğü şeyler; ayrıca zaman aşımı ve <c>User-Agent</c>
+    /// gibi sözleşmeler tek yerde kalıyor.
+    /// ⚠️ <c>NewsSyncOptions</c> burada bağlanıyor çünkü Application <c>IConfiguration</c>
+    /// göremez (katman kuralı §1) — ama ayarın <b>anlamı</b> Application'da yaşıyor.
+    /// </remarks>
+    private static void AddNewsSource(IServiceCollection services, IConfiguration cfg)
+    {
+        services.AddHttpClient(News.WordPressNewsSourceClient.HttpClientName, http =>
+        {
+            http.Timeout = TimeSpan.FromSeconds(cfg.GetValue("News:Source:TimeoutSeconds", 30));
+            // Kaynak tarafında tanınabilir olalım: trafiğimiz sorulursa cevabı olsun.
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(
+                cfg["News:Source:UserAgent"] ?? "KadirliApp-Sync/1.0");
+        });
+
+        services.AddHttpClient(News.HttpNewsImageDownloader.HttpClientName, http =>
+        {
+            http.Timeout = TimeSpan.FromSeconds(cfg.GetValue("News:Images:TimeoutSeconds", 30));
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(
+                cfg["News:Source:UserAgent"] ?? "KadirliApp-Sync/1.0");
+        });
+
+        services.AddScoped<Application.Common.Interfaces.INewsSourceClient, News.WordPressNewsSourceClient>();
+        services.AddScoped<Application.Common.Interfaces.INewsImageDownloader, News.HttpNewsImageDownloader>();
+        services.AddSingleton<Application.Common.Interfaces.INewsHtmlSanitizer, News.NewsHtmlSanitizer>();
+        services.AddScoped<Application.Features.News.Services.NewsImageMirror>();
+
+        services.AddSingleton(new Application.Features.News.NewsSyncOptions
+        {
+            // 🔑 Derinlik yapılandırmadan: "ilk başta test edeceğiz" kararı 50'de duruyor,
+            // büyütmek için kod değişmiyor — geri imleç kaldığı yerden devam ediyor.
+            BackfillMaxPosts = cfg.GetValue("News:Backfill:MaxPosts", 50),
+            PageSize = Math.Clamp(cfg.GetValue("News:Source:PageSize", 100), 1, 100),
+            MaxPagesPerRun = cfg.GetValue("News:Source:MaxPagesPerRun", 20),
+            MirrorImages = cfg.GetValue("News:Images:Mirror", true)
+        });
+
+        services.AddScoped<Application.Common.Interfaces.INewsSyncService,
+            Application.Features.News.Services.NewsSyncService>();
     }
 
     public static void UseInfrastructureJobs(this IServiceProvider serviceProvider)
@@ -141,5 +189,9 @@ public static class DependencyInjection
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.PurgeLoginAttemptsJob>("purge-login-attempts", j => j.RunAsync(), Cron.Daily);
         // Faz 12.2b: okunmuş bildirimlerin saklama süresi (90 gün). Kampanya satırı KALIR.
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.PurgeNotificationsJob>("purge-notifications", j => j.RunAsync(), Cron.Daily);
+        // Faz 12.12: haber alımı. 15 dk, ölçülen üretime göre (~5 haber/gün) fazlasıyla yeter.
+        RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.SyncNewsJob>("sync-news", j => j.RunAsync(), "*/15 * * * *");
+        // Faz 12.12: silmeyi öğrenmenin TEK yolu — gecelik mutabakat (03:00).
+        RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.ReconcileNewsJob>("reconcile-news", j => j.RunAsync(), "0 3 * * *");
     }
 }

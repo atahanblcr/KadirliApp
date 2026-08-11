@@ -47,6 +47,12 @@ public class AppDbContext : DbContext
     public DbSet<TransportDeparturePoint> TransportDeparturePoints => Set<TransportDeparturePoint>();
     public DbSet<Mosque> Mosques => Set<Mosque>();
     public DbSet<Neighborhood> Neighborhoods => Set<Neighborhood>();
+    // Faz 12.12 — projedeki ilk DIŞ KAYNAK entegrasyonu (FCM/SMS dışında): haberler
+    // WordPress'ten alınıp buraya iner. Mobil kaynağa asla bağlanmaz.
+    public DbSet<NewsArticle> NewsArticles => Set<NewsArticle>();
+    public DbSet<NewsCategory> NewsCategories => Set<NewsCategory>();
+    public DbSet<NewsSyncRun> NewsSyncRuns => Set<NewsSyncRun>();
+    public DbSet<NewsSyncState> NewsSyncStates => Set<NewsSyncState>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<Pharmacy> Pharmacies => Set<Pharmacy>();
