@@ -297,7 +297,7 @@ public class NewsSyncService : INewsSyncService
     // ───────────────────────────── Upsert ────────────────────────────────────────────
 
     private async Task UpsertAsync(
-        NewsSourcePost post, NewsSyncRun run, Dictionary<int, NewsCategory> categories, CancellationToken ct)
+        NewsSourcePost post, NewsSyncRun run, NewsCategoryCache categories, CancellationToken ct)
     {
         var repo = _uow.Repository<NewsArticle>();
         var now = DateTime.UtcNow;
@@ -394,10 +394,13 @@ public class NewsSyncService : INewsSyncService
 
     // ───────────────────────────── Kategoriler ───────────────────────────────────────
 
-    private async Task<Dictionary<int, NewsCategory>> SyncCategoriesAsync(NewsSyncRun run, CancellationToken ct)
+    private async Task<NewsCategoryCache> SyncCategoriesAsync(NewsSyncRun run, CancellationToken ct)
     {
         var repo = _uow.Repository<NewsCategory>();
-        var known = await repo.Query(tracking: true).ToDictionaryAsync(x => x.WpId, ct);
+        var known = new NewsCategoryCache
+        {
+            Items = await repo.Query(tracking: true).ToDictionaryAsync(x => x.WpId, ct)
+        };
 
         IReadOnlyList<NewsSourceCategory> sourceCategories;
         try
@@ -420,7 +423,7 @@ public class NewsSyncService : INewsSyncService
 
         foreach (var source in sourceCategories)
         {
-            if (known.TryGetValue(source.WpId, out var existing))
+            if (known.Items.TryGetValue(source.WpId, out var existing))
             {
                 if (existing.Name != source.Name || existing.Slug != source.Slug || existing.ArticleCount != source.ArticleCount)
                     existing.ApplySourceSnapshot(source.Name, source.Slug, source.ArticleCount);
@@ -430,7 +433,7 @@ public class NewsSyncService : INewsSyncService
             var category = new NewsCategory { WpId = source.WpId };
             category.ApplySourceSnapshot(source.Name, source.Slug, source.ArticleCount);
             await repo.AddAsync(category, ct);
-            known[source.WpId] = category;
+            known.Items[source.WpId] = category;
         }
 
         await _uow.SaveChangesAsync(ct);
@@ -446,35 +449,88 @@ public class NewsSyncService : INewsSyncService
     /// için <b>bir daha asla düzelmezdi</b>. Bu yüzden sözlük koşu içinde <b>bir kez</b> tazelenir.
     /// </remarks>
     private async Task<List<NewsCategory>> ResolveCategoriesAsync(
-        IReadOnlyList<int> wpIds, Dictionary<int, NewsCategory> categories, NewsSyncRun run, CancellationToken ct)
+        IReadOnlyList<int> wpIds, NewsCategoryCache categories, NewsSyncRun run, CancellationToken ct)
     {
-        var missing = wpIds.Where(id => !categories.ContainsKey(id)).ToList();
+        var missing = wpIds.Where(id => !categories.Items.ContainsKey(id)).ToList();
+
+        // 🐛 12.12 sonrası denetim bulgusu: burada eskiden bayrak YOKTU ve metodun kendi
+        // yorumu "koşu içinde bir kez tazelenir" diyordu — yani yorum yalan söylüyordu.
+        // Kaynakta gizlenmiş/silinmiş bir kategori kimliği (public `/categories` yalnız
+        // görünenleri döndürür) o kimliği taşıyan HER haber için yeni bir HTTP isteği +
+        // SaveChanges tetikliyordu: 50 haber → 50 fazladan istek, 500 → 500.
+        if (missing.Count > 0 && !categories.Refreshed)
+        {
+            categories.Refreshed = true;
+            var refreshed = await SyncCategoriesAsync(run, ct);
+            foreach (var (key, value) in refreshed.Items)
+                categories.Items[key] = value;
+
+            missing = wpIds.Where(id => !categories.Items.ContainsKey(id)).ToList();
+        }
+
         if (missing.Count > 0)
         {
-            var refreshed = await SyncCategoriesAsync(run, ct);
-            foreach (var (key, value) in refreshed)
-                categories[key] = value;
+            // Tazelemeden SONRA hâlâ tanınmayan kimlik: kaynakta gizli/silinmiş bir kategori.
+            // Sessizce atlanmıyor — haber yine iniyor ama bağ kurulamadığı log'a düşüyor,
+            // yoksa "kategorisiz görünen haber"in sebebi hiçbir yerde olmazdı.
+            _log.LogWarning(
+                "Haber senkronu: sözlükte olmayan kategori kimlikleri atlandı: {Ids}",
+                string.Join(", ", missing));
         }
 
         return wpIds
-            .Where(categories.ContainsKey)
-            .Select(id => categories[id])
+            .Where(categories.Items.ContainsKey)
+            .Select(id => categories.Items[id])
             .Distinct()
             .ToList();
     }
 
+    /// <summary>
+    /// Koşu boyunca taşınan kategori sözlüğü + <b>"bu koşuda tazelendi mi?"</b> bayrağı.
+    /// </summary>
+    /// <remarks>
+    /// Bayrağın sınıfa değil <b>koşuya</b> ait olması bilinçli: servis scoped olsa da tek bir
+    /// scope içinde birden çok koşu çalışabilir (artımlı koşu boş imleçte arşiv koşusuna düşer).
+    /// Alan olarak tutulsaydı ikinci koşu sözlüğü hiç tazelemezdi.
+    /// </remarks>
+    private sealed class NewsCategoryCache
+    {
+        public Dictionary<int, NewsCategory> Items { get; init; } = new();
+        public bool Refreshed { get; set; }
+    }
+
     // ───────────────────────────── Koşu defteri ──────────────────────────────────────
 
+    /// <summary>
+    /// İmleç satırını getirir; yoksa açar. <b>Her zaman tek satır</b> (unique indeks).
+    /// </summary>
+    /// <remarks>
+    /// 🐛 12.12 sonrası denetim bulgusu: iki farklı iş (15 dk'lık senkron + 03:00 mutabakatı)
+    /// boş durumda aynı anda başlayıp <b>iki satır</b> açabiliyordu ve o andan sonra ileri
+    /// imleç koşular arasında zıplıyordu. Kısıt veritabanına kondu; buradaki yakalama ise
+    /// yarışı kaybeden koşunun <b>düşmemesi</b> için: satırı rakibi açtıysa onu okur.
+    /// </remarks>
     private async Task<NewsSyncState> LoadStateAsync(CancellationToken ct)
     {
         var repo = _uow.Repository<NewsSyncState>();
-        var state = await repo.Query(tracking: true).FirstOrDefaultAsync(ct);
+        var state = await repo.Query(tracking: true).SingleOrDefaultAsync(ct);
         if (state is not null) return state;
 
         state = new NewsSyncState();
         await repo.AddAsync(state, ct);
-        await _uow.SaveChangesAsync(ct);
-        return state;
+
+        try
+        {
+            await _uow.SaveChangesAsync(ct);
+            return state;
+        }
+        catch (DbUpdateException)
+        {
+            // Yarışı kaybettik: satırı diğer iş açtı. Kendi (kaydedilememiş) örneğimizi
+            // bırakıp onunkini okuyoruz — iki koşu da aynı imleci paylaşmak zorunda.
+            _uow.Repository<NewsSyncState>().Remove(state);
+            return await repo.Query(tracking: true).SingleAsync(ct);
+        }
     }
 
     private async Task<NewsSyncRun> StartRunAsync(string mode, string trigger, Guid? triggeredBy, CancellationToken ct)

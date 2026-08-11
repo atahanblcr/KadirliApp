@@ -156,7 +156,12 @@ public static class DependencyInjection
 
         services.AddScoped<Application.Common.Interfaces.INewsSourceClient, News.WordPressNewsSourceClient>();
         services.AddScoped<Application.Common.Interfaces.INewsImageDownloader, News.HttpNewsImageDownloader>();
-        services.AddSingleton<Application.Common.Interfaces.INewsHtmlSanitizer, News.NewsHtmlSanitizer>();
+        // ⚠️ Scoped, Singleton DEĞİL: `Ganss.Xss.HtmlSanitizer` örneği iş parçacığı-güvenli
+        // sayılmaz. Bugün tek koşu `DisableConcurrentExecution` ile serileşiyor ama 12.13'ün
+        // "Senkronu başlat" butonu zamanlanmış koşuyla ÇAKIŞABİLİR — ve bozulma biçimi
+        // istisna değil, sessizce karışmış/eksik temizlenmiş gövde olurdu. Nesne kurulumu
+        // yalnız beyaz liste kopyalaması; maliyeti ihmal edilebilir.
+        services.AddScoped<Application.Common.Interfaces.INewsHtmlSanitizer, News.NewsHtmlSanitizer>();
         services.AddScoped<Application.Features.News.Services.NewsImageMirror>();
 
         services.AddSingleton(new Application.Features.News.NewsSyncOptions

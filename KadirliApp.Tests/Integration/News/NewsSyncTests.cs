@@ -575,4 +575,81 @@ public class NewsSyncTests : IAsyncLifetime
             visible.Should().BeEquivalentTo(new[] { 401 });
         });
     }
+
+    // ───────────────────── 12.12 sonrası denetim bulgularının kilitleri ─────────────
+
+    /// <summary>
+    /// 🐛 <b>Denetim bulgusu 1.</b> Sözlükte olmayan bir kategori kimliği (kaynakta gizlenmiş
+    /// ya da silinmiş bir kategori — public <c>/categories</c> yalnız görünenleri döndürür)
+    /// eskiden o kimliği taşıyan <b>her haber için</b> yeni bir HTTP isteği tetikliyordu:
+    /// 50 haber → 50 fazladan istek. Metodun kendi yorumu "koşu içinde bir kez tazelenir"
+    /// diyordu ama bunu sağlayan bayrak <b>yoktu</b> — yani yorum yalan söylüyordu.
+    /// </summary>
+    [Fact]
+    public async Task UnknownCategoryId_RefreshesTheDictionaryOnlyOncePerRun()
+    {
+        var source = SourceWith(
+            Post(501, categories: 999),
+            Post(502, categories: 999),
+            Post(503, categories: 999));
+
+        var before = source.CategoryRequests;
+
+        await WithSyncAsync(source, async (sync, db) =>
+        {
+            await sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None);
+
+            // Haberler yine iniyor — tanınmayan kategori kaydı düşürmüyor.
+            (await db.NewsArticles.CountAsync(x => x.WpId >= 501 && x.WpId <= 503)).Should().Be(3);
+            return true;
+        });
+
+        (source.CategoryRequests - before).Should().BeLessThanOrEqualTo(2,
+            "koşu başında bir kez + tanınmayan kimlik için EN FAZLA bir kez tazelenmeli; " +
+            "post başına tazeleme 500 haberde 500 fazladan istek demektir");
+    }
+
+    /// <summary>
+    /// 🐛 <b>Denetim bulgusu 3.</b> <c>news_sync_state</c> "tek satır" olmalı ama bunu
+    /// garanti eden bir şey yoktu: <c>SyncNewsJob</c> (15 dk, yani 03:00'te de) ile
+    /// <c>ReconcileNewsJob</c> (03:00) boş durumda aynı anda başlarsa <b>iki satır</b> doğar
+    /// ve o andan sonra ileri imleç koşular arasında <b>ileri-geri zıplar</b> — aradaki
+    /// haberler atlanır, hiçbir hata oluşmaz. <c>DisableConcurrentExecution</c> yalnız
+    /// <b>aynı</b> işi korur, iki farklı işi değil.
+    /// </summary>
+    [Fact]
+    public async Task SyncState_CanNeverHaveASecondRow()
+    {
+        var source = SourceWith(Post(511));
+        await WithSyncAsync(source, (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None));
+
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            (await db.NewsSyncStates.CountAsync()).Should().Be(1);
+
+            db.NewsSyncStates.Add(new NewsSyncState());
+
+            var act = async () => await db.SaveChangesAsync();
+            await act.Should().ThrowAsync<DbUpdateException>(
+                "ikinci imleç satırı veritabanı seviyesinde imkânsız olmalı");
+        });
+    }
+
+    /// <summary>Mutabakat ile senkron aynı satırı paylaşmalı — imleç tek olmalı.</summary>
+    [Fact]
+    public async Task ReconcileAndSync_ShareTheSameCursorRow()
+    {
+        var source = SourceWith(Post(521));
+
+        await WithSyncAsync(source, (sync, _) => sync.ReconcileAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None));
+        await WithSyncAsync(source, (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None));
+
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            (await db.NewsSyncStates.CountAsync()).Should().Be(1);
+            (await db.NewsSyncStates.SingleAsync()).ForwardCursorUtc.Should().NotBeNull();
+        });
+    }
 }

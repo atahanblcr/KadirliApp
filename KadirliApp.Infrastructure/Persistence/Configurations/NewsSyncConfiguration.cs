@@ -31,5 +31,9 @@ public class NewsSyncStateConfiguration : IEntityTypeConfiguration<NewsSyncState
         b.ToTable("news_sync_state");
         b.HasKey(x => x.Id);
         b.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+
+        // 🔑 "Tek satır" bir yorum değil, bir KISIT: iki iş boş durumda aynı anda başlarsa
+        // ikinci INSERT bu indekse takılır (bkz. NewsSyncState.Singleton).
+        b.HasIndex(x => x.Singleton).IsUnique();
     }
 }

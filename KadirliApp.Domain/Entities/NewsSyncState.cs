@@ -13,6 +13,21 @@ namespace KadirliApp.Domain.Entities;
 public class NewsSyncState : BaseEntity
 {
     /// <summary>
+    /// 🐛 <b>Tek satır garantisinin veritabanı ayağı</b> (12.12 sonrası denetim bulgusu).
+    /// Değeri her zaman <c>1</c>; üzerindeki <b>unique indeks</b> ikinci bir satırın
+    /// açılmasını imkânsız kılar.
+    /// </summary>
+    /// <remarks>
+    /// Neden gerekti: <c>SyncNewsJob</c> (15 dakikada bir, yani 03:00'te de koşar) ile
+    /// <c>ReconcileNewsJob</c> (03:00) <b>boş durumda aynı anda</b> başlarsa ikisi de satırı
+    /// bulamayıp kendi satırını açardı. <c>DisableConcurrentExecution</c> yalnız <b>aynı</b>
+    /// işi korur, iki farklı işi değil. O andan sonra <c>FirstOrDefault</c> rastgele birini
+    /// seçer ve ileri imleç koşular arasında <b>ileri-geri zıplar</b>: aradaki haberler
+    /// atlanır, hiçbir hata oluşmaz, panelde hiçbir belirti olmaz.
+    /// </remarks>
+    public int Singleton { get; init; } = 1;
+
+    /// <summary>
     /// İleri imleç: bu ana kadar olan değişiklikleri aldık (UTC, <c>modified_gmt</c>'den).
     /// <c>null</c> = hiç koşmadık → artımlı iş önce <b>arşiv derinleştirmesine</b> düşer.
     /// </summary>

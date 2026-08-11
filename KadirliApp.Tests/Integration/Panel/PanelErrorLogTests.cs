@@ -228,7 +228,12 @@ public class PanelErrorLogTests : IAsyncLifetime
             .Where(e => e.Message.Contains(_marker)).SumAsync(e => e.OccurrenceCount));
 
         // Yazıcı eşzamansız — satırın gelmesini bekle (sabit gecikme yerine koşul).
-        for (var i = 0; i < 100; i++)
+        // ⚠️ Tavan 12.12 sonrası 5 sn'den 15 sn'ye çıkarıldı: koşullu bekleme doğru desendi
+        // ama tavanı YÜKE göre değil sezgiye göre seçilmişti. Süit 995 teste ve haber senkron
+        // testleri de aynı (tek örnekli) yazıcıya olay basmaya başlayınca bu test dolu süitte
+        // bir kez kırıldı, tek başına koştuğunda 1 sn'de geçti. Tavanı yükseltmek testi
+        // yavaşlatmaz — yalnız BAŞARISIZLIK anında beklenen süreyi uzatır.
+        for (var i = 0; i < 300; i++)
         {
             var current = await QueryDbAsync(db => db.ErrorLogs
                 .Where(e => e.Message.Contains(_marker)).SumAsync(e => e.OccurrenceCount));

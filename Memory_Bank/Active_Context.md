@@ -83,6 +83,22 @@
 > 0 `gone` · `/v1/news` göreli `/uploads/…` döndürüyor, görsel 200 · DB'de tehlikeli etiket
 > içeren **0** kayıt · `dotnet test` **991/991**.
 >
+> 🔎 **12.12 SONRASI GERİYE DÖNÜK DENETİM (aynı gün, kullanıcı isteği): 11 bulgu.**
+> Üç **yüksek** bulgu aynı oturumda kapatıldı, kalanlar 12.13'e yazıldı (`Progress.md`).
+> 1. `ResolveCategoriesAsync` **her postta** sözlüğü tazeliyordu — metodun kendi yorumu "bir kez"
+>    diyordu, yani **yorum yalan söylüyordu**; tanınmayan tek bir kategori kimliği 500 haberde
+>    500 fazladan HTTP isteği demekti. → koşuya ait `NewsCategoryCache` + bayrak + uyarı logu.
+> 2. `NewsHtmlSanitizer` **Singleton**'dı; `Ganss.Xss` örneği iş parçacığı-güvenli sayılmaz ve
+>    **12.13'ün "Senkronu başlat" butonu** zamanlanmış koşuyla çakışabilirdi → `AddScoped`.
+> 3. `news_sync_state` "tek satır" idi ama **kısıtı yoktu**: 03:00'te senkron + mutabakat aynı
+>    anda başlarsa iki satır doğar ve ileri imleç **zıplar**. → `Singleton` kolonu + unique
+>    indeks. 🐛 **Migration'ın kendisi ikinci tuzağı taşıyordu:** EF varsayılanı `0` üretmişti
+>    (eski satır 0, yeni satır 1 → çakışma yok, kısıt **sessizce etkisiz**); düzeltildi.
+> 📌 Bozma denemesi: indeksi **EF modelinden** silmek testi kırmadı, **migration'dan** silmek
+> kırdı — koruma veritabanında yaşıyor ve test doğru yere bakıyor.
+> 🧪 Ayrıca süitte **flaky** bir test yakalandı (`PanelErrorLogTests`): koşullu bekleme doğru
+> desendi ama tavanı (5 sn) süit büyüdükçe çürümüştü → 15 sn. **995/995 yeşil.**
+>
 > ⏭️ **SIRADAKİ: 12.13** — Haberler paneli (liste/ayrıntı/override · kategori görünürlüğü ·
 > senkron panosu + bayatlık kutusu). ⚠️ `PanelMenu.Items`'a "news" satırı eklendiğinde
 > `PanelDisplay.NonMatrixModules`'taki geçici `["news"] = "Haberler"` satırı **silinmeli**.

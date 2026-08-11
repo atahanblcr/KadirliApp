@@ -3904,6 +3904,113 @@ kapak görseli `uploads/` altında ve DTO **göreli URL** dönüyor · kaynak 50
 
 ---
 
+### 🔎 12.12 SONRASI GERİYE DÖNÜK DENETİM (11 Ağustos 2026) — 12.13'te giderilecek
+
+> Kullanıcı isteğiyle, 12.12 commit'lendikten **sonra** kendi kodumuza yapılan statik denetim.
+> Hiçbiri canlıda hasar üretmedi (50 haberlik ölçekte görünmezler) — **hepsi 27k ölçeğinde ya da
+> 12.13'ün elle tetikleme butonu geldiğinde açılacak kapılar.** Sıra önem sırasıdır.
+
+> ✅ **Yüksek olan üçü aynı oturumda kapatıldı** (aşağıda ✅ ile işaretli); orta/düşük olanlar
+> ve ön koşullar 12.13'e kaldı. **995 test yeşil.**
+
+#### 🔴 Yüksek — gerçek hata, sessiz — ✅ KAPATILDI
+
+1. **`ResolveCategoriesAsync` "bir kez" demiyor, HER POSTTA yapıyor.** Metodun kendi yorumu
+   *"sözlük koşu içinde bir kez tazelenir"* diyor ama kodda bunu sağlayan bir bayrak **yok**:
+   tanınmayan bir kategori kimliği varsa (kaynakta silinmiş/gizlenmiş bir kategori — mümkün,
+   çünkü `/categories` yalnız *public* olanları döndürür) o kimliği taşıyan **her haber için**
+   yeni bir HTTP isteği + `SaveChanges` atılır. 50 haberde 50 fazladan istek; 500'de 500.
+   🔑 Asıl mesele performans değil: **yorum yalan söylüyor** ve bu projede yalan söyleyen yorum
+   bir sonraki okuyanı yanlış yönlendirir.
+   ✅ **Çözüldü:** sözlük artık koşu boyunca taşınan bir `NewsCategoryCache` (sözlük + "bu
+   koşuda tazelendi mi?" bayrağı); bayrak sınıf alanı **değil** çünkü tek scope'ta birden çok
+   koşu olabiliyor (artımlı koşu boş imleçte arşiv koşusuna düşüyor). Tazelemeden sonra hâlâ
+   tanınmayan kimlik **uyarı olarak** log'a düşüyor — haber yine iniyor ama "kategorisiz haber"in
+   sebebi artık bir yerde yazılı. Kilit: `UnknownCategoryId_RefreshesTheDictionaryOnlyOncePerRun`
+   (bayrağı kaldırınca 3 haber için **4 istek** ölçüldü → kırmızı).
+2. **`NewsHtmlSanitizer` Singleton — ama `Ganss.Xss.HtmlSanitizer` thread-safe değil.**
+   Bugün zararsız görünüyor (`SyncNewsJob` `DisableConcurrentExecution` ile serileşiyor), ama
+   **12.13'ün "Senkronu başlat" butonu** zamanlanmış koşuyla **aynı anda** çalışabilir → iki
+   iş aynı temizleyici örneğini paylaşır. Bozulma biçimi tam bu bloğun savaştığı türden:
+   istisna değil, **karışmış/eksik temizlenmiş gövde**. → `AddScoped`/`AddTransient`
+   (maliyeti ihmal edilebilir; nesne kurulumu yalnız beyaz liste kopyalaması).
+3. **`news_sync_state` "tek satır" ama bunu garanti eden bir şey yok.** `LoadStateAsync`
+   satır yoksa yaratıyor; **`SyncNewsJob` (15 dk, yani 03:00'te de) ile `ReconcileNewsJob`
+   (03:00) boş durumda aynı anda başlarsa iki satır doğar** ve `FirstOrDefaultAsync` bundan
+   sonra rastgele birini seçer → ileri imleç iki koşu arasında **ileri-geri zıplar**, aradaki
+   haberler atlanır, hiçbir hata oluşmaz. `DisableConcurrentExecution` yalnız **aynı** işi
+   korur, iki farklı işi değil.
+   ✅ **Çözüldü:** `NewsSyncState.Singleton` (her zaman 1) + **unique indeks** (migration
+   `AddNewsSyncStateSingletonGuard`) + `SingleOrDefault` + yarışı kaybedenin satırı **okuması**.
+   🐛 **Migration'ın kendisi ikinci bir tuzak taşıyordu:** EF varsayılanı `0` üretmişti, yani
+   var olan satır `0`, yeni eklenen satır `1` olurdu → iki farklı değer, unique indeks
+   **çakışmaz**, kısıt sessizce etkisiz kalırdı. Varsayılan `1`'e çekildi, var olan satır
+   güncellendi ve fazladan satır varsa **en eskisi** korunacak şekilde temizlendi.
+   Kilit: `SyncState_CanNeverHaveASecondRow` + `ReconcileAndSync_ShareTheSameCursorRow`.
+   📌 Bozma denemesi ders verdi: indeksi **EF yapılandırmasından** kaldırmak testi kırmadı
+   (koruma veritabanında, migration'da yaşıyor); **migration'daki** `unique: true` kaldırılınca
+   kırmızıya döndü — yani test doğru yere bakıyor.
+
+#### 🟠 Orta — 27k ölçeğinde acıtır (bugün 50 kayıt var, görünmüyor)
+
+4. **Arama indeksi işe yaramıyor ve yapılandırmadaki yorum bunun tersini söylüyor.**
+   Sorgu `x.SourceTitle.ToLower().Contains(s)` → SQL'de `lower(...) LIKE '%s%'`; bir **btree**
+   indeksi bu ikisinin hiçbirini karşılayamaz. Yani `ix_news_articles_source_title` bugün
+   yalnız *sıralama* için var, "arama çıpası" değil. Üstelik arama **`SourcePlainText`**'te de
+   dönüyor: 27k × ~2 KB ≈ **55 MB metinde tam tarama**, üstelik her tuş vuruşunda (mobil
+   arama alanı `Debouncer`'lı ama yine de). → `pg_trgm` + GIN indeksi ya da `tsvector`;
+   hangisi olursa olsun **yorum düzeltilmeli** (bugün yanlış bilgi veriyor).
+5. **`GetNewsCategoriesQuery` kategori başına korelasyonlu alt sorgu üretiyor**
+   (`visible.Count(a => a.Categories.Any(...))` → 15 ayrı `COUNT`). 15 dk önbellekli ama
+   önbelleği **her senkron temizliyor**, yani pratikte 15 dakikada bir 27k satır üzerinde
+   15 alt sorgu. → tek `GROUP BY` ile sayım.
+6. **Detay önbelleği anahtar sayısı sınırsız:** `news:detail:{id}` haber başına bir Redis
+   anahtarı ve hepsi `news` grubuna yazılıyor; grup kümesi 27k anahtara kadar büyüyebilir ve
+   her invalidation onu dolaşır. Diğer modüllerde kayıt sayısı küçük olduğu için bu desen
+   bugüne kadar sorun çıkarmadı. → detayı hiç önbelleklememek (liste zaten önbellekli) ya da
+   TTL'i kısaltmak; karar 12.13'te ölçüyle verilmeli.
+
+#### 🟡 Düşük — not düşülmeli, aciliyeti yok
+
+7. **`NewsImageMirror` PAYLAŞILAN `IUnitOfWork` üzerinde `SaveChanges` çağırıyor.** İki yan
+   etkisi var: (a) partinin yarısını erken commit ediyor (zararsız ama "parti" semantiğini
+   bozuyor), (b) o `SaveChanges` **başka bir varlığın** hatasıyla patlarsa hata burada
+   yakalanıp *"Haber görseli kaydedilemedi"* diye **yanlış** loglanıyor. → dosya kaydı ayrı
+   bir işlem/scope'ta ya da yalnız `Add` + partiyle birlikte kaydetme.
+8. **`GetPublishedIdWindowAsync` döngüsünde sayfa tavanı yok** (`MaxPagesPerRun` yalnız
+   senkron döngülerinde uygulanıyor). `News:Backfill:MaxPosts` yanlışlıkla büyük yazılırsa
+   mutabakat binlerce istek atar. → aynı tavanı buraya da geçir.
+9. **`?featured=false` sessizce yok sayılıyor** (yalnız `true` süzüyor). Bilinçliyse
+   dokümante edilmeli, değilse "öne çıkmayanlar" süzgeci eklenmeli.
+10. **`HttpNewsImageDownloader` yönlendirme takip ediyor ve iç ağ adresine karşı kapısı yok.**
+    Kaynak bizim ama indirici "doğrulanmamış" sayılmalı: kaynak bir gün ele geçirilirse
+    `source_url` bulut metadata adresini (169.254.169.254) gösterebilir. → yönlendirme sonrası
+    host denetimi (yalnız kaynağın alan adı) ya da `AllowAutoRedirect = false`.
+11. **`News:Backfill:MaxPosts` adı beklentiyi yanlış kuruyor.** Arşiv derinleştirmesi
+    `remaining = MaxPosts - TOPLAM haber sayısı` hesaplıyor; artımlı senkron yeni haber
+    ekledikçe **arşiv derinliği sessizce sığlaşıyor** (ayar "arşiv derinliği" değil "toplam
+    kayıt tavanı" gibi davranıyor). Karar bilinçli olabilir ama **belgelenmeli**, yoksa 12.13'te
+    "derinliği 200 yaptım, 50 haber geldi" sürprizi olur.
+
+#### 🧪 Ek bulgu: süitte flaky bir test (12.12'nin tetiklediği, ✅ kapatıldı)
+
+- **`PanelErrorLogTests` dolu süitte bir kez kırıldı, tek başına 1 sn'de geçiyordu.**
+  Sebep: `WriteThroughSinkAsync` eşzamansız yazıcıyı **koşulla** bekliyor (doğru desen) ama
+  tavanı 5 sn'ydi ve bu tavan **yüke göre değil sezgiye göre** seçilmişti. 12.12'nin haber
+  senkron testleri aynı tek örnekli yazıcıya olay basmaya başlayınca tavan yetmedi.
+  ✅ Tavan 15 sn'ye çıkarıldı — testi yavaşlatmaz, yalnız **başarısızlık** anında beklenen
+  süreyi uzatır. 🔑 Ders: "sabit gecikme yerine koşul" yetmiyor, **koşulun tavanı da**
+  süitin büyümesiyle çürüyen bir sayı.
+
+#### 📌 12.13'ün ön koşulları (bulgu değil, reçetenin atlanmış adımları)
+
+- **`news` izni `permissions` tablosuna eklenmedi** (§4 reçete adım 8) — admin API/panel
+  eklendiğinde moderatör 403 alır. Migration ya da seed ile eklenmeli, rollere dağıtılmalı.
+- **`PanelDisplay.NonMatrixModules`'taki geçici `["news"] = "Haberler"` satırı**, menüye
+  "news" satırı eklendiği anda **ölü koda** döner → silinmeli.
+
+---
+
 ### 12.13 — Haberler: panel — [ ]
 
 > 📌 **Bu alt-fazın tasarımı bir Agent tartışmasından çıktı** (11 Ağustos 2026, kullanıcı isteği).

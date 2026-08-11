@@ -22,6 +22,9 @@ public class FakeNewsSource : INewsSourceClient
     /// <summary>Kaç kez sayfa istendi (mükerrer çekişi görmek için).</summary>
     public int PostRequests { get; private set; }
 
+    /// <summary>Kaç kez kategori sözlüğü istendi — "post başına tazeleme" bulgusunun ölçüsü.</summary>
+    public int CategoryRequests { get; private set; }
+
     /// <summary>
     /// Sıradaki <b>gönderi</b> isteğini patlat — "bir sayfanın hatası koşuyu düşürmez" iddiası için.
     /// </summary>
@@ -83,6 +86,7 @@ public class FakeNewsSource : INewsSourceClient
             throw new HttpRequestException("Haber kaynağı kategori isteğinde 520 döndü (sahte).");
         }
 
+        CategoryRequests++;
         return Task.FromResult<IReadOnlyList<NewsSourceCategory>>(Categories);
     }
 
