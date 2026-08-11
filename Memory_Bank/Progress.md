@@ -3329,8 +3329,19 @@ güçlendirildi → kırmızı** · canlı panelde dört modülde doğrulandı.
   faz sonunda tek blokaj o olur. Abonelik gelmezse 12.8 Apple butonunu **bayrak kapalı**
   yazar ve yayın kontrol listesine "açılacak" maddesi düşer.
 - 🤖 **Play bekleyenler:** `keytool` ile yayın anahtarı + Play Console hesabı → internal test.
-- 🧹 **Küçük borç:** `a165a62` commit'i `git add -A` yüzünden `uploads/` altına 35 test artığı
-  almış. Faza bağlı değil, herhangi bir oturumda `git rm --cached` ile temizlenebilir.
+- ✅ **Küçük borç (`uploads/` test artıkları) — ZATEN ÖDENMİŞ, listeden düştü.**
+  *(11 Ağu 2026'da denetlendi.)* Madde `a165a62`'nin `git add -A`'sıyla giren 35 artığı
+  işaret ediyordu ve çözümü `git rm --cached` diye yazıyordu. **İkisi de bayat:**
+  `fe062de` (5 Ağu 2026, *"uploads/ takipten cikarildi + 50 yetim test artigi silindi"*)
+  hem 36 dosyayı takipten çıkardı hem **`.gitignore`'a kapı koydu**.
+  Bugünkü kanıt: `git ls-files uploads/` → **0 dosya**.
+  🔑 **Bu maddenin kendisi, bu bölümün başındaki uyarının canlı örneği oldu:** madde kapandı,
+  listeden düşmedi, iki plan turu boyunca *"hâlâ açık"* diye taşındı. `.gitignore`'daki notun
+  dersi de aynı sınıftan ve daha genel: **`4085a96` ilk 39 artığı sildi ama kapı koymadı**,
+  altı gün sonra `a165a62` 35 yenisini geri doldurdu — *kapı olmadan silmek işe yaramıyor.*
+  📌 Yerel diskteki `uploads/` (185 dosya, 740 KB, hepsi test artığı deseninde) **git'te
+  değil** — repoyu etkilemiyor. Klasörü `LocalFileStorageService` kendisi oluşturuyor;
+  silmek isteğe bağlı bir geliştirici makinesi temizliğidir, faz işi değil.
 
 ### 📥 9 Ağustos 2026 — dış analiz (Gemini CLI) maddelerinin denetimi
 
