@@ -48,8 +48,8 @@ public class RejectDeathNoticeCommandHandler : IRequestHandler<RejectDeathNotice
         var notice = await repo.GetByIdAsync(request.Id, cancellationToken);
         if (notice == null) return false;
 
-        // Faz 12.10: kuralın tek sahibi DeathNoticeModeration.
-        DeathNoticeModeration.Reject(notice, request.Reason, DateTime.UtcNow);
+        // Faz 12.10: kuralın tek sahibi varlığın kendisi (Faz 12.11).
+        notice.Reject(request.Reason);
 
         repo.Update(notice);
         await _uow.SaveChangesAsync(cancellationToken);

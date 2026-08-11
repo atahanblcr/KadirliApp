@@ -1,22 +1,27 @@
 using FluentAssertions;
-using KadirliApp.Application.Features.Ads;
-using KadirliApp.Application.Features.Campaigns;
-using KadirliApp.Application.Features.Deaths;
-using KadirliApp.Application.Features.Events;
 using KadirliApp.Domain.Entities;
 using Xunit;
 
 namespace KadirliApp.Tests.Unit.Application.Moderation;
 
 /// <summary>
-/// Faz 12.10 — dört moderasyonlu modülün <b>geçiş sınıflarının</b> saf testleri
+/// Faz 12.10/12.11 — dört moderasyonlu varlığın <b>geçiş metotlarının</b> saf testleri
 /// (<c>AdSubmissionRules</c> / <c>OperatingDays</c> deseni: container yok, milisaniyeler).
 /// </summary>
 /// <remarks>
+/// <para>
 /// Bu testler kuralın <i>kendisini</i> kilitliyor; <c>PanelModerationOwnershipTests</c>
 /// ise komutların gerçekten buraya delege ettiğini ve ikinci yolun kapandığını
 /// gerçek Postgres üzerinde kanıtlıyor. İkisi ayrı olmak zorunda: kuralı doğru yazıp
 /// handler'a <b>bağlamayı unutmak</b> mümkün ve o durumda yalnız bu dosya yeşil kalır.
+/// </para>
+/// <para>
+/// 📌 <b>12.11'de dosya taşınmadı, çağrılar değişti.</b> Kurallar
+/// <c>Application/Features/…/…Moderation.cs</c> saf sınıflarından <b>varlığın kendisine</b>
+/// taşındı: alanlar <c>init</c> olduğu için tek sahiplik artık bir dosya taramasına değil
+/// <b>derleyiciye</b> dayanıyor. Testin iddiaları birebir aynı kaldı — taşımanın davranışı
+/// değiştirmediğinin kanıtı da bu.
+/// </para>
 /// </remarks>
 public class ModerationTransitionTests
 {
@@ -31,10 +36,10 @@ public class ModerationTransitionTests
     {
         var ad = new Ad { Status = "expired", ExpiresAt = Now.AddDays(-3) };
 
-        AdModeration.Approve(ad, Admin, Now);
+        ad.Approve(Admin, Now);
 
         ad.Status.Should().Be("approved");
-        ad.ExpiresAt.Should().Be(Now.AddDays(AdModeration.PublishDays));
+        ad.ExpiresAt.Should().Be(Now.AddDays(Ad.PublishDays));
     }
 
     /// <summary>
@@ -46,7 +51,7 @@ public class ModerationTransitionTests
     {
         var ad = new Ad { Status = "pending", ExpiresAt = Now.AddMinutes(-1) };
 
-        AdModeration.Approve(ad, Admin, Now);
+        ad.Approve(Admin, Now);
 
         ad.ExpiresAt.Should().BeAfter(Now);
     }
@@ -61,7 +66,7 @@ public class ModerationTransitionTests
         var expires = Now.AddDays(10);
         var ad = new Ad { Status = "pending", ExpiresAt = expires };
 
-        AdModeration.Approve(ad, Admin, Now);
+        ad.Approve(Admin, Now);
 
         ad.ExpiresAt.Should().Be(expires);
     }
@@ -78,7 +83,7 @@ public class ModerationTransitionTests
             RejectedAt = Now.AddDays(-1)
         };
 
-        AdModeration.Approve(ad, Admin, Now);
+        ad.Approve(Admin, Now);
 
         ad.RejectedReason.Should().BeNull();
         ad.RejectedAt.Should().BeNull();
@@ -98,7 +103,7 @@ public class ModerationTransitionTests
             ApprovedAt = Now.AddDays(-2)
         };
 
-        AdModeration.Reject(ad, "Iletisim bilgisi eksik", Now);
+        ad.Reject("Iletisim bilgisi eksik", Now);
 
         ad.Status.Should().Be("rejected");
         ad.RejectedReason.Should().Be("Iletisim bilgisi eksik");
@@ -114,9 +119,69 @@ public class ModerationTransitionTests
         var expires = Now.AddDays(4);
         var ad = new Ad { Status = "pending", ExpiresAt = expires };
 
-        AdModeration.Reject(ad, null, Now);
+        ad.Reject(null, Now);
 
         ad.ExpiresAt.Should().Be(expires);
+    }
+
+    // ── İlan: uzatma (12.11'de bulunan BEŞİNCİ yazma yolu) ─────────────────────
+
+    /// <summary>
+    /// 🔴 <b>12.11'in bulgusu.</b> Bu geçiş <c>ExtendMyAdCommandHandler</c>'ın içinde ham
+    /// <c>ad.Status = "approved"</c> olarak yazılıydı ve 12.10'un yapısal testi onu
+    /// <b>hiç görmüyordu</b> (test yalnız <c>Update*</c>/<c>Approve*</c>/<c>Reject*</c>/
+    /// <c>Archive*</c> dosyalarını tarıyor). Yani "moderasyon durumunun tek sahibi var"
+    /// güvencesi bu yolda <i>tesadüfen</i> doğruydu, kurala dayanarak değil.
+    /// </summary>
+    [Fact]
+    public void AdExtend_BringsAnExpiredAdBackToApproved()
+    {
+        var ad = new Ad { Status = "expired", ExpiresAt = Now.AddDays(-3) };
+
+        ad.Extend(30, Now);
+
+        ad.Status.Should().Be("approved");
+        ad.ExpiresAt.Should().Be(Now.AddDays(30));
+        ad.ExtensionCount.Should().Be(1);
+    }
+
+    /// <summary>
+    /// Ters yön: uzatma <b>moderasyon kararı değildir</b>. Onay izi yazmak "bu ilanı falanca
+    /// yönetici onayladı" diye yalan söylerdi; izi silmek ise gerçek onay bilgisini
+    /// kaybettirirdi. İlan <c>expired</c>'a yalnız <c>approved</c> iken düşebildiği için
+    /// iz zaten dolu gelir ve <b>öyle kalmalı</b>.
+    /// </summary>
+    [Fact]
+    public void AdExtend_DoesNotForgeAnApprovalTrail()
+    {
+        var approvedAt = Now.AddDays(-40);
+        var ad = new Ad
+        {
+            Status = "expired",
+            ExpiresAt = Now.AddDays(-3),
+            ApprovedBy = Admin,
+            ApprovedAt = approvedAt
+        };
+
+        ad.Extend(30, Now);
+
+        ad.ApprovedBy.Should().Be(Admin);
+        ad.ApprovedAt.Should().Be(approvedAt);
+    }
+
+    /// <summary>
+    /// Süresi geçmemiş ilan <b>mevcut bitişten</b> uzar — erken uzatan gün kaybetmez.
+    /// Bu iddia olmasaydı "her uzatmada now+30" gibi bir gerçekleme de yeşil kalırdı.
+    /// </summary>
+    [Fact]
+    public void AdExtend_AddsToTheRemainingWindowNotToToday()
+    {
+        var ad = new Ad { Status = "approved", ExpiresAt = Now.AddDays(10) };
+
+        ad.Extend(30, Now);
+
+        ad.ExpiresAt.Should().Be(Now.AddDays(40));
+        ad.Status.Should().Be("approved");
     }
 
     // ── Kampanya ───────────────────────────────────────────────────────────────
@@ -126,7 +191,7 @@ public class ModerationTransitionTests
     {
         var campaign = new Campaign { Status = "rejected", RejectedReason = "Kosullar belirsiz." };
 
-        CampaignModeration.Approve(campaign, Admin, Now);
+        campaign.Approve(Admin, Now);
 
         campaign.Status.Should().Be("approved");
         campaign.RejectedReason.Should().BeNull();
@@ -145,7 +210,7 @@ public class ModerationTransitionTests
     {
         var campaign = new Campaign { Status = "approved", ApprovedBy = Admin, ApprovedAt = Now.AddDays(-1) };
 
-        CampaignModeration.Reject(campaign, "Kosullar belirsiz.", Now);
+        campaign.Reject("Kosullar belirsiz.");
 
         campaign.Status.Should().Be("rejected");
         campaign.RejectedReason.Should().Be("Kosullar belirsiz.");
@@ -160,7 +225,7 @@ public class ModerationTransitionTests
     {
         var notice = new DeathNotice { Status = "rejected", RejectedReason = "Dogrulanamadi." };
 
-        DeathNoticeModeration.Approve(notice, Admin, Now);
+        notice.Approve(Admin, Now);
 
         notice.Status.Should().Be("approved");
         notice.ApprovedBy.Should().Be(Admin);
@@ -174,7 +239,7 @@ public class ModerationTransitionTests
     {
         var notice = new DeathNotice { Status = "approved", ApprovedBy = Admin, ApprovedAt = Now.AddDays(-1) };
 
-        DeathNoticeModeration.Reject(notice, "Dogrulanamadi.", Now);
+        notice.Reject("Dogrulanamadi.");
 
         notice.Status.Should().Be("rejected");
         notice.RejectedReason.Should().Be("Dogrulanamadi.");
@@ -193,7 +258,7 @@ public class ModerationTransitionTests
         var autoArchive = Now.AddDays(7);
         var notice = new DeathNotice { Status = "approved", AutoArchiveAt = autoArchive };
 
-        DeathNoticeModeration.Archive(notice);
+        notice.Archive();
 
         notice.Status.Should().Be("archived");
         notice.AutoArchiveAt.Should().Be(autoArchive);
@@ -205,7 +270,7 @@ public class ModerationTransitionTests
     {
         var notice = new DeathNotice { Status = "archived" };
 
-        DeathNoticeModeration.Approve(notice, Admin, Now);
+        notice.Approve(Admin, Now);
 
         notice.Status.Should().Be("approved");
     }
@@ -217,10 +282,10 @@ public class ModerationTransitionTests
     {
         var ev = new Event { Status = "pending" };
 
-        EventModeration.Approve(ev);
+        ev.Approve();
         ev.Status.Should().Be("approved");
 
-        EventModeration.Reject(ev);
+        ev.Reject();
         ev.Status.Should().Be("rejected");
     }
 }

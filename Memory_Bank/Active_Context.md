@@ -1,5 +1,88 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 11 Ağustos 2026 — **FAZ 12.11 TAMAMLANDI: moderasyon geçişinin tek sahipliği
+> bir TARAMADAN DERLEYİCİYE devredildi.**
+> Kod `Domain/Entities/{Ad,Campaign,DeathNotice,Event}.cs` (moderasyon alanları `init` + geçiş
+> metotları) + 4 `…Moderation.cs` **silindi** + 10 handler yeniden bağlandı +
+> `ExtendMyAdCommand` (geçiş `Ad.Extend`'e taşındı) + `ModerationSingleOwnerTests` (2 yeni
+> yapısal test, 1 eskisi kaldırıldı) + `ModerationTransitionTests` (+3 test).
+> **Backend 909 → 913 (+4), mobil 751 (değişmedi — tek satır dokunulmadı), analyze 0.**
+>
+> 🔑 **BU ALT-FAZ PLANDA YOKTU — dış analizden doğdu ve analiz KISMEN haklıydı.**
+> Kullanıcı Gemini CLI'ya analiz yaptırdı; çıkan `Domain_Analysis_Evidence.md` "anemik domain
+> bir kodlama tercihi değil, canlıda hasar üretmiş yapısal zafiyet" diyordu. **Üç kanıtın
+> ikisi bayattı**, biri geçerliydi ve doğrulama sırasında **somut delik bulundu**:
+> 1. **Kanıt 1 (anemik domain):** alıntıladığı canlı hasar 12.10'da bulunup **düzeltilmiş**
+>    bir hatanın kanıt notuydu. **Ama asıl iddiası ayaktaydı** → aşağıdaki bulgu.
+> 2. **Kanıt 2 (domain events yokluğu → kod tekrarı):** **yanlış.** Alıntıladığı
+>    `UpdateMyAdCommandHandler` tekrarı *aynı oturumda* `AdModeration.Resubmit`'e taşınmıştı.
+>    Dahası "yan etkiler her handler'a kopyalanmış" iddiası da yanlış: önbellek
+>    geçersizleştirme ve denetim izi handler'ların **içinde değil**, `ICacheInvalidator` /
+>    `IAuditableCommand` işaretleyicileri + MediatR pipeline davranışlarında.
+> 3. **Kanıt 3 (CD/IaC):** bayat (panel parolası artık `secrets/panel-admin.json`'da) ve
+>    kapsam dışı — **var olmayan** bir production için Terraform yazmak olurdu.
+>
+> 🔴 **DENETİMİN BULDUĞU GERÇEK DELİK (analizin göremediği, ama iddiasını haklı çıkaran):**
+> `ExtendMyAdCommand.cs:64` ham **`ad.Status = "approved"`** yazıyordu ve 12.10'un yapısal
+> testi onu **hiç taramıyordu**. Sebep 12.9'un dersinin birebir tekrarı: test **modül
+> listesini** türetiyordu (elle liste tutmuyordu) ama taradığı **dosya adı desenini**
+> (`Update*`/`Approve*`/`Reject*`/`Archive*`) elle tutuyordu — `ExtendMyAd*` hiçbirine uymuyor.
+> **Hasar yoktu** (ilan `expired`'a yalnız `approved` iken düştüğü için onay izi zaten doluydu),
+> yani kayıt bozulmuyordu — **ama koruma tesadüfen çalışıyordu, kurala dayanarak değil.**
+> 🔑 **Ders: bir taramanın KAPSAMI da elle tutulan bir listedir.**
+>
+> 🔴 **EN ÖNEMLİ KARAR: testi genişletmemek.** Kolay yol deseni `Extend*` ile büyütmekti;
+> o da bir sonraki uymayan dosyada aynı şekilde delinirdi. Bunun yerine koruma **taramanın
+> erişemeyeceği yere** taşındı: moderasyon alanları (`Status`/`ApprovedBy`/`ApprovedAt`/
+> `RejectedReason`/`RejectedAt`) dört varlıkta **`init`** oldu ve geçişler varlığın metotlarına
+> indi. Aynı satır artık **derlenmiyor** (`CS8852` — canlı olarak görüldü, bkz. doğrulama).
+> **İkinci karar: `init`, `private set` DEĞİL.** `private set` nesne başlatıcıyı da kapatır ve
+> `new Ad { Status = "pending" }` yazan **~40 çağrı yerini** (oluşturma, seed, ~25 test dosyası)
+> fabrika metoduna çevirmeyi gerektirirdi; `init` **yüklenmiş varlığa** yazmayı kapatır ki
+> hasarın tamamı zaten oradan geliyordu. Kazanç aynı, bedel yok — **tek test dosyası bile
+> mutasyona uğramadı** (hiçbir test `Status`'ü kurulumdan *sonra* yazmıyormuş).
+> **Üçüncü karar: kapsam DAR.** Bu **genel bir "zengin domain modeli" kararı değil.** Analizin
+> istediği 50 varlığı `private set` + fabrikaya çevirmekti; projede canlı hasar üretmiş
+> **tek** değişmez moderasyon durumu ve o kapatıldı. Gerisi kanıtsız risk olurdu.
+> **Dördüncü karar: `…Moderation` sınıfları silindi, façade olarak bırakılmadı.** Alan `init`
+> olduğu için Application katmanındaki bir sınıf ona zaten yazamaz; bırakılsalardı hiçbir şey
+> yapmayan bir dolaylama katmanı olurlardı. Kurallar (30 günlük taze pencere · bayat gerekçe
+> temizliği · onay izi simetrisi) **birebir korundu**, yalnız yer değiştirdi — `ModerationTransitionTests`'in
+> iddiaları değişmeden geçmesi bunun kanıtı.
+>
+> 🔴 **YENİ TEHLİKE VE ONUN DA KİLİDİ (§7 madde 53).** `init`'i bozan biri `CS8852` alır ve o
+> hatayı çözmenin **kolay** yolu geçişi varlığa taşımak değil, alanı **`set`'e geri açmaktır** —
+> o an her şey derlenir, **bütün testler yeşil kalır** ve koruma sessizce kaybolur. Bu yüzden
+> `init`'in kendisi yapısal testle kilitlendi: moderasyonlu varlık kümesi **türetiliyor**
+> (`Domain/Entities/` altında `public void Approve(` bildiren dosyalar) ve alan listesi de
+> türetiliyor (varlıkta hangi kolon *varsa* o denetleniyor — `Event`'te yalnız `Status` var,
+> `Campaign`/`DeathNotice`'ta `RejectedAt` yok; elle liste bu farkları "eksik alan" sanıp
+> haksız yere kırılırdı). İkinci test iki kümeyi bağlıyor: moderasyonlu **modül** sayısı ile
+> geçiş metodu tanımlayan **varlık** sayısı ayrışırsa kırmızı.
+>
+> ➕ **PLAN DIŞI:** `Campaign.Reject` ve `DeathNotice.Reject`'ten **kullanılmayan `now`
+> parametresi düştü** (o iki varlıkta `RejectedAt` kolonu yok; parametre 12.10'dan beri hiçbir
+> yere yazmıyordu — `EventModeration`'ın "simetri için boş parametre taşıma, ilk okuyana yalan
+> söyler" kararının geç uygulanması) · `Ad.PublishDays` sabiti varlığa taşındı ·
+> `Ad.Extend`'e üç yeni birim testi (biri **ters yön**: uzatma **sahte onay izi yazmamalı** —
+> "her uzatmada ApprovedBy'ı doldur" gerçeklemesi bu iddia olmadan yeşil kalırdı).
+>
+> ⚠️ **Bu korumanın DIŞINDA kalan yol (bilinçli ve belgeli):** `ExpireAdsJob` ve
+> `ArchiveDeathsJob` durumu `ExecuteUpdateAsync` ile **SQL seviyesinde** yazar — set-tabanlı
+> tek UPDATE atomik ve idempotent olsun diye. `init` onları etkilemez (ifade ağacı setter
+> çağırmaz) ve etkilememeli.
+>
+> **Doğrulama:** `dotnet test` **913/913** · `flutter analyze` **0** · `flutter test` **751/751**.
+> **Kuralı bilerek boz:** 4 deneme → **4 kırmızı** (`Ad.Status` `init`→`set` · `Event.Approve`
+> yeniden adlandırıldı → kardinalite · `Ad.Extend` sahte onay izi yazdı · `Ad.Extend` her zaman
+> bugünden uzattı). **5. "deneme" testle değil derleyiciyle doğrulandı:** `…Moderation` sınıfları
+> silindiği anda `ExtendMyAdCommand.cs(64,13): error CS8852` — yani deliğin kendisi
+> **derleme hatası olarak** ortaya çıktı, bulguyu kanıtlayan da bu oldu.
+>
+> ⏭️ **SIRADAKİ: 12.7** — sosyal giriş (backend). ⚠️ Apple aboneliği hâlâ bekliyor.
+>
+> ---
+
 > Son güncelleme: 10 Ağustos 2026 — **FAZ 12.10 TAMAMLANDI: moderasyon geçişinin tek sahibi
 > (Düzenle formunun açtığı ikinci yol kapatıldı).**
 > Kod `Common/Moderation/ModerationStatusGuard.cs` (yeni) +

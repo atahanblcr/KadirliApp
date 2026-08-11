@@ -55,13 +55,13 @@ public class ExtendMyAdCommandHandler : IRequestHandler<ExtendMyAdCommand, Exten
             throw new ConflictException($"Uzatma hakkınız doldu (en fazla {ad.MaxExtensions} uzatma).");
 
         var now = DateTime.UtcNow;
-        // Süresi geçmişse bugünden, geçmemişse mevcut bitişten itibaren uzar (erken uzatan gün kaybetmez).
-        var baseDate = ad.ExpiresAt > now ? ad.ExpiresAt : now;
 
-        ad.ExpiresAt = baseDate.AddDays(ExtensionDays);
-        ad.ExtensionCount++;
-        if (ad.Status == "expired")
-            ad.Status = "approved";
+        // 🔴 Faz 12.11: bu blok eskiden burada yazılıydı ve son satırı `ad.Status = "approved"`
+        // idi — yani moderasyon durumunu yazan BEŞİNCİ yol. 12.10'un yapısal testi onu
+        // görmüyordu (yalnız Update*/Approve*/Reject*/Archive* dosyalarını tarıyor,
+        // ExtendMyAd* hiçbirine uymuyor): kayıt bozulmuyordu ama koruma tesadüfen çalışıyordu.
+        // Geçiş `Ad.Extend`'e taşındı ve alan `init` olduğu için aynı satır artık DERLENMEZ.
+        ad.Extend(ExtensionDays, now);
 
         await _uow.Repository<AdExtension>().AddAsync(new AdExtension
         {

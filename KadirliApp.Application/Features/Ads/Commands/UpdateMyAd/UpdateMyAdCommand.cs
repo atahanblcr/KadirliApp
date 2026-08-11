@@ -90,7 +90,7 @@ public class UpdateMyAdCommandHandler : IRequestHandler<UpdateMyAdCommand, bool>
         // yeniden gönderilme yolu da budur). Faz 12.10: geçişin tek sahibi AdModeration —
         // burada elle yazılan onay/red izi temizliği, Approve/Reject'teki aynı bilginin
         // ÜÇÜNCÜ kopyasıydı ve sessizce ayrışabilirdi.
-        AdModeration.Resubmit(ad);
+        ad.Resubmit();
 
         if (removeImageIds.Count > 0)
         {

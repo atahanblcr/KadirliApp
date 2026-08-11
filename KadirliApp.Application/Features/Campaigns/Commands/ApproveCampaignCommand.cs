@@ -31,8 +31,8 @@ public class ApproveCampaignCommandHandler : IRequestHandler<ApproveCampaignComm
         var campaign = await repo.GetByIdAsync(request.Id, cancellationToken);
         if (campaign == null) return false;
 
-        // Faz 12.10: kuralın tek sahibi CampaignModeration.
-        CampaignModeration.Approve(campaign, request.AdminId, DateTime.UtcNow);
+        // Faz 12.10: kuralın tek sahibi varlığın kendisi (Faz 12.11).
+        campaign.Approve(request.AdminId, DateTime.UtcNow);
 
         repo.Update(campaign);
         await _uow.SaveChangesAsync(cancellationToken);

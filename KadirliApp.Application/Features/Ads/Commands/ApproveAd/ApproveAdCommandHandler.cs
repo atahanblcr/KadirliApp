@@ -29,7 +29,7 @@ public class ApproveAdCommandHandler : IRequestHandler<ApproveAdCommand, bool>
         // Faz 12.10: kuralın tek sahibi AdModeration (taze pencere #25 + bayat gerekçe
         // temizliği orada). Handler artık yalnız veriyi getirip kaydediyor — kural burada
         // yazılırsa Düzenle formunun açtığı ikinci yol onu yine atlar.
-        AdModeration.Approve(ad, request.AdminId, DateTime.UtcNow);
+        ad.Approve(request.AdminId, DateTime.UtcNow);
 
         repo.Update(ad);
         await _uow.SaveChangesAsync(cancellationToken);

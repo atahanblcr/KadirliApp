@@ -5,8 +5,8 @@ using Xunit;
 namespace KadirliApp.Tests.Integration.Architecture;
 
 /// <summary>
-/// Faz 12.10 — görünmez sözleşme <b>#52</b>'nin <b>yapısal</b> ayağı:
-/// moderasyon durumu yalnız <c>Approve</c>/<c>Reject</c> komutlarından yazılır.
+/// Faz 12.10/12.11 — görünmez sözleşme <b>#52</b>'nin <b>yapısal</b> ayağı:
+/// moderasyon durumu yalnız <c>Approve</c>/<c>Reject</c>/<c>Archive</c> komutlarından yazılır.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -19,6 +19,21 @@ namespace KadirliApp.Tests.Integration.Architecture;
 /// ⚠️ Bu yüzden aşağıdaki testler <b>elle modül listesi tutmaz</b>: dosya sistemini tarar.
 /// Yeni bir <c>Update*CommandHandler</c> ya da yeni bir Düzenle görünümü kendiliğinden
 /// kapsama girer.
+/// </para>
+/// <para>
+/// 🔴 <b>12.11 — bu dosyanın kendi dersi: TARAMANIN KAPSAMI DA ELLE TUTULAN BİR LİSTEDİR.</b>
+/// 12.10 modül listesini türetip elle listeyi ortadan kaldırdı, ama taranacak <i>dosya adı
+/// desenini</i> (<c>Update*</c>/<c>Approve*</c>/<c>Reject*</c>/<c>Archive*</c>) elle tuttu.
+/// Sonuç, 12.9'un dersinin birebir tekrarı oldu: <c>ExtendMyAdCommand</c> hiçbir desene
+/// uymadığı için <b>hiç taranmadı</b> ve içinde ham <c>ad.Status = "approved"</c> satırı
+/// duruyordu — bu dosya yeşilken. Kayıt bozulmuyordu, yani hasar yoktu; ama <b>koruma
+/// tesadüfen çalışıyordu</b>, kurala dayanarak değil.
+/// <br/>
+/// Çözüm testi genişletmek <i>değil</i>, korumayı taramanın erişemeyeceği bir yere taşımaktı:
+/// moderasyon alanları <c>init</c> oldu ve geçişler varlığın metotlarına indi. Aynı satır
+/// artık <b>derlenmiyor</b> (<c>CS8852</c>). Aşağıdaki taramalar kaldı ama artık
+/// <i>ikinci</i> savunma hattı; <b>birinci hat derleyici</b>, onun bekçisi de
+/// <see cref="EveryModeratedEntity_ExposesItsModerationFieldsAsInitOnly"/>.
 /// </para>
 /// <para>
 /// 📌 Container gerektirmez — saf dosya taraması, derleme zamanı denetimi
@@ -136,7 +151,7 @@ public class ModerationSingleOwnerTests
     /// 🐛 <b>Bu test yazıldığı gün kırmızıydı ve haklıydı:</b> <c>UpdateMyAdCommandHandler</c>
     /// (vatandaşın kendi ilanını düzenlemesi) durumu <c>pending</c>'e çekiyor ve onay/red
     /// izlerini <i>elle</i> temizliyordu — aynı bilginin üçüncü kopyası. Geçiş
-    /// <c>AdModeration.Resubmit</c>'e taşındı.
+    /// <c>Ad.Resubmit</c>'e taşındı.
     /// </para>
     /// </remarks>
     [Fact]
@@ -162,7 +177,7 @@ public class ModerationSingleOwnerTests
 
         offenders.Should().BeEmpty(
             "moderasyon durumunun tek sahibi Approve/Reject komutlarıdır (§7 madde 52). " +
-            "Durumu yazan Update* komutları: {0}. Kural taşınacaksa ilgili …Moderation sınıfına " +
+            "Durumu yazan Update* komutları: {0}. Kural taşınacaksa varlığın geçiş metoduna " +
             "taşıyın; komut yalnız ModerationStatusGuard.EnsureUnchanged çağırmalı.",
             string.Join(", ", offenders));
     }
@@ -212,38 +227,93 @@ public class ModerationSingleOwnerTests
             string.Join(", ", offenders));
     }
 
-    // ── 3) Onayla/Reddet komutları geçiş sınıfına delege eder ──────────────────
+    // ── 3) Faz 12.11: geçiş VARLIĞIN kendisinde ve alanlar kapalı ──────────────
 
     /// <summary>
-    /// Kuralı bir sınıfa taşıyıp handler'da <b>ayrıca</b> yazmak, tek sahipliği ilk gün
-    /// bozar. Bu yüzden <c>Approve*</c>/<c>Reject*</c>/<c>Archive*</c> komutları da ham
-    /// <c>.Status =</c> yazmaz — <c>…Moderation</c> sınıfını çağırır.
+    /// Moderasyon geçişi tanımlayan varlıklar — <b>türetilir, elle tutulmaz.</b>
+    /// Ölçüt: <c>Domain/Entities/</c> altında <c>public void Approve(</c> bildiren dosya.
     /// </summary>
-    [Fact]
-    public void ModerationCommands_DelegateToTheTransitionClass()
+    private static IReadOnlyList<FileInfo> ModeratedEntities()
     {
-        var featuresRoot = FeaturesRoot();
-
-        var commandFiles = ModeratedModules()
-            .SelectMany(m => new[] { "Approve*.cs", "Reject*.cs", "Archive*.cs" }
-                .SelectMany(pattern => Directory.GetFiles(Path.Combine(featuresRoot, m), pattern, SearchOption.AllDirectories)))
-            .Distinct()
-            .OrderBy(p => p, StringComparer.Ordinal)
+        var entities = new DirectoryInfo(Path.Combine(RepositoryRoot(), "KadirliApp.Domain", "Entities"))
+            .GetFiles("*.cs")
+            .Where(f => Regex.IsMatch(StripComments(File.ReadAllText(f.FullName)), @"public\s+void\s+Approve\s*\("))
+            .OrderBy(f => f.Name, StringComparer.Ordinal)
             .ToList();
 
-        commandFiles.Should().NotBeEmpty("moderasyon komutu bulunamadıysa test hiçbir şey denetlemiyor");
+        entities.Should().NotBeEmpty("moderasyon geçişi olan varlık bulunamadıysa test hiçbir şey denetlemiyor");
+        return entities;
+    }
 
-        var write = new Regex(@"\.Status\s*=\s*(?!=)", RegexOptions.Compiled);
+    /// <summary>
+    /// 🔴 <b>12.11'in kalbi ve bu dosyadaki en önemli iddia.</b> Moderasyon alanları
+    /// <c>init</c> olmak zorunda: <c>set</c>'e çevrildikleri anda tek sahiplik derleyicinin
+    /// güvencesi olmaktan çıkıp yeniden bir <i>dosya taramasının</i> kapsamına düşer — ve
+    /// 12.11 tam olarak o kapsamın delik olduğunu kanıtladı (<c>ExtendMyAdCommand</c>
+    /// yıllarca <c>ad.Status = "approved"</c> yazdı, hiçbir test kırılmadı).
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <b>Bu testin var olma sebebi çok somut:</b> <c>init</c>'i bozan biri
+    /// <c>CS8852</c> derleme hatası alır. O hatayı çözmenin <i>kolay</i> yolu geçişi
+    /// varlığa taşımak değil, alanı <c>set</c>'e geri çevirmektir — ve o an her şey
+    /// derlenir, bütün testler yeşil kalır, koruma sessizce kaybolur.
+    /// <para>
+    /// 📌 Alan listesi de türetilir: varlıkta hangi moderasyon alanı <i>varsa</i> o denetlenir.
+    /// <c>Event</c>'te yalnız <c>Status</c> var (onay izi <c>audit_logs</c>'ta),
+    /// <c>Campaign</c>/<c>DeathNotice</c>'ta <c>RejectedAt</c> yok — elle liste yazılsaydı
+    /// test bu farkları "eksik alan" sanıp haksız yere kırılırdı.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void EveryModeratedEntity_ExposesItsModerationFieldsAsInitOnly()
+    {
+        string[] moderationFields = ["Status", "ApprovedBy", "ApprovedAt", "RejectedReason", "RejectedAt"];
 
-        var offenders = commandFiles
-            .Where(f => write.IsMatch(StripComments(File.ReadAllText(f))))
-            .Select(f => Path.GetRelativePath(featuresRoot, f).Replace('\\', '/'))
-            .ToList();
+        var offenders = new List<string>();
+        var checkedFields = 0;
+
+        foreach (var entity in ModeratedEntities())
+        {
+            var source = StripComments(File.ReadAllText(entity.FullName));
+
+            foreach (var field in moderationFields)
+            {
+                // `public <tip> <Alan> { … }` — özelliğin gövdesini yakala.
+                var property = Regex.Match(source, $@"public\s+[\w?<>]+\s+{field}\s*\{{([^}}]*)\}}");
+                if (!property.Success) continue;   // o varlıkta bu kolon yok (bkz. remarks)
+
+                checkedFields++;
+
+                if (Regex.IsMatch(property.Groups[1].Value, @"\bset\b"))
+                    offenders.Add($"{entity.Name}.{field}");
+            }
+        }
+
+        checkedFields.Should().BeGreaterThan(moderationFields.Length,
+            "her moderasyonlu varlıkta en az birkaç alan denetlenmeli — sayı düştüyse özellik " +
+            "biçimi değişmiş ve regex hiçbir şey bulamıyor demektir (test sessizce anlamsızlaşır)");
 
         offenders.Should().BeEmpty(
-            "moderasyon geçişi …Moderation sınıfında yaşamalı; handler yalnız delege eder. " +
-            "Ham yazanlar: {0}",
+            "moderasyon alanları `init` olmalı, `set` DEĞİL (§7 madde 52). `set` olanlar: {0}. " +
+            "CS8852 aldıysanız çözüm alanı açmak değil, geçişi varlığın bir metoduna taşımaktır.",
             string.Join(", ", offenders));
+    }
+
+    /// <summary>
+    /// İki kümenin bağı: moderasyonu olan her <b>modülün</b> karşılığında geçiş metotları
+    /// olan bir <b>varlık</b> olmalı. Beşinci bir moderasyonlu modül eklenip varlığı
+    /// açık setter'la bırakılırsa, o modül 12.11'in korumasının <b>tümüyle dışında</b> kalır
+    /// ve bunu başka hiçbir test söylemez.
+    /// </summary>
+    [Fact]
+    public void EveryModeratedModule_HasAnEntityThatOwnsItsTransitions()
+    {
+        ModeratedEntities().Count.Should().Be(ModeratedModules().Count,
+            "moderasyonlu modül sayısı ({0}: {1}) ile geçiş metodu tanımlayan varlık sayısı " +
+            "({2}: {3}) ayrıştı — yeni bir moderasyonlu modül eklendiyse varlığına da " +
+            "Approve/Reject metotlarını ekleyin ve alanlarını `init` yapın",
+            ModeratedModules().Count, string.Join(", ", ModeratedModules()),
+            ModeratedEntities().Count, string.Join(", ", ModeratedEntities().Select(e => e.Name)));
     }
 
     /// <summary>

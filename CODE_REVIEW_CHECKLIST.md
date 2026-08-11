@@ -1,7 +1,7 @@
  # KadirliApp — Code Review Checklist
 
 > Bu liste jenerik bir kurumsal şablon değil; `ARCHITECTURE.md`, `Memory_Bank/API_CONTRACT.md`,
-> `Memory_Bank/Active_Context.md` ve `Memory_Bank/Progress.md`'den (Faz 10–12.9) çıkarılmıştır.
+> `Memory_Bank/Active_Context.md` ve `Memory_Bank/Progress.md`'den (Faz 10–12.11) çıkarılmıştır.
 > Özellikle **"Görünmez Sözleşmeler" (§7)** ve **tekrarlayan hata sınıfları** buraya birebir
 > taşınmıştır — bu proje aynı hatayı birden fazla kez üretmiş ve her seferinde not düşülmüş,
 > bu checklist o dersleri PR aşamasına çekmek için var.
@@ -35,6 +35,8 @@
 | `IAuditableCommand` gerekiyor mu? | Yazma/silme/onay/red gibi durum değiştiren komutlarda audit izi (`AuditBehavior`) bekleniyor mu — "kim ne zaman yaptı" panelde/log'da izlenebilir olmalı. | Progress.md Faz 10.9 denetimi |
 | Onay/red durum makinesinde eski gerekçe temizleniyor mu? | Örn. `ApproveXCommandHandler` önceki `RejectedReason`'ı sıfırlamalı — unutulursa "Onaylandı" rozeti ile eski red gerekçesi yan yana görünür (ilanlarda düzeltilmiş, kampanyada bir süre unutulmuştu). | Progress.md Faz 11.15b |
 | Slug/normalizasyon **tek bir yardımcıdan mı** üretiliyor? | İkinci bir gerçekleme yazma — `SlugHelper` tek sahip olmalı. Türkçe büyük `İ` (U+0130) `ToLowerInvariant()` ile küçülmez, ayrı ele alınmalı; aksi halde aynı ada iki farklı slug (mükerrer kayıt) üretilir. | ARCHITECTURE.md §7 madde 21 |
+| ⚠️ **TEKRARLAYAN SINIF** Bir kuralı koruyan **taramanın kapsamı** elle mi tutuluyor? | Tutuluyorsa kural **listeye girmeyende delik**. 12.9'da beşinci CDN, 12.11'de `ExtendMyAdCommand` tam bu yüzden korumasız kaldı: 12.10'un yapısal testi modül listesini *türetiyordu* ama taradığı **dosya adı desenini** (`Update*`/`Approve*`/…) elle tutuyordu ve `ExtendMyAd*` hiçbirine uymuyordu → dosya ham `ad.Status = "approved"` yazarken test yeşildi. 🔑 Doğru soru "testi genişletsem yeter mi?" değil, **"korumayı taramanın erişemeyeceği yere taşıyabilir miyim?"** | ARCHITECTURE.md §7 madde 53 |
+| Moderasyon durumu yazan yeni bir yol mu açıyorsun (`CS8852` aldın)? | Alanı `set`'e **açma** — geçişi varlığın metoduna taşı (`Ad.Approve/Reject/Resubmit/Extend` deseni). Alanı açmak derlemeyi düzeltir, testleri yeşil bırakır ve korumayı **sessizce siler**; `ModerationSingleOwnerTests` bunu yakalar ama PR'da bilinçli kontrol et. Yeni moderasyonlu modül eklediysen varlığına geçiş metotları **ve** `init` alanları şart. | ARCHITECTURE.md §7 madde 52–53, `ModerationSingleOwnerTests` |
 | Yeni bayrakla kapatılabilen kod yolu (`Fcm:Provider=None` gibi) test ediliyor mu? | Bayrakla kapalı yol = hiç çalıştırılmamış yol; anahtar bağlanır bağlanmaz ilk kez patlayabilir (`FirebaseApp.GetInstance` null döner, fırlatmaz). Her bayrakla kapalı yola en az bir birim testi. | ARCHITECTURE.md §7 kod-dışı sözleşmeler |
 
 ---

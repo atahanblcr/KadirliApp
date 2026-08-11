@@ -31,8 +31,8 @@ public class ApproveEventCommandHandler : IRequestHandler<ApproveEventCommand, b
         var ev = await repo.GetByIdAsync(request.Id, cancellationToken);
         if (ev == null) return false;
 
-        // Faz 12.10: kuralın tek sahibi EventModeration.
-        EventModeration.Approve(ev);
+        // Faz 12.10: kuralın tek sahibi varlığın kendisi (Faz 12.11).
+        ev.Approve();
 
         repo.Update(ev);
         await _uow.SaveChangesAsync(cancellationToken);

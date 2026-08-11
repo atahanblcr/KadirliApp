@@ -24,7 +24,7 @@ public class RejectAdCommandHandler : IRequestHandler<RejectAdCommand, bool>
         if (ad == null) return false;
 
         // Faz 12.10: kuralın tek sahibi AdModeration (bkz. ApproveAdCommandHandler).
-        AdModeration.Reject(ad, request.Reason, DateTime.UtcNow);
+        ad.Reject(request.Reason, DateTime.UtcNow);
 
         repo.Update(ad);
         await _uow.SaveChangesAsync(cancellationToken);

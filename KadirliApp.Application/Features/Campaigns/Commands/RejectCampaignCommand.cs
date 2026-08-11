@@ -34,7 +34,7 @@ public class RejectCampaignCommandHandler : IRequestHandler<RejectCampaignComman
 
         // Faz 12.10: kuralın tek sahibi CampaignModeration — onay izlerinin temizlenmesi
         // (12.10'da düzeltilen simetri hatası) de orada.
-        CampaignModeration.Reject(campaign, request.Reason, DateTime.UtcNow);
+        campaign.Reject(request.Reason);
 
         repo.Update(campaign);
         await _uow.SaveChangesAsync(cancellationToken);

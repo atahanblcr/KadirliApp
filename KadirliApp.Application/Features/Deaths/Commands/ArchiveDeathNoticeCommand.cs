@@ -52,7 +52,7 @@ public class ArchiveDeathNoticeCommandHandler : IRequestHandler<ArchiveDeathNoti
         var notice = await repo.GetByIdAsync(request.Id, cancellationToken);
         if (notice == null) return false;
 
-        DeathNoticeModeration.Archive(notice);
+        notice.Archive();
 
         repo.Update(notice);
         await _uow.SaveChangesAsync(cancellationToken);

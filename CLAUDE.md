@@ -51,16 +51,26 @@ yolu artık Onayla/Reddet(/Arşivle). Panelin **Düzenle formundaki durum menüs
 yoldu ve **üç kuralı birden** atlıyordu, üçü de sessizce: iş kuralı (süresi dolmuş ilan
 "onaylanıp" mobilde hiç görünmüyordu), **yetki** (`Edit` → `update` iznine düştüğü için yalnız
 düzenleme yetkisi olan moderatör moderasyon kararı verebiliyordu) ve **denetim izi** (karar ya
-hiç ya da `update` olarak düşüyordu). Kural dört saf sınıfta (`AdModeration` · `CampaignModeration`
-· `DeathNoticeModeration` · `EventModeration`), kapı `ModerationStatusGuard`'da.
+hiç ya da `update` olarak düşüyordu). Kapı `ModerationStatusGuard`'da.
+**12.11 bitti:** 12.10'un korumasının **kendisi delik çıktı** — dış analiz (Gemini) "anemik domain
+bir tercih değil, zafiyet" dedi; kanıtı bayattı (alıntıladığı hata 12.10'da düzeltilmişti) ama
+**iddiası doğruydu** ve denetim somut deliği buldu: `ExtendMyAdCommand` ham `ad.Status = "approved"`
+yazıyordu ve 12.10'un yapısal testi onu **hiç taramıyordu** (test modül listesini türetiyor ama
+taradığı **dosya adı desenini** elle tutuyordu → 12.9'un dersinin birebir tekrarı). Hasar yoktu,
+**koruma tesadüfen çalışıyordu.** Çözüm testi genişletmek değil, korumayı taramanın erişemeyeceği
+yere taşımak oldu: moderasyon alanları dört varlıkta **`init`**, geçişler **varlığın metotlarında**
+(`Ad.Approve/Reject/Resubmit/Extend` · `Campaign` · `DeathNotice` · `Event`). `entity.Status = …`
+artık **CS8852 derleme hatası**. 🔴 Kapsam bilinçli olarak dar: bu **genel bir "zengin domain"
+kararı değil** — 50 varlık dokunulmadı, yalnız canlı hasar üretmiş tek değişmez kapatıldı.
 🔴 Alan **DTO'dan silinmedi** (§5) ama **sessizce de yutulmuyor**: farklı değer gelirse komut
 **reddedip sebebini söylüyor**. ➕ Vefatta durum menüsü aynı zamanda **reddetmenin ve
 arşivlemenin tek yoluydu** → iki komut plan dışı olarak **yazıldı** (yoksa hata düzeltilirken
 iki işlev silinirdi).
-**909 backend + 751 mobil test, 52 görünmez sözleşme.**
+**913 backend + 751 mobil test, 53 görünmez sözleşme.**
 
 **⏭️ Sırada 12.7:** sosyal giriş — backend (`UserIdentity`, `POST /v1/auth/social`).
-⚠️ Panelde bir kaydın **durumunu yazan ikinci bir yol açma** (§7 madde 52) ve daha önce
+⚠️ Moderasyon alanına yazarken `CS8852` alırsan **çözüm alanı `set`'e açmak değil**, geçişi
+varlığın bir metoduna taşımaktır (§7 madde 53 — açarsan test kırılır, bilerek). Ayrıca daha önce
 kullanılmamış bir Tailwind sınıfı yazdıysan `npm run build` çalıştır — yoksa buton
 **beyaz üstüne beyaz** çizilir (12.10 canlı bulgusu).
 Plan: `Memory_Bank/Progress.md` → "FAZ 12".
@@ -123,7 +133,7 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
 **51** → `Integration/Architecture/PanelExternalOriginTests.cs` (kaynak taraması) +
 `Integration/Panel/PanelContentSecurityPolicyTests.cs` (canlı yanıt) +
 `Unit/Web/PanelAssetGuardTests.cs` (yayın kapısı),
-**52** → `Integration/Architecture/ModerationSingleOwnerTests.cs` (yapısal) +
+**52–53** → `Integration/Architecture/ModerationSingleOwnerTests.cs` (yapısal) +
 `Integration/Panel/PanelModerationOwnershipTests.cs` (davranış) + `Unit/Application/Moderation/`.
 
 ## Değişmez kurallar

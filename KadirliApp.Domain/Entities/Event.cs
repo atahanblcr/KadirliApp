@@ -5,6 +5,8 @@ namespace KadirliApp.Domain.Entities;
 
 public class Event : BaseEntity, ISoftDeletable
 {
+    private string _status = "pending";
+
     public string Title { get; set; } = default!;
     public string Description { get; set; } = default!;
     public Guid CategoryId { get; set; }
@@ -57,7 +59,10 @@ public class Event : BaseEntity, ISoftDeletable
     /// değeri artık <b>doğrudur</b>.
     /// </remarks>
     public bool IsLocal { get; set; }
-    public string Status { get; set; } = "pending";
+
+    // Faz 12.11 — moderasyon alanı `init`: yüklenmiş bir varlığa yazılamaz, geçişler aşağıda.
+    public string Status { get => _status; init => _status = value; }
+
     public Guid CreatedBy { get; set; }
     public DateTime? DeletedAt { get; set; }
 
@@ -65,4 +70,25 @@ public class Event : BaseEntity, ISoftDeletable
     public District? District { get; set; }
     public File? CoverImage { get; set; }
     public ICollection<EventImage> Images { get; set; } = new List<EventImage>();
+
+    // ── Moderasyon geçişleri (12.10'da doğdu, 12.11'de varlığa taşındı) ────────
+    //
+    // ⚠️ **Bu modülün geçişleri bilerek en yalın olanı.** `Event` varlığında
+    // `ApprovedBy`/`ApprovedAt`/`RejectedReason` kolonları **yok**; onay izi tümüyle
+    // `IAuditableCommand` üzerinden (`audit_logs`) tutuluyor. Kolon eklemek bir migration
+    // demek olurdu ve 12.10/12.11'in kapsam sözü net: **şema değişikliği yok**.
+    //
+    // 🔑 Metotların "tek satır yazıyor" olması onları gereksiz yapmıyor — **tek sahiplik**
+    // yapının kendisi: yarın etkinliğe bir onay izi kolonu eklendiğinde dokunulacak yer
+    // burasıdır ve alan `init` olduğu için başka bir yere yazmak **derlenmez**.
+    //
+    // 📌 Diğer üç modülün aksine `adminId`/`now` almazlar. Simetri için kullanılmayan
+    // parametre taşımak, ilk okuyana "bir yere yazılıyor olmalı" dedirtir ve yalan söyler —
+    // etkinlikte yazılacak kolon yok. Kolon eklendiği gün imza da eklenir.
+
+    /// <summary>Etkinliği yayına alır.</summary>
+    public void Approve() => _status = "approved";
+
+    /// <summary>Etkinliği reddeder.</summary>
+    public void Reject() => _status = "rejected";
 }
