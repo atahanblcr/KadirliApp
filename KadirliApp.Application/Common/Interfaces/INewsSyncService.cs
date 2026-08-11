@@ -17,6 +17,23 @@ public sealed record NewsSyncOutcome(
     string? ErrorMessage)
 {
     public bool Succeeded => Status == NewsSyncStatuses.Completed;
+
+    /// <summary>
+    /// Faz 12.13 — <b>başka bir koşu sürerken</b> istenen koşunun sonucu: hiç başlamadı.
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <c>Failed</c> değil, ayrı bir kimlik: koşu <b>düşmedi</b>, hiç <b>açılmadı</b> —
+    /// ve bu bir hata değil, korumanın çalışması. Aynı satırı "başarısız" saymak panonun
+    /// hata sayacını yalancı yapardı. <c>RunId</c> boştur çünkü ortada bir koşu kaydı yoktur:
+    /// olmayan bir koşuya kimlik uydurmak, panelin "detaya git" bağlantısını
+    /// <b>404'e</b> götürürdü.
+    /// </remarks>
+    public static NewsSyncOutcome AlreadyRunning(string mode) => new(
+        Guid.Empty, mode, NewsSyncStatuses.Skipped, 0, 0, 0, 0, 0, 0, 0,
+        "Bir haber senkronu zaten çalışıyor — ikinci koşu başlatılmadı.");
+
+    /// <summary>Koşu hiç açılmadı (kilit) — panelin butonu bunu <b>söylemek</b> zorunda.</summary>
+    public bool Blocked => Status == NewsSyncStatuses.Skipped;
 }
 
 /// <summary>

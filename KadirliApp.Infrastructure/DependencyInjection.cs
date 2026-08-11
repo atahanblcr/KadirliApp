@@ -152,7 +152,11 @@ public static class DependencyInjection
             http.Timeout = TimeSpan.FromSeconds(cfg.GetValue("News:Images:TimeoutSeconds", 30));
             http.DefaultRequestHeaders.UserAgent.ParseAdd(
                 cfg["News:Source:UserAgent"] ?? "KadirliApp-Sync/1.0");
-        });
+        })
+        // 🔴 Yönlendirme takibi KAPALI ve bu bilinçli (12.13, denetim bulgusu 10): indirici
+        // her sıçramayı tek tek denetliyor. Otomatik takipte ara adımlar görünmez — iç ağa
+        // atılan istek, biz öğrenmeden atılmış olurdu (SSRF).
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
         services.AddScoped<Application.Common.Interfaces.INewsSourceClient, News.WordPressNewsSourceClient>();
         services.AddScoped<Application.Common.Interfaces.INewsImageDownloader, News.HttpNewsImageDownloader>();
@@ -168,7 +172,11 @@ public static class DependencyInjection
         {
             // 🔑 Derinlik yapılandırmadan: "ilk başta test edeceğiz" kararı 50'de duruyor,
             // büyütmek için kod değişmiyor — geri imleç kaldığı yerden devam ediyor.
-            BackfillMaxPosts = cfg.GetValue("News:Backfill:MaxPosts", 50),
+            // ⚠️ Anahtar 12.13'te `MaxTotalPosts` oldu (ayar "arşiv derinliği" değil TOPLAM
+            // kayıt tavanı — denetim bulgusu 11). Eski anahtar yedek olarak okunuyor: bir
+            // yapılandırma dosyasında kalmışsa sessizce 50'ye düşmesin.
+            MaxTotalPosts = cfg.GetValue("News:Backfill:MaxTotalPosts",
+                            cfg.GetValue("News:Backfill:MaxPosts", 50)),
             PageSize = Math.Clamp(cfg.GetValue("News:Source:PageSize", 100), 1, 100),
             MaxPagesPerRun = cfg.GetValue("News:Source:MaxPagesPerRun", 20),
             MirrorImages = cfg.GetValue("News:Images:Mirror", true)
@@ -176,6 +184,11 @@ public static class DependencyInjection
 
         services.AddScoped<Application.Common.Interfaces.INewsSyncService,
             Application.Features.News.Services.NewsSyncService>();
+
+        // Faz 12.13 — panelin "Senkronu başlat" butonu koşuyu istek içinde ÇALIŞTIRMAZ,
+        // kuyruğa atar (bkz. INewsSyncQueue: istek içinde koşan bir iş panelin zaman
+        // aşımını yer, yönetici F5'ler ve ikinci koşu doğar).
+        services.AddScoped<Application.Common.Interfaces.INewsSyncQueue, Jobs.HangfireNewsSyncQueue>();
     }
 
     public static void UseInfrastructureJobs(this IServiceProvider serviceProvider)
@@ -198,5 +211,7 @@ public static class DependencyInjection
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.SyncNewsJob>("sync-news", j => j.RunAsync(), "*/15 * * * *");
         // Faz 12.12: silmeyi öğrenmenin TEK yolu — gecelik mutabakat (03:00).
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.ReconcileNewsJob>("reconcile-news", j => j.RunAsync(), "0 3 * * *");
+        // Faz 12.13: koşu defterinin saklama süresi (30 gün). Günde 96 satır → yılda ~35k.
+        RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.PurgeNewsSyncRunsJob>("purge-news-sync-runs", j => j.RunAsync(), Cron.Daily);
     }
 }

@@ -319,7 +319,12 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
 
 - `GET /v1/news` — **sayfalı** (`{items,totalCount,pageSize,currentPage,totalPages}`).
   Süzgeçler: `?search=` (başlık + gövde metni; ⚠️ **`search`**, `searchTerm` değil — #4) ·
-  `?categoryId=` · `?featured=true`. Varsayılan sıralama **`publishedAt desc`** (+ `ThenBy(Id)`).
+  `?categoryId=` · `?featured=true|false`. Varsayılan sıralama **`publishedAt desc`** (+ `ThenBy(Id)`).
+  - ⚠️ **`search` en az 2 karakter** ister; altındaki değer **süzgeci hiç uygulamaz** (400 değil —
+    §5: bir yazım hatası listeyi boşaltmaz).
+  - ➕ **Faz 12.13 (additive):** `?featured=false` artık **"öne çıkmayanlar"** demek. 12.12'de
+    sessizce yok sayılıyordu, yani süzdüğünü sanan çağıran **tüm listeyi** alıyordu. Eski
+    sürümler bu parametreyi hiç göndermiyor → kırıcı değil.
 - `GET /v1/news/{id}` — bulunamayan/gizlenen kayıt **404**.
 - `GET /v1/news/categories` — sayfasız; `{id,name,slug,articleCount,showInFilterStrip,displayOrder}`.
 

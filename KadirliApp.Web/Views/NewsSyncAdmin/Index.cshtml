@@ -1,0 +1,235 @@
+@using KadirliApp.Web.Common
+@using KadirliApp.Web.Models
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.News.Dtos.NewsSyncRunDto>
+@{
+    ViewData["Title"] = "Haber Senkronu";
+
+    var syncStatus = ViewBag.SyncStatus as KadirliApp.Application.Features.News.Dtos.NewsSyncStatusDto;
+    string? mode = ViewBag.Mode;
+    string? status = ViewBag.Status;
+    string? trigger = ViewBag.Trigger;
+    var hasFilter = mode != null || status != null || trigger != null;
+}
+
+<div class="mb-6">
+    <h2 class="text-2xl font-semibold text-gray-800">Haber Senkronu</h2>
+    <p class="mt-1 text-sm text-gray-500">
+        Haberler <strong>silagazetesi.com.tr</strong>'den 15 dakikada bir otomatik çekilir.
+        Bu ekran "iş koştu mu"yu değil <strong>kaç haber geldiğini</strong> gösterir —
+        kaynak sessizce susarsa uygulama eski haberleri göstermeye devam eder ve
+        bunu başka hiçbir yerden anlayamazsınız.
+    </p>
+</div>
+
+@if (syncStatus is not null)
+{
+    <div class="mb-6">
+        <partial name="_NewsSyncStatusCard" model="syncStatus" />
+    </div>
+
+    <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-800">Elle çalıştır</h3>
+        <p class="mt-1 text-xs text-gray-500">
+            Koşu arka planda çalışır; bu sayfa beklemez. Panelde yaptığınız düzenlemeler
+            <strong>her koşuda korunur</strong> — senkron override alanlarına yazamaz.
+        </p>
+
+        @if (!syncStatus.CanTrigger)
+        {
+            @* 🔴 Buton KAPALI çizilir ve SEBEBİNİ yazar. Açık bırakılıp istek reddedilseydi,
+               ya da (daha kötüsü) sessizce "başlatıldı" denseydi, panel yalan söylerdi —
+               §7 madde 37'nin "hiçbir şey yapmayan buton" sınıfı.
+               ⚠️ Koşul sunucudan geliyor (`CanTrigger`), görünüm kendi koşulunu yazmıyor. *@
+            <div class="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+                <i class="fas fa-spinner mr-1"></i>
+                Bir senkron zaten çalışıyor@(syncStatus.RunningSince is { } since ? $" — {since.AddHours(3):HH:mm}'de başladı" : "").
+                Bitmesini bekleyin.
+            </div>
+        }
+        else
+        {
+            @*
+                🔑 Üç ayrı KARDEŞ form — tek formda üç buton değil.
+
+                Sebep `data-confirm`: dinleyici submit olayında formun özniteliğine bakıyor,
+                yani onay metni forma ait. Tek formda üç aksiyon olsaydı metin butona
+                yazılmak zorunda kalırdı ve o desen yalnız muafiyet listesindeki iki
+                partial'da güvenli (`PanelConfirmDialogTests`). Üç form, üç net onay metni.
+            *@
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+                <form asp-action="Create" method="post" class="inline">
+                    <input type="hidden" name="mode" value="incremental" />
+                    <button type="submit"
+                            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                        <i class="fas fa-rotate mr-1"></i> Yeni haberleri çek
+                    </button>
+                </form>
+
+                <form asp-action="Create" method="post" class="inline"
+                      data-confirm="Arşiv derinleştirmesi kaynaktan daha eski haberleri çeker ve görselleri indirir. Devam edilsin mi?">
+                    <input type="hidden" name="mode" value="archive" />
+                    <button type="submit"
+                            class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        <i class="fas fa-clock-rotate-left mr-1"></i> Arşivi derinleştir
+                    </button>
+                </form>
+
+                <form asp-action="Create" method="post" class="inline"
+                      data-confirm="Mutabakat, kaynakta bulunmayan haberleri uygulamadan düşürür (kayıt silinmez). Devam edilsin mi?">
+                    <input type="hidden" name="mode" value="reconcile" />
+                    <button type="submit"
+                            class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        <i class="fas fa-list-check mr-1"></i> Mutabakat yap
+                    </button>
+                </form>
+            </div>
+        }
+
+        <div class="mt-3 grid grid-cols-2 gap-3 text-xs text-gray-500 sm:grid-cols-4">
+            <div>
+                <div class="font-medium text-gray-700">Arşiv hedefi</div>
+                @syncStatus.TotalArticles / @syncStatus.TargetArticleCount haber
+                @if (syncStatus.ArchiveCompleted)
+                {
+                    <span class="text-gray-400">· kaynak tükendi</span>
+                }
+            </div>
+            <div>
+                <div class="font-medium text-gray-700">Yayında</div>
+                @syncStatus.VisibleArticles haber
+            </div>
+            <div>
+                <div class="font-medium text-gray-700">Yayından kaldırılmış</div>
+                @syncStatus.ArchivedArticles haber
+            </div>
+            <div>
+                <div class="font-medium text-gray-700">Kaynakta yok</div>
+                @syncStatus.GoneArticles haber
+            </div>
+        </div>
+    </div>
+}
+
+<div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <form asp-action="Index" method="get" class="grid grid-cols-1 gap-3 border-b border-gray-200 p-4 sm:grid-cols-3">
+        <div>
+            <label for="mode" class="mb-1 block text-xs font-medium text-gray-600">Koşu türü</label>
+            <select id="mode" name="mode" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var key in PanelDisplay.KnownNewsSyncModes)
+                {
+                    <option value="@key" selected="@(key == mode)">@PanelDisplay.NewsSyncMode(key).Label</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label for="status" class="mb-1 block text-xs font-medium text-gray-600">Durum</label>
+            <select id="status" name="status" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var key in new[] { "running", "completed", "failed" })
+                {
+                    <option value="@key" selected="@(key == status)">@PanelDisplay.NewsSyncStatus(key).Label</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label for="trigger" class="mb-1 block text-xs font-medium text-gray-600">Tetikleyen</label>
+            <select id="trigger" name="trigger" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var key in PanelDisplay.KnownNewsSyncTriggers)
+                {
+                    <option value="@key" selected="@(key == trigger)">@PanelDisplay.NewsSyncTrigger(key).Label</option>
+                }
+            </select>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 sm:col-span-3">
+            <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                <i class="fas fa-filter mr-2"></i> Filtrele
+            </button>
+            @if (hasFilter)
+            {
+                <a asp-action="Index" class="text-sm font-medium text-gray-600 hover:text-gray-900">
+                    <i class="fas fa-times mr-1"></i> Filtreleri temizle
+                </a>
+            }
+        </div>
+    </form>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="border-b bg-gray-50 text-xs uppercase text-gray-700">
+                <tr>
+                    <th scope="col" class="px-4 py-3 font-medium">Başlangıç</th>
+                    <th scope="col" class="px-4 py-3 font-medium">Tür</th>
+                    <th scope="col" class="px-4 py-3 font-medium">Tetikleyen</th>
+                    <th scope="col" class="px-4 py-3 font-medium">Sonuç</th>
+                    <th scope="col" class="px-4 py-3 font-medium">Süre</th>
+                    <th scope="col" class="px-4 py-3 font-medium">Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model?.Items != null && Model.Items.Any())
+                {
+                    foreach (var run in Model.Items)
+                    {
+                        var modeBadge = PanelDisplay.NewsSyncMode(run.Mode);
+                        var statusBadge = PanelDisplay.NewsSyncStatus(run.Status);
+                        var triggerBadge = PanelDisplay.NewsSyncTrigger(run.Trigger);
+                        <tr class="border-b bg-white align-top transition-colors hover:bg-gray-50">
+                            <td class="whitespace-nowrap px-4 py-4 text-gray-900">
+                                <a asp-action="Details" asp-route-id="@run.Id" class="font-medium text-blue-600 hover:text-blue-800">
+                                    @run.StartedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm:ss")
+                                </a>
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4">
+                                <partial name="_StatusBadge" model="modeBadge" />
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4">
+                                <partial name="_StatusBadge" model="triggerBadge" />
+                                @if (!string.IsNullOrWhiteSpace(run.TriggeredByName))
+                                {
+                                    <div class="mt-1 text-xs text-gray-500">@run.TriggeredByName</div>
+                                }
+                            </td>
+                            <td class="px-4 py-4 text-xs">
+                                @run.Fetched okundu · <span class="font-medium text-gray-900">@run.Created</span> yeni ·
+                                @run.Updated güncel · @run.Skipped atlandı
+                                @if (run.MarkedGone > 0 || run.Restored > 0)
+                                {
+                                    <div class="mt-1">@run.MarkedGone düşürüldü · @run.Restored geri geldi</div>
+                                }
+                                @if (run.Failed > 0)
+                                {
+                                    <div class="mt-1 font-medium text-red-700">@run.Failed hata</div>
+                                }
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4 text-xs">
+                                @(run.Duration is { } duration ? $"{duration.TotalSeconds:0.#} sn" : "—")
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4">
+                                <partial name="_StatusBadge" model="statusBadge" />
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-rotate mb-3 text-4xl text-gray-300"></i>
+                                <p>@(hasFilter ? "Bu filtreye uyan koşu yok." : "Henüz hiç senkron koşusu kaydedilmemiş.")</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "koşu"))
+</div>
+
+<p class="mt-4 text-xs text-gray-500">
+    Koşu kayıtları <strong>30 gün</strong> saklanır (günde ~96 satır oluşuyor).
+</p>

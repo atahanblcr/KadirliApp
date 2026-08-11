@@ -1,0 +1,125 @@
+@using KadirliApp.Web.Common
+@model KadirliApp.Application.Features.News.Dtos.NewsAdminDto
+@{
+    ViewData["Title"] = "Haberi düzenle";
+    var stateBadge = PanelDisplay.NewsState(Model.State);
+}
+
+<div class="mb-6">
+    <a asp-action="Details" asp-route-id="@Model.Id" class="text-sm font-medium text-gray-500 hover:text-gray-800">
+        <i class="fas fa-arrow-left mr-1"></i> Haber ayrıntısı
+    </a>
+    <h2 class="mt-1 break-words text-2xl font-semibold text-gray-800">Haberi düzenle</h2>
+    <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+        <partial name="_StatusBadge" model="stateBadge" />
+        <span>@Model.PublishedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")</span>
+    </div>
+</div>
+
+@*
+    🔴 BU FORMDA GÖRÜNÜRLÜK ANAHTARI YOK — ve bu 12.10'un dersinin harfi harfine
+    uygulanması. Orada panelin Düzenle formundaki durum menüsü, bir kaydın durumunu yazan
+    İKİNCİ bir yoldu ve üç kuralı birden atlıyordu (iş kuralı · yetki · denetim izi).
+    Burada alan komuta hiç eklenmedi: yayından kaldırmanın tek yolu Ayrıntı ekranındaki
+    (gerekçe isteyen) buton.
+
+    🔴 Kaynağın alanları (Source*) da burada YOK ve olamaz: `init` oldukları için onlara
+    yazmak DERLEME HATASI (CS8852). Form yalnız yöneticinin sahibi olduğu üç alanı taşır.
+*@
+<div class="max-w-3xl rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+    <div asp-validation-summary="All" class="mb-4 text-sm text-red-600"></div>
+
+    <form asp-action="Edit" method="post" enctype="multipart/form-data" class="space-y-5">
+        <input type="hidden" name="id" value="@Model.Id" />
+
+        <div>
+            <label for="title" class="mb-1 block text-sm font-medium text-gray-700">Başlık</label>
+            <input id="title" name="title" type="text" maxlength="250" value="@Model.TitleOverride"
+                   placeholder="@Model.SourceTitle"
+                   class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            @* 🔑 "Boş bırakırsanız" cümlesi kritik: boş değer bir override DEĞİL, override'ın
+               KALDIRILMASI demek. Yazılmasaydı yönetici boş bir başlık kaydettiğini sanırdı. *@
+            <p class="mt-1 text-xs text-gray-500">
+                Boş bırakırsanız kaynaktaki başlık kullanılır:
+                <span class="text-gray-700">@Model.SourceTitle</span>
+            </p>
+        </div>
+
+        <div>
+            <label for="excerpt" class="mb-1 block text-sm font-medium text-gray-700">Özet</label>
+            <textarea id="excerpt" name="excerpt" rows="3" maxlength="600"
+                      class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">@Model.ExcerptOverride</textarea>
+            <p class="mt-1 text-xs text-gray-500">
+                Boş bırakırsanız kaynaktaki özet kullanılır:
+                <span class="text-gray-700">@(Model.SourceExcerpt ?? "—")</span>
+            </p>
+        </div>
+
+        <div>
+            <label for="coverImage" class="mb-1 block text-sm font-medium text-gray-700">Kapak görseli</label>
+            <div class="flex flex-wrap items-start gap-4">
+                @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+                {
+                    <img src="@Model.ImageUrl" alt="" class="h-24 w-40 rounded object-cover" />
+                }
+                <div class="flex-1">
+                    <input id="coverImage" name="coverImage" type="file" accept="image/*"
+                           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    @* 🔴 Ölçülen gerçek: kaynağın en büyük görseli 650×368 (40 haberin 39'unda).
+                       Manşette yumuşak kalıyor — yöneticiye daha iyi bir görsel koyma yolu ŞART. *@
+                    <p class="mt-1 text-xs text-gray-500">
+                        Kaynağın görselleri en fazla 650 piksel genişlikte; manşette kullanacaksanız
+                        buradan daha büyük bir görsel yükleyebilirsiniz.
+                    </p>
+
+                    @if (Model.CoverImageFileIdOverride is not null)
+                    {
+                        <label class="mt-2 inline-flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" name="removeCoverImage" value="true"
+                                   class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                            Yüklediğim görseli kaldır (kaynağınki kullanılsın)
+                        </label>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 border-t border-gray-200 pt-4">
+            <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                <i class="fas fa-save mr-1"></i> Kaydet
+            </button>
+
+            <a asp-action="Details" asp-route-id="@Model.Id" class="text-sm font-medium text-gray-600 hover:text-gray-900">
+                Vazgeç
+            </a>
+        </div>
+    </form>
+
+    @if (Model.HasOverrides)
+    {
+        @*
+            🔑 "Kaynağa dön" bilinçli olarak yukarıdaki formun İÇİNDE değil, KARDEŞİ.
+
+            İlk yazımda içerideydi (12.10'un `_ModerationStatusField` deseni: `formaction` +
+            `formenctype`) ve `PanelConfirmDialogTests` haklı olarak kırmızıya döndü:
+            `data-confirm` yalnız <form> üzerinde çalışıyor, butona yazılması ancak tek formda
+            BİRDEN ÇOK aksiyon olduğunda ve o görünüm muafiyet listesindeyken güvenli.
+            ⚠️ Doğru çözüm muafiyet listesini büyütmek DEĞİLDİ: liste dosya adına bakıyor ve
+            "Edit.cshtml" yazmak projedeki BÜTÜN Düzenle formlarını muaf kılardı — testin
+            kendi yorumunun uyardığı "muafiyet çöplüğü".
+
+            Kardeş form ayrıca iki tuzağı birden yok ediyor: iç içe <form> riski (tarayıcı
+            içtekini sessizce atar) ve multipart gövdenin gereksiz yere taşınması —
+            "Kaynağa dön"e basmak artık henüz kaydedilmemiş fotoğrafı yükleyip çöpe atmıyor.
+        *@
+        <form asp-action="ResetOverrides" method="post" class="mt-4 border-t border-gray-200 pt-4"
+              data-confirm="Panelde yapılan düzenlemeler kaldırılacak ve haber kaynaktaki hâline dönecek. Bu işlem formdaki değişiklikleri kaydetmez. Devam edilsin mi?">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <button type="submit"
+                    class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-rotate-left mr-1"></i> Kaynağa dön
+            </button>
+            <span class="ml-2 text-xs text-gray-500">Bu buton yukarıdaki formu kaydetmez.</span>
+        </form>
+    }
+</div>

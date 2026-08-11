@@ -3951,7 +3951,7 @@ kapak görseli `uploads/` altında ve DTO **göreli URL** dönüyor · kaynak 50
    (koruma veritabanında, migration'da yaşıyor); **migration'daki** `unique: true` kaldırılınca
    kırmızıya döndü — yani test doğru yere bakıyor.
 
-#### 🟠 Orta — 27k ölçeğinde acıtır (bugün 50 kayıt var, görünmüyor)
+#### 🟠 Orta — 27k ölçeğinde acıtır (bugün 50 kayıt var, görünmüyor) — ✅ 12.13'te KAPATILDI
 
 4. **Arama indeksi işe yaramıyor ve yapılandırmadaki yorum bunun tersini söylüyor.**
    Sorgu `x.SourceTitle.ToLower().Contains(s)` → SQL'de `lower(...) LIKE '%s%'`; bir **btree**
@@ -3970,7 +3970,7 @@ kapak görseli `uploads/` altında ve DTO **göreli URL** dönüyor · kaynak 50
    bugüne kadar sorun çıkarmadı. → detayı hiç önbelleklememek (liste zaten önbellekli) ya da
    TTL'i kısaltmak; karar 12.13'te ölçüyle verilmeli.
 
-#### 🟡 Düşük — not düşülmeli, aciliyeti yok
+#### 🟡 Düşük — not düşülmeli, aciliyeti yok — ✅ 12.13'te KAPATILDI
 
 7. **`NewsImageMirror` PAYLAŞILAN `IUnitOfWork` üzerinde `SaveChanges` çağırıyor.** İki yan
    etkisi var: (a) partinin yarısını erken commit ediyor (zararsız ama "parti" semantiğini
@@ -4004,14 +4004,21 @@ kapak görseli `uploads/` altında ve DTO **göreli URL** dönüyor · kaynak 50
 
 #### 📌 12.13'ün ön koşulları (bulgu değil, reçetenin atlanmış adımları)
 
-- **`news` izni `permissions` tablosuna eklenmedi** (§4 reçete adım 8) — admin API/panel
-  eklendiğinde moderatör 403 alır. Migration ya da seed ile eklenmeli, rollere dağıtılmalı.
-- **`PanelDisplay.NonMatrixModules`'taki geçici `["news"] = "Haberler"` satırı**, menüye
-  "news" satırı eklendiği anda **ölü koda** döner → silinmeli.
+- ~~**`news` izni `permissions` tablosuna eklenmedi**~~ → 🔬 **DENETLENDİ: böyle bir adım
+  gerekmiyormuş.** `permissions`/`role_permissions` tabloları bu projede **çalışma anında hiç
+  okunmuyor** (canlı veritabanında da **0 satır**, her modül için): izin denetiminin tek
+  kaynağı **kullanıcı başına** `admin_permissions` ve o tablonun modül listesi
+  `StaffAdminController.Modules` → `PanelMenu.Items`'tan **türüyor**. Yani "izni eklemek" =
+  menüye satır eklemek. Migration yazılsaydı hiçbir şeye dokunmayan ölü veri üretilirdi.
+  📌 Reçetenin 8. adımı (`ARCHITECTURE.md` §4) bu yüzden **bugünün gerçeğini yansıtmıyor** —
+  ayrı bir temizlik maddesi olarak açık bırakıldı.
+- ✅ **`PanelDisplay.NonMatrixModules`'taki geçici `["news"] = "Haberler"` satırı silindi**;
+  yerine `["news-sync"] = "Haber Senkronu"` kondu (senkron ekranı matris dışı olduğu için
+  komutu ayrı bir denetim anahtarı yazıyor: `NewsAudit.SyncModule`).
 
 ---
 
-### 12.13 — Haberler: panel — [ ]
+### 12.13 — Haberler: panel — [x] ✅ TAMAMLANDI (12 Ağustos 2026)
 
 > 📌 **Bu alt-fazın tasarımı bir Agent tartışmasından çıktı** (11 Ağustos 2026, kullanıcı isteği).
 > Agent `ARCHITECTURE.md` §3/§4/§7, `CODE_REVIEW_CHECKLIST.md` §4/§11 ve mevcut panel
@@ -4195,6 +4202,91 @@ override yazıldı → senkron koştu → **override yerinde, `Source*` güncell
 **gerçek sorgudan** geliyor ve dışlanınca haber `GET /v1/news`'ten **düşüyor** ·
 "Senkronu başlat" **iki kez** basıldığında ikinci koşu **açılmıyor** ve sebebi yazıyor ·
 CSV BOM + `;` ile iniyor · konsolda **CSP ihlali yok** · panelde ham İngilizce/`¤` yok.
+
+#### ✅ Teslim edildi (12 Ağustos 2026) — canlı doğrulamayla
+
+**Kod:** `Web/Controllers/{NewsAdmin,NewsSyncAdmin}Controller.cs` + `Views/{NewsAdmin,NewsSyncAdmin}/`
+(5 görünüm) + `Views/Shared/_NewsSyncStatusCard.cshtml` (tek sahip: Dashboard · Haberler · pano) +
+`LookupsAdmin`'e "Haber Kategorileri" bölümü + `PanelMenu` (2 satır) + `PanelDisplay`
+(4 rozet sözlüğü + tazelik) + `PanelPermissionAttribute` (`Unarchive` öneki) +
+`BulkToolbarViewModel.Visibility` (üçüncü kalıp) + `Application/Features/News/`
+(`NewsStates` · `NewsSearch` · `NewsAdminProjection` + 4 panel sorgusu + `INewsSyncQueue`) +
+`Infrastructure/Jobs/{NewsSyncTriggerJob,PurgeNewsSyncRunsJob}.cs` + 2 migration +
+3 test dosyası. **Backend 995 → 1034 (+39), mobil 751 (değişmedi — 12.14'e kadar mobilde tek satır yok).**
+
+🔑 **TESLİM EDİLEN:** Haberler artık **panelden yönetiliyor**: başlık/özet/kapak override'ı,
+geri alınabilir gizleme, öne çıkarma, kategori görünürlüğü ve — en önemlisi — **senkronun
+sustuğunu gösteren bir yer**.
+
+🔴 **12.12 SONRASI DENETİMİN KALAN 8 BULGUSU DA KAPATILDI (4–11).** Bir tanesi bir **ölçümle
+çürüdü** ve düzeltme yine de gerekliydi (aşağıda).
+
+🔴 **EN ÖNEMLİ KARAR: eşzamanlılık kilidi + KURTARMA birlikte yazıldı.** Plan yalnız kısmi
+unique indeksi söylüyordu; o hâliyle **kalıcı bir kilit** üretirdi: süreç öldürülürse (deploy,
+OOM) satır sonsuza kadar `completed_at IS NULL` kalır ve indeks **bütün gelecek koşuları**
+engellerdi — hiçbir hata vermeden, yalnız haberler akmayı bırakarak. Yani arızayı önleyen
+koruma tam da o arızanın sebebi olurdu. → `ReapStuckRunsAsync` (30 dk, `ExecuteUpdate`, kaydı
+**silmez kapatır**). Ayrıca buton koşuyu istek içinde çalıştırmıyor, **kuyruğa atıyor**
+(`INewsSyncQueue`): istek içinde koşsaydı panelin zaman aşımı dolar, yönetici F5'ler ve
+**ikinci koşu** başlardı — engellemeye çalıştığımız şeyi butonun kendisi üretirdi.
+
+🔬 **ÖLÇÜM BİR BULGUYU ÇÜRÜTTÜ (dürüst not).** Denetimin 4. bulgusu *"`Contains` sağlayıcıda
+`strpos`'a çevrilir, hiçbir indeks karşılayamaz"* diyordu. `ToQueryString()` ile ölçüldü:
+Npgsql 8 `Contains`'i de **`lower(...) LIKE @p ESCAPE '\'`** olarak çeviriyor ve parametreyi
+kaçırıyor — yani ne "strpos" vardı ne de joker açığı. **Ama bulgunun SONUCU doğruydu, sebebi
+başkaydı:** `lower(kolon) LIKE '%x%'` bir **btree** indeksiyle karşılanamaz, yani 12.12'nin
+"aramanın çıpası" diye koyduğu indeks gerçekten çalışmıyordu. Asıl düzeltme sorgu değil
+**GIN/trigram ifade indeksleri** oldu (`EXPLAIN` ile doğrulandı: `Bitmap Index Scan`).
+`NewsSearch` yine de duruyor ama gerekçesi **küçültüldü ve yazıldı**: en az uzunluk kuralının
+sahibi + desenin sağlayıcı çevirisine değil bize ait olması.
+
+🐛 **BOZMA TURUNDA BİR TEST YEŞİL KALDI (ve bu bir test kusuruydu).** Sorguyu `Contains`'e geri
+çevirmek `TheSearchQueryShape_CanUseTheTrigramIndex`'i kırmadı: test **ham SQL** üzerinden plan
+ölçüyordu, yani bizim sorgumuza hiç bakmıyordu. İki ayağa çıkarıldı — (1) handler'ın
+**gerçekten ürettiği** SQL (`ToQueryString`), (2) o şeklin indekse ulaşabilmesi (`EXPLAIN` +
+`enable_seqscan=off`). 12.10'un dersi dördüncü kez: *iddiası zayıf bir test, testsizlikten kötüdür.*
+
+🐛 **`PanelConfirmDialogTests` KIRMIZIYA DÖNDÜ VE HAKLIYDI:** `data-confirm` beş yerde
+**butona** yazılmıştı; dinleyici formun özniteliğine bakıyor. 🔑 **Doğru çözüm muafiyet
+listesini büyütmek değildi** (liste dosya adına bakıyor — "Edit.cshtml" yazmak projedeki
+**bütün** Düzenle formlarını muaf kılardı, testin kendi yorumunun uyardığı "muafiyet çöplüğü"):
+ikinci aksiyonlar forma **kardeş** yapıldı ve senkron butonları **üç ayrı forma** bölündü.
+Yan kazanç: iç içe `<form>` riski ve gereksiz multipart gövde de aynı anda yok oldu.
+
+➕ **PLAN DIŞI EKLER:** `NewsStates` (durum türetmesinin tek sahibi; `gone` > `archived`
+önceliği bir *sebebi* korumak için) · `NewsAdminProjection` (panel liste **ve** ayrıntı tek
+projeksiyon — §7 madde 43) · `AffectedCount`'un **iki yönlü** okunuşu ("dışlarsam kaç kalkar" /
+"kaldırırsam kaç geri gelir", ikincisi yalnız **başka dışlanmış kategorisi olmayanları** sayar) ·
+`NewsSyncStatuses.Skipped` + `NewsSyncOutcome.Blocked` (kilide takılan koşu **hata değil**) ·
+`PurgeNewsSyncRunsJob` · Dashboard kutusu (moderatöre de açık — boş listeye bakan moderatörün
+sebebi görebilmesi gerek) · `?featured=false` (denetim bulgusu 9) · indiricinin **SSRF kapısı**
+(her yönlendirme sıçraması ayrı denetleniyor, iç ağ adresleri reddediliyor).
+
+⚠️ **PLANDAN BİR SAPMA:** `News:Backfill:MaxPosts` → **`MaxTotalPosts`** (denetim bulgusu 11).
+Davranış **değişmedi**, ad yanlıştı: ayar "arşiv derinliği" değil **toplam kayıt tavanı** gibi
+davranıyor ve eski ad *"derinliği 200 yaptım, 50 haber geldi"* sürprizini kuruyordu. Eski
+anahtar yedek olarak okunmaya devam ediyor.
+
+**Canlı doğrulama (Chrome + gerçek Postgres + gerçek kaynak, 12 Ağustos 2026):**
+Dashboard kutusu "Taze · 50 yayında / 50 toplam" · başlık override'ı yazıldı → **elle senkron
+koşturuldu** (`manual`, tamamlandı) → **override yerinde**, `/v1/news` etkin başlığı döndürüyor ·
+"Spor" dışlandı → önizleme **"5 haber kalkar"** dedi, `/v1/news` **50 → 45** düştü, kategori
+uçtan **kaybol**du ve diğer sayaçlar da düştü (Haberler 38→34) · dışlama kaldırıldı → **50**,
+ters önizleme **"5 haber geri gelir"** · haber gerekçeyle kaldırıldı → liste 49, detay **404** →
+geri alındı → 50 · ikinci "çalışıyor" satırı veritabanı tarafından **reddedildi**
+(`ux_news_sync_runs_single_active`) ve panel butonu **kapalı çizilip sebebini yazdı** ·
+denetim izinde `archive`/`unarchive`/`sync` **Türkçe** görünüyor · konsolda **CSP ihlali yok**.
+**`dotnet test` 1034/1034.**
+
+**Kuralı bilerek boz → 5 deneme, 4 kırmızı:** `Unarchive` öneki silindi → 2 test ·
+joker kaçışı kaldırıldı → 3 test · `NewsStates` önceliği ters çevrildi → 1 test ·
+kilit indeksinden `UNIQUE` düşürüldü → 2 test. **5.'si (arama sorgusunu `Contains`'e geri
+çevirmek) YEŞİL KALDI** → test güçlendirildi (yukarıda).
+
+⏭️ **Sırada 12.14** — mobil. ⚠️ `?featured=false` ve `search` en az uzunluğu kontrata girdi
+(`API_CONTRACT.md`).
+
+
 
 ---
 

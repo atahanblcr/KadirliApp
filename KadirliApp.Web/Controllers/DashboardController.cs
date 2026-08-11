@@ -58,8 +58,18 @@ public class DashboardController : Controller
             ? await _sender.Send(new KadirliApp.Application.Features.PushCampaigns.Queries.GetLastPushCampaignQuery())
             : null;
 
+        // Faz 12.13 — haber senkronu sağlığı. Rol kapısı DİĞERLERİNDEN FARKLI: bu satır
+        // moderatöre de gösteriliyor, çünkü "Haberler" modülü ona açık olabilir ve boş bir
+        // haber listesine bakan moderatörün sebebi görebilmesi gerekiyor. Kutu bir eyleme
+        // değil bir DURUMA bakıyor; senkron panosunun bağlantısını taşımıyor.
+        // 🔑 Bu bloğun 1 numaralı hasar sınıfının iniş sayfasındaki karşılığı: kaynak susarsa
+        // uygulama eski haberi göstermeye devam eder ve BAŞKA HİÇBİR YERDE belirti olmaz.
+        var newsSync = await _sender.Send(
+            new KadirliApp.Application.Features.News.Queries.GetNewsSyncStatusQuery());
+
         var model = new DashboardViewModel
         {
+            NewsSync = newsSync,
             LastPushCampaign = lastCampaign,
             TotalUsers = stats.TotalUsers,
             ActiveAds = stats.ActiveAds,

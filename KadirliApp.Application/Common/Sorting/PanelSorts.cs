@@ -138,4 +138,27 @@ public static class PanelSorts
             ("failed_desc",    q => q.OrderByDescending(x => x.FailedCount).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
             ("failed_asc",     q => q.OrderBy(x => x.FailedCount).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)),
         });
+
+    // ————————————————————————————————————————————————————————————————
+    // Haberler (Faz 12.13) — varsayılan, public ucun sırasıyla BİREBİR aynı:
+    // `GetNewsQueryHandler` → OrderByDescending(SourcePublishedAt).ThenBy(Id).
+    // ⚠️ Ayrışsalardı panelin "en üstteki haber" dediği ile vatandaşın gördüğü farklı olurdu
+    // ve kimse hata almazdı — üstelik 27k kayıtta eşit yayın anı KESİN var, ayraçsız
+    // sıralamada aynı kayıt iki sayfada birden görünür (§7 madde 30).
+    // ————————————————————————————————————————————————————————————————
+    public static readonly SortMap<NewsArticle> News = new(
+        defaultKey: "published_desc",
+        entries: new (string, Func<IQueryable<NewsArticle>, IOrderedQueryable<NewsArticle>>)[]
+        {
+            ("published_desc", q => q.OrderByDescending(x => x.SourcePublishedAt).ThenBy(x => x.Id)),
+            ("published_asc",  q => q.OrderBy(x => x.SourcePublishedAt).ThenBy(x => x.Id)),
+            // "Kaynakta ne zaman değişti" — override bayatlamasını kovalarken en işe yarar sıra.
+            ("modified_desc",  q => q.OrderByDescending(x => x.SourceModifiedAt).ThenBy(x => x.Id)),
+            ("modified_asc",   q => q.OrderBy(x => x.SourceModifiedAt).ThenBy(x => x.Id)),
+            // ⚠️ Başlık sıralaması KAYNAĞIN başlığına göre: override'lı sıralamak için
+            // `COALESCE` gerekir ve o ifade `ix_news_articles_source_title` indeksini
+            // kullanamaz — 27k kayıtta her sayfa tam tarama olurdu.
+            ("title_asc",      q => q.OrderBy(x => x.SourceTitle).ThenByDescending(x => x.SourcePublishedAt).ThenBy(x => x.Id)),
+            ("title_desc",     q => q.OrderByDescending(x => x.SourceTitle).ThenByDescending(x => x.SourcePublishedAt).ThenBy(x => x.Id)),
+        });
 }

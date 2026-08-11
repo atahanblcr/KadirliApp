@@ -69,6 +69,9 @@ public class NewsSyncService : INewsSyncService
             return await RunArchiveBackfillAsync(trigger, triggeredBy, ct);
 
         var run = await StartRunAsync(NewsSyncModes.Incremental, trigger, triggeredBy, ct);
+        // Kilit: başka bir koşu sürüyor. Sessizce "tamamlandı" demek yerine
+        // çağırana SEBEBİNİ döndürüyoruz — panel butonu bunu yazmak zorunda.
+        if (run is null) return NewsSyncOutcome.AlreadyRunning(NewsSyncModes.Incremental);
         run.CursorFrom = state.ForwardCursorUtc;
 
         try
@@ -144,13 +147,16 @@ public class NewsSyncService : INewsSyncService
     {
         var state = await LoadStateAsync(ct);
         var run = await StartRunAsync(NewsSyncModes.Archive, trigger, triggeredBy, ct);
+        // Kilit: başka bir koşu sürüyor. Sessizce "tamamlandı" demek yerine
+        // çağırana SEBEBİNİ döndürüyoruz — panel butonu bunu yazmak zorunda.
+        if (run is null) return NewsSyncOutcome.AlreadyRunning(NewsSyncModes.Archive);
 
         try
         {
             var categories = await SyncCategoriesAsync(run, ct);
 
             var have = await _uow.Repository<NewsArticle>().Query().CountAsync(ct);
-            var remaining = _options.BackfillMaxPosts - have;
+            var remaining = _options.MaxTotalPosts - have;
 
             // Derinlik zaten dolu (ya da kaynak tükendi) → hiçbir istek atma. İdempotent:
             // iş her açılışta koşabilir, ikinci koşuda hiçbir şey yapmaz.
@@ -239,10 +245,14 @@ public class NewsSyncService : INewsSyncService
     {
         var state = await LoadStateAsync(ct);
         var run = await StartRunAsync(NewsSyncModes.Reconcile, trigger, triggeredBy, ct);
+        // Kilit: başka bir koşu sürüyor. Sessizce "tamamlandı" demek yerine
+        // çağırana SEBEBİNİ döndürüyoruz — panel butonu bunu yazmak zorunda.
+        if (run is null) return NewsSyncOutcome.AlreadyRunning(NewsSyncModes.Reconcile);
 
         try
         {
-            var window = await _client.GetPublishedIdWindowAsync(_options.BackfillMaxPosts, ct);
+            var window = await _client.GetPublishedIdWindowAsync(
+                _options.MaxTotalPosts, _options.MaxPagesPerRun, ct);
             run.Fetched = window.WpIds.Count;
 
             // 🔴 EN ÖNEMLİ KAPI: kaynak boş liste döndürdüyse (kesinti, yanlış yol, boş cevap)
@@ -328,6 +338,9 @@ public class NewsSyncService : INewsSyncService
         // ama eski URL'i de koru ki bir sonraki koşu yeniden denesin (sağlama URL'i içeriyor).
         var imageUrl = cover?.Url;
         Guid? imageFileId = null;
+        // ⚠️ Yeni aynalanan dosya **varlık olarak** taşınır, kimliğiyle değil: parti henüz
+        // kaydedilmediği için `Id` o an `Guid.Empty` (12.12 sonrası denetim, bulgu 7).
+        Domain.Entities.File? imageFile = null;
         int? width = cover?.Width;
         int? height = cover?.Height;
 
@@ -337,8 +350,8 @@ public class NewsSyncService : INewsSyncService
         }
         else if (imageUrl is not null && _options.MirrorImages)
         {
-            imageFileId = await _mirror.MirrorAsync(imageUrl, ct);
-            if (imageFileId is null && existing?.SourceImageFileId is not null)
+            imageFile = await _mirror.MirrorAsync(imageUrl, ct);
+            if (imageFile is null && existing?.SourceImageFileId is not null)
             {
                 imageUrl = existing.SourceImageUrl;
                 imageFileId = existing.SourceImageFileId;
@@ -369,6 +382,7 @@ public class NewsSyncService : INewsSyncService
             Checksum: checksum,
             ImageUrl: Limit(imageUrl, NewsColumnLimits.Url),
             ImageFileId: imageFileId,
+            ImageFile: imageFile,
             ImageWidth: width,
             ImageHeight: height,
             ReadingMinutes: NewsReadingTime.Minutes(plainText));
@@ -533,8 +547,40 @@ public class NewsSyncService : INewsSyncService
         }
     }
 
-    private async Task<NewsSyncRun> StartRunAsync(string mode, string trigger, Guid? triggeredBy, CancellationToken ct)
+    /// <summary>
+    /// Faz 12.13 — <b>yarıda kalmış</b> koşunun kabul edileceği süre.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 Bu sabit olmadan eşzamanlılık kilidi <b>kalıcı bir kilide</b> dönerdi: süreç
+    /// öldürülürse (deploy, OOM, makine kapanması) satır sonsuza kadar
+    /// <c>completed_at IS NULL</c> kalır ve kısmi unique indeks <b>bütün gelecek koşuları</b>
+    /// engellerdi — üstelik hiçbir hata vermeden, yalnız haberler akmayı bırakarak. Yani
+    /// arızayı önlemek için konan koruma, tam da o arızanın sebebi olurdu.
+    /// ⚠️ Değer koşunun en kötü süresinden <b>belirgin biçimde</b> uzun olmalı: bir koşu en
+    /// fazla <c>MaxPagesPerRun</c> (20) × istemci zaman aşımı (30 sn) ≈ 10 dk sürebiliyor.
+    /// </remarks>
+    public static readonly TimeSpan StuckRunAfter = TimeSpan.FromMinutes(30);
+
+    /// <summary>
+    /// Koşu defterini açar. <b>Aynı anda birden çok koşu olamaz</b> — kilit veritabanında.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 Kilit neden Redis'te değil: bu projede Redis bilinçli olarak <b>fail-open</b>
+    /// (§7 madde 36) — yani erişilemediği anda kilidi açar. Ama kilidin gerçekten gerektiği
+    /// an tam olarak o an olabilir. §7 madde 32'nin dersi birebir uygulanıyor:
+    /// <i>"benzersiz indeks Api/Web yarışını yakalar."</i> Kısmi unique indeks
+    /// (<c>WHERE completed_at IS NULL</c>) bunu <b>veritabanı seviyesinde</b> garanti eder,
+    /// yani panelin butonu, zamanlanmış iş ve elle tetiklenen ikinci bir istek aynı anda
+    /// gelse bile yalnız biri açılır.
+    /// <para>
+    /// 🔑 Dönüş <c>null</c> ise koşu <b>açılmadı</b>: çağıran bunu bir hata gibi değil,
+    /// "yapılmadı ve sebebi şu" diye bildirmek zorunda (<c>NewsSyncOutcome.AlreadyRunning</c>).
+    /// </para>
+    /// </remarks>
+    private async Task<NewsSyncRun?> StartRunAsync(string mode, string trigger, Guid? triggeredBy, CancellationToken ct)
     {
+        await ReapStuckRunsAsync(ct);
+
         var run = new NewsSyncRun
         {
             Mode = mode,
@@ -545,8 +591,45 @@ public class NewsSyncService : INewsSyncService
         };
 
         await _uow.Repository<NewsSyncRun>().AddAsync(run, ct);
-        await _uow.SaveChangesAsync(ct);
-        return run;
+
+        try
+        {
+            await _uow.SaveChangesAsync(ct);
+            return run;
+        }
+        catch (DbUpdateException ex)
+        {
+            // Yarışı kaybettik: kısmi unique indeks ikinci "çalışıyor" satırını reddetti.
+            // ⚠️ Kendi örneğimizi izleyiciden DÜŞÜRMEK zorundayız; kalsaydı bu scope'taki
+            // her `SaveChanges` aynı ihlalle patlardı (12.12'nin "zehirli bağlam" dersi).
+            _uow.Repository<NewsSyncRun>().Remove(run);
+            _log.LogInformation(ex, "Haber senkronu ({Mode}) başlatılmadı: başka bir koşu sürüyor.", mode);
+            return null;
+        }
+    }
+
+    /// <summary>Yarıda kalmış koşuları <b>başarısız</b> olarak kapatır (kilidi serbest bırakır).</summary>
+    /// <remarks>
+    /// ⚠️ <c>ExecuteUpdate</c> ile, izleyiciye dokunmadan: burası bir koşunun <b>ilk</b> adımı
+    /// ve bağlamda henüz hiçbir şey yokken tek SQL cümlesi atomik/idempotenttir.
+    /// 🔑 Kayıt <b>silinmez</b>, hata mesajıyla kapatılır — "koşu neden yarıda kaldı?"
+    /// sorusunun cevabı panoda dursun (modülün "silme yerine işaretle" ilkesi).
+    /// </remarks>
+    private async Task ReapStuckRunsAsync(CancellationToken ct)
+    {
+        var deadline = DateTime.UtcNow - StuckRunAfter;
+        var now = DateTime.UtcNow;
+
+        var reaped = await _uow.Repository<NewsSyncRun>().Query()
+            .Where(x => x.CompletedAt == null && x.StartedAt < deadline)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(x => x.Status, NewsSyncStatuses.Failed)
+                .SetProperty(x => x.CompletedAt, now)
+                .SetProperty(x => x.ErrorMessage,
+                    "Koşu yarıda kaldı (uygulama yeniden başlatılmış olabilir) ve zaman aşımıyla kapatıldı."), ct);
+
+        if (reaped > 0)
+            _log.LogWarning("Yarıda kalmış {Count} haber senkron koşusu kapatıldı.", reaped);
     }
 
     private async Task<NewsSyncOutcome> CompleteRunAsync(NewsSyncRun run, NewsSyncState state, CancellationToken ct)

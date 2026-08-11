@@ -92,19 +92,24 @@ public class WordPressNewsSourceClient : INewsSourceClient
         return categories;
     }
 
-    public async Task<NewsSourceIdWindow> GetPublishedIdWindowAsync(int maxPosts, CancellationToken ct)
+    public async Task<NewsSourceIdWindow> GetPublishedIdWindowAsync(int maxPosts, int maxPages, CancellationToken ct)
     {
         var ids = new List<int>();
         DateTime? oldest = null;
 
         var perPage = Math.Clamp(maxPosts, 1, 100);
         var remaining = maxPosts;
+        var pagesLeft = Math.Max(1, maxPages);
         DateTime? before = null;
 
         // Sayfa numarası yerine tarih imleci: koşu sırasında yeni bir haber yayınlanırsa
         // sayfa numaraları kayar ve tam sınırdaki kimlik listeden düşerdi — o kimlik bizde
         // varsa "kaynakta yok" sanılıp `gone` işaretlenirdi. Sessiz ve yanlış.
-        while (remaining > 0)
+        // ⚠️ Tavan `remaining` ile BİRLİKTE gerekiyor: kaynak her istekte beklenenden az kayıt
+        // döndürürse `remaining` hiç sıfırlanmaz ve döngü yalnız "ilerleme yok" dalıyla
+        // kırılırdı — o dal da kaynağın `before`'a saygı duymasına güvenir (12.12 sonrası
+        // denetim, bulgu 8: senkron döngülerindeki aynı tavan burada unutulmuştu).
+        while (remaining > 0 && pagesLeft-- > 0)
         {
             var take = Math.Min(perPage, remaining);
             var url = $"{_baseUrl}/posts?_fields=id,date_gmt&per_page={take}&page=1&orderby=date&order=desc";

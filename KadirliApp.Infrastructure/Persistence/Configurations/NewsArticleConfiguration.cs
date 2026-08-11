@@ -41,7 +41,13 @@ public class NewsArticleConfiguration : IEntityTypeConfiguration<NewsArticle>
         // Artımlı senkronun "en yeni değişiklik" sorgusu.
         b.HasIndex(x => x.SourceModifiedAt).IsDescending();
 
-        // Aramanın çıpası: 27k kayıtta indekssiz `LIKE` her tuş vuruşunda tam tarama.
+        // ⚠️ Bu btree indeksi **aramanın çıpası DEĞİL** — 12.12'de öyle yazılmıştı ve yorum
+        // yanlıştı (12.12 sonrası denetim, bulgu 4): `lower(kolon) LIKE '%x%'` bir btree
+        // indeksini kullanamaz (sorgunun `LIKE` üretmesi bunu değiştirmiyor; ölçüldü).
+        // Buradaki indeksin gerçek işi panelin `title_asc` sıralaması.
+        // Aramanın çıpası `AddNewsSearchIndexes` migration'ındaki üç **GIN/trigram ifade
+        // indeksi**dir (`lower(source_title)` · `lower(title_override)` · `lower(source_plain_text)`);
+        // EF `gin_trgm_ops` ifade indeksini modelleyemediği için ham SQL ile yazılırlar.
         b.HasIndex(x => x.SourceTitle);
 
         // Görsel aynasının tekilleştirme sorgusu (aynı URL başka haberde var mı?).

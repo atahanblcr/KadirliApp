@@ -2,6 +2,17 @@ namespace KadirliApp.Web.Models;
 
 public class DashboardViewModel
 {
+    /// <summary>
+    /// Faz 12.13 — haber senkronunun sağlığı (<c>_NewsSyncStatusCard</c>).
+    /// </summary>
+    /// <remarks>
+    /// 🔴 İniş sayfasında durmasının sebebi, arızanın <b>başka hiçbir yerde belirti
+    /// vermemesi</b>: senkron durduğunda uçlar 200 döner, liste dolu görünür, log temizdir.
+    /// Panele giren yönetici bu sayfayı mutlaka görüyor (12.2'nin şüpheli giriş rozetiyle
+    /// aynı gerekçe: kimse posta kutusuna ya da bir panoya 7/24 bakmıyor).
+    /// </remarks>
+    public KadirliApp.Application.Features.News.Dtos.NewsSyncStatusDto? NewsSync { get; set; }
+
     public int TotalUsers { get; set; }
     public int ActiveAds { get; set; }
     public int PendingApprovals { get; set; }

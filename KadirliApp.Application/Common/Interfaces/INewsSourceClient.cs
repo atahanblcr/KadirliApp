@@ -68,5 +68,14 @@ public interface INewsSourceClient
     Task<IReadOnlyList<NewsSourceCategory>> GetCategoriesAsync(CancellationToken ct);
 
     /// <summary>Mutabakat: <c>_fields=id,date_gmt</c> ile yalnız kimlik + tarih (27k kimlik ≈ birkaç yüz KB).</summary>
-    Task<NewsSourceIdWindow> GetPublishedIdWindowAsync(int maxPosts, CancellationToken ct);
+    /// <param name="maxPages">
+    /// 🔴 <b>Koşu başına sayfa tavanı</b> (12.12 sonrası denetim, bulgu 8). 12.12'de bu döngüde
+    /// tavan <b>yoktu</b>: <c>MaxTotalPosts</c> yanlışlıkla büyük yazılırsa (ya da kaynak her
+    /// istekte tek kayıt döndürürse) mutabakat binlerce istek atardı — senkron döngülerinde
+    /// aynı tavan zaten uygulanıyordu, yalnız burada unutulmuştu.
+    /// ⚠️ Tavana takılan koşu <b>eksik bir pencere</b> döndürür; güvenliği sağlayan şey
+    /// pencerenin en eski tarihi (<see cref="NewsSourceIdWindow.OldestPublishedAtUtc"/>):
+    /// tabanın altındaki hiçbir kayda dokunulmaz.
+    /// </param>
+    Task<NewsSourceIdWindow> GetPublishedIdWindowAsync(int maxPosts, int maxPages, CancellationToken ct);
 }

@@ -1,4 +1,5 @@
 using System.Globalization;
+using KadirliApp.Application.Features.News;
 using KadirliApp.Domain.Enums;
 
 namespace KadirliApp.Web.Common;
@@ -131,13 +132,13 @@ public static class PanelDisplay
         // kayıtlarda MODÜL SÜTUNUNU ham İngilizce basmaya başlardı. Yani tutarsızlığın
         // düzeltilmesi, düzeltilmemiş hâlinde OLMAYAN yeni bir hatayı doğurabilirdi.
         ["staff"] = "Personel",
-        // Faz 12.12 — haber komutları (arşivle/override/öne çıkar/senkron) `AuditModule = "news"`
-        // yazıyor ama modülün panel ekranı **12.13'te** geliyor, yani menüde henüz satırı yok.
-        // Bu satır olmasaydı denetim izi ekranı o kayıtlarda modül sütununu **ham İngilizce**
-        // basardı (Değişmez Kural #6).
-        // 📌 12.13'te `PanelMenu.Items`'a "news" satırı eklendiğinde `ModuleLabel` önce menüye
-        // baktığı için burası ölü satıra döner — o zaman SİLİNMELİ.
-        ["news"] = "Haberler"
+        // 📌 12.12'nin geçici ["news"] satırı 12.13'te SİLİNDİ: modülün artık menüde bir satırı
+        // var (`PanelMenu.Items` → "news") ve `ModuleLabel` önce menüye baktığı için burası
+        // ölü koda dönmüştü. Planın kendi uyarısının uygulanması.
+        //
+        // Faz 12.13 — haber senkronu. Yalnız-admin ekran (menüde Module=null) ama
+        // `TriggerNewsSyncCommand` `AuditModule = "news-sync"` yazıyor.
+        ["news-sync"] = "Haber Senkronu"
     };
 
     /// <summary>
@@ -424,6 +425,73 @@ public static class PanelDisplay
     public static IReadOnlyCollection<string> KnownPushSources => PushSources.Keys;
     public static IReadOnlyCollection<string> KnownPushTargets => PushTargets.Keys;
     public static IReadOnlyCollection<string> KnownPushStatuses => PushStatuses.Keys;
+
+    // ── Haberler (Faz 12.13) ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Haberin panel durumu. ⚠️ <b>Üç değerin de anlamı "vatandaş bunu görüyor mu?"</b> —
+    /// bir moderasyon adımı değil (bu modülde moderasyon yok).
+    /// </summary>
+    private static readonly Dictionary<string, PanelBadge> NewsStateBadges = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["published"] = new("Yayında", "bg-green-100 text-green-800", "fa-circle-check"),
+        // "Yayından kaldırıldı" — "silindi" DEĞİL: geri alınabilir olduğu metinden anlaşılmalı.
+        ["archived"] = new("Yayından kaldırıldı", "bg-orange-100 text-orange-800", "fa-eye-slash"),
+        // 🔑 Bu rozet bir SEBEP: kaynakta yok. Yönetici "Geri al"a basıp hiçbir şeyin
+        // değişmediğini görmesin diye ayrı bir durum (UnarchiveNewsArticleCommand'ın notu).
+        ["gone"] = new("Kaynakta yok", "bg-red-100 text-red-800", "fa-link-slash")
+    };
+
+    private static readonly Dictionary<string, PanelBadge> NewsSyncModeBadges = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["incremental"] = new("Artımlı", "bg-blue-100 text-blue-800", "fa-arrow-right-long"),
+        ["archive"] = new("Arşiv derinleştirme", "bg-purple-100 text-purple-800", "fa-clock-rotate-left"),
+        ["reconcile"] = new("Mutabakat", "bg-teal-100 text-teal-800", "fa-list-check")
+    };
+
+    private static readonly Dictionary<string, PanelBadge> NewsSyncStatusBadges = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["running"] = new("Çalışıyor", "bg-blue-100 text-blue-800", "fa-spinner"),
+        ["completed"] = new("Tamamlandı", "bg-green-100 text-green-800", "fa-circle-check"),
+        ["failed"] = new("Başarısız", "bg-red-100 text-red-800", "fa-triangle-exclamation"),
+        // 🔑 "Atlandı" bir hata değil: kilit çalıştı, ikinci koşu hiç açılmadı. Kırmızı
+        // basılsaydı yönetici olmayan bir arızayı kovalardı.
+        ["skipped"] = new("Atlandı (kilit)", "bg-slate-200 text-slate-700", "fa-lock")
+    };
+
+    private static readonly Dictionary<string, PanelBadge> NewsSyncTriggerBadges = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["schedule"] = new("Zamanlanmış", "bg-slate-200 text-slate-700", "fa-calendar-check"),
+        ["manual"] = new("Elle", "bg-amber-100 text-amber-800", "fa-hand-pointer")
+    };
+
+    /// <summary>Haberin görünürlük durumunu Türkçe rozete çevirir.</summary>
+    public static PanelBadge NewsState(string? raw) => Lookup(NewsStateBadges, raw, "durum");
+
+    public static PanelBadge NewsSyncMode(string? raw) => Lookup(NewsSyncModeBadges, raw, "koşu türü");
+    public static PanelBadge NewsSyncStatus(string? raw) => Lookup(NewsSyncStatusBadges, raw, "koşu durumu");
+    public static PanelBadge NewsSyncTrigger(string? raw) => Lookup(NewsSyncTriggerBadges, raw, "tetikleyici");
+
+    /// <summary>
+    /// Senkron tazeliğini rozete çevirir — <b>eşikler burada DEĞİL</b>
+    /// (<c>NewsSyncHealth</c>). Panel yalnız renk/etiket verir.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 Eşiği burada yeniden yazmak §7 madde 35'in sınıfı olurdu: pano "taze" derken
+    /// ileride eklenecek bir uyarı "durdu" der ve ikisi de hata vermez.
+    /// </remarks>
+    public static PanelBadge NewsFreshness(NewsSyncFreshness freshness) => freshness switch
+    {
+        NewsSyncFreshness.Fresh => new PanelBadge("Taze", "bg-green-100 text-green-800", "fa-circle-check"),
+        NewsSyncFreshness.Stale => new PanelBadge("Gecikmiş", "bg-amber-100 text-amber-800", "fa-clock"),
+        NewsSyncFreshness.Stalled => new PanelBadge("Durmuş", "bg-red-100 text-red-800", "fa-triangle-exclamation"),
+        _ => new PanelBadge("Hiç koşmadı", "bg-slate-200 text-slate-700", "fa-hourglass-start")
+    };
+
+    public static IReadOnlyCollection<string> KnownNewsStates => NewsStateBadges.Keys;
+    public static IReadOnlyCollection<string> KnownNewsSyncModes => NewsSyncModeBadges.Keys;
+    public static IReadOnlyCollection<string> KnownNewsSyncStatuses => NewsSyncStatusBadges.Keys;
+    public static IReadOnlyCollection<string> KnownNewsSyncTriggers => NewsSyncTriggerBadges.Keys;
 
     /// <summary>Giriş kanalını Türkçe rozete çevirir. Bilinmeyen değer <b>ham geçmez</b>.</summary>
     public static PanelBadge LoginChannel(string? raw) => Lookup(LoginChannelBadges, raw, "kanal");

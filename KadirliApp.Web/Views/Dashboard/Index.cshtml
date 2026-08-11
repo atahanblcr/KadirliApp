@@ -78,6 +78,21 @@
 </div>
 
 @*
+    Faz 12.13 — HABER SENKRONU SAĞLIĞI.
+    🔴 Bu kutu bu bloğun 1 numaralı hasar sınıfının iniş sayfasındaki karşılığı: senkron
+    sessizce durursa uygulama eski haberi göstermeye devam eder, uçlar 200 döner, log
+    temizdir ve BAŞKA HİÇBİR YERDE belirti olmaz. Kutunun tek sahibi `_NewsSyncStatusCard`
+    (eşikler `NewsSyncHealth`'te) — üç ekran ayrı hesaplasaydı biri "taze" derken diğeri
+    "durdu" derdi.
+*@
+@if (Model.NewsSync is { } newsSync)
+{
+    <div class="mb-6">
+        <partial name="_NewsSyncStatusCard" model="newsSync" />
+    </div>
+}
+
+@*
     Faz 11.15c — ONAY KUYRUĞU.
     "Bekleyen Onaylar" kartı 10.10'dan beri tıklanamayan tek bir sayıydı; oysa
     GetDashboardStatsQueryHandler kırılımı (PendingBreakdown) zaten hesaplıyor ve

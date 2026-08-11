@@ -207,6 +207,14 @@ public class NewsArticle : BaseEntity
         _sourceModifiedAt = snapshot.ModifiedAtUtc;
         _sourceChecksum = snapshot.Checksum;
         _sourceImageFileId = snapshot.ImageFileId;
+
+        // 🔑 Yeni aynalanan dosya bağı **gezinme özelliğinden** kurulur, FK skalerinden değil:
+        // dosya aynı `SaveChanges` içinde ekleniyor ve `Id` store-generated olduğu için o an
+        // hâlâ `Guid.Empty`'dir (12.2b'de canlıda yaşanan FK tuzağı; 12.13 bulgu 7).
+        // ⚠️ Yalnız dolu geldiğinde yazılır: `null` atamak, yüklenmemiş bir gezinme
+        // özelliğinde ilişkiyi koparıp FK'yı sessizce boşaltabilir.
+        if (snapshot.ImageFile is not null) _sourceImage = snapshot.ImageFile;
+
         _sourceImageUrl = snapshot.ImageUrl;
         _sourceImageWidth = snapshot.ImageWidth;
         _sourceImageHeight = snapshot.ImageHeight;
@@ -320,4 +328,10 @@ public sealed record NewsArticleSnapshot(
     Guid? ImageFileId,
     int? ImageWidth,
     int? ImageHeight,
-    int ReadingMinutes);
+    int ReadingMinutes,
+    // Bu koşuda YENİ aynalanmış ve henüz kaydedilmemiş dosya satırı (varsa).
+    // 🔑 `ImageFileId` ile ikisi birden var çünkü iki ayrı durum var: zaten kaydedilmiş bir
+    // dosyaya bağlanmak (kimlik yeter) ve AYNI PARTİDE eklenen bir dosyaya bağlanmak (kimlik
+    // henüz yok → varlık şart). Tek alanla ifade edilseydi ikinci durum `Guid.Empty`'ye
+    // bağlanır ve FK ihlaliyle bütün parti düşerdi (12.2b'nin canlı tuzağı).
+    File? ImageFile = null);

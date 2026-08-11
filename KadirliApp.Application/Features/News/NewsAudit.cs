@@ -14,4 +14,18 @@ namespace KadirliApp.Application.Features.News;
 public static class NewsAudit
 {
     public const string Module = "news";
+
+    /// <summary>
+    /// Faz 12.13 — senkron panosunun <b>ayrı</b> denetim anahtarı (<c>news-sync</c>).
+    /// </summary>
+    /// <remarks>
+    /// 🔑 Neden aynı anahtar değil: senkron ekranı izin matrisinin <b>dışında</b>
+    /// (yalnız admin, <c>PanelMenu</c> satırında <c>Module = null</c>), haber ekranı ise
+    /// <b>içinde</b> (moderatöre açık). Tek anahtar kullanılsaydı denetim izi ekranında
+    /// *"kim bir haberi düzeltti"* ile *"kim tüm kaynağı yeniden çekti"* aynı modül
+    /// altında görünürdü — panelde iki farklı güven seviyesinin tek satırda karışması.
+    /// ⚠️ Karşılığı <c>PanelDisplay.NonMatrixModules</c>'ta olmak zorunda, yoksa denetim izi
+    /// ekranı <b>ham İngilizce</b> basar (Değişmez Kural #6).
+    /// </remarks>
+    public const string SyncModule = "news-sync";
 }

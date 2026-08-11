@@ -37,8 +37,15 @@ public class NewsImageMirror
     private readonly INewsImageDownloader _downloader;
     private readonly ILogger<NewsImageMirror> _log;
 
-    /// <summary>Koşu içi ayna: kaynak URL → yeni <c>files.id</c>.</summary>
-    private readonly Dictionary<string, Guid> _mirroredInThisRun = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Koşu içi ayna: kaynak URL → <c>files</c> satırı (yeni ya da var olan).</summary>
+    /// <remarks>
+    /// ⚠️ <c>Guid</c> değil <b>varlık</b> tutuluyor ve sebebi bir denetim bulgusu (7): yeni
+    /// dosya artık <b>partiyle birlikte</b> kaydediliyor, yani kimliği o an henüz yok
+    /// (<c>Id</c> kolonu <c>gen_random_uuid()</c> ile <i>store-generated</i>). Kimlik
+    /// saklansaydı aynı koşudaki ikinci haber <c>Guid.Empty</c>'ye bağlanırdı — 12.2b'de
+    /// canlıda yaşanan FK tuzağının birebir aynısı.
+    /// </remarks>
+    private readonly Dictionary<string, File> _mirroredInThisRun = new(StringComparer.OrdinalIgnoreCase);
 
     public NewsImageMirror(
         IUnitOfWork uow,
@@ -53,24 +60,48 @@ public class NewsImageMirror
     }
 
     /// <summary>
-    /// Görseli aynalar ve <c>files.id</c> döner. <b>Başarısızlıkta <c>null</c> döner, fırlatmaz</b> —
-    /// görselsiz bir haber, hiç inmemiş bir haberden iyidir.
+    /// Görseli aynalar ve <c>files</c> satırını döner. <b>Başarısızlıkta <c>null</c> döner,
+    /// fırlatmaz</b> — görselsiz bir haber, hiç inmemiş bir haberden iyidir.
     /// </summary>
-    public async Task<Guid?> MirrorAsync(string? sourceUrl, CancellationToken ct)
+    /// <remarks>
+    /// 🔴 <b>Dönen satır HENÜZ KAYDEDİLMİŞ OLMAYABİLİR</b> ve bu bilinçli (12.12 sonrası
+    /// denetim, bulgu 7). İlk yazımda bu metot <b>paylaşılan</b> <c>IUnitOfWork</c> üzerinde
+    /// <c>SaveChanges</c> çağırıyordu; iki yan etkisi vardı:
+    /// <list type="number">
+    ///   <item>Partinin yarısı erken commit ediliyordu — "parti" semantiği (ve onun üstüne
+    ///         kurulu kolon tavanı dersi) sessizce bozuluyordu.</item>
+    ///   <item>🐛 O <c>SaveChanges</c> <b>başka bir varlığın</b> hatasıyla patladığında hata
+    ///         buradaki <c>catch</c>'e düşüyor ve <i>"Haber görseli kaydedilemedi"</i> diye
+    ///         <b>yanlış</b> loglanıyordu — arızayı arayan insanı yanlış yere gönderen bir iz.</item>
+    /// </list>
+    /// Artık satır yalnız <c>Add</c> ediliyor; kaydı çağıranın parti <c>SaveChanges</c>'i yazıyor.
+    /// ⚠️ Bu yüzden çağıran, kaydı <b>FK skaleri ile değil gezinme özelliği ile</b> bağlamak
+    /// zorunda (<c>NewsArticleSnapshot.ImageFile</c>): <c>Id</c> store-generated olduğu için
+    /// o an hâlâ <c>Guid.Empty</c>'dir (12.2b'nin canlı FK tuzağı).
+    /// </remarks>
+    public async Task<File?> MirrorAsync(string? sourceUrl, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(sourceUrl)) return null;
 
         if (_mirroredInThisRun.TryGetValue(sourceUrl, out var cached)) return cached;
 
-        var existing = await _uow.Repository<NewsArticle>().Query()
+        var existingId = await _uow.Repository<NewsArticle>().Query()
             .Where(x => x.SourceImageUrl == sourceUrl && x.SourceImageFileId != null)
             .Select(x => x.SourceImageFileId)
             .FirstOrDefaultAsync(ct);
 
-        if (existing is not null)
+        if (existingId is not null)
         {
-            _mirroredInThisRun[sourceUrl] = existing.Value;
-            return existing;
+            // Kimlik değil varlık gerekiyor: bağ gezinme özelliğinden kuruluyor.
+            var known = await _uow.Repository<File>().Query(tracking: true)
+                .FirstOrDefaultAsync(f => f.Id == existingId.Value, ct);
+
+            if (known is not null)
+            {
+                _mirroredInThisRun[sourceUrl] = known;
+                return known;
+            }
+            // Dosya silinmişse (soft-delete) aşağıya düşüp yeniden indiriyoruz.
         }
 
         var download = await _downloader.TryDownloadAsync(sourceUrl, ct);
@@ -101,13 +132,14 @@ public class NewsImageMirror
             };
 
             await _uow.Repository<File>().AddAsync(file, ct);
-            await _uow.SaveChangesAsync(ct);
 
-            _mirroredInThisRun[sourceUrl] = file.Id;
-            return file.Id;
+            _mirroredInThisRun[sourceUrl] = file;
+            return file;
         }
         catch (Exception ex)
         {
+            // Artık gerçekten yalnız "görsel kaydedilemedi": burada kalan tek iş depolamaya
+            // yazmak (dosya sistemi) ve varlığı izleyiciye eklemek.
             _log.LogWarning(ex, "Haber görseli kaydedilemedi: {Url}", sourceUrl);
             return null;
         }

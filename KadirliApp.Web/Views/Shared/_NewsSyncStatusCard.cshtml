@@ -1,0 +1,90 @@
+@using KadirliApp.Web.Common
+@using KadirliApp.Application.Features.News
+@model KadirliApp.Application.Features.News.Dtos.NewsSyncStatusDto
+@*
+    Faz 12.13 — senkron sağlığı kutusu. TEK SAHİP: Dashboard, Haberler listesi ve senkron
+    panosu bu partial'ı kullanır.
+
+    🔴 Bu kutu bu bloğun 1 NUMARALI HASAR SINIFININ ekrandaki karşılığı: senkron sessizce
+    durursa uygulama eski haberi göstermeye devam eder — uçlar 200 döner, liste dolu
+    görünür, log temizdir ve HİÇ KİMSE HATA ALMAZ. Diğer 26 modülde veriyi biz giriyoruz
+    ve girilmediğini bilen bir insan var; burada yok.
+
+    ⚠️ Eşikler burada DEĞİL (`NewsSyncHealth`): üç ekran ayrı hesaplasaydı biri "taze"
+    derken diğeri "durdu" derdi — §7 madde 35'in sınıfı.
+*@
+@{
+    var freshness = PanelDisplay.NewsFreshness(Model.Freshness);
+    var isProblem = Model.Freshness is NewsSyncFreshness.Stalled or NewsSyncFreshness.NeverRan;
+    var borderCss = isProblem ? "border-red-300 bg-red-50"
+        : Model.Freshness == NewsSyncFreshness.Stale ? "border-amber-300 bg-amber-50"
+        : "border-gray-200 bg-white";
+}
+
+<div class="rounded-lg border @borderCss p-4 shadow-sm">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <div class="flex items-center gap-2">
+                <h3 class="text-sm font-semibold text-gray-800">Haber senkronu</h3>
+                <partial name="_StatusBadge" model="freshness" />
+            </div>
+            <p class="mt-1 text-sm text-gray-600">
+                @if (Model.LastSuccessfulRunAt is { } last)
+                {
+                    @* Damga UTC saklanır, ekranda TR yerel gösterilir (§7 madde 6'nın sınıfı). *@
+                    <span>Son başarılı koşu: <strong>@last.AddHours(3).ToString("dd.MM.yyyy HH:mm")</strong></span>
+                    @if (Model.LastRun is { } run)
+                    {
+                        <span class="text-gray-500">
+                            · @run.Fetched okundu, @run.Created yeni, @run.Updated güncellendi@(run.Failed > 0 ? $", {run.Failed} hata" : "")
+                        </span>
+                    }
+                }
+                else
+                {
+                    <span>Senkron <strong>hiç koşmadı</strong> — haberler henüz alınmıyor.</span>
+                }
+            </p>
+
+            @if (isProblem)
+            {
+                @* 🔑 Uyarı ne olduğunu değil, NE ANLAMA GELDİĞİNİ söyler: yönetici
+                   "job kırmızı" cümlesinden değil, "uygulama eski haber gösteriyor"
+                   cümlesinden harekete geçer. *@
+                <p class="mt-2 text-sm font-medium text-red-800">
+                    <i class="fas fa-triangle-exclamation mr-1"></i>
+                    Uygulama şu anda <strong>eski haberleri</strong> gösteriyor olabilir; yeni haberler alınmıyor.
+                </p>
+            }
+
+            @if (Model.IsRunning && Model.RunningSince is { } since)
+            {
+                <p class="mt-2 text-sm text-blue-800">
+                    <i class="fas fa-spinner mr-1"></i>
+                    Bir koşu şu anda çalışıyor — @since.AddHours(3).ToString("HH:mm")'de başladı.
+                </p>
+            }
+        </div>
+
+        <div class="flex flex-wrap items-center gap-4 text-sm">
+            <div class="text-center">
+                <div class="text-lg font-semibold text-gray-900">@Model.VisibleArticles</div>
+                <div class="text-xs text-gray-500">yayında</div>
+            </div>
+            <div class="text-center">
+                <div class="text-lg font-semibold text-gray-900">@Model.TotalArticles</div>
+                <div class="text-xs text-gray-500">toplam</div>
+            </div>
+            @if (Model.StaleOverrides > 0)
+            {
+                @* Sayı görünmezse yönetici sebebini hiçbir zaman anlamaz — 12.3'ün
+                   "eşleşmemiş mahalle" sayacının aynı gerekçesi. *@
+                <a asp-controller="NewsAdmin" asp-action="Index" asp-route-sourceUpdated="true"
+                   class="text-center rounded-lg bg-amber-100 px-3 py-1 text-amber-900 hover:bg-amber-200">
+                    <div class="text-lg font-semibold">@Model.StaleOverrides</div>
+                    <div class="text-xs">kaynağı güncellenmiş</div>
+                </a>
+            }
+        </div>
+    </div>
+</div>

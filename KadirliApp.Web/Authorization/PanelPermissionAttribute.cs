@@ -58,7 +58,13 @@ public sealed class PanelPermissionFilter : IAsyncAuthorizationFilter
         // yayından kaldırma kararıdır. Eklenmeseydi POST olduğu için sessizce "update"e
         // düşerdi — yalnız düzenleme yetkisi olan moderatör bir vefat ilanını yayından
         // kaldırabilirdi (#29'daki BulkApprove hatasının aynısı).
-        if (StartsWithAny(actionName, "Approve", "Reject", "Verify", "Unverify", "Ban", "Unban", "UpdateStatus", "Resolve", "Archive"))
+        //
+        // 🔴 Faz 12.13'te "Unarchive" eklendi ve BU ÖNEK ELLE EKLENMEK ZORUNDAYDI: "Archive"
+        // öneki onu yakalamaz (eşleşme baştan yapılır, "Unarchive" ile başlamaz) → POST
+        // olduğu için sessizce "update"e düşerdi. Sonuç absürt ama sessiz olurdu:
+        // *yayından kaldırmak `approve` isterken, yayına geri döndürmek `update` ile
+        // yapılabilirdi.* Listede `Unverify`/`Unban` çiftleri zaten vardı — desen takip edildi.
+        if (StartsWithAny(actionName, "Approve", "Reject", "Verify", "Unverify", "Ban", "Unban", "UpdateStatus", "Resolve", "Archive", "Unarchive"))
             return "approve";
 
         if (Contains(actionName, "Delete") || Contains(actionName, "Remove")) return "delete";

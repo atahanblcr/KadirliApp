@@ -38,9 +38,52 @@ public class LookupsAdminController : Controller
             Mosques = await _sender.Send(new GetMosquesQuery()),
             EventCategories = await _sender.Send(new GetEventCategoriesQuery()),
             PlaceCategories = await _sender.Send(new GetPlaceCategoriesAdminQuery()),
+            NewsCategories = await _sender.Send(new Application.Features.News.Queries.GetNewsCategoriesAdminQuery()),
             OpenSection = open
         };
         return View(model);
+    }
+
+    // ---- Haber kategorileri (Faz 12.13) ----
+
+    /// <summary>
+    /// Kategorinin <b>görünürlüğünü</b> yazar (dışlama · şeritte göster · sıra).
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>Görünürlük semantiği DIŞLAMA'dır</b>, "en az bir görünür kategorisi olsun"
+    /// değil — ve bu tercihi ölçüm zorladı: bir haber çoklu kategoride
+    /// (<c>[49,51,52]</c>). OR semantiğinde "E-Gazete"yi kapatmak <b>işe yaramazdı</b>:
+    /// o haberler "Haberler"e de ait olduğu için görünmeye devam eder, yönetici anahtarı
+    /// çevirir ve <b>hiçbir şey olmaz</b> — panelin en sinsi yalan biçimi (§7 madde 37).
+    ///
+    /// 📌 Dışlama <b>geriye dönük ve anında</b> etkilidir: süzgeç kayıtlara yazılan bir
+    /// bayrakta değil sorguda yaşıyor (<c>NewsVisibility</c>), yani 366 eski haber de aynı
+    /// anda düşer. Yönetici kayıt kayıt gizlemek zorunda kalmaz.
+    ///
+    /// ⚠️ Aksiyon adı <c>…Update</c> → izin eylemi <c>update</c> (§7 madde 19), modül
+    /// <c>lookups</c>. Denetim izine ise <c>news</c> modülüyle düşer: değişikliğin etkisi
+    /// haberlerde görünüyor, sözlükte değil.
+    /// </remarks>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> NewsCategoryUpdate(
+        Guid id, bool isExcluded, bool showInFilterStrip, int displayOrder)
+    {
+        var result = await _sender.Send(new Application.Features.News.Commands.UpdateNewsCategoryVisibilityCommand
+        {
+            Id = id,
+            IsExcluded = isExcluded,
+            ShowInFilterStrip = showInFilterStrip,
+            DisplayOrder = displayOrder
+        });
+
+        TempData[result.Success ? "Success" : "Error"] = result.Success
+            ? (isExcluded
+                ? "Kategori dışlandı — bu kategorideki haberler uygulamada görünmeyecek."
+                : "Kategori güncellendi.")
+            : result.Error?.Message ?? "Kategori güncellenemedi.";
+
+        return RedirectToAction(nameof(Index), new { open = "news-categories" });
     }
 
     // ---- Mahalleler ----

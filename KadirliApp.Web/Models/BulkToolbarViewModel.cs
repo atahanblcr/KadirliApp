@@ -61,6 +61,41 @@ public sealed class BulkToolbarViewModel
     public static BulkToolbarViewModel DeleteOnly(string controller, string itemLabel) =>
         new() { Controller = controller, Actions = new[] { DeleteButton(itemLabel) } };
 
+    /// <summary>
+    /// Faz 12.13 — <b>görünürlük</b> ikilisi: yayından kaldır / geri al. <b>Silme yok.</b>
+    /// </summary>
+    /// <remarks>
+    /// 🔑 Üçüncü bir kalıp gerekti çünkü haberde ne moderasyon (onay/red) var ne de silme:
+    /// kaynak hâlâ yayındayken silinen kayıt bir sonraki senkronda <b>geri gelir</b> ve
+    /// yönetici "sildim ama döndü" der. <see cref="Moderation"/> kullanılsaydı ekranda
+    /// üç işlevsiz buton dururdu — "işlevsiz buton yok" kuralının panel karşılığı.
+    /// ⚠️ <c>ArchiveSelected</c> gerekçe ister; alanı görünüm <c>form="…"</c> özniteliğiyle
+    /// bu çubuğun gizli formuna bağlar (iç içe <c>&lt;form&gt;</c> doğmasın diye).
+    /// </remarks>
+    public static BulkToolbarViewModel Visibility(string controller, string itemLabel) => new()
+    {
+        Controller = controller,
+        Actions = new[]
+        {
+            new BulkActionButton
+            {
+                Action = "ArchiveSelected",
+                Label = "Seçilenleri yayından kaldır",
+                Icon = "fas fa-eye-slash",
+                CssClass = "text-white bg-orange-600 hover:bg-orange-700",
+                Destructive = true,
+                ConfirmText = $"Seçili {{count}} {itemLabel} uygulamadan kaldırılacak. Gerektiğinde geri alabilirsiniz. Devam edilsin mi?"
+            },
+            new BulkActionButton
+            {
+                Action = "UnarchiveSelected",
+                Label = "Seçilenleri yayına al",
+                Icon = "fas fa-eye",
+                CssClass = "text-white bg-emerald-600 hover:bg-emerald-700"
+            }
+        }
+    };
+
     private static BulkActionButton DeleteButton(string itemLabel) => new()
     {
         Action = "DeleteSelected",

@@ -32,38 +32,41 @@ public enum NewsSyncRequestMode
 /// öğrenirdik. Elle tetikleme, "bayrakla kapalı yol = hiç çalıştırılmamış yol" tuzağını da
 /// kapatır.
 /// </remarks>
-public class TriggerNewsSyncCommand : IRequest<ApiResponse<NewsSyncOutcome>>, IAuditableCommand
+public class TriggerNewsSyncCommand : IRequest<ApiResponse<bool>>, IAuditableCommand
 {
     public NewsSyncRequestMode Mode { get; set; } = NewsSyncRequestMode.Incremental;
     public Guid? AdminId { get; set; }
 
-    public string AuditModule => NewsAudit.Module;
+    public string AuditModule => NewsAudit.SyncModule;
     public string AuditAction => "sync";
     public string? AuditAffectedType => nameof(NewsSyncRun);
 }
 
-public class TriggerNewsSyncCommandHandler : IRequestHandler<TriggerNewsSyncCommand, ApiResponse<NewsSyncOutcome>>
+/// <summary>
+/// 🔴 Faz 12.13 — komut artık koşuyu <b>çalıştırmıyor, kuyruğa atıyor</b>.
+/// </summary>
+/// <remarks>
+/// 12.12'de bu handler <c>INewsSyncService</c>'i doğrudan çağırıyordu; panelin butonu ona
+/// bağlandığı anda istek içinde <b>dakikalarca</b> sürebilen bir iş koşacaktı. Sonuç
+/// tahmin edilebilir: panelin zaman aşımı → yönetici F5 → <b>ikinci koşu</b>. Yani
+/// engellemeye çalıştığımız şeyi butonun kendisi üretirdi.
+/// <para>
+/// 🔑 Alım mantığının tek sahipliği <b>bozulmadı</b>: kuyruktaki iş de aynı
+/// <c>INewsSyncService</c>'i çağırıyor (<c>NewsSyncTriggerJob</c>). Değişen tek şey
+/// <i>ne zaman</i> çağrıldığı.
+/// </para>
+/// ⚠️ Denetim izi <b>tıklama anında</b> düşer: koşu kilide takılıp hiç açılmasa bile
+/// "kim ne zaman tetiklemek istedi" sorusunun cevabı kalmalı.
+/// </remarks>
+public class TriggerNewsSyncCommandHandler : IRequestHandler<TriggerNewsSyncCommand, ApiResponse<bool>>
 {
-    private readonly INewsSyncService _sync;
+    private readonly INewsSyncQueue _queue;
 
-    public TriggerNewsSyncCommandHandler(INewsSyncService sync) => _sync = sync;
+    public TriggerNewsSyncCommandHandler(INewsSyncQueue queue) => _queue = queue;
 
-    public async Task<ApiResponse<NewsSyncOutcome>> Handle(TriggerNewsSyncCommand request, CancellationToken ct)
+    public Task<ApiResponse<bool>> Handle(TriggerNewsSyncCommand request, CancellationToken ct)
     {
-        // Hedefleme/alım mantığının ikinci bir gerçeklemesi YOK — üç yol da aynı tek sahipten
-        // (INewsSyncService) geçer.
-        var outcome = request.Mode switch
-        {
-            NewsSyncRequestMode.Archive => await _sync.RunArchiveBackfillAsync(NewsSyncTriggers.Manual, request.AdminId, ct),
-            NewsSyncRequestMode.Reconcile => await _sync.ReconcileAsync(NewsSyncTriggers.Manual, request.AdminId, ct),
-            _ => await _sync.RunIncrementalAsync(NewsSyncTriggers.Manual, request.AdminId, ct)
-        };
-
-        return outcome.Succeeded
-            ? ApiResponse<NewsSyncOutcome>.SuccessResponse(outcome)
-            // ⚠️ "Başlattım" demek yetmez: koşu düştüyse sebebini söyle. Sessizce başarı
-            // bildiren bir buton, işlevsiz butondan kötüdür (§7 madde 37).
-            : ApiResponse<NewsSyncOutcome>.FailureResponse("SYNC_FAILED",
-                outcome.ErrorMessage ?? "Haber senkronu tamamlanamadı.");
+        _queue.Enqueue(request.Mode, request.AdminId);
+        return Task.FromResult(ApiResponse<bool>.SuccessResponse(true));
     }
 }

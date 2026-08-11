@@ -7,16 +7,28 @@ namespace KadirliApp.Application.Features.News;
 public sealed class NewsSyncOptions
 {
     /// <summary>
-    /// Arşiv derinliği. <b>Başlangıç 50</b> — kullanıcının gerekçesi: <i>"biz bunu ilk başta
-    /// test edeceğiz."</i>
+    /// 🔑 <b>Elimizde tutmak istediğimiz TOPLAM haber sayısı</b> — "arşiv derinliği" değil.
+    /// <b>Başlangıç 50</b> (kullanıcının gerekçesi: <i>"biz bunu ilk başta test edeceğiz"</i>).
     /// </summary>
     /// <remarks>
-    /// 🔑 Derinlik <b>koddan değil yapılandırmadan</b> okunur: yarın 500 ya da 2000 istenirse
+    /// ⚠️ <b>Adı 12.13'te değişti ve sebebi bir denetim bulgusu</b> (bulgu 11): eski ad
+    /// <c>BackfillMaxPosts</c> ("arşive kaç haber inelim?") beklentiyi <b>yanlış</b>
+    /// kuruyordu. Arşiv derinleştirmesi <c>kalan = ayar − TOPLAM haber sayısı</c> hesaplıyor,
+    /// yani artımlı senkron yeni haber ekledikçe <b>arşiv sessizce sığlaşıyor</b>. Kod doğru,
+    /// ad yanlıştı: *"derinliği 200 yaptım, 50 haber geldi"* sürprizinin kaynağı buydu.
+    /// 📌 Davranış bilinçli olarak <b>değiştirilmedi</b>: tavan gerçekten toplam kayıt üzerinde
+    /// olmalı, yoksa arşiv + artımlı birlikte sınırsız büyür.
+    /// <para>
+    /// 🔑 Değer <b>koddan değil yapılandırmadan</b> okunur (<c>News:Backfill:MaxTotalPosts</c>,
+    /// eski anahtar <c>News:Backfill:MaxPosts</c> hâlâ okunur): yarın 500 ya da 2000 istenirse
     /// tek satır ayar değişir ve geri imleç <b>kaldığı yerden</b> devam eder.
     /// ⚠️ 27.284'ün tamamı istenirse ~273 istek + (aynalama ile) ~1,6 GB görsel demektir —
     /// o karar ayrıca verilmeli.
+    /// </para>
+    /// ⚠️ Mutabakat penceresi de bu sayıyı kullanır (§7 madde 56: pencere derinliğimizle aynı
+    /// olmak zorunda). İkisi ayrışırsa "bizde yok" ile "kaynakta yok" karışır.
     /// </remarks>
-    public int BackfillMaxPosts { get; init; } = 50;
+    public int MaxTotalPosts { get; init; } = 50;
 
     /// <summary>Sayfa boyutu — WordPress tavanı 100.</summary>
     public int PageSize { get; init; } = 100;

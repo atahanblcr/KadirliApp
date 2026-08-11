@@ -78,6 +78,13 @@ public class QueryNewsDto
     public string? Search { get; set; }
     public Guid? CategoryId { get; set; }
 
-    /// <summary><c>true</c> → yalnız öne çıkarılmış (ve süresi geçmemiş) haberler.</summary>
+    /// <summary>
+    /// <c>true</c> → yalnız öne çıkarılmış (ve süresi geçmemiş) haberler;
+    /// <c>false</c> → yalnız öne çıkmayanlar; <c>null</c> → süzme yok.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <c>false</c> 12.13'e kadar <b>sessizce yok sayılıyordu</b> (denetim bulgusu 9):
+    /// süzdüğünü sanan çağıran tüm listeyi alıyordu. Üçlü anlam artık iki uçlu bir eksen.
+    /// </remarks>
     public bool? Featured { get; set; }
 }

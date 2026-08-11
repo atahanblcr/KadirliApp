@@ -12,12 +12,21 @@ using Microsoft.EntityFrameworkCore;
 namespace KadirliApp.Application.Features.News.Queries;
 
 /// <summary>Faz 12.12 — <c>GET /v1/news/{id}</c>. Gövde <b>yalnız burada</b> döner.</summary>
-public record GetNewsByIdQuery(Guid Id) : IRequest<NewsArticleDto?>, ICacheableQuery
-{
-    public string CacheKey => $"news:detail:{Id}";
-    public string CacheGroup => CacheGroups.News;
-    public TimeSpan CacheDuration => TimeSpan.FromMinutes(15);
-}
+/// <remarks>
+/// 🔴 <b>Bilinçli olarak ÖNBELLEKLENMEZ</b> (12.12 sonrası denetim, bulgu 6). İlk yazımda
+/// <c>news:detail:{id}</c> anahtarıyla önbellekleniyordu ve bu, diğer modüllerde görülmeyen
+/// bir ölçek sorunu üretiyordu: anahtar sayısı <b>haber sayısı kadar</b>, yani 27k'ya kadar
+/// büyüyor ve hepsi tek bir gruba (<c>news</c>) yazılıyordu. Grup kümesi her senkronda
+/// (15 dk'da bir) baştan sona dolaşılıp siliniyor — yani önbellek, korumaya çalıştığı işten
+/// <b>daha pahalı</b> hâle geliyordu. Diğer modüllerde kayıt sayısı küçük olduğu için aynı
+/// desen bugüne kadar sorun çıkarmadı; burada çıkarır.
+/// <para>
+/// ⚠️ Bedeli ölçülü: detay sorgusu birincil anahtar üzerinden tek satır okur ve gövde zaten
+/// yalnız burada taşınıyor. Liste (<c>news:list:*</c>) ve kategoriler önbellekli kalıyor —
+/// yani <b>sayfa başına 20 kaydı</b> koruyan önbellek duruyor, tekil kaydınki kalkıyor.
+/// </para>
+/// </remarks>
+public record GetNewsByIdQuery(Guid Id) : IRequest<NewsArticleDto?>;
 
 public class GetNewsByIdQueryHandler : IRequestHandler<GetNewsByIdQuery, NewsArticleDto?>
 {

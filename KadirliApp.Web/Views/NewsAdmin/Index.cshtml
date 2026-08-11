@@ -1,0 +1,286 @@
+@using KadirliApp.Web.Common
+@using KadirliApp.Web.Models
+@using KadirliApp.Application.Features.News
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.News.Dtos.NewsAdminDto>
+@{
+    ViewData["Title"] = "Haberler";
+
+    var categories = ViewBag.Categories as List<KadirliApp.Application.Features.News.Dtos.NewsCategoryAdminDto> ?? new();
+    var syncStatus = ViewBag.SyncStatus as KadirliApp.Application.Features.News.Dtos.NewsSyncStatusDto;
+
+    string? search = ViewBag.Search;
+    Guid? categoryId = ViewBag.CategoryId;
+    string? state = ViewBag.State;
+    bool? edited = ViewBag.Edited;
+    bool? sourceUpdated = ViewBag.SourceUpdated;
+    bool? featured = ViewBag.Featured;
+    DateTime? from = ViewBag.From;
+    DateTime? to = ViewBag.To;
+    string? sort = ViewBag.Sort;
+
+    var hasFilter = !string.IsNullOrWhiteSpace(search) || categoryId != null || state != null
+                    || edited != null || sourceUpdated != null || featured != null || from != null || to != null;
+
+    var bulkFormId = BulkToolbarViewModel.FormIdFor("NewsAdmin");
+}
+
+<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Haberler</h2>
+        <p class="mt-1 text-sm text-gray-500">
+            Haberler <strong>silagazetesi.com.tr</strong>'den otomatik alınır ve doğrudan yayına girer —
+            onay kuyruğu yoktur. Başlık ve özeti burada düzeltebilir, bir haberi
+            <strong>geri alınabilir</strong> biçimde uygulamadan kaldırabilirsiniz.
+            Panelde yaptığınız düzenlemeler <strong>sonraki senkronlarda korunur</strong>.
+        </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+        <partial name="_ExportCsvButton" />
+    </div>
+</div>
+
+@if (syncStatus is not null)
+{
+    <div class="mb-6">
+        <partial name="_NewsSyncStatusCard" model="syncStatus" />
+    </div>
+}
+
+<div class="rounded-lg border border-gray-200 bg-white shadow-sm" data-bulk-scope>
+    <form asp-action="Index" method="get" class="grid grid-cols-1 gap-3 border-b border-gray-200 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+            <label for="search" class="mb-1 block text-xs font-medium text-gray-600">Başlıkta veya metinde ara</label>
+            <input id="search" name="search" type="text" value="@search" placeholder="Örn. kadirli belediye"
+                   class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+            <label for="categoryId" class="mb-1 block text-xs font-medium text-gray-600">Kategori</label>
+            <select id="categoryId" name="categoryId" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var category in categories)
+                {
+                    <option value="@category.Id" selected="@(category.Id == categoryId)">
+                        @category.Name@(category.IsExcluded ? " (dışlanmış)" : "")
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="state" class="mb-1 block text-xs font-medium text-gray-600">Durum</label>
+            <select id="state" name="state" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var key in PanelDisplay.KnownNewsStates)
+                {
+                    <option value="@key" selected="@(key == state)">@PanelDisplay.NewsState(key).Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="edited" class="mb-1 block text-xs font-medium text-gray-600">Düzenleme</label>
+            <select id="edited" name="edited" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                <option value="true" selected="@(edited == true)">Elle düzenlenmiş</option>
+                <option value="false" selected="@(edited == false)">Kaynaktaki hâliyle</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="sourceUpdated" class="mb-1 block text-xs font-medium text-gray-600">Kaynak değişikliği</label>
+            <select id="sourceUpdated" name="sourceUpdated" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                <option value="true" selected="@(sourceUpdated == true)">Düzenlemeden sonra kaynağı değişenler</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="featured" class="mb-1 block text-xs font-medium text-gray-600">Öne çıkan</label>
+            <select id="featured" name="featured" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                <option value="true" selected="@(featured == true)">Yalnız öne çıkanlar</option>
+                <option value="false" selected="@(featured == false)">Öne çıkmayanlar</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="from" class="mb-1 block text-xs font-medium text-gray-600">Yayın tarihi (başlangıç)</label>
+            <input id="from" name="from" type="date" value="@(from?.ToString("yyyy-MM-dd"))"
+                   class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+            <label for="to" class="mb-1 block text-xs font-medium text-gray-600">Yayın tarihi (bitiş)</label>
+            <input id="to" name="to" type="date" value="@(to?.ToString("yyyy-MM-dd"))"
+                   class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(sort))
+        {
+            @* Sıralama filtre formundan kaybolmamalı — aksi hâlde "Filtrele"ye basınca sıra sıfırlanır. *@
+            <input type="hidden" name="sort" value="@sort" />
+        }
+
+        <div class="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-4">
+            <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700">
+                <i class="fas fa-filter mr-2"></i> Filtrele
+            </button>
+            @if (hasFilter)
+            {
+                <a asp-action="Index" class="text-sm font-medium text-gray-600 hover:text-gray-900">
+                    <i class="fas fa-times mr-1"></i> Filtreleri temizle
+                </a>
+            }
+        </div>
+    </form>
+
+    <partial name="_BulkToolbar" model='BulkToolbarViewModel.Visibility("NewsAdmin", "haber")' />
+
+    @* ⚠️ Gerekçe alanı çubuğun GİZLİ formuna `form=` ile bağlanır: tabloyu bir forma
+       sarmak iç içe form doğururdu ve satır butonları sessizce çalışmazdı. *@
+    <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2">
+        <label for="bulk-reason" class="text-xs font-medium text-gray-600">Yayından kaldırma gerekçesi</label>
+        <input id="bulk-reason" name="reason" form="@bulkFormId" type="text" maxlength="500"
+               placeholder="Örn. kaynakta düzeltildi, yanlış bilgi içeriyordu"
+               class="min-w-64 flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <span class="text-xs text-gray-500">Gerekçe zorunludur — "bu haber neden kaldırıldı?" sorusunun cevabı kayıtta kalır.</span>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="border-b bg-gray-50 text-xs uppercase text-gray-700">
+                <tr>
+                    <partial name="_BulkSelectAll" />
+                    <th scope="col" class="px-4 py-3 font-medium">Görsel</th>
+                    <partial name="_SortableHeader" model='new SortableHeaderViewModel("Başlık", "title_asc", "title_desc", sort)' />
+                    <th scope="col" class="px-4 py-3 font-medium">Kategoriler</th>
+                    <partial name="_SortableHeader" model='new SortableHeaderViewModel("Yayın", "published_asc", "published_desc", sort)' />
+                    <partial name="_SortableHeader" model='new SortableHeaderViewModel("Kaynak değişikliği", "modified_asc", "modified_desc", sort)' />
+                    <th scope="col" class="px-4 py-3 font-medium">Durum</th>
+                    <th scope="col" class="px-4 py-3 text-right font-medium">İşlem</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model?.Items != null && Model.Items.Any())
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        var stateBadge = PanelDisplay.NewsState(item.State);
+                        <tr class="border-b bg-white align-top transition-colors hover:bg-gray-50">
+                            <partial name="_BulkRowCheckbox" model="new BulkRowViewModel(item.Id, bulkFormId)" />
+                            <td class="px-4 py-4">
+                                @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                                {
+                                    @* 🔑 Görsel AYNALANMIŞ ve göreli (`/uploads/…`): kaynağın URL'i
+                                       basılsaydı CSP'nin `img-src`'ı onu engeller, yönetici boş
+                                       kutu görür ve ekranda hiçbir hata çıkmazdı (§7 madde 51). *@
+                                    <img src="@item.ImageUrl" alt="" loading="lazy"
+                                         class="h-12 w-20 rounded object-cover" />
+                                }
+                                else
+                                {
+                                    <div class="flex h-12 w-20 items-center justify-center rounded bg-gray-100 text-gray-400">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                }
+                            </td>
+                            <td class="px-4 py-4">
+                                @* ⚠️ Ham basılmaz: metin KAYNAKTAN geliyor ve Razor kaçışı bu
+                                   modülde tek savunma değil ama ilk savunma (§7 madde 33). *@
+                                <a asp-action="Details" asp-route-id="@item.Id"
+                                   class="break-words font-medium text-blue-600 hover:text-blue-800">@item.Title</a>
+                                <div class="mt-1 flex flex-wrap items-center gap-1">
+                                    @if (item.HasOverrides)
+                                    {
+                                        <span class="inline-flex items-center gap-1 rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
+                                            <i class="fas fa-pen"></i> Düzenlendi
+                                        </span>
+                                    }
+                                    @if (item.OverrideIsStale)
+                                    {
+                                        <span class="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+                                            <i class="fas fa-rotate"></i> Kaynağı güncellendi
+                                        </span>
+                                    }
+                                    @if (item.IsFeatured && !item.FeaturedExpired)
+                                    {
+                                        <span class="inline-flex items-center gap-1 rounded bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
+                                            <i class="fas fa-star"></i> Öne çıkan
+                                        </span>
+                                    }
+                                    else if (item.FeaturedExpired)
+                                    {
+                                        <span class="inline-flex items-center gap-1 rounded bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
+                                            <i class="fas fa-star"></i> Öne çıkarma süresi doldu
+                                        </span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="px-4 py-4 text-xs">
+                                @if (item.Categories.Any())
+                                {
+                                    @string.Join(", ", item.Categories.Select(c => c.Name))
+                                }
+                                else
+                                {
+                                    <span class="text-gray-400">—</span>
+                                }
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4 text-gray-900">
+                                @item.PublishedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4">
+                                @item.ModifiedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4">
+                                <partial name="_StatusBadge" model="stateBadge" />
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4 text-right">
+                                <a asp-action="Edit" asp-route-id="@item.Id"
+                                   class="mr-2 text-sm font-medium text-gray-600 hover:text-gray-900">
+                                    <i class="fas fa-pen"></i> Düzenle
+                                </a>
+                                @if (item.IsArchived)
+                                {
+                                    <form asp-action="Unarchive" method="post" class="inline">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
+                                            <i class="fas fa-eye"></i> Yayına al
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    @* Gerekçe zorunlu olduğu için tek-kayıt kaldırma AYRINTI
+                                       ekranından yapılır: listeye bir metin kutusu koymak,
+                                       gerekçeyi "geçilecek bir alan"a çevirirdi. *@
+                                    <a asp-action="Details" asp-route-id="@item.Id"
+                                       class="text-sm font-medium text-orange-700 hover:text-orange-900">
+                                        <i class="fas fa-eye-slash"></i> Yayından kaldır
+                                    </a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-newspaper mb-3 text-4xl text-gray-300"></i>
+                                @* 🔑 "Hiç haber yok" ile "bu filtreye uyan haber yok" AYRI cümleler:
+                                   ikisi karıştırılırsa yönetici, süzgeç yüzünden boşalmış bir listeye
+                                   bakıp senkronun durduğunu sanır (12.6'nın aynı kararı). *@
+                                <p>@(hasFilter ? "Bu filtreye uyan haber yok." : "Henüz haber alınmadı — senkron ilk koşusunu bekliyor.")</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "haber"))
+</div>

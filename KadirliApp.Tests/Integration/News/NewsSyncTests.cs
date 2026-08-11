@@ -121,7 +121,7 @@ public class NewsSyncTests : IAsyncLifetime
                 mirror,
                 sp.GetRequiredService<ICacheService>(),
                 sp.GetRequiredService<IErrorLogSink>(),
-                options ?? new NewsSyncOptions { BackfillMaxPosts = 10, PageSize = 5, MaxPagesPerRun = 5 },
+                options ?? new NewsSyncOptions { MaxTotalPosts = 10, PageSize = 5, MaxPagesPerRun = 5 },
                 sp.GetRequiredService<ILogger<NewsSyncService>>());
 
             result = await action(service, db);
@@ -526,7 +526,7 @@ public class NewsSyncTests : IAsyncLifetime
 
         await WithSyncAsync(source,
             (sync, _) => sync.RunArchiveBackfillAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
-            options: new NewsSyncOptions { BackfillMaxPosts = 2, PageSize = 2, MaxPagesPerRun = 5 });
+            options: new NewsSyncOptions { MaxTotalPosts = 2, PageSize = 2, MaxPagesPerRun = 5 });
 
         await _factory.WithScopeAsync(async sp =>
         {
@@ -539,7 +539,7 @@ public class NewsSyncTests : IAsyncLifetime
             await sync.RunArchiveBackfillAsync(NewsSyncTriggers.Manual, null, CancellationToken.None);
             (await db.NewsArticles.CountAsync()).Should().Be(5, "derinlik 5'e çıkınca 3 haber daha inmeli");
             return true;
-        }, options: new NewsSyncOptions { BackfillMaxPosts = 5, PageSize = 2, MaxPagesPerRun = 5 });
+        }, options: new NewsSyncOptions { MaxTotalPosts = 5, PageSize = 2, MaxPagesPerRun = 5 });
     }
 
     // ───────────────────────────── Görünürlük ───────────────────────────────────────

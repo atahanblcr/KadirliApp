@@ -34,6 +34,12 @@ public static class PanelMenu
         new("Dashboard",          "fa-home",            "Dashboard",            null),
         new("AdsAdmin",           "fa-bullhorn",        "İlanlar",              "ads"),
         new("AnnouncementsAdmin", "fa-bell",            "Duyurular",            "announcements"),
+        // Faz 12.13 — Haberler. Matrise GİRİYOR (Module dolu) ve bu bilinçli: veri hassas
+        // değil, kendi gazetemizin **zaten yayınlanmış** içeriği. Başlık düzeltmek / bir
+        // haberi yayından kaldırmak tam moderatör işi — `announcements`/`events` ile aynı sınıf.
+        // ⚠️ Senkron ekranı (NewsSyncAdmin) AYRI ve matris DIŞI: o ekran göstermiyor,
+        // tüm içerik kümesini etkileyen bir işi tetikliyor.
+        new("NewsAdmin",          "fa-newspaper",       "Haberler",             "news"),
         new("EventsAdmin",        "fa-calendar-alt",    "Etkinlikler",          "events"),
         new("CampaignsAdmin",     "fa-percent",         "Kampanyalar",          "campaigns"),
         new("BusinessesAdmin",    "fa-store",           "İşletmeler",           "businesses"),
@@ -78,7 +84,13 @@ public static class PanelMenu
         // güncelleme" yetkisi verilen bir moderatör bunu yapabilirdi — üstelik aksiyon adı
         // (`Send`) hiçbir moderasyon önekiyle eşleşmediği için sessizce `update`'e düşerek
         // (görünmez sözleşme #19).
-        new("PushCampaignsAdmin", "fa-paper-plane",     "Bildirim Gönderimleri", null)
+        new("PushCampaignsAdmin", "fa-paper-plane",     "Bildirim Gönderimleri", null),
+        // Faz 12.13 — haber senkron panosu. Module NULL, gerekçe `PushCampaignsAdmin`'inkiyle
+        // BİREBİR aynı: bu ekran yalnız göstermiyor, tek tıkla **tüm içerik kümesini**
+        // etkileyen bir alım koşusu başlatıyor. Matriste olsaydı aksiyon adı (`Create`)
+        // `create` iznine düşer ve "haberler: ekleme" yetkisi verilmiş bir moderatör
+        // kaynaktan toplu çekim tetikleyebilirdi. Ayrıca pano imleç/hata ayrıntısı taşıyor.
+        new("NewsSyncAdmin",      "fa-rotate",          "Haber Senkronu",       null)
     };
 
     /// <summary>
@@ -95,7 +107,7 @@ public static class PanelMenu
         new HashSet<string>(StringComparer.Ordinal)
         {
             "StaffAdmin", "AuditLogsAdmin", "TrashAdmin", "ErrorLogsAdmin", "LoginAttemptsAdmin",
-            "PushCampaignsAdmin"
+            "PushCampaignsAdmin", "NewsSyncAdmin"
         };
 
     /// <summary>

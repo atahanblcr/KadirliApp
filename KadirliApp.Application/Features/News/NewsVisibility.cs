@@ -38,4 +38,15 @@ public static class NewsVisibility
     /// </remarks>
     public static IQueryable<NewsArticle> Featured(IQueryable<NewsArticle> query, DateTime now) =>
         query.Where(x => x.IsFeatured && (x.FeaturedUntil == null || x.FeaturedUntil > now));
+
+    /// <summary>
+    /// <see cref="Featured"/>'ın tam tümleyeni — <c>?featured=false</c> (12.13).
+    /// </summary>
+    /// <remarks>
+    /// 🔑 Ayrı bir sınıf olarak değil <b>tümleyen</b> olarak yazılmak zorunda: iki ucu iki ayrı
+    /// yerde tanımlamak, süresi dolmuş bir manşetin <b>iki listede birden</b> (ya da hiçbirinde)
+    /// görünmesine yol açar — sayfalama toplamları o an sessizce yalan söyler.
+    /// </remarks>
+    public static IQueryable<NewsArticle> NotFeatured(IQueryable<NewsArticle> query, DateTime now) =>
+        query.Where(x => !(x.IsFeatured && (x.FeaturedUntil == null || x.FeaturedUntil > now)));
 }

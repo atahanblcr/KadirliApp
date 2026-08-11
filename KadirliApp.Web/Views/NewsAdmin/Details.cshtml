@@ -1,0 +1,260 @@
+@using KadirliApp.Web.Common
+@model KadirliApp.Application.Features.News.Dtos.NewsAdminDto
+@{
+    ViewData["Title"] = "Haber ayrıntısı";
+    var stateBadge = PanelDisplay.NewsState(Model.State);
+    var returnUrl = Url.Action("Details", new { id = Model.Id });
+}
+
+<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+        <a asp-action="Index" class="text-sm font-medium text-gray-500 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-1"></i> Haberler
+        </a>
+        <h2 class="mt-1 break-words text-2xl font-semibold text-gray-800">@Model.Title</h2>
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+            <partial name="_StatusBadge" model="stateBadge" />
+            <span>@Model.PublishedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")</span>
+            <span>· @Model.ReadingMinutes dk okuma</span>
+            <span>· WP #@Model.WpId</span>
+        </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+        <a asp-action="Edit" asp-route-id="@Model.Id"
+           class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            <i class="fas fa-pen"></i> Düzenle
+        </a>
+        @* Dış siteye GEZİNME bağlantısı — alt kaynak yüklemiyor, CSP kapsamı dışında.
+           "Asıl hâli" (görselleriyle, biçimiyle) yalnız kaynakta görülebilir; panel gövdeyi
+           bilerek DÜZ METİN gösteriyor. *@
+        <a href="@Model.SourceUrl" target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <i class="fas fa-arrow-up-right-from-square"></i> Kaynakta aç
+        </a>
+    </div>
+</div>
+
+@if (Model.State == KadirliApp.Application.Features.News.NewsStates.Gone)
+{
+    <div class="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+        <i class="fas fa-link-slash mr-1"></i>
+        <strong>Bu haber kaynakta bulunamıyor.</strong>
+        Kayıt silinmedi — gerektiğinde geçmişi görülebilsin diye duruyor, ancak uygulamada görünmüyor.
+        Kaynağa geri konursa gecelik mutabakat onu <strong>kendiliğinden</strong> yayına döndürür.
+    </div>
+}
+
+@if (Model.OverrideIsStale)
+{
+    <div class="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <i class="fas fa-rotate mr-1"></i>
+        <strong>Kaynak, sizin düzenlemenizden sonra değişti.</strong>
+        Panelde yazdığınız metin korunuyor (senkron onu ezmez) — ama artık kaynaktaki
+        <em>eski</em> hâle dayanıyor olabilir. Aşağıda iki metni yan yana karşılaştırıp
+        gerekirse düzenlemeyi kaldırabilirsiniz.
+    </div>
+}
+
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div class="space-y-6 lg:col-span-2">
+        @* ── Kaynak ↔ Panel karşılaştırması ───────────────────────────────────────
+           🔑 Panelde iki kolonu birden göstermek bir "ayrıntı" değil, override'ın
+           anlaşılabilmesinin tek yolu: yönetici "kaynakta ne yazıyor, ben ne yazdım"
+           sorusunu soramazsa "kaynağa dön" butonu bir tahmine dönüşür. *@
+        <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-200 px-4 py-3">
+                <h3 class="text-sm font-semibold text-gray-800">Başlık ve özet</h3>
+            </div>
+            <div class="grid grid-cols-1 divide-y divide-gray-200 md:grid-cols-2 md:divide-x md:divide-y-0">
+                <div class="p-4">
+                    <div class="mb-2 text-xs font-medium uppercase text-gray-500">Kaynakta</div>
+                    <p class="break-words text-sm text-gray-900">@Model.SourceTitle</p>
+                    <p class="mt-2 break-words text-sm text-gray-600">@(Model.SourceExcerpt ?? "—")</p>
+                </div>
+                <div class="p-4 @(Model.HasOverrides ? "bg-indigo-50" : "")">
+                    <div class="mb-2 text-xs font-medium uppercase text-gray-500">Panelde</div>
+                    @if (Model.HasOverrides)
+                    {
+                        <p class="break-words text-sm text-gray-900">@(Model.TitleOverride ?? Model.SourceTitle)</p>
+                        <p class="mt-2 break-words text-sm text-gray-600">@(Model.ExcerptOverride ?? Model.SourceExcerpt ?? "—")</p>
+                        <p class="mt-3 text-xs text-gray-500">
+                            @Model.OverrideUpdatedAt?.AddHours(3).ToString("dd.MM.yyyy HH:mm")
+                            @(string.IsNullOrWhiteSpace(Model.OverrideUpdatedByName) ? "" : "· " + Model.OverrideUpdatedByName)
+                        </p>
+                        @* ⚠️ `data-confirm` FORM üzerinde: dinleyici submit olayında önce formun
+                           özniteliğine bakıyor. Butona yazmak yalnız tek formda BİRDEN ÇOK
+                           aksiyon olduğunda (ve o partial muafiyet listesindeyse) çalışır —
+                           burada tek aksiyon var, doğru yer form. *@
+                        <form asp-action="ResetOverrides" method="post" class="mt-3"
+                              data-confirm="Panelde yapılan düzenlemeler kaldırılacak ve haber kaynaktaki hâline dönecek. Devam edilsin mi?">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <button type="submit"
+                                    class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                <i class="fas fa-rotate-left mr-1"></i> Kaynağa dön
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <p class="text-sm text-gray-500">Bu haber kaynaktaki hâliyle yayınlanıyor — panelde düzenleme yapılmamış.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-200 px-4 py-3">
+                <h3 class="text-sm font-semibold text-gray-800">Haber metni</h3>
+                <p class="mt-1 text-xs text-gray-500">
+                    ⚠️ Gövde burada <strong>düz metin</strong> gösterilir. Haberin biçimli hâli
+                    (görseller, bağlantılar) uygulamada ve kaynakta görünür.
+                </p>
+            </div>
+            @* 🔴 @Html.Raw YASAK: gövde kaynaktan geliyor ve alım anında temizlenmiş olsa da
+               panelde ham basmak (a) depolanmış XSS yüzeyi açar, (b) içindeki <img>'ler dış
+               origin olduğu için CSP tarafından engellenir → yönetici boş kutular görür ve
+               ekranda hiçbir hata çıkmaz (§7 madde 33 ve 51). *@
+            <div class="max-h-96 overflow-y-auto whitespace-pre-line break-words p-4 text-sm leading-relaxed text-gray-700">
+                @(string.IsNullOrWhiteSpace(Model.ContentPreview) ? "—" : Model.ContentPreview)
+            </div>
+        </div>
+    </div>
+
+    <div class="space-y-6">
+        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <h3 class="mb-3 text-sm font-semibold text-gray-800">Kapak görseli</h3>
+            @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+            {
+                <img src="@Model.ImageUrl" alt="" class="w-full rounded object-cover" />
+                <p class="mt-2 text-xs text-gray-500">
+                    @(Model.CoverImageFileIdOverride is null
+                        ? "Kaynaktan alınıp sunucumuza kopyalandı."
+                        : "Panelden yüklenmiş görsel kullanılıyor.")
+                </p>
+            }
+            else
+            {
+                <p class="text-sm text-gray-500">Bu haberin kapak görseli yok.</p>
+            }
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <h3 class="mb-3 text-sm font-semibold text-gray-800">Kategoriler</h3>
+            @if (Model.Categories.Any())
+            {
+                <div class="flex flex-wrap gap-1">
+                    @foreach (var category in Model.Categories)
+                    {
+                        <span class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700">@category.Name</span>
+                    }
+                </div>
+                <p class="mt-3 text-xs text-gray-500">
+                    Kategoriler kaynaktan gelir ve panelden <strong>kayıt bazında</strong> değiştirilemez —
+                    görünürlük kararı <a asp-controller="LookupsAdmin" asp-action="Index" asp-route-open="news-categories"
+                                        class="text-blue-600 hover:text-blue-800">Tanımlar → Haber Kategorileri</a>
+                    ekranında, kategori bazında verilir.
+                </p>
+            }
+            else
+            {
+                <p class="text-sm text-gray-500">Kategori bağı yok.</p>
+            }
+        </div>
+
+        @* ── Öne çıkarma ─────────────────────────────────────────────────────────── *@
+        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <h3 class="mb-3 text-sm font-semibold text-gray-800">Öne çıkarma</h3>
+            @if (Model.IsFeatured && !Model.FeaturedExpired)
+            {
+                <p class="text-sm text-gray-700">
+                    Bu haber öne çıkarılmış
+                    @(Model.FeaturedUntil is { } until
+                        ? $"— {until.AddHours(3):dd.MM.yyyy HH:mm} tarihine kadar."
+                        : "— süresiz.")
+                </p>
+                <form asp-action="Feature" method="post" class="mt-3">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <input type="hidden" name="isFeatured" value="false" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button type="submit" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        <i class="fas fa-star-half-stroke mr-1"></i> Öne çıkarmayı kaldır
+                    </button>
+                </form>
+            }
+            else
+            {
+                @if (Model.FeaturedExpired)
+                {
+                    <p class="mb-3 text-sm text-amber-800">Öne çıkarma süresi doldu; haber sıradan bir habere döndü.</p>
+                }
+                <form asp-action="Feature" method="post" class="space-y-2">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <input type="hidden" name="isFeatured" value="true" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <label for="featuredUntil" class="block text-xs font-medium text-gray-600">Bitiş (önerilir)</label>
+                    @* 🔑 Varsayılan bir tarih öneriliyor: süresiz bir manşet, unutulduğu gün
+                       bayat bir haberi aylarca en üstte tutar ve bunu kimse fark etmez. *@
+                    <input id="featuredUntil" name="featuredUntil" type="datetime-local"
+                           value="@DateTime.UtcNow.AddHours(3).AddDays(3).ToString("yyyy-MM-ddTHH:mm")"
+                           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <button type="submit" class="w-full rounded-lg bg-yellow-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-yellow-600">
+                        <i class="fas fa-star mr-1"></i> Öne çıkar
+                    </button>
+                </form>
+            }
+        </div>
+
+        @* ── Görünürlük ──────────────────────────────────────────────────────────── *@
+        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <h3 class="mb-3 text-sm font-semibold text-gray-800">Uygulamada görünürlük</h3>
+            @if (Model.IsArchived)
+            {
+                <p class="text-sm text-gray-700">
+                    Bu haber <strong>yayından kaldırılmış</strong>.
+                    @if (!string.IsNullOrWhiteSpace(Model.ArchivedReason))
+                    {
+                        <span class="mt-2 block rounded bg-gray-50 p-2 text-xs text-gray-600">
+                            Gerekçe: @Model.ArchivedReason
+                        </span>
+                    }
+                    @if (Model.ArchivedAt is { } archivedAt)
+                    {
+                        <span class="mt-1 block text-xs text-gray-500">
+                            @archivedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")
+                            @(string.IsNullOrWhiteSpace(Model.ArchivedByName) ? "" : "· " + Model.ArchivedByName)
+                        </span>
+                    }
+                </p>
+                <form asp-action="Unarchive" method="post" class="mt-3">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button type="submit" class="w-full rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
+                        <i class="fas fa-eye mr-1"></i> Yeniden yayına al
+                    </button>
+                </form>
+            }
+            else
+            {
+                <form asp-action="Archive" method="post" class="space-y-2"
+                      data-confirm="Haber uygulamadan kaldırılacak. Kayıt silinmez, gerektiğinde geri alabilirsiniz. Devam edilsin mi?">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <label for="reason" class="block text-xs font-medium text-gray-600">Gerekçe (zorunlu)</label>
+                    <input id="reason" name="reason" type="text" maxlength="500" required
+                           placeholder="Örn. yanlış bilgi içeriyor, kaynakta düzeltilecek"
+                           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <button type="submit"
+                            class="w-full rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-orange-700">
+                        <i class="fas fa-eye-slash mr-1"></i> Yayından kaldır
+                    </button>
+                    @* 🔑 "Sil" butonu bilinçli olarak YOK: kaynak hâlâ yayındayken silinen kayıt
+                       bir sonraki senkronda geri gelir ve yönetici "sildim ama döndü" der. *@
+                    <p class="text-xs text-gray-500">
+                        Haberler <strong>silinmez</strong>: kaynak hâlâ yayındaysa silinen kayıt bir sonraki
+                        senkronda geri gelirdi. Gizleme aynı işi görür ve geri alınabilir.
+                    </p>
+                </form>
+            }
+        </div>
+    </div>
+</div>

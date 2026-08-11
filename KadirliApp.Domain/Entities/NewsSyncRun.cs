@@ -99,6 +99,16 @@ public static class NewsSyncStatuses
     /// <summary>Koşu hiçbir şey yapamadan düştü (kaynak tümüyle erişilemez, beklenmeyen istisna).</summary>
     public const string Failed = "failed";
 
+    /// <summary>
+    /// Faz 12.13 — koşu <b>hiç açılmadı</b>: o sırada başka bir koşu sürüyordu.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Bu durum <b>tabloya yazılmaz</b> (satır zaten oluşmuyor); yalnız çağırana dönen
+    /// sonuçta yaşar. Panel bunu "hata" değil "yapılmadı, sebebi şu" diye göstermek zorunda —
+    /// hiçbir şey yapmayan ama başarı diyen bir buton, işlevsiz butondan kötüdür (§7 madde 37).
+    /// </remarks>
+    public const string Skipped = "skipped";
+
     public static readonly IReadOnlySet<string> All =
         new HashSet<string>(StringComparer.Ordinal) { Running, Completed, Failed };
 }

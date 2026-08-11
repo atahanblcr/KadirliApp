@@ -1,5 +1,65 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 12 Ağustos 2026 — **FAZ 12.13 TAMAMLANDI: Haberler paneli
+> (+ 12.12 sonrası denetimin kalan 8 bulgusu).**
+> Kod 2 panel controller + 5 görünüm + `_NewsSyncStatusCard` (tek sahip) + `LookupsAdmin`
+> bölümü + `Application/Features/News/` (`NewsStates` · `NewsSearch` · `NewsAdminProjection` +
+> 4 panel sorgusu + `INewsSyncQueue`) + 2 Hangfire işi + 2 migration + 3 test dosyası.
+> **Backend 995 → 1034 (+39), mobil 751 (değişmedi — mobilde tek satır yok, o 12.14).**
+>
+> 🔑 **TESLİM EDİLEN:** Haberler artık yönetilebiliyor — override, geri alınabilir gizleme,
+> öne çıkarma, kategori görünürlüğü ve **senkronun sustuğunu gösteren bir yer**.
+>
+> 🔴 **EN ÖNEMLİ KARAR: kilit ile KURTARMA birlikte yazıldı.** Plan yalnız kısmi unique
+> indeksi söylüyordu (`WHERE completed_at IS NULL`); o hâliyle **kalıcı bir kilit** olurdu:
+> süreç öldürülürse satır sonsuza kadar "çalışıyor" kalır ve indeks **bütün gelecek koşuları**
+> engellerdi — hata vermeden, yalnız haberler akmayı bırakarak. Yani arızayı önleyen koruma
+> tam da o arızanın sebebi olurdu. → `ReapStuckRunsAsync` (30 dk; kaydı **silmez, kapatır**).
+> Buton da koşuyu istek içinde çalıştırmıyor, **kuyruğa atıyor** — istek içinde koşsaydı
+> zaman aşımı → F5 → **ikinci koşu**, yani engellemek istediğimiz şey.
+>
+> 🔬 **ÖLÇÜM BİR DENETİM BULGUSUNU ÇÜRÜTTÜ (dürüst not).** Bulgu 4 *"`Contains` → `strpos`,
+> hiçbir indeks karşılayamaz"* diyordu; `ToQueryString()` gösterdi ki Npgsql `Contains`'i de
+> **`lower(...) LIKE @p ESCAPE '\'`** yapıyor ve parametreyi kaçırıyor. **Sebep yanlıştı,
+> sonuç doğruydu:** btree indeksi `LIKE '%x%'`'i karşılayamaz → asıl düzeltme **GIN/trigram
+> ifade indeksleri** (`EXPLAIN`: `Bitmap Index Scan`). Yanlış bir sebep bu projede yanlış bir
+> düzeltmeden pahalı, çünkü sonraki okuyan onu doğru kabul edip başka yerde uygular —
+> yorumlar ve checklist buna göre düzeltildi.
+>
+> 🐛 **BOZMA TURUNDA BİR TEST YEŞİL KALDI:** sorguyu `Contains`'e geri çevirmek arama testini
+> kırmadı, çünkü test **ham SQL** üzerinden plan ölçüyor, bizim sorgumuza bakmıyordu. İki
+> ayağa çıkarıldı: handler'ın **ürettiği** SQL (`ToQueryString`) + o şeklin indekse ulaşması
+> (`EXPLAIN`). 12.10'un dersi dördüncü kez.
+>
+> 🐛 **`PanelConfirmDialogTests` kırmızıya döndü ve haklıydı:** `data-confirm` beş yerde butona
+> yazılmıştı. 🔑 Çözüm **muafiyet listesini büyütmek değildi** ("Edit.cshtml" yazmak projedeki
+> bütün Düzenle formlarını muaf kılardı): ikinci aksiyonlar forma **kardeş** yapıldı, senkron
+> butonları **üç ayrı forma** bölündü — iç içe `<form>` riski de yok oldu.
+>
+> 🔬 **ÖN KOŞULLARDAN BİRİ GEREKSİZ ÇIKTI:** "`news` iznini `permissions` tablosuna ekle"
+> maddesi bugünün gerçeğini yansıtmıyor — o tablolar **çalışma anında hiç okunmuyor** (canlıda
+> 0 satır); izin denetimi `admin_permissions` üzerinden ve modül listesi `PanelMenu.Items`'tan
+> **türüyor**. Migration yazılsaydı ölü veri üretilirdi. (`ARCHITECTURE.md` §4 adım 8 açık madde.)
+>
+> ➕ **PLAN DIŞI:** `NewsStates` (`gone` > `archived` önceliği bir *sebebi* korur) ·
+> `NewsAdminProjection` (liste + ayrıntı tek projeksiyon) · dışlama önizlemesinin **iki yönlü**
+> okunuşu · `NewsSyncOutcome.Blocked` (kilit **hata değil**) · `PurgeNewsSyncRunsJob` ·
+> Dashboard kutusu · `?featured=false` · indiricinin **SSRF kapısı** (her yönlendirme sıçraması
+> denetleniyor) · `MaxPosts` → **`MaxTotalPosts`** (davranış aynı, ad yanlıştı).
+>
+> **Doğrulama (Chrome + gerçek Postgres + gerçek kaynak):** override senkrondan sonra yerinde ·
+> "Spor" dışlandı → önizleme **"5 haber"** dedi, `/v1/news` **50 → 45**; geri alındı → **50**,
+> ters önizleme **"5 haber geri gelir"** · gerekçeyle kaldırılan haber listeden düştü, detay
+> **404**, geri alındı · ikinci "çalışıyor" satırı **veritabanı tarafından reddedildi** ve
+> panel butonu **kapalı çizilip sebebini yazdı** · denetim izi Türkçe · **CSP ihlali yok**.
+> **`dotnet test` 1034/1034.**
+>
+> **Kuralı bilerek boz:** 5 deneme → **4 kırmızı**, 1 yeşil (test güçlendirildi).
+>
+> ⏭️ **SIRADAKİ: 12.14** — Haberler mobil. Açık: 12.15 bildirim · 12.7/12.8 sosyal giriş.
+>
+> ---
+
 > Son güncelleme: 11 Ağustos 2026 — **FAZ 12.12 TAMAMLANDI: Haberler modülünün ALIM ÇEKİRDEĞİ.**
 > Kod 4 yeni varlık + `Features/News/` (12 saf sınıf/servis + 3 sorgu + 5 komut) +
 > `Infrastructure/News/` (WP istemcisi · temizleyici · görsel indirici) + 2 Hangfire işi +

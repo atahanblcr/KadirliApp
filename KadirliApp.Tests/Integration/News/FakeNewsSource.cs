@@ -90,7 +90,7 @@ public class FakeNewsSource : INewsSourceClient
         return Task.FromResult<IReadOnlyList<NewsSourceCategory>>(Categories);
     }
 
-    public Task<NewsSourceIdWindow> GetPublishedIdWindowAsync(int maxPosts, CancellationToken ct)
+    public Task<NewsSourceIdWindow> GetPublishedIdWindowAsync(int maxPosts, int maxPages, CancellationToken ct)
     {
         ThrowIfPostFailureRequested();
 

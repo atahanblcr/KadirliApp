@@ -36,9 +36,18 @@ public class GetNewsCategoriesQueryHandler : IRequestHandler<GetNewsCategoriesQu
 
     public async Task<List<NewsCategoryDto>> Handle(GetNewsCategoriesQuery request, CancellationToken ct)
     {
-        var visible = NewsVisibility.Published(_uow.Repository<NewsArticle>().Query());
+        // 🐛 12.12 sonrası denetim, bulgu 5: sayaç eskiden projeksiyonun İÇİNDE
+        // (`visible.Count(a => a.Categories.Any(...))`) hesaplanıyordu ve bu, kategori başına
+        // **ayrı bir korelasyonlu alt sorgu** üretiyordu — 15 kategori = 27k satır üzerinde
+        // 15 COUNT. Önbellek bunu gizlemiyor: grubu **her senkron temizliyor** (15 dk'da bir).
+        // Tek `GROUP BY` ile sayım, aynı sayıyı tek taramada verir.
+        var counts = await NewsVisibility.Published(_uow.Repository<NewsArticle>().Query())
+            .SelectMany(a => a.Categories)
+            .GroupBy(c => c.Id)
+            .Select(g => new { CategoryId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CategoryId, x => x.Count, ct);
 
-        return await _uow.Repository<NewsCategory>().Query()
+        var categories = await _uow.Repository<NewsCategory>().Query()
             .Where(c => !c.IsExcluded)
             .OrderBy(c => c.DisplayOrder)
             .ThenBy(c => c.Name)
@@ -47,10 +56,14 @@ public class GetNewsCategoriesQueryHandler : IRequestHandler<GetNewsCategoriesQu
                 Id = c.Id,
                 Name = c.Name,
                 Slug = c.Slug,
-                ArticleCount = visible.Count(a => a.Categories.Any(x => x.Id == c.Id)),
                 ShowInFilterStrip = c.ShowInFilterStrip,
                 DisplayOrder = c.DisplayOrder
             })
             .ToListAsync(ct);
+
+        foreach (var category in categories)
+            category.ArticleCount = counts.TryGetValue(category.Id, out var count) ? count : 0;
+
+        return categories;
     }
 }

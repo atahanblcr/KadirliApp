@@ -79,12 +79,26 @@ sessizce atlar**. Tek sahip `WordPressTimeWindow`. ⚠️ Bu modülde **moderasy
 `Approve*` dosya adı **yasak** (`ModerationSingleOwnerTests` modül kümesini o addan türetiyor)
 — gizleme geri alınabilir bir **arşivlemedir**. Canlı: 50 haber + 15 kategori, 50/50 görsel
 aynalandı, ikinci koşu 0 mükerrer.
-**991 backend + 751 mobil test, 57 görünmez sözleşme.**
+**12.13 bitti (plan dışı blok, devam): Haberler paneli + denetimin kalan 8 bulgusu.**
+Haberler artık **yönetilebiliyor**: başlık/özet/kapak **override**'ı (senkron ezemez — `init`),
+**geri alınabilir gizleme** (silme YOK: kaynak yayındayken silinen kayıt bir sonraki senkronda
+geri gelirdi), öne çıkarma, **kategori görünürlüğü** (semantik **dışlama**: dışlanmış tek bir
+kategorisi olan haber görünmez — OR semantiğinde "E-Gazete"yi kapatmak *hiçbir işe yaramazdı*)
+ve **senkronun sustuğunu gösteren bir yer** (Dashboard + pano, eşikler `NewsSyncHealth`).
+🔴 En önemli karar: eşzamanlılık kilidi (**kısmi unique indeks**, Redis değil — o fail-open)
+**kurtarmasıyla birlikte** yazıldı; yalnız kilit, süreç öldüğünde **bütün gelecek koşuları**
+sessizce engelleyen kalıcı bir kilide dönerdi. Buton koşuyu istek içinde çalıştırmaz, **kuyruğa
+atar**. 🔬 Denetimin "arama `strpos` üretiyor" bulgusu **ölçümle çürüdü** (Npgsql `Contains`'i de
+`LIKE` yapıyor) ama **sonucu doğruydu**: btree `LIKE '%x%'`'i karşılayamaz → asıl düzeltme
+**GIN/trigram** indeksleri. 🐛 Bozma turunda **bir test yeşil kaldı** (ham SQL'e bakıyordu,
+bizim sorgumuza değil) → iki ayağa çıkarıldı.
+**1034 backend + 751 mobil test, 60 görünmez sözleşme.**
 
-**⏭️ Sırada 12.13:** Haberler paneli (liste/override · kategori görünürlüğü · senkron panosu).
-Açık duran diğer maddeler: 12.7/12.8 sosyal giriş · 12.14 mobil · 12.15 bildirim.
-⚠️ 12.13'te `PanelMenu.Items`'a "news" satırı eklenince `PanelDisplay.NonMatrixModules`'taki
-geçici `["news"] = "Haberler"` satırı **silinmeli**.
+**⏭️ Sırada 12.14:** Haberler mobil (13. modül kartı · kategori şeridi · `flutter_html`).
+Açık duran diğer maddeler: 12.7/12.8 sosyal giriş · 12.15 bildirim.
+⚠️ `?featured=false` ve aramanın **en az 2 karakter** kuralı kontrata girdi (`API_CONTRACT.md`).
+⚠️ Yeni bir `Un…` aksiyonu yazarsan önekini `PanelPermissionFilter.ActionFor`'a **elle ekle**:
+`Archive` öneki `Unarchive`'ı yakalamaz ve aksiyon sessizce `update` iznine düşer.
 ⚠️ Moderasyon alanına yazarken `CS8852` alırsan **çözüm alanı `set`'e açmak değil**, geçişi
 varlığın bir metoduna taşımaktır (§7 madde 53 — açarsan test kırılır, bilerek). Ayrıca daha önce
 kullanılmamış bir Tailwind sınıfı yazdıysan `npm run build` çalıştır — yoksa buton
@@ -134,7 +148,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 57 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 60 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
@@ -153,7 +167,8 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
 `Integration/Panel/PanelModerationOwnershipTests.cs` (davranış) + `Unit/Application/Moderation/`,
 **54–57** → `Unit/Application/News/` + `Integration/News/` +
 `Integration/Architecture/NewsSourceOwnershipTests.cs` (yapısal — **kaynak taraması değil
-yansıma**).
+yansıma**), **58–60** → `Integration/Panel/PanelNewsTests.cs` + `Unit/Application/News/`
+(`NewsSearchTests` · `NewsStatesTests`).
 
 ## Değişmez kurallar
 

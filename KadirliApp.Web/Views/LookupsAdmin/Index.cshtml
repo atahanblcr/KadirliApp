@@ -611,4 +611,152 @@
         </div>
     </details>
 
+    @* ---------------- Haber kategorileri (Faz 12.13) ---------------- *@
+    <details id="haber-kategorileri" class="bg-white rounded-lg border border-gray-200 shadow-sm" open="@Open("news-categories")">
+        <summary class="px-6 py-4 cursor-pointer flex items-center gap-3 hover:bg-gray-50 rounded-lg">
+            <i class="fas fa-newspaper text-indigo-500 w-5"></i>
+            <span class="font-medium text-gray-800">Haber Kategorileri</span>
+            <span class="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">@Model.NewsCategories.Count</span>
+            <span class="text-xs text-gray-400 ml-auto">Kaynaktan gelir · uygulamadaki görünürlüğü buradan yönetilir</span>
+        </summary>
+        <div class="border-t border-gray-100 px-6 pb-6">
+            <p class="text-xs text-gray-500 pt-4">
+                Kategoriler <strong>silagazetesi.com.tr</strong>'den gelir; buradan eklenemez ve silinemez.
+                Bir kategoriyi <strong>dışlarsanız</strong> o kategorideki haberler uygulamada
+                <strong>hiç görünmez</strong> — eskiler dâhil, anında.
+                <span class="block mt-1">
+                    ⚠️ Bir haber birden çok kategoride olabilir ve kural şudur:
+                    <strong>dışlanmış tek bir kategorisi bile varsa haber görünmez.</strong>
+                    Bu yüzden "E-Gazete"yi dışlamak, o haberler "Haberler" kategorisinde de olsa işe yarar.
+                </span>
+            </p>
+
+            @{
+                var newCategories = Model.NewsCategories.Where(c => c.IsNew).ToList();
+            }
+            @if (newCategories.Any())
+            {
+                @* 🔑 Yeni kategori DIŞLANMAZ, BİLDİRİLİR: sessizce dışlansaydı oraya giren
+                   haberler hiç görünmez ve sebebi hiçbir yerde yazmazdı (12.5'in "kalkış
+                   noktası boş" kararıyla aynı fikir: doldurma, bildir). *@
+                <div class="mt-4 rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-900">
+                    <i class="fas fa-circle-info mr-1"></i>
+                    Son 7 günde kaynakta <strong>@newCategories.Count yeni kategori</strong> bulundu:
+                    <strong>@string.Join(", ", newCategories.Select(c => c.Name))</strong>.
+                    Yeni kategoriler varsayılan olarak <strong>görünür</strong> gelir — istemiyorsanız buradan dışlayın.
+                </div>
+            }
+
+            <table class="w-full text-sm mt-2">
+                <thead>
+                    <tr class="text-left text-xs text-gray-500 uppercase">
+                        <th class="py-2 pr-4">Kategori</th>
+                        <th class="py-2 pr-4">Uygulamada</th>
+                        <th class="py-2 pr-4">Toplam</th>
+                        <th class="py-2 pr-4">Kaynakta</th>
+                        <th class="py-2 pr-4">Şerit</th>
+                        <th class="py-2 pr-4">Sıra</th>
+                        <th class="py-2 pr-4">Durum</th>
+                        <th class="py-2 text-right">İşlem</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @foreach (var c in Model.NewsCategories)
+                    {
+                        <tr class="@(c.IsExcluded ? "opacity-60" : null)">
+                            <td class="py-2.5 pr-4 font-medium text-gray-900">
+                                @c.Name
+                                @if (c.IsNew)
+                                {
+                                    <span class="ml-1 bg-blue-100 text-blue-700 text-xs font-medium px-1.5 py-0.5 rounded">yeni</span>
+                                }
+                            </td>
+                            <td class="py-2.5 pr-4 text-gray-600" title="Uygulamada şu anda görünen haber sayısı">@c.VisibleArticleCount</td>
+                            <td class="py-2.5 pr-4 text-gray-600" title="Bu kategoriye bağlı tüm haberler (gizlenmişler dâhil)">@c.TotalArticleCount</td>
+                            @* ⚠️ Kaynağın sayısı bilgi amaçlı: bizde yalnız arşiv derinliğimiz kadar haber var. *@
+                            <td class="py-2.5 pr-4 text-gray-400" title="Kaynağın bildirdiği toplam (bizde bu kadar haber olmayabilir)">@c.SourceArticleCount</td>
+                            <td class="py-2.5 pr-4">
+                                @if (c.ShowInFilterStrip)
+                                {
+                                    <span class="bg-indigo-100 text-indigo-700 text-xs font-medium px-2 py-0.5 rounded">Şeritte</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded">Yalnız süzgeçte</span>
+                                }
+                            </td>
+                            <td class="py-2.5 pr-4 text-gray-600">@c.DisplayOrder</td>
+                            <td class="py-2.5 pr-4">
+                                @if (c.IsExcluded)
+                                {
+                                    <span class="bg-red-100 text-red-700 text-xs font-medium px-2 py-0.5 rounded">Dışlanmış</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded">Görünür</span>
+                                }
+                            </td>
+                            <td class="py-2.5 text-right">
+                                <details class="relative inline-block text-left">
+                                    <summary class="cursor-pointer text-indigo-600 hover:text-indigo-800 list-none"><i class="fas fa-edit mr-1"></i>Düzenle</summary>
+                                    <form asp-action="NewsCategoryUpdate" method="post" class="absolute right-0 z-10 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4 space-y-3 text-left">
+                                        <input type="hidden" name="id" value="@c.Id" />
+
+                                        <label class="flex items-start gap-2 text-xs text-gray-700">
+                                            <input type="checkbox" name="isExcluded" value="true" checked="@(c.IsExcluded ? "checked" : null)" class="mt-0.5 h-4 w-4 text-red-600 border-gray-300 rounded" />
+                                            <span>
+                                                <span class="font-medium">Uygulamada gösterme (dışla)</span>
+                                                @* 🔴 ÖNİZLEME: sayı gerçek görünürlük sorgusundan gelir, ayrı bir
+                                                   sayımdan değil — 12.2b'nin dersi (§7 madde 38): önizleme "342 kişi"
+                                                   der, gönderim 280 yazar ve fark hiçbir yerde görünmez. *@
+                                                <span class="block text-gray-500 mt-0.5">
+                                                    @if (c.IsExcluded)
+                                                    {
+                                                        <text>Dışlamayı kaldırırsanız <strong>@c.AffectedCount haber</strong> uygulamada yeniden görünür.</text>
+                                                    }
+                                                    else
+                                                    {
+                                                        <text>Dışlarsanız <strong>@c.AffectedCount haber</strong> uygulamadan kalkar.</text>
+                                                    }
+                                                </span>
+                                            </span>
+                                        </label>
+
+                                        <label class="flex items-start gap-2 text-xs text-gray-700">
+                                            <input type="checkbox" name="showInFilterStrip" value="true" checked="@(c.ShowInFilterStrip ? "checked" : null)" class="mt-0.5 h-4 w-4 text-indigo-600 border-gray-300 rounded" />
+                                            <span>
+                                                <span class="font-medium">Mobil süzgeç şeridinde göster</span>
+                                                @* ⚠️ Görünürlükten AYRI bir eksen: 15 kategori bir şeride sığmaz.
+                                                   Tek bayrakta birleştirilseydi "şeritten çıkar" demek istenirken
+                                                   haberler gizlenirdi. *@
+                                                <span class="block text-gray-500 mt-0.5">
+                                                    Kapatmak haberleri gizlemez; yalnız şeritten çıkarır (süzgeç listesinde kalır).
+                                                </span>
+                                            </span>
+                                        </label>
+
+                                        <div>
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">Sıra</label>
+                                            <input name="displayOrder" type="number" value="@c.DisplayOrder" class="block w-20 rounded-md border-gray-300 text-sm py-1.5 px-2 border" />
+                                        </div>
+
+                                        <button type="submit" class="w-full rounded-md bg-indigo-600 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">Kaydet</button>
+                                    </form>
+                                </details>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.NewsCategories.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="py-6 text-center text-gray-500">
+                                Henüz kategori alınmadı — haber senkronu ilk koşusunu bekliyor.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </details>
+
 </div>

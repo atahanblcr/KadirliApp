@@ -37,7 +37,12 @@ public class SyncNewsJob
     {
         var outcome = await _sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None);
 
-        if (!outcome.Succeeded)
+        // 🔑 "Atlandı" ile "tamamlanamadı" ayrı loglanır (12.13): elle tetiklenmiş bir koşu
+        // sürerken zamanlanmış koşu kilide takılır ve bu **korumanın çalışması**dır. Uyarı
+        // olarak yazılsaydı gerçek arızaları arayan insan, olağan bir olayı hata sanardı.
+        if (outcome.Blocked)
+            _log.LogInformation("Zamanlanmış haber senkronu atlandı: {Error}", outcome.ErrorMessage);
+        else if (!outcome.Succeeded)
             _log.LogWarning("Haber senkronu tamamlanamadı: {Error}", outcome.ErrorMessage);
     }
 }
