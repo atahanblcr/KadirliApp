@@ -4749,6 +4749,39 @@ kurulum kırıldı ✅ (ayrımın kanıtı) · geri doldurma boşaltıldı ❌ (
 
 ## 📌 Bu blok için açık kalan / bilinçli ertelenen maddeler
 
+### 🧹 Test altyapısı — 12.15b'nin bıraktığı iki açık madde
+
+Bunlar ürün hatası değil, **denetim aracının** hatası; ama bu projede denetim aracının
+hatası ürün hatasına dönüşüyor (yeşil kalan bir test, olmayan bir güvence).
+
+- **T1 — Dört entegrasyon sınıfı kalıcı `users` satırı bırakıyor.**
+  `PanelNewsNotificationTests` (12.15, **bu oturumda yazıldı**), `PanelPushCampaignTests`,
+  `PanelPowerOutageNeighborhoodTests`, `PushNotificationsJobTests`. Test veritabanı koşular
+  arasında **yeniden kullanılıyor** (migration bozma turunda kanıtlandı), yani satırlar
+  birikiyor. 12.15b'de bu, dört yeni kullanıcının seed'deki süper admini kullanıcı
+  listesinin **ilk sayfasından** düşürmesiyle patladı ve `PanelUsabilityTests` **kendisiyle
+  ilgisiz** bir sebeple kırıldı. O tek iddia `?search=` ile bağımsızlaştırıldı ama **kaynak
+  duruyor**: satır sayısına bağlı bir sonraki iddia aynı şekilde kırılacak.
+  🔑 Doğru düzeltme iki taraflı ve ikisi de gerekli: (a) her sınıf kendi satırlarını
+  **silsin** (`NotificationPreferenceAxisTests` deseni), (b) satır sayısına bağlı iddialar
+  süzgeçle bağımsızlaştırılsın. ⚠️ Temizlik **yalnız kendi satırlarını** kapsamalı —
+  aksi hâlde başka bir testin iddiasını iddiasız bırakır (12.15b'de birebir yaşandı).
+  📌 Ders şu ki bu oturumda öğrenilip **aynı oturumda tekrarlandı**: 12.15'in test dosyası
+  dersten önce yazılmıştı ve geriye dönüp düzeltilmedi.
+
+- **T2 — §7 madde 67'nin geri doldurma yüzü davranış testiyle KİLİTLENEMİYOR.**
+  Migration bir kez koşar ve test veritabanı yeniden kullanılır; `Up()` boşaltıldığında
+  `TheBackfill_LeftNoUserRowWithoutTheNewsKey` **yeşil kaldı**. Bugün duman testi olarak
+  duruyor ve sınırı dosyasında yazılı. Karar verilmedi; üç seçenek var:
+  1. **Kabul et ve işaretle** (bugünkü hâl) — maliyet sıfır, güvence sıfır.
+  2. Migration testleri için **tek kullanımlık bir veritabanı** (ayrı fixture): gerçek
+     güvence, bedeli süit süresi.
+  3. Geri doldurmayı migration'dan **açılış adımına** taşı (`*Backfill.cs` deseni, 12.3/12.4):
+     idempotent olduğu için her açılışta koşar ve **davranış testiyle kilitlenebilir**.
+     ⚠️ Bedeli: sonsuza kadar koşan bir açılış sorgusu ve "bu ne zaman bitecek?" sorusu.
+  📌 Seçenek 3 bu projenin var olan desenine en yakın olanı; karar verilmeden yapılmamalı.
+
+
 - **Kategori bazlı bildirim aboneliği** → 12.16 adayı (yukarıda gerekçe).
 - **Metin arası görsellerin aynalanması** → ikinci sürüm. Bugün hotlink + zarif yer tutucu.
   ⚠️ %9'u süreli `fbcdn` linki, yani **zamanla kırılacaklar** — bu bilinen bir borç.
