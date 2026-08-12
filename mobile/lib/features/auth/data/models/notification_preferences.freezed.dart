@@ -15,7 +15,11 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$NotificationPreferences {
 
- bool get announcements; bool get deaths; bool get pharmacy; bool get events; bool get ads; bool get campaigns;
+ bool get announcements; bool get deaths; bool get pharmacy; bool get events; bool get ads; bool get campaigns;// 🔴 Faz 12.15b — varsayılan `true` ve sunucudaki `NotificationPreferences.News` ile
+// birebir. Alanı tanımayan bir sunucu yanıtı (ya da 12.15b öncesi bir sürümden gelen
+// önbellek) kullanıcıyı sessizce "haberleri kapatmış" göstermemeli: alanın YOKLUĞU,
+// alan eklenmeden önceki davranışı vermeli (checklist §5).
+ bool get news;
 /// Create a copy of NotificationPreferences
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +32,16 @@ $NotificationPreferencesCopyWith<NotificationPreferences> get copyWith => _$Noti
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NotificationPreferences&&(identical(other.announcements, announcements) || other.announcements == announcements)&&(identical(other.deaths, deaths) || other.deaths == deaths)&&(identical(other.pharmacy, pharmacy) || other.pharmacy == pharmacy)&&(identical(other.events, events) || other.events == events)&&(identical(other.ads, ads) || other.ads == ads)&&(identical(other.campaigns, campaigns) || other.campaigns == campaigns));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NotificationPreferences&&(identical(other.announcements, announcements) || other.announcements == announcements)&&(identical(other.deaths, deaths) || other.deaths == deaths)&&(identical(other.pharmacy, pharmacy) || other.pharmacy == pharmacy)&&(identical(other.events, events) || other.events == events)&&(identical(other.ads, ads) || other.ads == ads)&&(identical(other.campaigns, campaigns) || other.campaigns == campaigns)&&(identical(other.news, news) || other.news == news));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,announcements,deaths,pharmacy,events,ads,campaigns);
+int get hashCode => Object.hash(runtimeType,announcements,deaths,pharmacy,events,ads,campaigns,news);
 
 @override
 String toString() {
-  return 'NotificationPreferences(announcements: $announcements, deaths: $deaths, pharmacy: $pharmacy, events: $events, ads: $ads, campaigns: $campaigns)';
+  return 'NotificationPreferences(announcements: $announcements, deaths: $deaths, pharmacy: $pharmacy, events: $events, ads: $ads, campaigns: $campaigns, news: $news)';
 }
 
 
@@ -48,7 +52,7 @@ abstract mixin class $NotificationPreferencesCopyWith<$Res>  {
   factory $NotificationPreferencesCopyWith(NotificationPreferences value, $Res Function(NotificationPreferences) _then) = _$NotificationPreferencesCopyWithImpl;
 @useResult
 $Res call({
- bool announcements, bool deaths, bool pharmacy, bool events, bool ads, bool campaigns
+ bool announcements, bool deaths, bool pharmacy, bool events, bool ads, bool campaigns, bool news
 });
 
 
@@ -65,7 +69,7 @@ class _$NotificationPreferencesCopyWithImpl<$Res>
 
 /// Create a copy of NotificationPreferences
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? announcements = null,Object? deaths = null,Object? pharmacy = null,Object? events = null,Object? ads = null,Object? campaigns = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? announcements = null,Object? deaths = null,Object? pharmacy = null,Object? events = null,Object? ads = null,Object? campaigns = null,Object? news = null,}) {
   return _then(_self.copyWith(
 announcements: null == announcements ? _self.announcements : announcements // ignore: cast_nullable_to_non_nullable
 as bool,deaths: null == deaths ? _self.deaths : deaths // ignore: cast_nullable_to_non_nullable
@@ -73,6 +77,7 @@ as bool,pharmacy: null == pharmacy ? _self.pharmacy : pharmacy // ignore: cast_n
 as bool,events: null == events ? _self.events : events // ignore: cast_nullable_to_non_nullable
 as bool,ads: null == ads ? _self.ads : ads // ignore: cast_nullable_to_non_nullable
 as bool,campaigns: null == campaigns ? _self.campaigns : campaigns // ignore: cast_nullable_to_non_nullable
+as bool,news: null == news ? _self.news : news // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
@@ -158,10 +163,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool announcements,  bool deaths,  bool pharmacy,  bool events,  bool ads,  bool campaigns)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool announcements,  bool deaths,  bool pharmacy,  bool events,  bool ads,  bool campaigns,  bool news)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _NotificationPreferences() when $default != null:
-return $default(_that.announcements,_that.deaths,_that.pharmacy,_that.events,_that.ads,_that.campaigns);case _:
+return $default(_that.announcements,_that.deaths,_that.pharmacy,_that.events,_that.ads,_that.campaigns,_that.news);case _:
   return orElse();
 
 }
@@ -179,10 +184,10 @@ return $default(_that.announcements,_that.deaths,_that.pharmacy,_that.events,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool announcements,  bool deaths,  bool pharmacy,  bool events,  bool ads,  bool campaigns)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool announcements,  bool deaths,  bool pharmacy,  bool events,  bool ads,  bool campaigns,  bool news)  $default,) {final _that = this;
 switch (_that) {
 case _NotificationPreferences():
-return $default(_that.announcements,_that.deaths,_that.pharmacy,_that.events,_that.ads,_that.campaigns);case _:
+return $default(_that.announcements,_that.deaths,_that.pharmacy,_that.events,_that.ads,_that.campaigns,_that.news);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -199,10 +204,10 @@ return $default(_that.announcements,_that.deaths,_that.pharmacy,_that.events,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool announcements,  bool deaths,  bool pharmacy,  bool events,  bool ads,  bool campaigns)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool announcements,  bool deaths,  bool pharmacy,  bool events,  bool ads,  bool campaigns,  bool news)?  $default,) {final _that = this;
 switch (_that) {
 case _NotificationPreferences() when $default != null:
-return $default(_that.announcements,_that.deaths,_that.pharmacy,_that.events,_that.ads,_that.campaigns);case _:
+return $default(_that.announcements,_that.deaths,_that.pharmacy,_that.events,_that.ads,_that.campaigns,_that.news);case _:
   return null;
 
 }
@@ -214,7 +219,7 @@ return $default(_that.announcements,_that.deaths,_that.pharmacy,_that.events,_th
 @JsonSerializable()
 
 class _NotificationPreferences extends NotificationPreferences {
-  const _NotificationPreferences({this.announcements = true, this.deaths = true, this.pharmacy = true, this.events = true, this.ads = false, this.campaigns = false}): super._();
+  const _NotificationPreferences({this.announcements = true, this.deaths = true, this.pharmacy = true, this.events = true, this.ads = false, this.campaigns = false, this.news = true}): super._();
   factory _NotificationPreferences.fromJson(Map<String, dynamic> json) => _$NotificationPreferencesFromJson(json);
 
 @override@JsonKey() final  bool announcements;
@@ -223,6 +228,11 @@ class _NotificationPreferences extends NotificationPreferences {
 @override@JsonKey() final  bool events;
 @override@JsonKey() final  bool ads;
 @override@JsonKey() final  bool campaigns;
+// 🔴 Faz 12.15b — varsayılan `true` ve sunucudaki `NotificationPreferences.News` ile
+// birebir. Alanı tanımayan bir sunucu yanıtı (ya da 12.15b öncesi bir sürümden gelen
+// önbellek) kullanıcıyı sessizce "haberleri kapatmış" göstermemeli: alanın YOKLUĞU,
+// alan eklenmeden önceki davranışı vermeli (checklist §5).
+@override@JsonKey() final  bool news;
 
 /// Create a copy of NotificationPreferences
 /// with the given fields replaced by the non-null parameter values.
@@ -237,16 +247,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NotificationPreferences&&(identical(other.announcements, announcements) || other.announcements == announcements)&&(identical(other.deaths, deaths) || other.deaths == deaths)&&(identical(other.pharmacy, pharmacy) || other.pharmacy == pharmacy)&&(identical(other.events, events) || other.events == events)&&(identical(other.ads, ads) || other.ads == ads)&&(identical(other.campaigns, campaigns) || other.campaigns == campaigns));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NotificationPreferences&&(identical(other.announcements, announcements) || other.announcements == announcements)&&(identical(other.deaths, deaths) || other.deaths == deaths)&&(identical(other.pharmacy, pharmacy) || other.pharmacy == pharmacy)&&(identical(other.events, events) || other.events == events)&&(identical(other.ads, ads) || other.ads == ads)&&(identical(other.campaigns, campaigns) || other.campaigns == campaigns)&&(identical(other.news, news) || other.news == news));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,announcements,deaths,pharmacy,events,ads,campaigns);
+int get hashCode => Object.hash(runtimeType,announcements,deaths,pharmacy,events,ads,campaigns,news);
 
 @override
 String toString() {
-  return 'NotificationPreferences(announcements: $announcements, deaths: $deaths, pharmacy: $pharmacy, events: $events, ads: $ads, campaigns: $campaigns)';
+  return 'NotificationPreferences(announcements: $announcements, deaths: $deaths, pharmacy: $pharmacy, events: $events, ads: $ads, campaigns: $campaigns, news: $news)';
 }
 
 
@@ -257,7 +267,7 @@ abstract mixin class _$NotificationPreferencesCopyWith<$Res> implements $Notific
   factory _$NotificationPreferencesCopyWith(_NotificationPreferences value, $Res Function(_NotificationPreferences) _then) = __$NotificationPreferencesCopyWithImpl;
 @override @useResult
 $Res call({
- bool announcements, bool deaths, bool pharmacy, bool events, bool ads, bool campaigns
+ bool announcements, bool deaths, bool pharmacy, bool events, bool ads, bool campaigns, bool news
 });
 
 
@@ -274,7 +284,7 @@ class __$NotificationPreferencesCopyWithImpl<$Res>
 
 /// Create a copy of NotificationPreferences
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? announcements = null,Object? deaths = null,Object? pharmacy = null,Object? events = null,Object? ads = null,Object? campaigns = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? announcements = null,Object? deaths = null,Object? pharmacy = null,Object? events = null,Object? ads = null,Object? campaigns = null,Object? news = null,}) {
   return _then(_NotificationPreferences(
 announcements: null == announcements ? _self.announcements : announcements // ignore: cast_nullable_to_non_nullable
 as bool,deaths: null == deaths ? _self.deaths : deaths // ignore: cast_nullable_to_non_nullable
@@ -282,6 +292,7 @@ as bool,pharmacy: null == pharmacy ? _self.pharmacy : pharmacy // ignore: cast_n
 as bool,events: null == events ? _self.events : events // ignore: cast_nullable_to_non_nullable
 as bool,ads: null == ads ? _self.ads : ads // ignore: cast_nullable_to_non_nullable
 as bool,campaigns: null == campaigns ? _self.campaigns : campaigns // ignore: cast_nullable_to_non_nullable
+as bool,news: null == news ? _self.news : news // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }

@@ -57,8 +57,17 @@ public interface INotificationDispatcher
     /// Panel formunun "kaç kişiye gidecek?" önizlemesi — gönderimin <b>kendisiyle aynı
     /// süzgeçten</b> geçer, yoksa önizleme ile gerçek ayrışır ve kimse fark etmez.
     /// </summary>
+    /// <param name="source">
+    /// 🔴 Faz 12.15b — <b>zorunlu değil ama atlanması bir hatadır.</b> Bildirim tercihi
+    /// artık kaynağa göre seçiliyor (<c>PushPreferenceTopics</c>); önizleme kaynağı
+    /// söylemezse duyuru tercihine göre sayar, gönderim ise (ör.) haber tercihine göre
+    /// yazar — panel "342 kişiye gidecek" der, 280 satır düşer ve <b>fark hiçbir yerde
+    /// görünmez</b> (§7 madde 38'in birebir tekrarı). Varsayılanın <c>null</c> olması
+    /// 12.2b'nin çağıranlarını kırmamak içindir ve <c>null</c> = bugünkü davranış (duyuru).
+    /// </param>
     Task<int> EstimateRecipientsAsync(
-        string targetType, IReadOnlyList<Guid>? neighborhoodIds, CancellationToken ct = default);
+        string targetType, IReadOnlyList<Guid>? neighborhoodIds, string? source = null,
+        CancellationToken ct = default);
 
     /// <summary>
     /// Kampanya satırını açar, hedef kullanıcılara bildirim satırlarını yazar.

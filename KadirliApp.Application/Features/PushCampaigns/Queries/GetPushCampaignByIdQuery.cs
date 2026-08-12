@@ -120,7 +120,12 @@ public class EstimatePushRecipientsQueryHandler : IRequestHandler<EstimatePushRe
     public EstimatePushRecipientsQueryHandler(INotificationDispatcher dispatcher) => _dispatcher = dispatcher;
 
     public Task<int> Handle(EstimatePushRecipientsQuery request, CancellationToken ct)
-        => _dispatcher.EstimateRecipientsAsync(request.TargetType, request.NeighborhoodIds, ct);
+        // ⚠️ Faz 12.15b — kaynak AÇIKÇA veriliyor. Bu sorgu panelin **elle gönderim**
+        // formunun önizlemesi; kaynağı söylemeseydi varsayılana düşerdi ve bugün doğru
+        // olurdu — ama yarın form başka bir kaynağı da desteklediğinde önizleme ile
+        // gönderim sessizce ayrışırdı (§7 madde 38).
+        => _dispatcher.EstimateRecipientsAsync(
+            request.TargetType, request.NeighborhoodIds, PushCampaignSources.Manual, ct);
 }
 
 /// <summary>

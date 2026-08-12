@@ -1,8 +1,8 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
-> Son güncelleme: 13 Ağustos 2026 — **FAZ 12.15 TAMAMLANDI: Haber bildirimi.**
-> Haberler bloğu (12.12–12.15) **kapandı**. Backend 1053 → **1099** (+46), mobil 821 → **822**.
-> Görünmez sözleşme **63 → 66**.
+> Son güncelleme: 13 Ağustos 2026 — **FAZ 12.15 + 12.15b TAMAMLANDI: Haber bildirimi.**
+> Haberler bloğu (12.12–12.15) **kapandı**. Backend 1053 → **1106** (+53), mobil 821 → **822**.
+> Görünmez sözleşme **63 → 67**.
 >
 > 🔑 **TESLİM EDİLEN:** Yönetici bir haberi panelden **tek tıkla** şehre duyurabiliyor.
 > `relatedType="news"` → mobilde `/haberler/:id` (eşleme 12.14'te yazılmıştı, **mobilde tek
@@ -58,6 +58,26 @@
 > kırpmasıydı → 23:30'dan sonra fixture geçmiş saat üretiyor. 🔑 Hata yamanın kendisi değil
 > **yeri**: ekran testi `now` enjekte edemez, iddia günün son yarım saatinde tanım gereği
 > doğru olamaz. İddia kart testine taşındı.
+>
+> ➕ **12.15b (aynı oturum): 12.15'in bıraktığı tercih deliği kapatıldı.** Dispatcher **her
+> kaynağı** `Announcements`'a bağlıyordu ve `news` ekseni yoktu → (a) "Duyurular"ı kapatan
+> **haberleri de** kaybediyordu, (b) daha kötüsü tersi: haber istemeyenin **tek çıkışı**
+> "Duyurular"ı kapatmaktı, o da **kesinti bildirimini** öldürüyordu (§7 madde 41) — yani
+> 12.15'in "elle gönderim" gerekçesinin korktuğu senaryo **tek anahtarla** ulaşılabilirdi.
+> Tercih artık **kaynağa göre** (`PushPreferenceTopics`, tek sahip; önizleme de aynı
+> metottan). Kesinti bilerek duyuru ekseninde **kaldı**.
+>
+> 🔬 **12.15b'nin en değerli anı: bir varsayım ölçümle çürüdü.** `= true` yazılmasına rağmen
+> **EF'in JSON materyalizasyonu varsayılan başlatıcıyı ÇALIŞTIRMIYOR** — anahtarsız JSON
+> `false` okunuyor (canlıda 13/13 satırda anahtar yoktu). Varsayıma güvenilseydi **mevcut
+> bütün kullanıcılar** haber bildiriminden sessizce çıkardı; uçlar 200, panel normal, tek
+> belirti "kimse almıyor". Çözüm `BackfillNewsNotificationPreference` migration'ı; test
+> silinmedi, **ölçüm belgeye çevrildi**.
+> 🐛 Üç ek bulgu: geri doldurma testi bozma turunda **yeşil kaldı** (migration bir kez koşar,
+> test DB'si yeniden kullanılır → dosyada dürüstçe yazılı, "kilitli" sayılmıyor) ·
+> **kurulum SQL'i** bir testi iddiasız bıraktı (onarım bütün tabloyu kapsıyordu) · yeni test
+> kullanıcıları **ilgisiz** bir testi kırdı (süper admin listenin ilk sayfasından düştü).
+> **Backend 1099 → 1106, mobil 822. Görünmez sözleşme 66 → 67.**
 >
 > ⏭️ **Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) · **12.16 adayı**
 > kategori bazlı bildirim aboneliği (12.15'in elle gönderimi canlıda doğrulandıktan sonra;

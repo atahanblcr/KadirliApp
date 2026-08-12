@@ -99,9 +99,15 @@ public class PanelUsabilityTests
     public async Task UsersList_ShowsTurkishRoleLabels_NotEnumNames()
     {
         var client = await _factory.SuperAdminAsync();
-        var html = await (await client.GetAsync("/UsersAdmin/Index")).ReadDecodedBodyAsync();
 
-        // Seed'de her zaman bir süper admin var.
+        // 🐛 Arama ŞART. Süzgeçsiz istek listenin İLK SAYFASINI veriyor (20 satır) ve
+        // seed'deki süper admin orada olmak zorunda değil: testler kullanıcı satırı
+        // bıraktıkça o satır aşağı kayıyor. 12.15b'de tam bu oldu — dört yeni test
+        // kullanıcısı eklendi ve bu test, kendisiyle ilgisiz bir sebeple kırmızıya döndü.
+        // İddia "listede süper admin var" değil, "rol TÜRKÇE basılıyor"; arama onu
+        // satır sayısından bağımsız hâle getiriyor.
+        var html = await (await client.GetAsync("/UsersAdmin/Index?search=admin")).ReadDecodedBodyAsync();
+
         html.Should().Contain("Süper Yönetici");
         html.Should().NotContain(">SuperAdmin<", "enum adı ham basılmamalı");
     }

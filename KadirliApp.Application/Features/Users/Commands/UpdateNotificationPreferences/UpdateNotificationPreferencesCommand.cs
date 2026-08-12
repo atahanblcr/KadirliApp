@@ -22,6 +22,9 @@ public sealed class UpdateNotificationPreferencesCommand : IRequest<Notification
     public bool? Events { get; set; }
     public bool? Ads { get; set; }
     public bool? Campaigns { get; set; }
+
+    /// <summary>Faz 12.15b — haber bildirimleri. Gönderilmezse mevcut değer korunur.</summary>
+    public bool? News { get; set; }
 }
 
 public sealed class UpdateNotificationPreferencesCommandHandler
@@ -46,6 +49,7 @@ public sealed class UpdateNotificationPreferencesCommandHandler
         p.Events = request.Events ?? p.Events;
         p.Ads = request.Ads ?? p.Ads;
         p.Campaigns = request.Campaigns ?? p.Campaigns;
+        p.News = request.News ?? p.News;
 
         users.Update(user);
         await _uow.SaveChangesAsync(cancellationToken);

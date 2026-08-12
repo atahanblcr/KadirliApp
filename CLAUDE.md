@@ -127,7 +127,16 @@ gönderilmemiş" süzgeci** · **panodan habere geri bağlantı**.
 migration duyuru idempotency indeksini **DROP** ediyordu — yakalayan test değil, **üretilen
 SQL'i okuma** kuralıydı.
 
-**1099 backend + 822 mobil test, 66 görünmez sözleşme.**
+➕ **12.15b (aynı oturum): 12.15'in bıraktığı tercih deliği.** Dispatcher **her kaynağı**
+`Announcements`'a bağlıyordu ve `news` ekseni yoktu → "Duyurular"ı kapatan haberleri de
+kaybediyor, haber istemeyenin **tek çıkışı** duyuruyu kapatmak — o da **kesinti bildirimini**
+öldürüyordu. Tercih artık **kaynağa göre** (`PushPreferenceTopics`; kesinti bilerek duyuru
+ekseninde kaldı). 🔬 **Bir varsayım ölçümle çürüdü:** `= true` yazılmasına rağmen **EF'in JSON
+materyalizasyonu varsayılan başlatıcıyı çalıştırmıyor** (anahtarsız JSON `false` okunuyor,
+canlıda 13/13) → geri doldurma migration'ı **zorunluydu**; test silinmedi, ölçüm belgeye
+çevrildi.
+
+**1106 backend + 822 mobil test, 67 görünmez sözleşme.**
 
 **⏭️ Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) ·
 **12.16 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher **yazılmaz**,
@@ -139,6 +148,10 @@ bir moderasyon aksiyonu) önekini `PanelPermissionFilter.ActionFor`'a **elle ekl
 (bu tuzak 4 kez tekrarladı: 11.18 · 12.10 · 12.13 · 12.15).
 ⚠️ Aynı kolon kümesine **ikinci bir EF indeksi** eklerken adlı aşırı yükleme + `HasDatabaseName`
 kullan; yoksa EF öncekini **sessizce ezer** ve migration onu `DROP` eder (12.15 bulgusu).
+⚠️ JSON kolonda (`OwnsOne(...).ToJson()`) saklanan bir nesneye alan eklerken **varsayılan
+başlatıcıya güvenme**: EF onu materyalizasyonda çalıştırmıyor, eksik anahtar `false` okunuyor
+→ **geri doldurma migration'ı** şart (12.15b bulgusu). Ve `ExecuteSqlRaw` gövdesine JSON
+literali yazma — `{` yer tutucu sanılıyor.
 ⚠️ Moderasyon alanına yazarken `CS8852` alırsan **çözüm alanı `set`'e açmak değil**, geçişi
 varlığın bir metoduna taşımaktır (§7 madde 53 — açarsan test kırılır, bilerek). Ayrıca daha önce
 kullanılmamış bir Tailwind sınıfı yazdıysan `npm run build` çalıştır — yoksa buton

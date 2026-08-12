@@ -96,8 +96,8 @@ public class PanelNewsNotificationTests : IAsyncLifetime
             _articleId = article.Id;
             _excludedArticleId = hidden.Id;
 
-            _recipientId = await EnsureUserAsync(db, "+905550000951", announcements: true);
-            _optedOutId = await EnsureUserAsync(db, "+905550000952", announcements: false);
+            _recipientId = await EnsureUserAsync(db, "+905550000951", news: true);
+            _optedOutId = await EnsureUserAsync(db, "+905550000952", news: false);
         });
     }
 
@@ -140,7 +140,8 @@ public class PanelNewsNotificationTests : IAsyncLifetime
         notifications.Should().OnlyContain(n => n.RelatedType == "news");
         notifications.Should().OnlyContain(n => n.RelatedId == _articleId);
 
-        // Bildirim tercihi elle gönderimde de geçerli (§7 madde 38).
+        // Bildirim tercihi gönderimde de geçerli (§7 madde 38) — ve 12.15b'den beri
+        // haberin KENDİ ekseninden: "Duyurular"ı kapatan kullanıcı haberi almaya devam eder.
         notifications.Should().Contain(n => n.UserId == _recipientId);
         notifications.Should().NotContain(n => n.UserId == _optedOutId);
 
@@ -531,7 +532,13 @@ public class PanelNewsNotificationTests : IAsyncLifetime
         return result;
     }
 
-    private static async Task<Guid> EnsureUserAsync(AppDbContext db, string phone, bool announcements)
+    /// <summary>
+    /// 🐛 <b>12.15b'de imza DEĞİŞTİ ve değişmesi doğruydu.</b> Önce <c>announcements</c>
+    /// alıyordu; 12.15b haber için ayrı bir eksen açınca "duyuruyu kapatmış" kullanıcı
+    /// haber almaya <b>devam etti</b> ve bu test kırıldı. Kırılma, iki eksenin gerçekten
+    /// ayrıldığının kanıtı: eskiden tek anahtar ikisini birden kapatıyordu.
+    /// </summary>
+    private static async Task<Guid> EnsureUserAsync(AppDbContext db, string phone, bool news)
     {
         var user = await db.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Phone == phone);
         if (user is null)
@@ -544,7 +551,7 @@ public class PanelNewsNotificationTests : IAsyncLifetime
         user.IsBanned = false;
         user.DeletedAt = null;
         user.FcmToken = $"token-{phone}";
-        user.NotificationPreferences = new NotificationPreferences { Announcements = announcements };
+        user.NotificationPreferences = new NotificationPreferences { Announcements = true, News = news };
 
         await db.SaveChangesAsync();
         return user.Id;

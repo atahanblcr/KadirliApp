@@ -45,7 +45,7 @@ void main() {
     return adapter;
   }
 
-  testWidgets('oturum açıkken hesap özeti + 6 bildirim anahtarı görünür', (
+  testWidgets('oturum açıkken hesap özeti + bütün bildirim anahtarları görünür', (
     tester,
   ) async {
     await openSettings(tester);
@@ -56,7 +56,13 @@ void main() {
     for (final topic in NotificationTopic.values) {
       expect(find.text(topic.label), findsOneWidget, reason: topic.key);
     }
-    expect(find.byType(SwitchListTile), findsNWidgets(6));
+    // ⚠️ Sayı ELLE yazılmaz, listeden TÜRETİLİR: 12.15b'de yedinci anahtar (`news`)
+    // eklendiğinde elle tutulan "6" bu testi ilgisiz bir sebeple kırdı. İddia "altı
+    // anahtar var" değil, "listedeki HER anahtarın ekranda bir karşılığı var".
+    expect(
+      find.byType(SwitchListTile),
+      findsNWidgets(NotificationTopic.values.length),
+    );
   });
 
   testWidgets('anahtar kapatılınca yalnız o anahtar uca yazılır', (tester) async {

@@ -51,6 +51,14 @@ public class NotificationPreferencesDto
     public bool Ads { get; set; }
     public bool Campaigns { get; set; }
 
+    /// <summary>Faz 12.15b — haber bildirimleri (additive; varsayılan <c>true</c>).</summary>
+    /// <remarks>
+    /// ⚠️ Mağazadaki <b>eski sürümler</b> bu alanı tanımaz ve yok sayar — ayar ekranlarında
+    /// satır çıkmaz, tercih <c>true</c> kalır ve haber bildirimi almaya devam ederler.
+    /// Bu doğru davranış: alan eklenmeden önceki hâl buydu (§5).
+    /// </remarks>
+    public bool News { get; set; } = true;
+
     public static NotificationPreferencesDto FromEntity(NotificationPreferences p) => new()
     {
         Announcements = p.Announcements,
@@ -58,6 +66,7 @@ public class NotificationPreferencesDto
         Pharmacy = p.Pharmacy,
         Events = p.Events,
         Ads = p.Ads,
-        Campaigns = p.Campaigns
+        Campaigns = p.Campaigns,
+        News = p.News
     };
 }

@@ -38,13 +38,14 @@ public class NotificationDispatcher : INotificationDispatcher
     public NotificationDispatcher(IUnitOfWork uow) => _uow = uow;
 
     public Task<int> EstimateRecipientsAsync(
-        string targetType, IReadOnlyList<Guid>? neighborhoodIds, CancellationToken ct = default)
-        => BuildRecipientQuery(targetType, neighborhoodIds).CountAsync(ct);
+        string targetType, IReadOnlyList<Guid>? neighborhoodIds, string? source = null,
+        CancellationToken ct = default)
+        => BuildRecipientQuery(source, targetType, neighborhoodIds).CountAsync(ct);
 
     public async Task<PushDispatchResult> DispatchAsync(
         PushDispatchRequest request, CancellationToken ct = default)
     {
-        var targetUserIds = await BuildRecipientQuery(request.TargetType, request.NeighborhoodIds)
+        var targetUserIds = await BuildRecipientQuery(request.Source, request.TargetType, request.NeighborhoodIds)
             .Select(u => u.Id)
             .ToListAsync(ct);
 
@@ -103,10 +104,19 @@ public class NotificationDispatcher : INotificationDispatcher
     /// "342 kişiye gidecek" der, gönderim 280 satır yazardı ve aradaki fark hiçbir yerde
     /// görünmezdi.
     /// </summary>
-    private IQueryable<User> BuildRecipientQuery(string targetType, IReadOnlyList<Guid>? neighborhoodIds)
+    private IQueryable<User> BuildRecipientQuery(
+        string? source, string targetType, IReadOnlyList<Guid>? neighborhoodIds)
     {
+        // 🔴 Faz 12.15b — tercih artık KAYNAĞA GÖRE seçiliyor (`PushPreferenceTopics`).
+        // Öncesinde burada sabit `NotificationPreferences.Announcements` yazıyordu ve
+        // 12.15 haber gönderimini eklediği an bu iki yönlü sessiz bir hataya dönüştü:
+        // "Duyurular"ı kapatan haberleri de kaybediyor, haber istemeyenin tek çıkışı ise
+        // "Duyurular"ı kapatmak — o da §7 madde 41 gereği KESİNTİ bildirimini öldürüyordu.
+        // ⚠️ Eşleme burada yazılmaz, tek sahibinden gelir: önizleme de (`EstimateRecipients`)
+        // aynı metottan geçmek zorunda, yoksa panel "342" der gönderim 280 yazar (§7 madde 38).
         var users = _uow.Repository<User>().Query()
-            .Where(u => u.IsActive && !u.IsBanned && u.NotificationPreferences.Announcements);
+            .Where(u => u.IsActive && !u.IsBanned)
+            .Where(PushPreferenceTopics.For(source));
 
         // 🔑 `null` ile BOŞ LİSTE burada farklı şeyler demek ve ayrım bilinçli:
         //

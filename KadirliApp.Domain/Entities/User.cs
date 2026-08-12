@@ -60,4 +60,34 @@ public class NotificationPreferences
     public bool Events { get; set; } = true;
     public bool Ads { get; set; } = false;
     public bool Campaigns { get; set; } = false;
+
+    /// <summary>
+    /// Faz 12.15b — <b>haber bildirimleri.</b> Varsayılan <c>true</c>.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>Bu eksen 12.15'te AÇILMADI ve eksikliği sessiz bir hataydı.</b> Gönderim
+    /// <c>NotificationDispatcher</c>'dan geçiyor, o da <b>her kaynağı</b>
+    /// <see cref="Announcements"/>'a bağlıyordu. İki yönlü hasar veriyordu:
+    /// <list type="number">
+    ///   <item>"Duyurular"ı kapatan kullanıcı <b>haber bildirimlerini de</b> kaybediyordu ve
+    ///         ayar ekranı bunu hiçbir yerde söylemiyordu.</item>
+    ///   <item>Daha kötüsü tersi: haber push'u istemeyen kullanıcının <b>tek çıkışı</b>
+    ///         "Duyurular"ı kapatmaktı — o da §7 madde 41 gereği <b>kesinti bildirimini</b>
+    ///         öldürüyordu. Yani 12.15'in "otomatik değil, elle gönderim" gerekçesinin
+    ///         (<i>bildirim yorgunluğu → kullanıcı hepsini kapatır → kesintiyi de almaz</i>)
+    ///         tam olarak korktuğu senaryo <b>tek anahtarla</b> ulaşılabilir durumdaydı.</item>
+    /// </list>
+    ///
+    /// ⚠️ <b>Varsayılan <c>true</c> ve bu ölçüye dayanıyor:</b> tercihler JSON kolonda
+    /// (<c>OwnsOne(...).ToJson()</c>) saklanıyor ve <b>mevcut satırlarda bu anahtar YOK</b>.
+    /// Alanın yokluğu, alan eklenmeden önceki davranışı vermeli (checklist §5): 12.15'te
+    /// haber bildirimi <see cref="Announcements"/> açık olan herkese gidiyordu, yani
+    /// "hiç seçim yapmamış kullanıcı alır". <c>false</c> olsaydı bugün bildirim alan
+    /// <b>bütün kullanıcılar</b> bir migration olmadan sessizce susardı.
+    /// 🔬 Anahtarsız JSON'un gerçekten <c>true</c> materyalize olduğu <b>ölçüldü</b>
+    /// (<c>NotificationPreferenceTests.MissingJsonKey_DefaultsToOptedIn</c>) — varsayılan
+    /// başlatıcının EF'in JSON materyalizasyonunda çalıştığı bir <i>varsayım</i> olarak
+    /// bırakılamazdı: yanılsaydık hasarın hiçbir belirtisi olmazdı.
+    /// </remarks>
+    public bool News { get; set; } = true;
 }

@@ -15,6 +15,7 @@ _NotificationPreferences _$NotificationPreferencesFromJson(
   events: json['events'] as bool? ?? true,
   ads: json['ads'] as bool? ?? false,
   campaigns: json['campaigns'] as bool? ?? false,
+  news: json['news'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$NotificationPreferencesToJson(
@@ -26,4 +27,5 @@ Map<String, dynamic> _$NotificationPreferencesToJson(
   'events': instance.events,
   'ads': instance.ads,
   'campaigns': instance.campaigns,
+  'news': instance.news,
 };

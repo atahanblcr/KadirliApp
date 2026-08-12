@@ -126,7 +126,10 @@ void main() {
     test('enum anahtarları sunucu gövdesindeki adlarla birebir', () {
       expect(
         NotificationTopic.values.map((topic) => topic.key).toList(),
-        ['announcements', 'deaths', 'pharmacy', 'events', 'ads', 'campaigns'],
+        // 🔑 Sıra EKRAN DÜZENİ, anahtarlar ise KONTRAT (`PATCH /v1/users/me/notifications`
+        // gövde adları). 12.15b'de `news` eklendi ve Duyurular'ın ardına kondu — ızgaradaki
+        // sırayla aynı. Anahtar adı değişirse tercih sessizce yazılmaz olur.
+        ['announcements', 'news', 'deaths', 'pharmacy', 'events', 'ads', 'campaigns'],
       );
     });
   });

@@ -2,7 +2,17 @@
 
 > **Amaç:** Flutter mobil istemcisinin tek referansı. Zarf şeması, hata kodları, auth akışı, sayfalama, tarih/görsel kuralları ve public uç envanteri.
 > **Makine-okur şema:** `docs/openapi.json` (OpenAPI 3.0; `openapi_generator`/`dio` ile kod üretimi için). Bu doküman insan rehberi, openapi.json kesin şema — **çeliştiğinde openapi.json + mevcut kod kazanır.**
-> Son gözden geçirme: **13 Ağustos 2026 (Faz 12.15)** — **public yüzeyde değişiklik YOK**, ama
+> Son gözden geçirme: **13 Ağustos 2026 (Faz 12.15b)** — **additive:** `notificationPreferences`
+> nesnesine **`news`** alanı eklendi (`GET /v1/users/me` yanıtında ve
+> `PATCH /v1/users/me/notifications` gövdesinde; varsayılan `true`, kısmi güncelleme kuralı aynı).
+> Hiçbir alan silinmedi. ⚠️ Mağazadaki **eski sürümler** alanı tanımaz ve yok sayar — ayar
+> ekranlarında satır çıkmaz, tercih `true` kalır ve haber bildirimi almaya devam ederler;
+> bu **doğru** davranış (alan eklenmeden önceki hâl buydu).
+> 🔴 Alanın davranışsal karşılığı: bildirim tercihi artık **kaynağa göre** uygulanıyor —
+> `news` kaynaklı gönderim bu alana, `announcement`/`power_outage`/`manual` ise
+> `announcements` alanına bakar. Yani *"Duyurular"ı kapatmak artık haberleri kapatmıyor* ve
+> tersi de doğru.
+> Önceki (Faz 12.15): **public yüzeyde değişiklik YOK**, ama
 > **üretilen veride bir yenilik var:** push `data.relatedType` artık **`"news"`** değerini de
 > taşıyabiliyor (`relatedId` = haber kimliği → mobilde `/haberler/:id`). Yeni uç eklenmedi,
 > hiçbir DTO değişmedi.

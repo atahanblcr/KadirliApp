@@ -18,6 +18,11 @@ abstract class NotificationPreferences with _$NotificationPreferences {
     @Default(true) bool events,
     @Default(false) bool ads,
     @Default(false) bool campaigns,
+    // 🔴 Faz 12.15b — varsayılan `true` ve sunucudaki `NotificationPreferences.News` ile
+    // birebir. Alanı tanımayan bir sunucu yanıtı (ya da 12.15b öncesi bir sürümden gelen
+    // önbellek) kullanıcıyı sessizce "haberleri kapatmış" göstermemeli: alanın YOKLUĞU,
+    // alan eklenmeden önceki davranışı vermeli (checklist §5).
+    @Default(true) bool news,
   }) = _NotificationPreferences;
 
   const NotificationPreferences._();
@@ -32,6 +37,7 @@ abstract class NotificationPreferences with _$NotificationPreferences {
     NotificationTopic.events => events,
     NotificationTopic.ads => ads,
     NotificationTopic.campaigns => campaigns,
+    NotificationTopic.news => news,
   };
 
   NotificationPreferences withValue(NotificationTopic topic, bool value) =>
@@ -42,10 +48,11 @@ abstract class NotificationPreferences with _$NotificationPreferences {
         NotificationTopic.events => copyWith(events: value),
         NotificationTopic.ads => copyWith(ads: value),
         NotificationTopic.campaigns => copyWith(campaigns: value),
+        NotificationTopic.news => copyWith(news: value),
       };
 }
 
-/// Altı bildirim anahtarı — `PATCH /v1/users/me/notifications` gövde adlarıyla
+/// Yedi bildirim anahtarı — `PATCH /v1/users/me/notifications` gövde adlarıyla
 /// birebir (`{"announcements": false}` gibi **kısmi** güncelleme).
 ///
 /// Ekran bu listeden üretilir: yeni bir tercih eklenirse tek satır yeter
@@ -56,6 +63,15 @@ enum NotificationTopic {
     label: 'Duyurular',
     description: 'Belediye ve kurum duyuruları',
     icon: Icons.campaign_outlined,
+  ),
+  // 🔑 Sıra ızgaradakiyle aynı: Haberler, Duyurular'ın hemen ardında — ikisi de
+  // "şehirde ne oluyor" sorusunun cevabı (`kAppModules` deseni). Enum SIRASI yalnız
+  // ekran düzenini belirler; serileştirme `key` üzerinden gider.
+  news(
+    key: 'news',
+    label: 'Haberler',
+    description: 'Gazeteden seçilen önemli haberler',
+    icon: Icons.newspaper_outlined,
   ),
   deaths(
     key: 'deaths',

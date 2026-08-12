@@ -4679,6 +4679,71 @@ kategori dışlaması kapısı kaldırıldı ✅ (2 test) · arşivde bildirim t
 **64** (üç katmanlı terminallik) · **65** (görünmezliğin üç ekseni) · **66** (bildirim
 temizliği + kendi kendine yeterli gövde). Toplam **63 → 66**.
 
+#### ➕ 12.15b — 12.15'in bıraktığı tercih deliği (aynı oturum, kullanıcı kararı)
+
+**Bulgu:** `NotificationDispatcher` **her kaynağı** `NotificationPreferences.Announcements`'a
+bağlıyordu ve `NotificationTopic` enum'ında `news` **yoktu**. 12.15 gönderimi eklediği an bu
+iki yönlü sessiz bir hataya dönüştü:
+1. "Duyurular"ı kapatan kullanıcı **haber bildirimlerini de** kaybediyordu — ayar ekranı
+   bunu hiçbir yerde söylemiyordu.
+2. Daha kötüsü tersi: haber push'u istemeyen kullanıcının **tek çıkışı** "Duyurular"ı
+   kapatmaktı, o da §7 madde 41 gereği **kesinti bildirimini** öldürüyordu. Yani 12.15'in
+   *"otomatik değil, elle gönderim"* gerekçesinin (**bildirim yorgunluğu → kullanıcı hepsini
+   kapatır → kesintiyi de almaz**) korktuğu senaryo **tek anahtarla** ulaşılabilir durumdaydı.
+
+**Yapılan:** `NotificationPreferences.News` ekseni + tercihin **kaynağa göre** seçilmesi
+(`PushPreferenceTopics` — tek sahip, dispatcher'ın gövdesine gömülmedi çünkü aynı cevabı
+önizleme de vermek zorunda) + public DTO/PATCH alanı + mobil ayar satırı (yedinci anahtar,
+ızgaradaki sırayla Duyurular'ın ardında).
+⚠️ Kesinti **duyuru ekseninde bırakıldı** (§7 madde 41): kendi eksenine taşınsaydı bugün
+kesinti bildirimi alanların bir kısmı hiçbir tercih değiştirmeden **sessizce** susardı.
+⚠️ Bilinmeyen kaynak **bugünkü davranışa** düşer, "süzme"ye değil — §5'in *"şüphede kalınca
+göster"* kuralının bilinçli **tersi**: burada bedel, tercihini kapatmış birine bildirim
+göndermek.
+
+#### 🔬 12.15b'nin en değerli anı: bir VARSAYIM ölçümle çürüdü
+
+Alan `public bool News { get; set; } = true;` yazıldı ve testin ilk hâli *"anahtarsız JSON
+`true` okunur"* diye iddia ediyordu. **Gerçek Postgres'te `false` çıktı:** tercihler
+`OwnsOne(...).ToJson()` ile tek JSON kolonda saklanıyor ve **EF'in JSON materyalizasyonu
+varsayılan başlatıcıyı ÇALIŞTIRMIYOR**.
+
+Varsayıma güvenilseydi 12.15b **mevcut bütün kullanıcıları** haber bildiriminden sessizce
+çıkarırdı: uçlar 200 döner, panel kampanya satırını yine açar, hiçbir hata oluşmaz — tek
+belirti *"kimse haber bildirimi almıyor"* olurdu ve sebebi hiçbir yerde yazmazdı. Canlıda
+ölçüldü: **13 satırın 13'ünde** anahtar yoktu. Çözüm `BackfillNewsNotificationPreference`
+migration'ı (`'{"News": true}'::jsonb || mevcut` — sağ operand kazandığı için **açık tercih
+ezilmez**, `WHERE` ile **idempotent**).
+🔑 Test **silinmedi ve beklentisi çevrilmedi**: ölçüm belgeye dönüştürüldü
+(`MissingJsonKey_MaterialisesAsFalse`), çünkü asıl kilit odur — biri yarın migration'ı
+"gereksiz" sanıp kaldırırsa sebebini o test anlatır.
+
+#### 🐛 Bu oturumda bulunan üç şey daha
+
+- **Geri doldurma testi bozma turunda YEŞİL kaldı** ve bu dosyaya dürüstçe yazıldı:
+  migration'lar bir kez koşar, test veritabanı koşular arasında yeniden kullanılır, yani
+  `TheBackfill_LeftNoUserRowWithoutTheNewsKey` bir migration regresyonunu **ancak sıfırdan
+  kurulan bir veritabanında** yakalar. Duman testi olarak duruyor, "kilitli" sayılmıyor.
+- 🐛 **Kurulum SQL'i bir testi iddiasız bıraktı.** İki testin çakışmasını çözmek için
+  `CleanAsync`'e konan onarım **bütün tabloyu** kapsıyordu ve geri doldurma testini her
+  koşuda kendisi onarıyordu. Onarım yalnız kendi satırlarına daraltıldı — *"iddiası zayıf
+  test, testsizlikten kötüdür"* dersinin yeni bir biçimi: bu kez testi zayıflatan şey
+  **kurulumun kendisiydi**.
+- 🐛 **Yeni test kullanıcıları ilgisiz bir testi kırdı.** Dört satır, seed'deki süper admini
+  kullanıcı listesinin **ilk sayfasından** düşürdü ve `PanelUsabilityTests` kırmızıya döndü.
+  İki taraflı düzeltildi: test kendi satırlarını **siliyor**, ve o iddia artık `?search=`
+  ile satır sayısından **bağımsız** (iddia "listede süper admin var" değil, "rol Türkçe
+  basılıyor" idi zaten).
+- 🐛 `ExecuteSqlRaw` gövdesine JSON literali yazma tuzağına **iki kez** düşüldü: gövde
+  `string.Format` gibi okunuyor, JSON'un `{`'i yer tutucu sanılıyor.
+
+**Testler:** backend 1099 → **1106** (+7), mobil 822 (iki test 12.15b yüzünden **haklı
+olarak** kırıldı ve düzeltildi: anahtar listesi ve "6 anahtar" sayısı — sayı artık listeden
+**türetiliyor**). Görünmez sözleşme **66 → 67**.
+**Bozma turu:** haber ekseni tekrar duyuruya bağlandı ✅ · önizleme kaynağı söylemedi ✅ ·
+`PanelNewsNotificationTests`'in kullanıcısı duyuru yerine haber eksenine geçirilince eski
+kurulum kırıldı ✅ (ayrımın kanıtı) · geri doldurma boşaltıldı ❌ (yukarıda).
+
 ---
 
 

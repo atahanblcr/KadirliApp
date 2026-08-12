@@ -74,7 +74,11 @@ public class GetNewsNotificationPreviewQueryHandler
             Body = body,
 
             // Hedef her zaman "all": haberin mahallesi yok.
-            EstimatedRecipients = await _dispatcher.EstimateRecipientsAsync(PushTargetTypes.All, null, ct),
+            // 🔴 Faz 12.15b — KAYNAK verilmek zorunda: sayı artık `NotificationPreferences.News`
+            // ekseninden geliyor. Verilmeseydi önizleme *duyuru* tercihine göre sayar,
+            // gönderim *haber* tercihine göre yazardı ve fark hiçbir yerde görünmezdi.
+            EstimatedRecipients = await _dispatcher.EstimateRecipientsAsync(
+                PushTargetTypes.All, null, PushCampaignSources.News, ct),
 
             SentAt = article.NotificationSentAt,
             CampaignId = article.NotificationCampaignId,
