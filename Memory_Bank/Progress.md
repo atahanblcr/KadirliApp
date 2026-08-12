@@ -4366,11 +4366,19 @@ dışı üç ek yapıldı (aşağıda ayrı başlık).
 
 #### Testler
 
-**+59 mobil test** (751 → **810**): `news_article_test` (14) · `news_card_test` (8) ·
-`news_screen_test` (16) · `news_detail_screen_test` (14) · `news_body_test` (7) + golden
-(`news_card_light/dark`: uzun başlık · kaydedilmiş · manşet). Backend **1034** (değişmedi —
-12.14 sunucuya dokunmadı; `ArchitectureDocTests` mobil `news/` klasörünü doküman güncellenene
-kadar bilerek kırmızı tuttu).
+**+63 mobil test** (751 → **814**): `news_article_test` (14) · `news_card_test` (8) ·
+`news_screen_test` (16) · `news_detail_screen_test` (14) · `news_body_test` (7) +
+**erişilebilirlik** (3: kart 1.4 ölçekte taşmıyor · gövde 1.4 ölçekte taşmıyor · "Kaydedildi"
+metinle de söyleniyor) + golden (`news_card_light/dark` · **`news_body_light/dark`**).
+Backend **1034** (değişmedi — 12.14 sunucuya dokunmadı; `ArchitectureDocTests` mobil `news/`
+klasörünü doküman güncellenene kadar bilerek kırmızı tuttu).
+
+🔑 **Gövde golden'ı ilk yazımda atlanmıştı** (plan onu açıkça istiyordu) ve eklendiğinde
+**gerçek bir riski kilitlediği** görüldü: `body` stilinden `color` kaldırılınca paket kendi
+siyahını basıyor ve **koyu temada metin siyah üstüne siyah** oluyor — ekran açılır, hata
+vermez, yalnız okunamaz. Bozma turunda golden kırmızıya döndü. ⚠️ Gövde senaryosu bilinçli
+olarak **kısa ve sabit**: `flutter_html` çıktısı sürümle kayabilir ve uzun bir referans her
+yükseltmede kırılıp insanı `--update-goldens` refleksine iterdi.
 
 **Bozma turu (kuralı boz → kırmızıya dönüyor mu):** `onLinkTap` kaldırıldı ✅ · `<img>`
 uzantısı kaldırıldı ✅ · 2 karakter eşiği kaldırıldı ✅ · ilgili haberlerde okunan haber

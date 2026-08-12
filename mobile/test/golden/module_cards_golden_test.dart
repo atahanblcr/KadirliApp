@@ -17,6 +17,7 @@ import 'package:kadirli_app/features/events/data/models/event.dart';
 import 'package:kadirli_app/features/events/presentation/widgets/event_card.dart';
 import 'package:kadirli_app/features/news/data/models/news_article.dart';
 import 'package:kadirli_app/features/news/data/models/news_category.dart';
+import 'package:kadirli_app/features/news/presentation/widgets/news_body.dart';
 import 'package:kadirli_app/features/news/presentation/widgets/news_card.dart';
 import 'package:kadirli_app/features/news/presentation/widgets/news_featured_card.dart';
 import 'package:kadirli_app/features/notifications/data/models/app_notification.dart';
@@ -455,6 +456,50 @@ void main() {
                   'heyecanı yaşandı',
             ),
             onTap: () {},
+          ),
+        ),
+      ],
+    );
+  });
+
+  testWidgets('NewsBody — haber gövdesi (paragraf, başlık, liste, alıntı)', (
+    tester,
+  ) async {
+    // ⚠️ Gövde **bilerek kısa ve sabit**: `flutter_html`in çıktısı paket
+    // sürümüyle birlikte kayabilir ve uzun bir metin referansı her yükseltmede
+    // kırardı — insan da `--update-goldens`'ı refleks hâline getirirdi
+    // (bu projenin dört kez tekrarlamış golden tuzağı). Uzun Türkçe metin
+    // senaryosu **kartlarda** (yukarıda), burada değil.
+    //
+    // 🔑 Golden'ın asıl işi: tipografi token'larının gövdeye gerçekten
+    // uygulandığını ve **koyu temada okunabilir** kaldığını kilitlemek.
+    // Gövde rengi `body` stiline yazılmasaydı paket kendi siyahını basar ve
+    // koyu temada metin **siyah üstüne siyah** olurdu — hata vermeyen,
+    // yalnız okunamayan bir ekran.
+    await expectGoldenSheet(
+      tester,
+      name: 'news_body',
+      height: 1500,
+      scenarios: const [
+        GoldenScenario(
+          'Paragraf + ara başlık + kalın/eğik',
+          NewsBody(
+            html:
+                '<p>Osmaniye’de bir dönem Yer Fıstığı Müzesi olarak hizmet '
+                'veren simgesel yapı, <strong>150 kişilik</strong> halk '
+                'kütüphanesine dönüştürülüyor.</p>'
+                '<h2>Çalışmalarda son durum</h2>'
+                '<p>Projede <em>yüzde 95</em> seviyesine ulaşıldı.</p>',
+          ),
+        ),
+        GoldenScenario(
+          'Liste + alıntı',
+          NewsBody(
+            html:
+                '<ul><li>Kaba inşaat tamamlandı</li>'
+                '<li>İnce işler sürüyor</li></ul>'
+                '<blockquote>Kısa sürede gençlerin kullanımına '
+                'sunulacak.</blockquote>',
           ),
         ),
       ],

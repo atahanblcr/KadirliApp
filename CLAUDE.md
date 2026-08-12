@@ -104,7 +104,7 @@ mobil karşılığı **yoktu**, yani yönetici anahtarı çeviriyor hiçbir şey
 (kaydın **anlık görüntüsü** saklanır — yalnız `id` saklansaydı kaynakta kalkan haber listede
 *"bulunamadı"* satırına dönerdi). 🐛 Bozma turunda **bir taşma testi yeşil kaldı**: kartın asıl
 riski taşma değil **sınırsız büyüme**ymiş → `maxLines` doğrudan iddia edildi.
-**1034 backend + 810 mobil test, 62 görünmez sözleşme.**
+**1034 backend + 814 mobil test, 62 görünmez sözleşme.**
 
 **⏭️ Sırada 12.15:** Haber bildirimi (elle gönderim · `relatedType="news"` · deep-link).
 ⚠️ `news → /haberler/:id` eşlemesi mobilde **12.14'te yazıldı** (aynı sürümde gitmesi

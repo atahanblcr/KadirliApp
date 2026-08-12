@@ -126,7 +126,7 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | `lib/features/transport/application/` | 🔑 `operating_days.dart` (**mobilde gün ↔ bit dönüşümünün tek sahibi**, 12.6) · `departure_times.dart` (günü hesaba katan "sıradaki sefer") · `transport_vehicle.dart` |
 | `lib/features/news/` | 🔑 **Faz 12.14 — 13. modül.** `presentation/widgets/news_body.dart` gövdenin **tek çizim sahibi** (`flutter_html`; istemcide **ikinci beyaz liste yok**, §7 madde 61) · `data/saved_news_store.dart` "Kaydedilenler"in yerel deposu (kaydın **anlık görüntüsü**, §7 madde 62) |
 | `lib/features/<modül>/presentation/` | Ekranlar + `widgets/` |
-| `test/` | **810 test** (75 dosya); klasör yapısı `lib/`'i aynalar |
+| `test/` | **814 test** (75 dosya); klasör yapısı `lib/`'i aynalar |
 
 ---
 

@@ -5,6 +5,10 @@ import 'package:kadirli_app/core/theme/app_colors.dart';
 import 'package:kadirli_app/core/theme/app_spacing.dart';
 import 'package:kadirli_app/core/theme/app_theme.dart';
 import 'package:kadirli_app/core/widgets/widgets.dart';
+import 'package:kadirli_app/features/news/data/models/news_article.dart';
+import 'package:kadirli_app/features/news/data/models/news_category.dart';
+import 'package:kadirli_app/features/news/presentation/widgets/news_body.dart';
+import 'package:kadirli_app/features/news/presentation/widgets/news_card.dart';
 import 'package:kadirli_app/features/transport/data/models/intercity_route.dart';
 import 'package:kadirli_app/features/transport/presentation/widgets/intercity_route_card.dart';
 
@@ -276,6 +280,79 @@ void main() {
 
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('haber kartı 360 dp × 1.4 ölçekte taşmıyor', (tester) async {
+      // 🔴 Faz 12.14 — kart gazeteden gelen metni gösteriyor: başlığın uzunluğu
+      // **bizim denetimimizde değil** (manşetler tamamı büyük harf geliyor).
+      // Uzun kategori adı ("Bilim ve Teknoloji") + kaydedilmiş rozeti + 1.4
+      // ölçek, bu projenin yedi kez tekrarlayan taşma sınıfının haber tarafı.
+      tester.view.physicalSize =
+          const Size(360, 1600) * tester.view.devicePixelRatio;
+      addTearDown(tester.view.reset);
+
+      await pumpA11y(
+        tester,
+        textScale: 1.4,
+        SingleChildScrollView(
+          child: NewsCard(
+            now: DateTime.utc(2026, 8, 12, 12),
+            isSaved: true,
+            onTap: () {},
+            article: NewsArticle(
+              id: 'n1',
+              title:
+                  'OSMANİYE’DE KAMYONETTE 89 KİLO 550 GRAM UYUŞTURUCU MADDE '
+                  'ELE GEÇİRİLDİ, OLAYLA İLGİLİ BİR KİŞİ TUTUKLANDI',
+              excerpt:
+                  'Osmaniye’de polis ekiplerinin Gaziantep Emniyet Müdürlüğü '
+                  'ekipleriyle düzenlediği ortak çalışmada, durdurulan '
+                  'kamyonette narkotik köpeği ile arama yapıldı.',
+              publishedAt: DateTime.utc(2026, 8, 12, 9),
+              modifiedAt: DateTime.utc(2026, 8, 12, 9),
+              readingMinutes: 4,
+              categories: const [
+                NewsCategory(
+                  id: 'c1',
+                  name: 'Bilim ve Teknoloji',
+                  slug: 'bilim-teknoloji',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('haber gövdesi 360 dp × 1.4 ölçekte taşmıyor', (tester) async {
+      // Gövdenin düzenini `flutter_html` kuruyor, yani bir kısmı **bizim
+      // widget'larımız değil**: paket sürümü değiştiğinde ilk kırılacak yer
+      // burası ve kırılma sessiz olur (ekran açılır, satır taşar).
+      tester.view.physicalSize =
+          const Size(360, 1600) * tester.view.devicePixelRatio;
+      addTearDown(tester.view.reset);
+
+      await pumpA11y(
+        tester,
+        textScale: 1.4,
+        const SingleChildScrollView(
+          child: NewsBody(
+            html:
+                '<p>Osmaniye’de bir dönem Yer Fıstığı Müzesi olarak hizmet '
+                'veren simgesel yapı, özgün mimari yapısı korunarak 150 '
+                'kişilik halk kütüphanesine dönüştürülüyor.</p>'
+                '<h2>Çalışmalarda son durum</h2>'
+                '<ul><li>Kaba inşaat tamamlandı</li>'
+                '<li>İnce işlerde yüzde 95 seviyesine ulaşıldı</li></ul>'
+                '<blockquote>Kısa sürede gençlerin kullanımına '
+                'sunulacak.</blockquote>',
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('renk tek başına anlam taşımıyor', () {
@@ -283,6 +360,30 @@ void main() {
       await pumpA11y(tester, const OfflineBanner());
 
       expect(find.text('İnternet bağlantısı yok'), findsOneWidget);
+    });
+
+    testWidgets('kaydedilmiş haber kartta METİNLE de söylenir', (tester) async {
+      // Yer imi ikonu + vurgu rengi tek başına bilgi taşımaz; ekran okuyucu
+      // kullanan ya da renk körü biri için "Kaydedildi" **yazılı** olmalı.
+      await pumpA11y(
+        tester,
+        NewsCard(
+          now: DateTime.utc(2026, 8, 12, 12),
+          isSaved: true,
+          article: NewsArticle(
+            id: 'n1',
+            title: 'Kadirli’de yaz akşamları sinema keyfiyle renkleniyor',
+            excerpt: 'Açık hava sineması etkinlikleri sürüyor.',
+            publishedAt: DateTime.utc(2026, 8, 12, 9),
+            readingMinutes: 2,
+            categories: const [
+              NewsCategory(id: 'c1', name: 'Gündem', slug: 'gundem'),
+            ],
+          ),
+        ),
+      );
+
+      expect(find.text('Kaydedildi'), findsOneWidget);
     });
 
     testWidgets('palet semantik renkleri iki temada da tanımlı', (tester) async {

@@ -3,7 +3,7 @@
 > Son güncelleme: 12 Ağustos 2026 — **FAZ 12.14 TAMAMLANDI: Haberler mobil (13. modül).**
 > Kod tümüyle mobilde: `lib/features/news/` (2 model + repo + yerel depo + 2 provider dosyası
 > + 3 ekran + 3 widget) + `app_modules`/`app_routes`/`app_router` satırları + bildirim
-> eşlemesi. **Backend 1034 (değişmedi — 12.14 sunucuya dokunmadı), mobil 751 → 810 (+59).**
+> eşlemesi. **Backend 1034 (değişmedi — 12.14 sunucuya dokunmadı), mobil 751 → 814 (+63).**
 > Görünmez sözleşme **60 → 62**.
 >
 > 🔑 **TESLİM EDİLEN:** Haberler artık uygulamada. Izgarada 13. kart, kategori şeridi
@@ -51,7 +51,16 @@
 > sürümde** yazıldı — 12.15'e bırakılsaydı §7 madde 18'in kabul edilen sınırı bir sürüm
 > daha uzardı.
 >
+> ✅ **Oturum sonunda kapatılan üç kendi eksiğim:** planın istediği **gövde golden'ı** yazıldı
+> (ve bir riski gerçekten kilitlediği görüldü: `body` stilinden `color` düşerse koyu temada
+> metin **siyah üstüne siyah** oluyor — bozma turunda kırmızı), haber kartı + gövde
+> **erişilebilirlik** testine girdi (360 dp × 1.4) ve "Kaydedildi" rozetinin **metinle de**
+> söylendiği kilitlendi.
+>
 > 📌 **Kalan borç:** yazı boyutu ayarı ve metin arası görsellerin aynalanması ikinci sürüme.
+> ⏳ İkincisinin bir **son kullanma tarihi var**: metin arası görsellerin %9'u imzalı/süreli
+> `fbcdn` linki (12.12 ölçümü) → zamanla 403 olacaklar ve o haberlerin gövdesindeki görseller
+> sessizce kaybolacak (istemci onları zaten zarifçe gizliyor, yani **hiç kimse hata almayacak**).
 
 ---
 
