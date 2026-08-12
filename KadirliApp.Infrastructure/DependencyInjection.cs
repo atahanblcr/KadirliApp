@@ -167,6 +167,8 @@ public static class DependencyInjection
         // yalnız beyaz liste kopyalaması; maliyeti ihmal edilebilir.
         services.AddScoped<Application.Common.Interfaces.INewsHtmlSanitizer, News.NewsHtmlSanitizer>();
         services.AddScoped<Application.Features.News.Services.NewsImageMirror>();
+        // Faz 12.14: 12.14 öncesinden kalan haberlerin gövde görsellerini aynalayan geri doldurma.
+        services.AddScoped<Application.Features.News.Services.NewsBodyImageBackfill>();
 
         services.AddSingleton(new Application.Features.News.NewsSyncOptions
         {
@@ -211,6 +213,10 @@ public static class DependencyInjection
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.SyncNewsJob>("sync-news", j => j.RunAsync(), "*/15 * * * *");
         // Faz 12.12: silmeyi öğrenmenin TEK yolu — gecelik mutabakat (03:00).
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.ReconcileNewsJob>("reconcile-news", j => j.RunAsync(), "0 3 * * *");
+        // Faz 12.14: 12.14 ÖNCESİNDEN kalan haberlerin gövde görselleri. Saatlik ve turlu —
+        // geri doldurma acil değil, TAMAMLANABİLİR olmalı; iş kendini bitirdiğinde hiçbir şey
+        // yapmadan döner, yani sonsuza kadar koşması zararsız.
+        RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.MirrorNewsBodyImagesJob>("mirror-news-body-images", j => j.RunAsync(), Cron.Hourly);
         // Faz 12.13: koşu defterinin saklama süresi (30 gün). Günde 96 satır → yılda ~35k.
         RecurringJob.AddOrUpdate<KadirliApp.Infrastructure.Jobs.PurgeNewsSyncRunsJob>("purge-news-sync-runs", j => j.RunAsync(), Cron.Daily);
     }

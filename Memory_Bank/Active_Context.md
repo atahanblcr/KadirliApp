@@ -3,8 +3,8 @@
 > Son güncelleme: 12 Ağustos 2026 — **FAZ 12.14 TAMAMLANDI: Haberler mobil (13. modül).**
 > Kod tümüyle mobilde: `lib/features/news/` (2 model + repo + yerel depo + 2 provider dosyası
 > + 3 ekran + 3 widget) + `app_modules`/`app_routes`/`app_router` satırları + bildirim
-> eşlemesi. **Backend 1034 (değişmedi — 12.14 sunucuya dokunmadı), mobil 751 → 814 (+63).**
-> Görünmez sözleşme **60 → 62**.
+> eşlemesi. **Backend 1034 (değişmedi — 12.14 sunucuya dokunmadı), mobil 751 → 821 (+70). Backend 1034 → 1053 (+19, 12.14b).**
+> Görünmez sözleşme **60 → 63**.
 >
 > 🔑 **TESLİM EDİLEN:** Haberler artık uygulamada. Izgarada 13. kart, kategori şeridi
 > (sunucuda süzülüyor), `flutter_html` ile biçimli gövde, "Kaynakta oku", paylaş.
@@ -57,10 +57,21 @@
 > **erişilebilirlik** testine girdi (360 dp × 1.4) ve "Kaydedildi" rozetinin **metinle de**
 > söylendiği kilitlendi.
 >
-> 📌 **Kalan borç:** yazı boyutu ayarı ve metin arası görsellerin aynalanması ikinci sürüme.
-> ⏳ İkincisinin bir **son kullanma tarihi var**: metin arası görsellerin %9'u imzalı/süreli
-> `fbcdn` linki (12.12 ölçümü) → zamanla 403 olacaklar ve o haberlerin gövdesindeki görseller
-> sessizce kaybolacak (istemci onları zaten zarifçe gizliyor, yani **hiç kimse hata almayacak**).
+> ✅ **12.14b — İKİ BORÇ DA KAPATILDI (aynı oturum, kullanıcı isteği):**
+> **(1) Metin arası görseller aynalanıyor.** Borcun bir **son kullanma tarihi** vardı: %9'u
+> imzalı/süreli `fbcdn` linki → mutlaka 403 olacaklardı ve istemci onları zarifçe gizlediği
+> için **hiç kimse hata almayacaktı**. 🔴 En önemli sıra kararı: sağlama **aynalamadan ÖNCE**,
+> kaynağın gövdesiyle hesaplanıyor — sonrasıyla hesaplansaydı her koşu haberi "değişmiş" sayıp
+> **sonsuza kadar** yeniden yazardı. 🔴 Yeniden deneme **yok**: imzalı adresin hatası kalıcı,
+> denemek günde 96 boşuna istek demekti. 12.14 öncesi kayıtlar `MirrorNewsBodyImagesJob` ile
+> (saatlik, turlu, idempotent) onarılıyor. 🐛 İki test kırıldı ve **kırılma doğruydu**: yeni
+> tekilleştirme koşular arası çalıştığı için testler görsel adresi paylaşamaz.
+> **(2) Okuma boyutu.** Denetim döngü değil **seçim listesi**; çarpım **tavanlı** (1.6 —
+> tavansız 1.4 × 1.3 = 1.82). Ölçek yalnız **başlık ve gövdeye** uygulanıyor.
+> **Backend 1034 → 1053, mobil 814 → 821. Görünmez sözleşme 62 → 63.**
+>
+> 📌 **Kalan borç:** gövde override'ı (12.13'ten) ve arşiv derinliğinin 50'den büyütülmesi
+> (kod değişikliği gerektirmiyor, ayar kararı).
 
 ---
 

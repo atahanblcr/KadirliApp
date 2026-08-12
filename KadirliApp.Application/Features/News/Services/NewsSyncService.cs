@@ -366,6 +366,12 @@ public class NewsSyncService : INewsSyncService
             ? candidate
             : NewsChecksum.Compute(post.Title, excerpt, contentHtml, imageUrl, post.CategoryWpIds);
 
+        // 🔴 Faz 12.14 — metin arası görseller de aynalanır. Sıra kritik: sağlama YUKARIDA,
+        // kaynağın gövdesiyle hesaplandı. Aynalanmış gövdeyle hesaplansaydı sağlama
+        // kaynağınkine **hiçbir zaman** eşitlenemez ve her koşu haberi "değişmiş" sayıp
+        // yeniden yazardı — sonsuza kadar.
+        contentHtml = await MirrorBodyImagesAsync(contentHtml, ct);
+
         var snapshot = new NewsArticleSnapshot(
             // 🔴 KOLON SINIRLARI BURADA UYGULANIR ve bu bir dayanıklılık kararıdır:
             // 500 karakteri aşan tek bir başlık, `SaveChanges` anında **bütün partiyi**
@@ -404,6 +410,37 @@ public class NewsSyncService : INewsSyncService
             existing.ReplaceCategories(linked);
             run.Updated++;
         }
+    }
+
+    /// <summary>
+    /// Faz 12.14 — gövdedeki dış görselleri aynalar ve adreslerini <c>/uploads/…</c> ile
+    /// değiştirir. Aynalanamayan görsel <b>olduğu gibi kalır</b> (hotlink) — yani en kötü
+    /// hâlde 12.14 öncesine düşülür, haber düşmez.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>Aynalanamayan görsel için YENİDEN DENEME YOK</b> ve bu bilinçli bir karar:
+    /// bu görsellerin bir kısmı <b>imzalı/süreli</b> adresler (ölçüldü: %9'u <c>fbcdn</c>) ve
+    /// süresi dolduğunda hata <b>kalıcıdır</b>. Sağlamaya "eksik kaldı" bilgisi eklenseydi
+    /// senkron o haberi <b>her 15 dakikada bir</b> yeniden yazar ve asla başaramayacağı bir
+    /// indirmeyi günde 96 kez denerdi — kaynağı da kendimizi de yorardık. Geçici bir hata
+    /// (kaynakta görülen <c>520</c> gibi) kaynağın bir sonraki içerik değişiminde ya da
+    /// <c>MirrorNewsBodyImagesJob</c>'ın elle tetiklenmesiyle telafi edilir.
+    /// </remarks>
+    private async Task<string> MirrorBodyImagesAsync(string contentHtml, CancellationToken ct)
+    {
+        if (!_options.MirrorImages) return contentHtml;
+
+        var urls = NewsBodyImages.ExternalUrls(contentHtml);
+        if (urls.Count == 0) return contentHtml;
+
+        var mirrored = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var url in urls)
+        {
+            var stored = await _mirror.MirrorToUrlAsync(url, ct);
+            if (stored is not null) mirrored[url] = stored;
+        }
+
+        return NewsBodyImages.Rewrite(contentHtml, mirrored);
     }
 
     // ───────────────────────────── Kategoriler ───────────────────────────────────────

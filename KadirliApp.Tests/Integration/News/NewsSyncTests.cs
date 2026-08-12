@@ -652,4 +652,328 @@ public class NewsSyncTests : IAsyncLifetime
             (await db.NewsSyncStates.SingleAsync()).ForwardCursorUtc.Should().NotBeNull();
         });
     }
+
+    // ─────────────────── Faz 12.14: metin arası görsellerin aynalanması ──────────────
+    //
+    // ⚠️ Bu bloktaki testler **birbirinden farklı görsel adresleri** kullanıyor ve bu
+    // zorunlu: 12.14'ün tekilleştirmesi `files.metadata` üzerinden **koşular arası**
+    // çalışıyor, `ResetAsync` ise yalnız haber tablolarını boşaltıyor (dosyalar paylaşılan
+    // veritabanında kalıyor). Adres paylaşan iki test yazıldığında ikincisi "zaten
+    // aynalanmış" yoluna düşüyor ve indiriciye hiç uğramıyor — ilk yazımda tam bu oldu
+    // ve iki test kırmızıya döndü. 🔑 Kırılma doğruydu: tekilleştirme ÇALIŞIYOR demekti.
+
+    /// <summary>
+    /// 🔴 <b>Bu bloğun var olma sebebi:</b> gövde görsellerinin %9'u <b>imzalı/süreli</b>
+    /// adres (ölçüldü) — zamanla mutlaka 403'e düşecekler ve istemci onları
+    /// <i>zarifçe gizlediği</i> için <b>hiç kimse hata almayacak</b>. Aynalama, kaynağın
+    /// bizden bağımsız çürümesine karşı tek gerçek koruma.
+    /// </summary>
+    [Fact]
+    public async Task BodyImages_AreMirroredAndRewrittenToRelativeUrls()
+    {
+        var source = SourceWith(Post(
+            601,
+            content: "<p>Metin</p><figure><img src=\"https://ornek.com/govde-601.jpg\"></figure>",
+            imageUrl: "https://ornek.com/kapak.jpg"));
+
+        var downloader = new FakeNewsImageDownloader();
+
+        await WithSyncAsync(
+            source,
+            (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
+            downloader);
+
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            var article = await db.NewsArticles.SingleAsync(x => x.WpId == 601);
+
+            // Gövdedeki adres artık BİZİM (§7 madde 9: göreli).
+            article.SourceContentHtml.Should().NotContain("https://ornek.com/govde-601.jpg");
+            article.SourceContentHtml.Should().Contain("/uploads/");
+            NewsBodyImages.HasExternalImages(article.SourceContentHtml).Should().BeFalse();
+
+            // Kapak + gövde = iki ayrı dosya.
+            downloader.Downloads.Should().Be(2);
+        });
+    }
+
+    /// <summary>
+    /// İndirilemeyen gövde görseli <b>olduğu gibi kalır</b> — haber düşmez, gövdeden
+    /// silinmez. Yani en kötü hâlde 12.14 <b>öncesine</b> düşülür.
+    /// </summary>
+    [Fact]
+    public async Task BodyImage_ThatCannotBeDownloaded_StaysHotlinked_AndTheArticleStillLands()
+    {
+        var source = SourceWith(Post(
+            602,
+            content: "<p>Metin</p><img src=\"https://ornek.com/govde-602.jpg\">"));
+
+        await WithSyncAsync(
+            source,
+            (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
+            new FakeNewsImageDownloader { Fail = true });
+
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            var article = await db.NewsArticles.SingleAsync(x => x.WpId == 602);
+
+            article.SourceContentHtml.Should().Contain("https://ornek.com/govde-602.jpg");
+        });
+    }
+
+    /// <summary>
+    /// 🔴 <b>En sinsi regresyon buradaydı:</b> aynalanmış gövde kaynağınkine hiçbir zaman
+    /// eşit olamaz. Sağlama aynalanmış gövdeyle hesaplansaydı her koşu haberi
+    /// <b>"değişmiş"</b> sayar ve sonsuza kadar yeniden yazardı — ne hata, ne belirti,
+    /// yalnız durmadan artan bir <c>Updated</c> sayacı.
+    /// </summary>
+    [Fact]
+    public async Task SecondRun_DoesNotRewriteTheArticle_NorRedownloadTheBodyImage()
+    {
+        var source = SourceWith(Post(
+            603,
+            content: "<p>Metin</p><img src=\"https://ornek.com/govde-603.jpg\">"));
+
+        var downloader = new FakeNewsImageDownloader();
+
+        await WithSyncAsync(
+            source,
+            (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
+            downloader);
+
+        var second = await WithSyncAsync(
+            source,
+            (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
+            downloader);
+
+        second.Updated.Should().Be(0, "aynalama kaydı 'değişmiş' yapmamalı");
+        second.Skipped.Should().BeGreaterThan(0);
+        downloader.Downloads.Should().Be(1, "aynı görsel ikinci kez indirilmemeli");
+    }
+
+    /// <summary>
+    /// Aynı görsel iki haberde geçiyorsa <b>tek dosya</b> olur. Tekilleştirme
+    /// <c>files.metadata</c> üzerinden çalışıyor: gövde görselleri
+    /// <c>news_articles.source_image_url</c>'de <b>görünmez</b> (o kolon yalnız kapağı tanır).
+    /// </summary>
+    [Fact]
+    public async Task TheSameBodyImage_InTwoArticles_IsStoredOnce()
+    {
+        var source = SourceWith(
+            Post(604, content: "<p>A</p><img src=\"https://ornek.com/ortak.jpg\">"),
+            Post(605, content: "<p>B</p><img src=\"https://ornek.com/ortak.jpg\">"));
+
+        var downloader = new FakeNewsImageDownloader();
+
+        await WithSyncAsync(
+            source,
+            (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
+            downloader);
+
+        downloader.Downloads.Should().Be(1);
+
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            var bodies = await db.NewsArticles
+                .Where(x => x.WpId == 604 || x.WpId == 605)
+                .Select(x => x.SourceContentHtml)
+                .ToListAsync();
+
+            bodies.Should().HaveCount(2);
+            bodies.Should().AllSatisfy(b => b.Should().Contain("/uploads/"));
+        });
+    }
+
+    /// <summary>
+    /// Aynalama kapatılabilir olmalı (<c>News:MirrorImages=false</c>): kapalıyken haber yine
+    /// iner, yalnız gövde hotlink kalır. ⚠️ Bayrakla kapalı yol = hiç test edilmemiş yol
+    /// (§7 kod-dışı) — bu yüzden bayrağın <b>her iki</b> durumu deneniyor.
+    /// </summary>
+    [Fact]
+    public async Task WhenMirroringIsDisabled_TheBodyIsLeftAlone()
+    {
+        var source = SourceWith(Post(
+            606,
+            content: "<p>Metin</p><img src=\"https://ornek.com/govde-606.jpg\">"));
+
+        var downloader = new FakeNewsImageDownloader();
+
+        await WithSyncAsync(
+            source,
+            (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
+            downloader,
+            new NewsSyncOptions { MaxTotalPosts = 10, PageSize = 5, MaxPagesPerRun = 5, MirrorImages = false });
+
+        downloader.Downloads.Should().Be(0);
+
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            var article = await db.NewsArticles.SingleAsync(x => x.WpId == 606);
+            article.SourceContentHtml.Should().Contain("https://ornek.com/govde-606.jpg");
+        });
+    }
+
+    // ─────────────────── Faz 12.14: 12.14 ÖNCESİ kayıtların geri doldurulması ────────
+
+    /// <summary>
+    /// 🔴 <b>Geri doldurmanın var olma sebebi:</b> senkron yalnız <i>kaynakta değişen</i>
+    /// haberi yeniden yazar (sağlama eşitse satıra hiç dokunmaz). Yani 12.14'ten önce inmiş
+    /// kayıtların gövdesi, kaynakta bir daha hiç değişmezse <b>sonsuza kadar</b> hotlink
+    /// kalırdı — ve tam da o kayıtların görselleri en eski, yani en çok çürümeye yakın olanlar.
+    /// </summary>
+    [Fact]
+    public async Task Backfill_MirrorsBodyImagesOfArticlesThatLandedBefore1214()
+    {
+        // 12.14 öncesi durumu birebir kur: aynalama kapalıyken bir haber indir.
+        var source = SourceWith(Post(
+            701,
+            content: "<p>Metin</p><img src=\"https://ornek.com/eski-701.jpg\">"));
+
+        await WithSyncAsync(
+            source,
+            (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
+            new FakeNewsImageDownloader(),
+            new NewsSyncOptions { MaxTotalPosts = 10, PageSize = 5, MaxPagesPerRun = 5, MirrorImages = false });
+
+        var outcome = await RunBackfillAsync();
+
+        outcome.Rewritten.Should().Be(1);
+        outcome.ImagesMirrored.Should().Be(1);
+
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            var article = await db.NewsArticles.SingleAsync(x => x.WpId == 701);
+            article.SourceContentHtml.Should().Contain("/uploads/");
+            NewsBodyImages.HasExternalImages(article.SourceContentHtml).Should().BeFalse();
+        });
+    }
+
+    /// <summary>
+    /// Geri doldurma <b>idempotent</b>: ikinci tur hiçbir şey yapmamalı. Yapsaydı iş
+    /// saatlik koştuğu için aynı kayıtları sonsuza kadar yeniden yazardı.
+    /// </summary>
+    [Fact]
+    public async Task Backfill_IsIdempotent()
+    {
+        var source = SourceWith(Post(
+            702,
+            content: "<p>Metin</p><img src=\"https://ornek.com/eski-702.jpg\">"));
+
+        await WithSyncAsync(
+            source,
+            (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
+            new FakeNewsImageDownloader(),
+            new NewsSyncOptions { MaxTotalPosts = 10, PageSize = 5, MaxPagesPerRun = 5, MirrorImages = false });
+
+        await RunBackfillAsync();
+        var second = await RunBackfillAsync();
+
+        second.Rewritten.Should().Be(0);
+        second.ImagesMirrored.Should().Be(0);
+    }
+
+    /// <summary>
+    /// 🔑 Geri doldurma <b>sağlamaya dokunmaz</b>: aynalama bizim yaptığımız bir şey,
+    /// kaynağın değişmesi değil. Dokunsaydı bir sonraki senkron bu haberleri "değişmiş"
+    /// sayar ve gereksiz yere yeniden yazardı — üstelik geri doldurmanın az önce yazdığı
+    /// göreli adresleri kaynağınkilerle <b>geri</b> ezerek.
+    /// </summary>
+    [Fact]
+    public async Task Backfill_DoesNotTouchTheChecksum_SoTheNextSyncStillSkips()
+    {
+        var source = SourceWith(Post(
+            703,
+            content: "<p>Metin</p><img src=\"https://ornek.com/eski-703.jpg\">"));
+
+        await WithSyncAsync(
+            source,
+            (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
+            new FakeNewsImageDownloader(),
+            new NewsSyncOptions { MaxTotalPosts = 10, PageSize = 5, MaxPagesPerRun = 5, MirrorImages = false });
+
+        var before = await ChecksumOfAsync(703);
+        await RunBackfillAsync();
+        var after = await ChecksumOfAsync(703);
+
+        after.Should().Be(before);
+
+        var next = await WithSyncAsync(
+            source,
+            (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
+            new FakeNewsImageDownloader());
+
+        next.Updated.Should().Be(0, "geri doldurma senkronu tetiklememeli");
+
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            var article = await db.NewsArticles.SingleAsync(x => x.WpId == 703);
+            article.SourceContentHtml.Should().Contain(
+                "/uploads/",
+                "senkron, geri doldurmanın yazdığı göreli adresi geri ezmemeli");
+        });
+    }
+
+    /// <summary>Tur tavanı gerçekten uygulanıyor mu — tavansız bir tur kaynağı da bizi de yorar.</summary>
+    [Fact]
+    public async Task Backfill_RespectsItsBatchCeiling()
+    {
+        var source = SourceWith(
+            Post(711, content: "<p>A</p><img src=\"https://ornek.com/a.jpg\">"),
+            Post(712, content: "<p>B</p><img src=\"https://ornek.com/b.jpg\">"),
+            Post(713, content: "<p>C</p><img src=\"https://ornek.com/c.jpg\">"));
+
+        await WithSyncAsync(
+            source,
+            (sync, _) => sync.RunIncrementalAsync(NewsSyncTriggers.Schedule, null, CancellationToken.None),
+            new FakeNewsImageDownloader(),
+            new NewsSyncOptions { MaxTotalPosts = 10, PageSize = 5, MaxPagesPerRun = 5, MirrorImages = false });
+
+        var first = await RunBackfillAsync(batchSize: 2);
+        first.Rewritten.Should().Be(2);
+
+        var second = await RunBackfillAsync(batchSize: 2);
+        second.Rewritten.Should().Be(1, "kalan tek kayıt bir sonraki turda onarılmalı");
+
+        var third = await RunBackfillAsync(batchSize: 2);
+        third.Rewritten.Should().Be(0);
+    }
+
+    private async Task<NewsBodyImageBackfillOutcome> RunBackfillAsync(int batchSize = 10)
+    {
+        NewsBodyImageBackfillOutcome outcome = default!;
+
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var uow = sp.GetRequiredService<IUnitOfWork>();
+            var mirror = new NewsImageMirror(
+                uow,
+                sp.GetRequiredService<IFileStorageService>(),
+                new FakeNewsImageDownloader(),
+                sp.GetRequiredService<ILogger<NewsImageMirror>>());
+
+            var backfill = new NewsBodyImageBackfill(
+                uow, mirror, sp.GetRequiredService<ILogger<NewsBodyImageBackfill>>());
+
+            outcome = await backfill.RunAsync(batchSize, CancellationToken.None);
+        });
+
+        return outcome;
+    }
+
+    private async Task<string> ChecksumOfAsync(int wpId)
+    {
+        var checksum = string.Empty;
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            checksum = (await db.NewsArticles.SingleAsync(x => x.WpId == wpId)).SourceChecksum;
+        });
+        return checksum;
+    }
 }

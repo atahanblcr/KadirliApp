@@ -104,7 +104,13 @@ mobil karşılığı **yoktu**, yani yönetici anahtarı çeviriyor hiçbir şey
 (kaydın **anlık görüntüsü** saklanır — yalnız `id` saklansaydı kaynakta kalkan haber listede
 *"bulunamadı"* satırına dönerdi). 🐛 Bozma turunda **bir taşma testi yeşil kaldı**: kartın asıl
 riski taşma değil **sınırsız büyüme**ymiş → `maxLines` doğrudan iddia edildi.
-**1034 backend + 814 mobil test, 62 görünmez sözleşme.**
+➕ **12.14b (aynı oturum): iki borç kapatıldı.** **Metin arası görseller artık aynalanıyor** —
+borcun son kullanma tarihi vardı (%9'u imzalı/süreli `fbcdn` linki → mutlaka 403 olacaklardı ve
+istemci onları zarifçe gizlediği için **hiç kimse hata almayacaktı**). 🔴 Sağlama **aynalamadan
+ÖNCE** hesaplanır; sonrasıyla hesaplansaydı her koşu haberi "değişmiş" sayıp sonsuza kadar
+yeniden yazardı. 🔴 Yeniden deneme **yok** (imzalı adresin hatası kalıcı). 12.14 öncesi kayıtlar
+`MirrorNewsBodyImagesJob` ile onarılıyor. Ayrıca **okuma boyutu** ayarı (çarpım **tavanlı**).
+**1053 backend + 821 mobil test, 63 görünmez sözleşme.**
 
 **⏭️ Sırada 12.15:** Haber bildirimi (elle gönderim · `relatedType="news"` · deep-link).
 ⚠️ `news → /haberler/:id` eşlemesi mobilde **12.14'te yazıldı** (aynı sürümde gitmesi
@@ -162,7 +168,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 62 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 63 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,

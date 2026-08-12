@@ -9,6 +9,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/utils.dart';
 import '../../../core/widgets/widgets.dart';
 import '../application/news_providers.dart';
+import '../application/news_text_scale.dart';
 import '../application/saved_news_controller.dart';
 import '../data/models/news_article.dart';
 import 'widgets/news_body.dart';
@@ -29,6 +30,7 @@ class NewsDetailScreen extends ConsumerWidget {
       title: 'Haber',
       actions: [
         if (state case AsyncData(value: final article)) ...[
+          const _TextScaleButton(),
           _SaveButton(article: article, isSaved: isNewsSaved(saved, article.id)),
           Builder(
             builder: (context) => IconButton(
@@ -53,6 +55,73 @@ class NewsDetailScreen extends ConsumerWidget {
         ),
         _ => const LoadingView(itemCount: 3),
       },
+    );
+  }
+}
+
+/// Okuma boyutu (plan dışı ek, 12.14).
+///
+/// ⚠️ Denetim bir **döngü değil**, seçim listesi: döngüsel bir "A" butonu kaç adım kaldığını
+/// söylemez ve kullanıcı istediği boyutu bulmak için körlemesine dokunur.
+class _TextScaleButton extends ConsumerWidget {
+  const _TextScaleButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => IconButton(
+    tooltip: 'Yazı boyutu',
+    icon: const Icon(Icons.format_size_rounded),
+    onPressed: () => showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => const _TextScaleSheet(),
+    ),
+  );
+}
+
+class _TextScaleSheet extends ConsumerWidget {
+  const _TextScaleSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(newsTextScaleProvider);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Okuma boyutu', style: Theme.of(context).textTheme.titleMedium),
+            AppSpacing.gapMd,
+            // ⚠️ Yatay `ListView` tembeldir (ekran dışı chip hiç kurulmaz, 11.8) →
+            // kaydırılabilir `Row`.
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final scale in NewsTextScale.values) ...[
+                    if (scale != NewsTextScale.values.first) AppSpacing.wGapSm,
+                    FilterChoiceChip(
+                      label: scale.label,
+                      dense: true,
+                      selected: selected == scale,
+                      onTap: () =>
+                          ref.read(newsTextScaleProvider.notifier).select(scale),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            AppSpacing.gapSm,
+            Text(
+              'Yalnız haber metnini büyütür; tercihiniz bu cihazda saklanır.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).palette.muted,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -163,6 +232,7 @@ class _Content extends ConsumerWidget {
     final theme = Theme.of(context);
     final palette = theme.palette;
     final published = article.publishedAt;
+    final scaler = effectiveNewsScaler(context, ref.watch(newsTextScaleProvider));
     final body = article.contentHtml?.trim() ?? '';
     final sourceUrl = article.sourceUrl?.trim();
 
@@ -205,7 +275,16 @@ class _Content extends ConsumerWidget {
           AppSpacing.gapMd,
         ],
 
-        SelectableText(article.title, style: theme.textTheme.headlineSmall),
+        // ⚠️ Ölçek yalnız BAŞLIK ve GÖVDEYE uygulanır: meta satırı ve kategori hapları
+        // `Row`/`Wrap` içinde ve bu projede `Row` içindeki metin yedi kez taşma üretti.
+        MediaQuery.withClampedTextScaling(
+          minScaleFactor: scaler.scale(1),
+          maxScaleFactor: scaler.scale(1),
+          child: SelectableText(
+            article.title,
+            style: theme.textTheme.headlineSmall,
+          ),
+        ),
 
         AppSpacing.gapSm,
         Wrap(
@@ -230,7 +309,11 @@ class _Content extends ConsumerWidget {
 
         if (body.isNotEmpty) ...[
           AppSpacing.gapLg,
-          NewsBody(html: body),
+          MediaQuery.withClampedTextScaling(
+            minScaleFactor: scaler.scale(1),
+            maxScaleFactor: scaler.scale(1),
+            child: NewsBody(html: body),
+          ),
         ] else if (article.excerpt.trim().isNotEmpty) ...[
           // Gövde gelmediyse (eski bir kayıt ya da kaynağın boş içeriği) özet
           // gösterilir: ekranı boş bırakmak, elimizdeki metni saklamak olurdu.

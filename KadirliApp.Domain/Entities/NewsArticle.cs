@@ -227,6 +227,31 @@ public class NewsArticle : BaseEntity
         }
     }
 
+    /// <summary>
+    /// Faz 12.14 — gövdedeki <b>metin arası görsel adresleri</b> aynalanmış (göreli) hâlleriyle
+    /// değiştirilir. Kaynağın <b>başka hiçbir alanına dokunmaz</b>.
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <b>Neden ayrı bir geçiş, neden <see cref="ApplySourceSnapshot"/> değil:</b> geri
+    /// doldurma işi elinde kaynağın kendisi <b>olmadan</b> çalışıyor (kayıt zaten inmiş,
+    /// yalnız gövdesindeki adresler dış origin'de). Snapshot çağrılsaydı çağıranın başlık,
+    /// özet, sağlama, tarihler ve kategori bağları dâhil <b>her şeyi</b> yeniden üretmesi
+    /// gerekirdi — yani kaynağa tekrar gitmesi. Dar bir geçiş, dar bir yazma hakkı verir.
+    ///
+    /// ⚠️ <b>Sağlamaya dokunulmaz.</b> Sağlama <i>"kaynakta ne var"</i> sorusunun cevabıdır;
+    /// aynalama <b>bizim</b> yaptığımız bir şey. Sağlamaya karışsaydı bir sonraki senkron
+    /// haberi "değişmiş" sayıp gereksiz yere yeniden yazardı — üstelik her koşuda, sonsuza
+    /// kadar (aynalanmış gövde kaynağınkine hiçbir zaman eşitlenemez).
+    ///
+    /// ⚠️ Kayıt <b>arşivlenmiş ya da <c>gone</c> olsa bile</b> aynalanır: görünürlük ayrı bir
+    /// eksen (§7 madde 58) ve bugün gizli olan bir haber yarın geri gelebilir — o an
+    /// görsellerinin çoktan çürümüş olması, düzeltilebilir bir şeyi düzeltilemez yapardı.
+    /// </remarks>
+    public void ReplaceSourceBodyImages(string contentHtml)
+    {
+        _sourceContentHtml = contentHtml;
+    }
+
     /// <summary>Kaynakta bulunamadı — kayıt silinmez, public listeden düşer.</summary>
     public void MarkSourceGone(DateTime now)
     {

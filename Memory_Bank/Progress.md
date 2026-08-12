@@ -4394,6 +4394,44 @@ manşeti çıktı** (uçtan uca zincir) · senkron canlı akıyor (koşu sıras�
 📌 **Kalan borç:** yazı boyutu ayarı (okuma konforu) ve metin arası görsellerin aynalanması
 ikinci sürüme bırakıldı (blok listesi 12.15 sonrasında).
 
+#### ➕ 12.14b — kapatılan iki borç (aynı oturum, kullanıcı isteği)
+
+**1. Metin arası görseller artık aynalanıyor** (backend). 12.12 bunu bilinçli bir borç olarak
+ertelemişti; borcun **son kullanma tarihi** vardı: gövde görsellerinin **%9'u imzalı/süreli**
+`fbcdn`/`outlook` linki → mutlaka 403'e düşecekler ve istemci onları *zarifçe gizlediği* için
+(§7 madde 61) hasarın **hiçbir belirtisi olmayacaktı**.
+
+- `NewsBodyImages` (saf): `<img src>` bulma + yeniden yazma. Regex kullanıyor ve tek gerekçesi
+  girdinin **rastgele HTML değil** kendi temizleyicimizin dar çıktısı olması — bu **görünmez**
+  bir bağımlılık, testler gerçek sanitizer çıktısıyla besleyerek kilitliyor.
+- `NewsImageMirror.MirrorToUrlAsync` + `files.metadata` üzerinden **koşular arası
+  tekilleştirme** (gövde görselleri `source_image_url`'de görünmez — o kolon yalnız kapağı tanır).
+- `MirrorNewsBodyImagesJob` (saatlik, turlu, idempotent): **12.14 öncesinden** kalan kayıtları
+  onarır. Senkron yalnız *kaynakta değişen* haberi yeniden yazdığı için o kayıtlar başka türlü
+  hiç düzelmezdi — ve tam da onların görselleri en eski, yani çürümeye en yakın olanlar.
+- 🔴 **En önemli sıra kararı:** sağlama **aynalamadan ÖNCE**, kaynağın gövdesiyle hesaplanıyor.
+  Sonrasıyla hesaplansaydı aynalanmış gövde kaynağınkine hiçbir zaman eşitlenemez ve her koşu
+  haberi "değişmiş" sayıp **sonsuza kadar** yeniden yazardı. Bozma turunda kırmızıya döndü.
+- 🔴 **Yeniden deneme YOK** ve sebebi ölçüme dayanıyor: imzalı bir adresin hatası **kalıcıdır**;
+  sağlamaya "eksik kaldı" yazmak günde **96 boşuna istek** demekti. Geçici hata bir sonraki
+  içerik değişiminde ya da işin elle tetiklenmesiyle telafi ediliyor.
+- 🐛 **İki test kırıldı ve kırılma doğruydu:** yeni tekilleştirme koşular arası çalıştığı için
+  görsel adresi paylaşan iki test, ikincisinde indiriciye hiç uğramadı. Her teste kendi adresi
+  verildi (temizliği genişletmekten ucuz) ve ders checklist'e yazıldı.
+
+**2. Okuma boyutu** (mobil, plan dışı ek). Uygulama sistem ölçeğine zaten saygı duyuyor ama
+sistem ölçeğini değiştirmek **bütün telefonu** değiştirmek demek; haber okuyan biri yalnız o
+metni büyütmek ister. Denetim bir **döngü değil seçim listesi** (döngüsel bir "A" butonu kaç
+adım kaldığını söylemez). 🔴 Çarpım **tavanlı** (`kNewsMaxTextScale = 1.6`): tavansız
+1.4 × 1.3 = 1.82 olur ve ekranın en dar yerleri hiç denenmemiş bir ölçekte çizilirdi.
+Ölçek **yalnız başlık ve gövdeye** uygulanıyor — rozetler ve meta satırı düzenin taşıyıcısı.
+🐛 Kalıcılık iddiası widget testinde **flaky**ydi (sahte saat `SharedPreferences`'ın platform
+kanalını beklemiyor) → denetleyici seviyesine taşındı.
+
+**Testler:** backend 1034 → **1053** (+19), mobil 814 → **821** (+7).
+**Bozma turu:** sağlama sırası ✅ · aynalanmış adresin yeniden indirilmesi ✅ · geri
+doldurmanın sağlamaya dokunması ✅ — üçü de kırmızıya döndü.
+
 ---
 
 ### 12.14 — özgün plan (referans)

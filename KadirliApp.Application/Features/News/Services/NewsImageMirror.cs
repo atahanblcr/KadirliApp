@@ -60,6 +60,22 @@ public class NewsImageMirror
     }
 
     /// <summary>
+    /// Faz 12.14 — aynalanmış görselin <b>göreli adresi</b> (<c>/uploads/…</c>), metin arası
+    /// görselleri gövdede yeniden yazmak için. Başarısızlıkta <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// 🔑 Kapak görselinden farklı olarak burada <b>varlık gerekmiyor</b>: gövdeye yalnız bir
+    /// URL yazılıyor, kurulan bir FK yok. Bu yüzden 12.2b'nin "aynı <c>SaveChanges</c>
+    /// içindeki FK'yı gezinme özelliğinden kur" tuzağı bu yolda <b>hiç doğmuyor</b>.
+    /// </remarks>
+    public async Task<string?> MirrorToUrlAsync(string? sourceUrl, CancellationToken ct)
+    {
+        var file = await MirrorAsync(sourceUrl, ct);
+        var url = file?.CdnUrl ?? file?.StoragePath;
+        return string.IsNullOrWhiteSpace(url) ? null : url;
+    }
+
+    /// <summary>
     /// Görseli aynalar ve <c>files</c> satırını döner. <b>Başarısızlıkta <c>null</c> döner,
     /// fırlatmaz</b> — görselsiz bir haber, hiç inmemiş bir haberden iyidir.
     /// </summary>
@@ -84,6 +100,21 @@ public class NewsImageMirror
         if (string.IsNullOrWhiteSpace(sourceUrl)) return null;
 
         if (_mirroredInThisRun.TryGetValue(sourceUrl, out var cached)) return cached;
+
+        // Faz 12.14 — metin arası görseller `news_articles.source_image_url`'de GÖRÜNMEZ
+        // (o kolon yalnız kapağı tanır). İkinci bir kapı olmasaydı aynı gövde görseli her
+        // koşuda yeniden inip `uploads/`'u mükerrer dosyayla şişirirdi — ve bu, "sorun
+        // yıllar sonra fark edilir" sınıfının ta kendisi.
+        // ⚠️ Eşleştirme BELLEKTE yapılıyor: `files.metadata` **jsonb** ve LINQ'te ona
+        // `Contains`/`==` yazmak sağlayıcı seviyesinde tuzaklı (ARCHITECTURE §8'in
+        // `audit_logs.details` dersi). Tek seferlik, dar bir sorgu daha okunaklı ve
+        // davranışı sürprizsiz.
+        var alreadyMirrored = await FindMirroredFileAsync(sourceUrl, ct);
+        if (alreadyMirrored is not null)
+        {
+            _mirroredInThisRun[sourceUrl] = alreadyMirrored;
+            return alreadyMirrored;
+        }
 
         var existingId = await _uow.Repository<NewsArticle>().Query()
             .Where(x => x.SourceImageUrl == sourceUrl && x.SourceImageFileId != null)
@@ -141,6 +172,55 @@ public class NewsImageMirror
             // Artık gerçekten yalnız "görsel kaydedilemedi": burada kalan tek iş depolamaya
             // yazmak (dosya sistemi) ve varlığı izleyiciye eklemek.
             _log.LogWarning(ex, "Haber görseli kaydedilemedi: {Url}", sourceUrl);
+            return null;
+        }
+    }
+
+    /// <summary>Daha önce aynalanmış dosyayı <c>files.metadata</c>'daki kaynak adresten bulur.</summary>
+    /// <remarks>
+    /// Harita koşu başına <b>bir kez</b> kuruluyor: her görsel için ayrı sorgu atmak 50 haberlik
+    /// bir koşuda yüzlerce gidiş-dönüş demekti. ⚠️ Kapsam <c>ModuleType = "news"</c> ile dar
+    /// tutuldu — bütün <c>files</c> tablosunu belleğe almak, panelin en büyük tablolarından
+    /// birini filtresiz çekmek olurdu (Faz 11 denetiminin <c>UsersAdmin</c> bulgusu).
+    /// </remarks>
+    private async Task<File?> FindMirroredFileAsync(string sourceUrl, CancellationToken ct)
+    {
+        if (_knownByUrl is null)
+        {
+            var rows = await _uow.Repository<File>().Query()
+                .Where(f => f.ModuleType == "news" && f.Metadata != null)
+                .Select(f => new { f.Id, f.Metadata })
+                .ToListAsync(ct);
+
+            _knownByUrl = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in rows)
+            {
+                var url = ReadSourceUrl(row.Metadata);
+                if (url is not null) _knownByUrl[url] = row.Id;
+            }
+        }
+
+        if (!_knownByUrl.TryGetValue(sourceUrl, out var id)) return null;
+
+        return await _uow.Repository<File>().Query(tracking: true)
+            .FirstOrDefaultAsync(f => f.Id == id, ct);
+    }
+
+    private Dictionary<string, Guid>? _knownByUrl;
+
+    private static string? ReadSourceUrl(string? metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata)) return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(metadata);
+            return doc.RootElement.TryGetProperty("sourceUrl", out var value)
+                ? value.GetString()
+                : null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // Elle yazılmış ya da eski biçimli bir metadata bütün haritayı düşürmemeli.
             return null;
         }
     }

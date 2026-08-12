@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kadirli_app/core/router/app_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kadirli_app/features/news/application/news_text_scale.dart';
 
 import '../../core/network/fake_http_adapter.dart';
 import '../../helpers/pump_app.dart';
@@ -258,7 +258,6 @@ void main() {
     testWidgets('yer imine dokunmak kaydeder ve sonucu SÖYLER', (tester) async {
       // Sessizce çalışan bir yer imi butonu, çalışmayan bir butondan ayırt
       // edilemez ("işlevsiz buton yok" kuralının aynası).
-      SharedPreferences.setMockInitialValues(guest);
       await openDetail(tester);
 
       await tester.tap(find.byIcon(Icons.bookmark_border_rounded));
@@ -307,5 +306,39 @@ void main() {
         expect(find.text('Kaynakta oku'), findsOneWidget);
       },
     );
+  });
+
+  group('yazı boyutu (plan dışı ek)', () {
+    testWidgets('denetim açılır ve dört boyutu sunar', (tester) async {
+      await openDetail(tester);
+
+      await tester.tap(find.byIcon(Icons.format_size_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Okuma boyutu'), findsOneWidget);
+      for (final scale in NewsTextScale.values) {
+        expect(find.text(scale.label), findsOneWidget);
+      }
+      // Ayarın yalnız haber metnini büyüttüğü kullanıcıya SÖYLENİR: aksi hâlde
+      // "neden bütün uygulama büyümedi?" sorusu doğar.
+      expect(find.textContaining('Yalnız haber metnini'), findsOneWidget);
+    });
+
+    testWidgets('en büyük boyut + 1.4 sistem ölçeğinde ekran taşmıyor', (
+      tester,
+    ) async {
+      // 🔴 Çarpım tavanı (1.6) burada kilitleniyor: tavansız 1.4 × 1.3 = 1.82 olurdu ve
+      // ekranın en dar yerleri hiç denenmemiş bir ölçekte çizilirdi.
+      await openDetail(
+        tester,
+        prefs: {...guest, 'news.textScale': 'huge'},
+      );
+
+      tester.platformDispatcher.textScaleFactorTestValue = 1.4;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
   });
 }

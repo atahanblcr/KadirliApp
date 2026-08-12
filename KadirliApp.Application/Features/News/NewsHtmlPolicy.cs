@@ -47,10 +47,25 @@ public static class NewsHtmlPolicy
         new HashSet<string>(System.StringComparer.OrdinalIgnoreCase) { "http", "https" };
 
     /// <summary>
-    /// 📌 <b>Metin arası görseller aynalanmaz</b> (ilk sürüm, bilinçli borç): haberlerin
-    /// %35'inde 1–3 adet var ve <b>%9'u süreli <c>fbcdn</c>/<c>outlook</c> linki</b> —
-    /// yani zamanla 403'e düşecekler. Bugün hotlink kalıyor, açılmayan görsel istemcide
-    /// <b>zarifçe gizleniyor</b>. Hepsini aynalamak bu alt-fazı ikiye katlardı.
+    /// ✅ <b>Faz 12.14: metin arası görseller de aynalanıyor</b> (12.12'de bilinçli olarak
+    /// ertelenmişti).
     /// </summary>
-    public const bool MirrorsInlineImages = false;
+    /// <remarks>
+    /// 🔴 <b>Borcun neden kapatıldığı:</b> haberlerin %35'inde 1–3 gövde görseli var ve
+    /// <b>%9'u süreli <c>fbcdn</c>/<c>outlook</c> linki</b> — yani zamanla <b>mutlaka</b>
+    /// 403'e düşecekler. Düştüklerinde istemci onları <i>zarifçe gizliyor</i> (§7 madde 61),
+    /// yani hasarın <b>hiçbir belirtisi olmayacaktı</b>: haberler sessizce görselsizleşecek,
+    /// uçlar 200 dönecek, log temiz kalacaktı. Bu, ertelenebilir değil <b>zamanla kötüleşen</b>
+    /// bir borçtu.
+    ///
+    /// ⚠️ Aynalama <b>ideal değil, dayanıklı</b>: indirilemeyen görsel gövdede <b>olduğu gibi
+    /// bırakılır</b> (hotlink) — yani en kötü hâlde 12.14 öncesine düşülür, haber düşmez.
+    /// Yeniden deneme yoktur ve sebebi ölçülmüş: imzalı bir adresin hatası <b>kalıcıdır</b>,
+    /// her 15 dakikada bir denemek günde 96 boşuna istek demekti.
+    ///
+    /// 📌 12.14 <b>öncesinden</b> kalan kayıtlar <c>MirrorNewsBodyImagesJob</c> ile turlu
+    /// olarak onarılır: senkron yalnız <i>kaynakta değişen</i> haberi yeniden yazdığı için
+    /// o kayıtlar başka türlü hiç düzelmezdi.
+    /// </remarks>
+    public const bool MirrorsInlineImages = true;
 }
