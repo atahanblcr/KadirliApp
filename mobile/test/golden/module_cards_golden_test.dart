@@ -15,6 +15,10 @@ import 'package:kadirli_app/features/complaints/data/models/complaint.dart';
 import 'package:kadirli_app/features/complaints/presentation/widgets/complaint_card.dart';
 import 'package:kadirli_app/features/events/data/models/event.dart';
 import 'package:kadirli_app/features/events/presentation/widgets/event_card.dart';
+import 'package:kadirli_app/features/news/data/models/news_article.dart';
+import 'package:kadirli_app/features/news/data/models/news_category.dart';
+import 'package:kadirli_app/features/news/presentation/widgets/news_card.dart';
+import 'package:kadirli_app/features/news/presentation/widgets/news_featured_card.dart';
 import 'package:kadirli_app/features/notifications/data/models/app_notification.dart';
 import 'package:kadirli_app/features/notifications/presentation/widgets/notification_tile.dart';
 import 'package:kadirli_app/features/pharmacies/presentation/widgets/pharmacy_tile.dart';
@@ -385,6 +389,72 @@ void main() {
               company: 'Kadirli Seyahat',
               schedules: const [('07:00', daily), ('14:00', daily)],
             ),
+          ),
+        ),
+      ],
+    );
+  });
+
+  testWidgets('NewsCard — uzun başlık, görselsiz, kaydedilmiş', (tester) async {
+    NewsArticle article({
+      required String title,
+      String excerpt =
+          'Kadirli Belediyesi, mahallelerde sosyal hayatı ve komşuluk '
+          'bağlarını güçlendirmek amacıyla düzenlediği açık hava '
+          'etkinliklerine devam ediyor.',
+      String categoryName = 'Yerel Haberler',
+    }) => NewsArticle(
+      id: 'news-1',
+      title: title,
+      excerpt: excerpt,
+      // ⚠️ Golden'da görsel YOK: `CachedNetworkImage` yer tutucusu sonsuz
+      // shimmer çalıştırıyor ve referans görüntü kararsız olurdu.
+      publishedAt: now.subtract(const Duration(hours: 3)),
+      modifiedAt: now.subtract(const Duration(hours: 3)),
+      readingMinutes: 4,
+      categories: [NewsCategory(id: 'c1', name: categoryName, slug: 'slug')],
+    );
+
+    await expectGoldenSheet(
+      tester,
+      name: 'news_card',
+      height: 1600,
+      scenarios: [
+        GoldenScenario(
+          'Uzun başlık + uzun kategori',
+          NewsCard(
+            now: now,
+            article: article(
+              title:
+                  'Osmaniye’de kamyonette 89 kilo 550 gram uyuşturucu madde '
+                  'ele geçirildi, bir kişi tutuklandı',
+              categoryName: 'Bilim ve Teknoloji',
+            ),
+            onTap: () {},
+          ),
+        ),
+        GoldenScenario(
+          'Kaydedilmiş haber',
+          NewsCard(
+            now: now,
+            isSaved: true,
+            article: article(
+              title: 'Kadirli’de yaz akşamları sinema keyfiyle renkleniyor',
+            ),
+            onTap: () {},
+          ),
+        ),
+        GoldenScenario(
+          'Manşet kartı',
+          NewsFeaturedCard(
+            now: now,
+            width: 280,
+            article: article(
+              title:
+                  'Sumbas’ta Yaz Kur’an Kursları Arası Bilgi Yarışması '
+                  'heyecanı yaşandı',
+            ),
+            onTap: () {},
           ),
         ),
       ],

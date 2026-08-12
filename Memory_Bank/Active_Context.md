@@ -1,5 +1,62 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 12 Ağustos 2026 — **FAZ 12.14 TAMAMLANDI: Haberler mobil (13. modül).**
+> Kod tümüyle mobilde: `lib/features/news/` (2 model + repo + yerel depo + 2 provider dosyası
+> + 3 ekran + 3 widget) + `app_modules`/`app_routes`/`app_router` satırları + bildirim
+> eşlemesi. **Backend 1034 (değişmedi — 12.14 sunucuya dokunmadı), mobil 751 → 810 (+59).**
+> Görünmez sözleşme **60 → 62**.
+>
+> 🔑 **TESLİM EDİLEN:** Haberler artık uygulamada. Izgarada 13. kart, kategori şeridi
+> (sunucuda süzülüyor), `flutter_html` ile biçimli gövde, "Kaynakta oku", paylaş.
+>
+> ➕ **PLAN DIŞI ÜÇ EK (kullanıcı sözleşmesi: serbest ama raporla):**
+> 1. **Manşet şeridi** — panelin "öne çıkar" anahtarı 12.13'te yazılmıştı, uç onu süzüyordu,
+>    ama **mobil karşılığı yoktu**: yönetici anahtarı çeviriyor, **hiçbir şey olmuyordu**
+>    (§7 madde 37'nin *"panelin en sinsi yalan biçimi"*). Şerit yalnız süzgeçsiz listede
+>    çizilir, alınamazsa **sessizce hiç çizilmez**.
+> 2. **"Bu kategoriden"** (ilgili haberler) — **yeni uç gerektirmedi**, var olan `?categoryId=`
+>    kullanıldı; okunan haber elenir, boşsa bölüm hiç çizilmez.
+> 3. **"Kaydedilenler"** — çevrimdışı çalışan yerel yer imi listesi. Sunucuda tutmak
+>    `[Authorize]` demek olurdu; oysa bu uygulamada **misafir gezinme birinci sınıf** (11.3).
+>
+> 🔴 **EN ÖNEMLİ KARAR: kaydedilen haberin ANLIK GÖRÜNTÜSÜ saklanıyor, yalnız kimliği değil.**
+> Id saklansaydı ekran her açılışta N istek atardı **ve** kaynakta yayından kalkan bir haber
+> (12.12'nin `gone` durumu) listede *"bulunamadı"* satırına dönüşürdü — kullanıcı **neyi
+> kaydettiğini bile göremezdi**. Anlık görüntüyle başlık ve "Kaynakta oku" elde kalıyor.
+> Gövde saklanmıyor (tek haber 11 KB, `SharedPreferences` **bütün dosyayı belleğe alır**),
+> liste tavanlı, bozuk tek satır listeyi düşürmüyor. → §7 madde 62.
+>
+> 🔴 **İKİNCİ KARAR: gövde istemcide İKİNCİ KEZ temizlenmiyor.** Temizliğin tek sahibi
+> sunucu (12.12, `NewsHtmlPolicy`). İstemci yalnız stil veriyor; ikinci bir beyaz liste,
+> ayrıştıkları anda gazetenin yarın kullanacağı bir etiketi **sessizce yutardı**. → §7 madde 61.
+>
+> 🐛 **BOZMA TURUNDA BİR TEST YEŞİL KALDI (dürüst not).** `NewsCard`'ın meta satırından
+> `Flexible` kaldırıldı → **taşma testi kırılmadı**: gerçek veride o metinler (`"3 saat önce"`,
+> `"4 dk okuma"`) hiçbir zaman satırı taşırmıyor. Kartın asıl riski taşma değil **sınırsız
+> büyüme**ymiş → `maxLines`/`overflow` doğrudan iddia edildi ve o bozma kırmızıya döndü.
+> (`NewsFeaturedCard`'ın taşma testi gerçekten kilitliyor.) Ders: *taşma testi yazmak yetmez,
+> bozup kırmızıya döndüğünü gör.*
+>
+> 🐛 **`app_modules_test.dart` KIRILDI VE HAKLIYDI:** faz deseni `^11\.\d+$` yazıyordu, yani
+> iddia "alt-faz dolu ve biçimli" olması gerekirken **faz numarasını çiviliyordu**. 13. modül
+> (12.14) onu kırdı; kuralın kendisi değil **elle tutulan deseni** eskimişti — 12.11'in
+> *"bir taramanın kapsamı da elle tutulan bir listedir"* dersinin küçük tekrarı.
+>
+> ✅ **CANLI DOĞRULAMA (emülatör + panel birlikte):** ızgaradan Haberler açılıyor · 54 haber,
+> görseller ve göreli tarihler doğru · detayda gövde biçimli, **metin arası görsel** çiziliyor,
+> "Kaynakta oku" + "Bu kategoriden" çalışıyor · **panelden "Öne çıkar" → `/v1/news?featured=true`
+> → mobilde manşet şeridi** (uçtan uca zincir kanıtlandı) · senkron canlı akıyor.
+>
+> ⏭️ **Sırada 12.15** (haber bildirimi). `news → /haberler/:id` deep-link eşlemesi **bu
+> sürümde** yazıldı — 12.15'e bırakılsaydı §7 madde 18'in kabul edilen sınırı bir sürüm
+> daha uzardı.
+>
+> 📌 **Kalan borç:** yazı boyutu ayarı ve metin arası görsellerin aynalanması ikinci sürüme.
+
+---
+
+## Önceki oturum — FAZ 12.13
+
 > Son güncelleme: 12 Ağustos 2026 — **FAZ 12.13 TAMAMLANDI: Haberler paneli
 > (+ 12.12 sonrası denetimin kalan 8 bulgusu).**
 > Kod 2 panel controller + 5 görünüm + `_NewsSyncStatusCard` (tek sahip) + `LookupsAdmin`

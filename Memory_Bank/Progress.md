@@ -1738,7 +1738,7 @@ menüsü, 404 gövdesi). Bu yüzden düzeltmeler **çağrı yerinde değil ortak
 | 12.11 | Tek sahipliğin derleyiciye devri (`init` + varlıkta geçişler) ✅ **plan dışı — dış analizden doğdu** | backend | — | **+4 backend** |
 | 12.12 | **Haberler — alım çekirdeği** (WP istemcisi · senkron/mutabakat işleri · sanitizasyon · görsel aynalama) **plan dışı — kullanıcı isteği** | backend | ✔ | **BİTTİ (11 Ağu) — +78 backend testi** |
 | 12.13 | **Haberler — panel** (liste/ayrıntı/override · kategori görünürlüğü · senkron panosu) | panel | ✔ | ~40 backend |
-| 12.14 | **Haberler — mobil** (liste · detay · kategori süzgeci · `flutter_html`) | mobil | — | ~35 mobil |
+| 12.14 | **Haberler — mobil** (liste · detay · kategori süzgeci · `flutter_html`) ✅ | mobil | — | **BİTTİ (12 Ağu) — +59 mobil test** |
 | 12.15 | **Haberler — bildirim** (elle gönderim · `relatedType="news"` · deep-link) | backend + panel + mobil | ✔ | ~20 backend, ~8 mobil |
 
 ---
@@ -4290,7 +4290,106 @@ kilit indeksinden `UNIQUE` düşürüldü → 2 test. **5.'si (arama sorgusunu `
 
 ---
 
-### 12.14 — Haberler: mobil — [ ]
+### 12.14 — Haberler: mobil — [x] ✅ TAMAMLANDI (12 Ağustos 2026)
+
+**Hedef:** 12 modüllük ızgaraya **13.'sü** olarak Haberler'in girmesi. → Girdi; ayrıca plan
+dışı üç ek yapıldı (aşağıda ayrı başlık).
+
+#### Yapılanlar (plan)
+
+- **Modül kaydı** `kAppModules`'a eklendi (`news`, `/haberler`, `ready: true`), ızgarada
+  **Duyurular'ın hemen ardında** — ikisi de "şehirde ne oluyor" sorusunun cevabı ve haber,
+  duyurunun *dış kaynaklı* kardeşi.
+- **Rotalar:** `/haberler` + alt rota `/haberler/:id` (detaydan geri liste konumuna dönsün
+  diye), **kardeş** rota `/kaydedilen-haberler`.
+- **Liste:** `PagedFeedController` (yeniden yazılmadı) + `AppScaffold` + `PagedListFooter`,
+  her uç provider'ında `retry: apiRetry`. Kategori şeridi sunucudan besleniyor, süzme
+  **sunucuda** (`?categoryId=`), arama ve kategori **tek filtre nesnesinde** (`NewsFilter`).
+- **Detay:** kapak (16:9) · **tüm** kategoriler · başlık · tarih + okuma süresi + "Güncellendi"
+  · `flutter_html` gövde · "Kaynakta oku" + kaynak künyesi · paylaş.
+- **`flutter_html: ^3.0.0`** eklendi (planın `pub add --dry-run` ölçümü doğrulandı).
+- **Bildirim eşlemesi** (`news → /haberler/:id`) **bu sürümde** yazıldı. 12.15'e bırakılsaydı
+  §7 madde 18'in kabul edilen sınırı (*eski sürümler türü tanımaz, dokununca hiçbir yere
+  gitmez*) bir sürüm daha uzardı.
+
+#### 🔴 Plan dışı üç ek (kullanıcı sözleşmesi: "serbest, ama raporla")
+
+1. **Manşet şeridi (`?featured=true`).** Panelde "öne çıkar" anahtarı 12.13'te yazılmıştı ve
+   uç onu süzüyordu, ama **mobil karşılığı yoktu** → yöneticinin bastığı anahtar hiçbir işe
+   yaramıyordu (§7 madde 37'nin *"panelin en sinsi yalan biçimi"*). Şerit yalnız **süzgeçsiz**
+   listede çizilir (kullanıcı "Spor" seçmişken başka kategoriden manşet basmak, süzgecin
+   çalışmadığı izlenimi verirdi) ve **alınamazsa sessizce hiç çizilmez** — ana liste aynı
+   haberleri zaten taşıyor, hata mesajı göstermek kullanıcıya çözemeyeceği bir sorunu
+   anlatmak olurdu. Kart oranı kaynağın `full` boyutuna (650×368 ≈ 16:9) **bilerek** yakın:
+   farklı bir oran, zaten sınırlı olan görseli ayrıca kırpardı.
+2. **"Bu kategoriden" (ilgili haberler).** Yeni uç **gerektirmedi** — var olan `?categoryId=`
+   kullanıldı. Okunan haber listeden **elenir** (yoksa kullanıcı zaten açık olan habere geri
+   dönen bir kart görürdü) ve bu yüzden tavandan **bir fazlası** istenir. Boş/hatalı durumda
+   bölüm **hiç çizilmez**.
+3. **"Kaydedilenler" — çevrimdışı çalışan yerel yer imi listesi.** Sunucuda tutmak
+   `[Authorize]` demek olurdu; oysa bu uygulamada **misafir gezinme birinci sınıf** (11.3) ve
+   "sonra okurum" en çok misafirin ihtiyacı. 🔑 **Kaydın anlık görüntüsü** saklanıyor, yalnız
+   kimliği değil → §7 madde 62.
+
+#### 🔴 Doğan görünmez sözleşmeler
+
+- **61 — haber gövdesinin tek çizim sahibi `NewsBody`.** İstemci **ikinci beyaz liste yazmaz**
+  (temizlik alım anında sunucuda), `<a>` `url_launcher`'a bağlı, `<img>` önbellekli ve
+  **açılmazsa hiç yer kaplamıyor**. Üçü de bozulunca sessiz: kaybolan etiket, ölü bağlantı,
+  kırık kutu. ⚠️ Metin arası görseller **aynalanmıyor** ve %9'u süreli `fbcdn` linki (12.12
+  ölçümü) — yani zamanla mutlaka 403 olacaklar.
+- **62 — "Kaydedilenler" kaydın ANLIK GÖRÜNTÜSÜNÜ saklar.** Yalnız `id` saklansaydı kaynakta
+  yayından kalkan haber listede *"bulunamadı"* satırına dönüşürdü: kullanıcı neyi kaydettiğini
+  bile göremezdi. Gövde saklanmaz (tek haber 11 KB'a çıkıyor, `SharedPreferences` **bütün
+  dosyayı belleğe alır**), liste **tavanlı** (100) ve **bozuk tek satır listeyi düşürmez**.
+
+#### 🐛 Bu oturumda bulunanlar
+
+- **`app_modules_test.dart`'ın faz deseni çürümüştü.** `expect(module.phase, matches(RegExp(r'^11\.\d+$')))`
+  yazıyordu; iddia "alt-faz dolu ve biçimli" olmalıyken **faz numarasını çiviliyordu** ve 13.
+  modül (12.14) testi kırdı. Kuralın kendisi değil, **elle tutulan deseni** eskimişti —
+  `CODE_REVIEW_CHECKLIST` §2'nin *"bir taramanın kapsamı da elle tutulan bir listedir"*
+  dersinin küçük tekrarı. Desen `^\d+\.\d+[a-z]?$` yapıldı.
+- 🔬 **Taşma testi yanlış şeyi kilitliyordu.** Bozma turunda `NewsCard`'ın meta satırından
+  `Flexible` kaldırıldı ve test **yeşil kaldı**: gerçek veride o metinler (`"3 saat önce"`,
+  `"4 dk okuma"`) hiçbir zaman satırı taşıracak kadar uzun olmuyor. Kartın asıl riski taşma
+  değil **sınırsız büyüme**ymiş → `maxLines`/`overflow` doğrudan iddia edildi ve o bozma
+  **kırmızıya döndü**. (`NewsFeaturedCard`'ın taşma testi ise gerçekten kilitliyor: `Flexible`
+  kaldırılınca kırmızı.) Ders checklist'e yazıldı.
+- **Test fixture'larında görsel kullanılamıyor:** `CachedNetworkImage`'in yer tutucusu sonsuz
+  shimmer çalıştırıyor ve `pumpAndSettle` kilitleniyor. Projedeki diğer kart testleri de
+  görselsiz — sebep ilk kez burada yazıya döküldü. Kartın **görselli** düzeni ayrı bir dosyada,
+  `pump()` ile denetleniyor.
+- **Canlı denetimde:** simülatör penceresi taşındığı anda sabit ekran koordinatları sessizce
+  yanlış yere tıklıyordu. Yardımcı betik artık pencere konumunu **her çağrıda yeniden okuyor**
+  (`scratchpad/pt.sh`) — bu bir ürün hatası değil, denetim aracının hatasıydı.
+
+#### Testler
+
+**+59 mobil test** (751 → **810**): `news_article_test` (14) · `news_card_test` (8) ·
+`news_screen_test` (16) · `news_detail_screen_test` (14) · `news_body_test` (7) + golden
+(`news_card_light/dark`: uzun başlık · kaydedilmiş · manşet). Backend **1034** (değişmedi —
+12.14 sunucuya dokunmadı; `ArchitectureDocTests` mobil `news/` klasörünü doküman güncellenene
+kadar bilerek kırmızı tuttu).
+
+**Bozma turu (kuralı boz → kırmızıya dönüyor mu):** `onLinkTap` kaldırıldı ✅ · `<img>`
+uzantısı kaldırıldı ✅ · 2 karakter eşiği kaldırıldı ✅ · ilgili haberlerde okunan haber
+elenmedi ✅ · başlıktan `maxLines` kaldırıldı ✅ · `NewsFeaturedCard`'dan `Flexible`
+kaldırıldı ✅ · `NewsCard`'dan `Flexible` kaldırıldı ❌ (yukarıda).
+
+**Canlı doğrulama (emülatör + panel):** ızgaradan Haberler açılıyor · 54 haber listeleniyor,
+görseller ve göreli tarihler doğru · detayda gövde biçimli, **metin arası görsel** çiziliyor,
+"Kaynakta oku" ve "Bu kategoriden" çalışıyor · **panelden bir haber "Öne çıkar" yapıldı →
+`/v1/news?featured=true` 1 kayıt döndü → mobilde pull-to-refresh sonrası "Öne çıkanlar"
+manşeti çıktı** (uçtan uca zincir) · senkron canlı akıyor (koşu sırasında yeni haber düştü).
+
+📌 **Kalan borç:** yazı boyutu ayarı (okuma konforu) ve metin arası görsellerin aynalanması
+ikinci sürüme bırakıldı (blok listesi 12.15 sonrasında).
+
+---
+
+### 12.14 — özgün plan (referans)
+
 
 **Hedef:** 12 modüllük ızgaraya **13.'sü** olarak Haberler'in girmesi.
 

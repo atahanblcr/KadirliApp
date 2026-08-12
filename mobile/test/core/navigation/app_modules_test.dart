@@ -21,7 +21,13 @@ void main() {
     for (final module in kAppModules) {
       expect(module.label, isNotEmpty);
       expect(module.summary, isNotEmpty);
-      expect(module.phase, matches(RegExp(r'^11\.\d+$')));
+      // ⚠️ Desen 12.14'te genişletildi: eskiden `^11\.\d+$` yazıyordu ve
+      // **faz numarasını** çiviliyordu, oysa iddia "alt-faz dolu ve biçimli"
+      // olmalı. 13. modül (Haberler, 12.14) bu yüzden testi kırdı — kuralın
+      // kendisi değil, elle tutulan deseni eskimişti. (Bu projenin
+      // `CODE_REVIEW_CHECKLIST` §2'deki "taramanın kapsamı da elle tutulan bir
+      // listedir" dersinin küçük bir tekrarı.)
+      expect(module.phase, matches(RegExp(r'^\d+\.\d+[a-z]?$')));
       expect(module.route, startsWith('/'));
       expect(module.endpoints, isNotEmpty, reason: '${module.id} hangi uca bağlanacak?');
       expect(moduleForRoute(module.route)?.id, module.id);

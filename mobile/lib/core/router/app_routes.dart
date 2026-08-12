@@ -96,6 +96,17 @@ abstract final class AppRoutes {
   /// atardı. Ayrıca form kabuğun dışında, odaklanmış bir görev.
   static const deathReport = '/vefat-bildir';
 
+  /// Haber detayı — `/haberler/<id>` (12.14). **12.15 push deep-link hedefi**
+  /// (`relatedType = "news"`).
+  static String newsDetail(String id) => '$news/$id';
+
+  /// "Kaydedilenler" — yerel yer imi listesi (12.14 eki).
+  ///
+  /// ⚠️ `/haberler`in **alt rotası değil, kardeşi**. İki sebep: go_router iç
+  /// içe rotada üst ekranı da kurar (arka planda haber/kategori isteği atardı)
+  /// ve `/haberler/:id` deseni `kaydedilenler` sözcüğünü de **kimlik sanardı**.
+  static const savedNews = '/kaydedilen-haberler';
+
   static const pharmacies = '/eczaneler';
   static const guide = '/rehber';
   static const deaths = '/vefat';
@@ -105,6 +116,9 @@ abstract final class AppRoutes {
   static const campaigns = '/kampanyalar';
   static const transport = '/ulasim';
   static const complaints = '/sikayet';
+
+  /// Haberler (12.14) — 13. modül.
+  static const news = '/haberler';
 
   /// Şikayet/istek gönderme formu (`POST /v1/complaints`).
   ///

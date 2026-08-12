@@ -4,7 +4,7 @@
 ilanlar, vefat, etkinlik, kampanya, taksi, ulaşım, elektrik kesintisi, şehir rehberi,
 mekanlar, şikayet/istek. Üç parça: **.NET 8 API** + **Razor admin paneli** + **Flutter mobil**.
 
-**Durum:** **Faz 11 bitti.** Backend + panel + mobil ayakta: 12 mobil modülün tamamı gerçek,
+**Durum:** **Faz 11 bitti.** Backend + panel + mobil ayakta: 13 mobil modülün tamamı gerçek,
 push canlı, golden + erişilebilirlik testleri var; panel gerçek bir yönetim paneli
 (denetim izi · çöp kutusu · toplu işlem · sütun sıralaması · CSV dışa aktarma · global arama)
 ve güvenlik kapanışı yapılmış (oturum iptali · zorunlu parola değişimi · parola politikası ·
@@ -92,10 +92,24 @@ atar**. 🔬 Denetimin "arama `strpos` üretiyor" bulgusu **ölçümle çürüd�
 `LIKE` yapıyor) ama **sonucu doğruydu**: btree `LIKE '%x%'`'i karşılayamaz → asıl düzeltme
 **GIN/trigram** indeksleri. 🐛 Bozma turunda **bir test yeşil kaldı** (ham SQL'e bakıyordu,
 bizim sorgumuza değil) → iki ayağa çıkarıldı.
-**1034 backend + 751 mobil test, 60 görünmez sözleşme.**
+**12.14 bitti (plan dışı blok, devam): Haberler mobil — 13. modül.**
+Haberler artık **uygulamada**: ızgarada 13. kart, kategori şeridi (süzme **sunucuda**),
+`flutter_html` ile biçimli gövde, "Kaynakta oku", paylaş. 🔴 Gövde istemcide **ikinci kez
+temizlenmiyor** — temizliğin tek sahibi sunucu (12.12); ikinci bir beyaz liste, gazetenin
+yarın kullanacağı bir etiketi **sessizce yutardı**. Metin arası görseller aynalanmadığı için
+(%9'u süreli `fbcdn`) açılmayan görsel **yer tutucu bile göstermeden gizleniyor**.
+➕ **Plan dışı üç ek:** **manşet şeridi** (`?featured=true` — panelin "öne çıkar" anahtarının
+mobil karşılığı **yoktu**, yani yönetici anahtarı çeviriyor hiçbir şey olmuyordu),
+**"Bu kategoriden"** (yeni uç gerektirmedi) ve **çevrimdışı çalışan "Kaydedilenler"**
+(kaydın **anlık görüntüsü** saklanır — yalnız `id` saklansaydı kaynakta kalkan haber listede
+*"bulunamadı"* satırına dönerdi). 🐛 Bozma turunda **bir taşma testi yeşil kaldı**: kartın asıl
+riski taşma değil **sınırsız büyüme**ymiş → `maxLines` doğrudan iddia edildi.
+**1034 backend + 810 mobil test, 62 görünmez sözleşme.**
 
-**⏭️ Sırada 12.14:** Haberler mobil (13. modül kartı · kategori şeridi · `flutter_html`).
-Açık duran diğer maddeler: 12.7/12.8 sosyal giriş · 12.15 bildirim.
+**⏭️ Sırada 12.15:** Haber bildirimi (elle gönderim · `relatedType="news"` · deep-link).
+⚠️ `news → /haberler/:id` eşlemesi mobilde **12.14'te yazıldı** (aynı sürümde gitmesi
+gerekiyordu) — 12.15'te yalnız sunucu tarafı kalıyor.
+Açık duran diğer maddeler: 12.7/12.8 sosyal giriş.
 ⚠️ `?featured=false` ve aramanın **en az 2 karakter** kuralı kontrata girdi (`API_CONTRACT.md`).
 ⚠️ Yeni bir `Un…` aksiyonu yazarsan önekini `PanelPermissionFilter.ActionFor`'a **elle ekle**:
 `Archive` öneki `Unarchive`'ı yakalamaz ve aksiyon sessizce `update` iznine düşer.
@@ -148,7 +162,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 60 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 62 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
@@ -168,7 +182,9 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
 **54–57** → `Unit/Application/News/` + `Integration/News/` +
 `Integration/Architecture/NewsSourceOwnershipTests.cs` (yapısal — **kaynak taraması değil
 yansıma**), **58–60** → `Integration/Panel/PanelNewsTests.cs` + `Unit/Application/News/`
-(`NewsSearchTests` · `NewsStatesTests`).
+(`NewsSearchTests` · `NewsStatesTests`), **61–62 istemci tarafı** →
+`mobile/test/features/news/` (`news_body_test.dart` · `news_screen_test.dart` ·
+`news_detail_screen_test.dart` · `news_card_test.dart`).
 
 ## Değişmez kurallar
 

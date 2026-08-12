@@ -349,6 +349,26 @@ sourceUrl · publishedAt · modifiedAt · readingMinutes · isFeatured · catego
 - **Görünürlük:** arşivlenmemiş **ve** kaynağı yayında (`gone` değil) **ve** dışlanmış
   kategorisi olmayan kayıtlar. `articleCount` kaynağınki değil, **bizde görünen** sayıdır.
 
+**İstemcinin bu uçları nasıl kullandığı (Faz 12.14):**
+
+- Liste `?search=` · `?categoryId=` **tek filtre nesnesinde** taşınır (`NewsFilter`) —
+  ayrı tutulsalardı şeride dokunmak aramayı sessizce düşürürdü.
+- 🔴 **İstemci 2 karakterin altında `search` GÖNDERMEZ.** Sunucu o değeri süzgeç
+  uygulamadan yok sayıyor (400 değil); istemci yine de gönderseydi kullanıcı **tüm listeyi**
+  görüp süzülmüş sanırdı. Ekran o durumda "sonuç yok" değil *"Arama için en az 2 harf yazın"* der.
+- **Manşet** şeridi `?featured=true` ile ayrı bir çağrıdır ve yalnız **süzgeçsiz** listede
+  çizilir; alınamazsa **sessizce hiç çizilmez** (ana liste aynı haberleri zaten taşıyor).
+- **"Bu kategoriden"** (detay altı) yeni bir uç değil, `?categoryId=` ile aynı sorgudur;
+  okunan haber istemcide **elenir** ve bu yüzden tavandan **bir fazlası** istenir.
+- 🔴 **`contentHtml` istemcide İKİNCİ KEZ TEMİZLENMEZ** — temizliğin tek sahibi sunucu
+  (§7 madde 61). İstemci yalnız stil verir; `<a>` `url_launcher`'a bağlıdır, `<img>`
+  önbelleklenir ve **açılmazsa hiç yer kaplamaz** (metin arası görseller aynalanmıyor).
+- Kategori sayacı **0 olan** kategori de şeritte durur: sayı bir anlık görüntüdür ve
+  sunucunun döndürdüğü bir kategoriyi istemcinin gizlemesi "şüphede kalınca gizle" olurdu.
+- 📌 **"Kaydedilenler" tümüyle istemci tarafıdır** (uç yok, `SharedPreferences`): kaydın
+  bir **anlık görüntüsü** saklanır, böylece kaynakta yayından kalkan haberde bile başlık ve
+  "Kaynakta oku" elde kalır (§7 madde 62).
+
 ### Şikayet / Dosya / Lookup
 - `POST /v1/complaints` — **anonim gönderim açık**; oturum varsa sunucu `user_id` claim'ini kendisi bağlar (istemci kullanıcı kimliği yollamaz). Yanıt: oluşan kaydın **Guid**'i. Gövde: `{subject, message, type?, relatedModule?, relatedId?}`.
   - ⚠️ **Sunucuda doğrulayıcı YOK** → zorunlu alan denetimi istemcide.

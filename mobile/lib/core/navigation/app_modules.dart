@@ -82,6 +82,24 @@ const kAppModules = <AppModule>[
     ],
     ready: true,
   ),
+  // Faz 12.14 — 13. modül. Izgarada Duyurular'ın hemen ardında: ikisi de
+  // "şehirde ne oluyor" sorusunun cevabı ve haber, duyurunun *dış kaynaklı*
+  // kardeşi. ⚠️ İçerik `silagazetesi.com.tr`'den geliyor ama istemci oraya
+  // **hiç bağlanmaz** — zincir `WordPress → Hangfire → bizim API` (12.12).
+  AppModule(
+    id: 'news',
+    label: 'Haberler',
+    icon: Icons.newspaper_rounded,
+    route: AppRoutes.news,
+    phase: '12.14',
+    summary: 'Şehrin haberleri: gündem, yerel haberler ve son dakika.',
+    endpoints: [
+      'GET /v1/news',
+      'GET /v1/news/categories',
+      'GET /v1/news/{id}',
+    ],
+    ready: true,
+  ),
   AppModule(
     id: 'pharmacies',
     label: 'Eczane',

@@ -37,6 +37,13 @@ dependencies:
   cached_network_image: ^3.4.1
   image_picker: ^1.2.0
 
+  # --- Zengin metin (Faz 12.14 — Haberler) ---
+  # Haber gövdesi sunucuda (12.12) `Ganss.Xss` ile temizlenmiş HTML olarak
+  # geliyor; istemci **ikinci bir beyaz liste yazmaz**, yalnız stil verir.
+  # ⚠️ Çıktısı sürüm değişiminde kayabilir → detay golden'ı bilinçli olarak
+  # kısa ve sabit bir gövdeyle kuruldu (bkz. news_detail_screen.dart).
+  flutter_html: ^3.0.0
+
   # --- Yardımcılar ---
   intl: ^0.20.2 # Türkçe tarih/sayı biçimleme
   url_launcher: ^6.3.2 # telefon / WhatsApp / harita

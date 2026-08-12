@@ -90,6 +90,15 @@ class NotificationKind {
         icon: Icons.local_pharmacy_rounded,
         label: 'Eczane',
       ),
+      // Faz 12.14: `news` türü 12.15'te üretilmeye başlayacak, ama eşleme
+      // **bu sürümde** gitmeli — mağazadaki eski sürümler türü tanımadığı için
+      // bildirimi okur, dokununca hiçbir yere gitmez (§7 madde 18'in kabul
+      // edilen sınırı). Eşlemeyi 12.15'e bırakmak o sınırı bir sürüm daha
+      // uzatırdı.
+      'news' => const NotificationKind(
+        icon: Icons.newspaper_rounded,
+        label: 'Haber',
+      ),
       'complaint' => const NotificationKind(
         icon: Icons.support_agent_rounded,
         label: 'Şikayet',
@@ -141,6 +150,8 @@ String? notificationRouteFor({
     'place' => AppRoutes.placeDetail(id),
     'taxi' || 'taxi_driver' => AppRoutes.taxiDriverDetail(id),
     'guide' || 'guide_item' => AppRoutes.guideItemDetail(id),
+    // Faz 12.14 (12.15 için hazır) — bkz. NotificationKind'daki not.
+    'news' => AppRoutes.newsDetail(id),
     _ => null,
   };
 }

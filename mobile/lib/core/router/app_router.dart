@@ -30,6 +30,9 @@ import '../../features/dev/presentation/network_probe_screen.dart';
 import '../../features/guide/presentation/guide_item_detail_screen.dart';
 import '../../features/guide/presentation/guide_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
+import '../../features/news/presentation/news_detail_screen.dart';
+import '../../features/news/presentation/news_screen.dart';
+import '../../features/news/presentation/saved_news_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/pharmacies/presentation/pharmacies_screen.dart';
 import '../../features/pharmacies/presentation/pharmacy_detail_screen.dart';
@@ -329,6 +332,29 @@ final routerProvider = Provider<GoRouter>((ref) {
                 PlaceDetailScreen(id: state.pathParameters['id']!),
           ),
         ],
+      ),
+
+      // --- Gerçeklenmiş modüller (12.14) ---
+      GoRoute(
+        path: AppRoutes.news,
+        name: 'module-news',
+        builder: (context, state) => const NewsScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'newsDetail',
+            builder: (context, state) =>
+                NewsDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+      // ⚠️ "Kaydedilenler" `/haberler`in **kardeşi** (bkz. AppRoutes.savedNews):
+      // alt rota olsaydı hem üstteki liste ekranı arka planda kurulur hem de
+      // `:id` deseni bu yolu bir haber kimliği sanardı.
+      GoRoute(
+        path: AppRoutes.savedNews,
+        name: 'savedNews',
+        builder: (context, state) => const SavedNewsScreen(),
       ),
 
       // --- Gerçeklenmiş modüller (11.12) ---

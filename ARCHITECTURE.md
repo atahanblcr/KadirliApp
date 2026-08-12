@@ -8,7 +8,7 @@
 > öğretici bir rehber değil (o `DOTNET_MASTERCLASS.md`), istemci kontratı değil
 > (o `Memory_Bank/API_CONTRACT.md`). Burası **harita**: bugün neyin nerede olduğu.
 >
-> Son güncelleme: 11 Ağustos 2026 (Faz 12.12 — **Haberler modülünün alım çekirdeği**: WordPress → Hangfire senkron → bizim Postgres → `/v1/news`. Projedeki ilk dış içerik entegrasyonu; `Source*` / `*Override` ayrımı derleyiciyle korunuyor).
+> Son güncelleme: 12 Ağustos 2026 (Faz 12.14 — **Haberler mobil**: 13. modül kartı, kategori şeridi, `flutter_html` ile gövde. Plan dışı ekler: **manşet şeridi** (panelin "öne çıkar" anahtarının mobil karşılığı), **ilgili haberler** ve **çevrimdışı çalışan "Kaydedilenler"**).
 
 ## Hangi dokümanı ne zaman okumalı
 
@@ -124,8 +124,9 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | `lib/features/<modül>/data/` | Model + repository (yalnız burası Dio görür) |
 | `lib/features/<modül>/application/` | Provider'lar, denetleyiciler, saf mantık |
 | `lib/features/transport/application/` | 🔑 `operating_days.dart` (**mobilde gün ↔ bit dönüşümünün tek sahibi**, 12.6) · `departure_times.dart` (günü hesaba katan "sıradaki sefer") · `transport_vehicle.dart` |
+| `lib/features/news/` | 🔑 **Faz 12.14 — 13. modül.** `presentation/widgets/news_body.dart` gövdenin **tek çizim sahibi** (`flutter_html`; istemcide **ikinci beyaz liste yok**, §7 madde 61) · `data/saved_news_store.dart` "Kaydedilenler"in yerel deposu (kaydın **anlık görüntüsü**, §7 madde 62) |
 | `lib/features/<modül>/presentation/` | Ekranlar + `widgets/` |
-| `test/` | **751 test** (71 dosya); klasör yapısı `lib/`'i aynalar |
+| `test/` | **810 test** (75 dosya); klasör yapısı `lib/`'i aynalar |
 
 ---
 
@@ -162,13 +163,13 @@ ortak `lib/core/*`. Bir feature başka bir feature'ın `presentation`'ına bakma
 | 24 | **Hata kayıtları** | `ErrorLogs/` | `POST client-errors` *(anonim)* | `ErrorLogsAdmin` | *(matris dışı — yalnız admin)* | *(ekran yok — `core/observability/`)* | — |
 | 25 | **Giriş denemeleri** | `LoginAttempts/` | *(public uç yok — kayıt giriş akışında düşer)* | `LoginAttemptsAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
 | 26 | **Bildirim gönderimleri** | `PushCampaigns/` | *(public uç yok — kayıt gönderim anında düşer)* | `PushCampaignsAdmin` | *(matris dışı — yalnız admin)* | *(ekran yok — bildirim modülü 14. satırda)* | — |
-| 27 | **Haberler** | `News/` (+`WordPressTimeWindow` · `NewsImagePicker` · `NewsHtmlPolicy` · `NewsVisibility` · `NewsStates` · `NewsSearch` · `NewsProjection` · `NewsAdminProjection` · `Services/NewsSyncService`) | `news`, `news/{id}`, `news/categories` | `NewsAdmin` | `news` | *(12.14'te)* | *(12.14'te)* |
+| 27 | **Haberler** | `News/` (+`WordPressTimeWindow` · `NewsImagePicker` · `NewsHtmlPolicy` · `NewsVisibility` · `NewsStates` · `NewsSearch` · `NewsProjection` · `NewsAdminProjection` · `Services/NewsSyncService`) | `news`, `news/{id}`, `news/categories` | `NewsAdmin` | `news` | `news/` | `/haberler`, `/haberler/:id`, `/kaydedilen-haberler` |
 | 28 | **Haber senkronu** | `News/` (paylaşılan; `NewsSyncHealth` · `Commands/TriggerNewsSyncCommand`) | *(public uç yok — koşu kaydı alım anında düşer)* | `NewsSyncAdmin` | *(matris dışı — yalnız admin)* | *(yok)* | — |
 
 **Mobilde ayrıca ekran taşıyan ama backend modülü olmayan klasörler:** `home/` (hub),
 `common/`, `dev/` (yalnız debug: `/gelistirici/tasarim`, `/gelistirici/ag`).
 
-### Ana Sayfa ızgarasındaki 12 modül
+### Ana Sayfa ızgarasındaki 13 modül
 
 `mobile/lib/core/navigation/app_modules.dart` → `kAppModules`. Bu liste **tek doğruluk
 kaynağıdır**: ızgara kartları, "yakında" ekranları ve (11.13'te) push deep-link eşlemesi
@@ -385,7 +386,7 @@ tam süiti koşmadan commit etme.
 
 ## 7. 🔑 GÖRÜNMEZ SÖZLEŞMELER
 
-Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıklar (**60 madde**). Hepsi
+Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıklar (**62 madde**). Hepsi
 **testle kilitli** — 1–22 `KadirliApp.Tests/Integration/Contracts/InvisibleContractsTests.cs`,
 **23–26 (Faz 11.15c)** `Integration/Panel/PanelBusinessRuleTests.cs`, **27 (Faz 11.17)**
 `Integration/Panel/PanelPowerOutageFilterTests.cs`, **28 (Faz 11.17)**
@@ -414,6 +415,8 @@ tarafı** oldukları için karşılıkları mobilde:
 `Integration/News/` (`NewsSyncTests` · `NewsEndpointTests`) +
 `Integration/Architecture/NewsSourceOwnershipTests.cs`,
 **58–60 (Faz 12.13)** `Integration/Panel/PanelNewsTests.cs` + `Unit/Application/News/` (`NewsSearchTests` · `NewsStatesTests`).
+**61–62 (Faz 12.14)** 49–50 gibi **tümüyle istemci tarafı**, karşılıkları mobilde:
+`mobile/test/features/news/{news_body_test.dart,news_screen_test.dart,news_detail_screen_test.dart,news_card_test.dart,news_article_test.dart}`.
 ⚠️ **55 diğerlerinden bir kez daha farklı bir tür:** karşılığı kaynak **taraması değil
 YANSIMA** (`init` erişimcisi IL'de `modreq(IsExternalInit)` taşır). Sebep 12.11'in dersi —
 *"bir taramanın KAPSAMI da elle tutulan bir listedir"*: yansıma alan listesini **tipin
@@ -494,6 +497,8 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | 58 | **Haberin panelde görünen durumu TÜRETİLİR ve `gone` her zaman `archived`'ı yener** (`NewsStates.Of`); durum bir kolonda saklanmaz. Görünürlüğü yazan tek yol `Archive`/`Unarchive`'dır — Düzenle formunda anahtar **yoktur** ve `UpdateNewsOverridesCommand`'a o alan **hiç eklenmemiştir** | Sıra ters olsaydı, hem arşivlenmiş hem kaynaktan kalkmış bir kayıtta panel "Yayından kaldırıldı" derdi; yönetici "Geri al"a basar, kayıt **yine görünmez** ve sebebi ekranda hiçbir yerde yazmaz (geri alma kaynağın durumuna dokunmaz). Durum kolonda saklansaydı üçüncü bir yazma yolu doğardı (12.10'un bütün dersi) ve kategori dışlaması gibi *kayıt dışı* bir sebeple görünmeyen haberde kolon **yalan söylerdi**. ⚠️ `Unarchive` öneki `PanelPermissionFilter.ActionFor`'a **elle eklendi**: `Archive` öneki onu yakalamaz (eşleşme baştan) → POST olduğu için sessizce `update`'e düşerdi, yani *yayından kaldırmak `approve` isterken yayına döndürmek `update` ile yapılabilirdi* (§7 madde 19'un birebir tekrarı) |
 | 59 | **Kategori görünürlüğünün semantiği DIŞLAMA'dır** ("dışlanmış tek bir kategorisi bile varsa haber görünmez"), "en az bir görünür kategorisi olsun" **değil**; ve panelin dışlama önizlemesi **gerçek görünürlük sorgusundan** (`NewsVisibility`) gelir | Ölçüm zorluyor: bir haber çoklu kategoride (`[49,51,52]`). OR semantiğinde **E-Gazete'yi kapatmak işe yaramaz** — o haberler "Haberler"e de ait olduğu için görünmeye devam eder: yönetici anahtarı çevirir, **hiçbir şey olmaz** (§7 madde 37'nin *"panelin en sinsi yalan biçimi"*). Önizleme ayrı bir sayımdan gelseydi 12.2b'nin hatası tekrarlanırdı: panel "366 haber kalkacak" der, 41'i zaten görünmezdi ve fark **hiçbir yerde görünmezdi**. ⚠️ Ters yön de aynı özenle sayılır: dışlamayı kaldırmak yalnız **başka dışlanmış kategorisi olmayan** haberleri geri getirir |
 | 60 | **Aynı anda en fazla BİR haber senkron koşusu olabilir** ve kilit veritabanındadır (`news_sync_runs` üzerinde `WHERE completed_at IS NULL` kısmi unique indeksi); yarıda kalmış koşuyu 30 dakika sonra **`NewsSyncService.ReapStuckRunsAsync`** kapatır. Panelin butonu koşuyu istek içinde **çalıştırmaz**, kuyruğa atar | Redis kilidi **yanlış araç**: bu projede Redis bilinçli olarak fail-open (§7 madde 36), yani tam yarış anında kilidi açar — §7 madde 32'nin dersi birebir geçerli (*"benzersiz indeks Api/Web yarışını yakalar"*). ⚠️ Koruma ile **kurtarma birlikte yazılmak zorundaydı**: süreç öldürülürse (deploy, OOM) satır sonsuza kadar `completed_at IS NULL` kalır ve indeks **bütün gelecek koşuları** engellerdi — hiçbir hata vermeden, yalnız haberler akmayı bırakarak; yani arızayı önleyen koruma tam da o arızanın sebebi olurdu. ⚠️ Buton istek içinde koşsaydı panelin zaman aşımı dolar, yönetici F5'ler ve **ikinci koşu** açılırdı. ⚠️ Kilide takılan koşu `Failed` **değil** `Blocked`'tır: koşu düşmedi, hiç açılmadı — hata sayılsaydı panonun hata sayacı yalancı olurdu |
+| 61 | **Haber gövdesinin tek çizim sahibi `NewsBody`'dir**: istemci **ikinci bir beyaz liste yazmaz** (temizlik alım anında sunucuda — `NewsHtmlPolicy`, 12.12), `<a>` dokunuşu `onLinkTap` ile `AppLinks.web`'e bağlıdır ve `<img>` **önbellekli** bir bileşenle çizilip **açılmadığında hiç yer kaplamaz** | Üç ayrı sessiz hasar tek maddede: (a) **ikinci beyaz liste** iki sahipli bir güvenlik kuralı üretir — ayrıştıkları anda gazetenin yarın kullanacağı bir etiket istemcide **sessizce kaybolur** ve kimse fark etmez (sunucu "gönderdim" der, ekran boş kalır); (b) `onLinkTap` bağlanmazsa gövdedeki bağlantı **çizilir, tıklanır, hiçbir şey olmaz** — "işlevsiz buton yok" kuralının gövde içindeki karşılığı, üstelik sunucuda iz bile kalmaz; (c) paketin varsayılan `<img>` çizimi `Image.network`'tür: önbelleklemez (aynı görsel her kaydırmada yeniden iner) ve hata durumunda **kırık kutu** basar. Metin arası görseller **aynalanmıyor** ve %9'u **süreli** `fbcdn` linki (12.12 ölçümü) → zamanla mutlaka 403 olacaklar; paragrafların arasında duran kırık bir kutu, hiç olmayan bir görselden **daha çok** dikkat çeker ve sıfır bilgi taşır. ⚠️ Yükleme sırasında da yer tutulmaz: yükseklik bilinmediği için ayrılan boş alan görsel gelince metni **zıplatır** |
+| 62 | **"Kaydedilenler" kaydın ANLIK GÖRÜNTÜSÜNÜ saklar** (yalnız kimliğini değil), gövde **saklanmaz**, liste **tavanlıdır** (100) ve bozuk tek bir satır listeyi düşürmez | Yalnız `id` saklansaydı ekran her açılışta N istek atardı **ve** kaynakta yayından kalkan bir haber (12.12'nin `gone` durumu) listede *"bulunamadı"* satırına dönüşürdü: kullanıcı **neyi kaydettiğini bile göremezdi**. Anlık görüntüyle başlık, özet ve kaynak adresi elde kalır; detay 404 verse bile "Kaynakta oku" çalışır. ⚠️ Gövde saklansaydı tek haber 11 KB'a kadar çıkıyor (12.12 ölçümü) ve `SharedPreferences` **bütün dosyayı belleğe alır**. ⚠️ Tavan olmasaydı depo tek yönlü büyür ve sorun ancak yıllar sonra fark edilirdi (`CODE_REVIEW_CHECKLIST` §11'in "sınırsız büyüyen tablo" maddesinin istemci aynası). ⚠️ Bozuk satır tolere edilmeseydi bir sürüm geçişinde bozulan **tek** bir JSON, kullanıcının 40 kaydını birden götürürdü |
 
 ### Kod dışı görünmez sözleşmeler (testle kilitlenemeyenler)
 
@@ -582,6 +587,10 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 | **Sefer günleri (mobil)** | `mobile/test/features/transport/operating_days_test.dart` | §7 madde **49**: kod ↔ maske gidiş-dönüşü ve **kontrat sırası**, tanınmayan kodun yok sayılması, **boş/eksik listenin "her gün" sayılması**, `daysUntilNext`'in hafta sonunu doğru sarması, ham İngilizce kodun arayüze sızmaması; ⚠️ **gün kayması** her yedi gün için tek tek (`1 << weekday` yazımı Pazar'ı Pazartesi'ye çakar) |
 | **"Sıradaki sefer" (mobil)** | `mobile/test/features/transport/departure_times_test.dart` | Hafta içi seferinin **Cumartesi "Pzt" demesi** ("yarın" DEĞİL — vatandaşı Pazar günü durakta bekletirdi), yalnız bugün çalışan hattın saatleri geçtiyse **bir hafta sonrası** (ofset döngüsü 7'ye kadar), karışık maskelerde **en erken ulaşılabilir** seferin seçilmesi, maskesi boş bozuk seferin **elenmesi**, saat listesi alan eski API'nin davranışının **korunması** |
 | **Ulaşım mobil ekranı** | `mobile/test/features/transport/transport_screen_test.dart` | §7 madde **49–50**: araç süzgecinin **uca** gitmesi ("Tümü"de parametre yok) ve **aramayı koruması**, süzgeç yüzünden boşalan listenin **sebebini söylemesi**, tanınmayan araç tipinde rozetin **çizilmemesi**, gün alanı hiç gelmeyen seferin **gizlenmemesi**, **"kalktı" çizgisinin yalnız bugün çalışan seferde** çıkması (iki yönlü), "bitti" ile "yok" cümlelerinin ayrılması, kalkış noktası girilmemişse "Yol tarifi"nin **hiç çizilmemesi** |
+| **Haber gövdesi (mobil)** | `mobile/test/features/news/news_body_test.dart` | §7 madde **61**: bağlantıya dokunmak `url_launcher`'a **gidiyor** mu (ölü bağlantı yok), `href` boşken **çökmüyor** mu, gövde içi görsel **önbellekli** bileşenle mi çiziliyor, `src`'siz görsel **hiç yer kaplamıyor** mu, istemci sunucudan geleni **kırpmıyor** mu (`blockquote`/`ul`/`strong` duruyor mu — tek sahip sunucu) |
+| **Haberler mobil ekranı** | `mobile/test/features/news/news_screen_test.dart` | Kategori süzgecinin **uca** gitmesi ve **aramayı koruması**, aynı chip'e ikinci dokunuşun süzgeci kaldırması, **2 karakter altındaki aramanın uca hiç gitmemesi** ve ekranın **sebebini söylemesi**, boş listenin "hiç haber yok" ile "bu filtrede yok"u ayırması, "Filtreleri temizle"nin arama kutusunu da temizlemesi, kategoriler alınamazsa şeridin **hiç çizilmemesi**, manşet şeridinin yalnız **süzgeçsiz** listede çıkması ve manşet hatasının **listeyi düşürmemesi**; "Kaydedilenler"in **ağa çıkmadan** çizilmesi ve bozuk tek satırın listeyi düşürmemesi (madde **62**) |
+| **Haber detayı (mobil)** | `mobile/test/features/news/news_detail_screen_test.dart` | HTML gövdenin **ham etiket basmadan** çizilmesi, detayda **tüm** kategorilerin görünmesi, senkronun **saniyelik** farkının "Güncellendi" rozeti üretmemesi, gövde boşken **özete düşülmesi**, kaldırılmış haberde **"Tekrar dene" gösterilmemesi**, "Bu kategoriden" şeridinin **uçtan** gelmesi + okunan haberin **elenmesi** + kategorisiz haberde **sorgunun hiç atılmaması**, kaydetmenin sonucu **söylemesi**, 404 veren kayıtta **anlık görüntüden** "Kaynakta oku"nun çalışması |
+| **Haber kartları (mobil)** | `mobile/test/features/news/news_card_test.dart` · `news_article_test.dart` | Başlık/özetin **kırpılması** (kart sınırsız büyümez), 1.4 ölçekte + uzun kategori adıyla **taşma yok**, "Kaydedildi"nin **metinle** de söylenmesi (renk tek başına anlam taşımaz); modelde çoklu kategoriden **ilkinin** seçilmesi, okuma süresinin **en az 1 dk** olması, `wasUpdated` eşiği |
 | Mobil ekran | `mobile/test/features/*/…_screen_test.dart` | Boş/yükleniyor/hata durumları, filtre, taşma |
 | Mobil **görsel regresyon** | `mobile/test/golden/` | Ortak bileşenler + liste kartları; 360 dp × (1.0 ve 1.4 ölçek) × açık/koyu |
 | Mobil **erişilebilirlik** | `mobile/test/core/accessibility_test.dart` | WCAG AA kontrast, 48 dp dokunma hedefi, ekran okuyucu etiketi, 1.4 ölçekte taşma yok |
