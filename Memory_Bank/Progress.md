@@ -4749,6 +4749,90 @@ kurulum kırıldı ✅ (ayrımın kanıtı) · geri doldurma boşaltıldı ❌ (
 
 ## 📌 Bu blok için açık kalan / bilinçli ertelenen maddeler
 
+### 🔍 PLANLANDI (13 Ağustos 2026) — GÖRÜNMEZ SÖZLEŞME DENETİMİ
+
+> **Durum: yalnız plan.** Bu oturumda uygulanmadı; kullanıcı kararıyla reçete olarak
+> bırakıldı. Bir sonraki oturum buradan başlayabilir.
+
+#### Neden: doğru soru "testi var mı?" değil
+
+67 maddenin **67'sinin de** bir testi var. Bu projede beş fazda beş kez kanıtlanan hata
+sınıfı başka: **iddiası zayıf test.**
+
+| Faz | Kilit neydi | Ne oldu |
+|---|---|---|
+| 12.11 | Kaynak taraması | Taramanın **kapsamı** elle tutuluyordu → `ExtendMyAdCommand` hiç taranmadı, dosya yeşilken ham `Status` yazıyordu |
+| 12.6 | Golden | %0.5 piksel toleransı (anti-aliasing için bilinçli) **üstü çizili tek hapı yuttu** |
+| 12.13 | Davranış testi | Test ham SQL'e bakıyordu, **bizim sorgumuza değil** |
+| 12.14 | Taşma testi | `Flexible` kaldırıldı, test **yeşil kaldı** (gerçek veride o metinler hiç taşmıyor) |
+| 12.15b | Migration + davranış | `Up()` boşaltıldı, test **yeşil kaldı** (migration bir kez koşar) |
+
+Yani denetimin sorusu: **hangi maddenin kilidi sahte?**
+
+#### ⚠️ Ön koşul: T1 ve T2
+
+Denetim güvenilir bir zemin ister. **T1** (birikin test kullanıcıları) sonuçları zehirler:
+bozma turunda kırmızıya dönen bir test, gerçekten bozduğumuz kural yüzünden mi yoksa satır
+sayısı yüzünden mi kırıldı ayırt edilemez. **T2** ise denetimin bulacağı ilk maddenin ta
+kendisi. İkisi denetimden **önce** ya da denetimin ilk adımı olarak kapatılmalı.
+
+#### Faz 0 — Tasnif (kod okumak yeterli, test koşturmak gerekmez)
+
+Her maddeyi **kilidinin cinsine** göre etiketle. Geçmişte delik çıkan cinsler:
+
+| Kilit cinsi | Risk | Gerekçe |
+|---|---|---|
+| **Kaynak taraması** | 🔴 Yüksek | Taramanın *kapsamı* da elle tutulan bir listedir (12.11) |
+| **Yalnız golden** | 🔴 Yüksek | %0.5 tolerans küçük semantik farkı yutar (12.6) |
+| **Kuruluma / tek koşuya bağlı** | 🔴 Yüksek | Migration, seed, `CleanAsync` onarımı (12.15b, iki kez) |
+| **Doküman testi** | 🟠 Orta | Atıfların *gerçekliğini* denetler, maddenin **doğruluğunu** değil |
+| **İstemci tarafı** | 🟠 Orta | Ayrı koşucu; sunucu tarafı değişince sessizce ayrışır |
+| **Davranış testi (gerçek Postgres)** | 🟢 Düşük | Gerçeği ölçer |
+| **Derleyici güvencesi** (`init`/CS8852) · **veritabanı kısıtı** (unique indeks) | 🟢 En düşük | Taramanın erişemeyeceği yerde (12.11'in dersi) |
+
+**Çıktı:** `Memory_Bank/` altında 67 satırlık bir tablo — *madde no · kilit cinsi · risk ·
+kilidi taşıyan dosya*. Bu tablo kalıcı: sonraki oturumlar baştan tasnif etmez, tablodan
+devam eder.
+
+#### 🎯 Ön hipotez (tasnif başlamadan önceki şüpheliler)
+
+Bugünkü bilgiyle en kırılgan görünenler — tasnif bunları **doğrulamalı ya da çürütmeli**:
+
+- **51** (panel dış origin): kaynak taraması, kapsamı `Views/**`. 12.9'un kendi dersi
+  taramanın kapsamı üzerineydi.
+- **52** (moderasyon tek sahipliği): yapısal tarama ayağı; 12.11'de bir kez delik çıktı ve
+  koruma derleyiciye taşındı — ama **tarama ayağı duruyor** ve hâlâ dosya adı deseni tutuyor.
+- **50** (üstü çizili "kalktı"): golden'dan **davranış testine** taşındı, iddianın **iki
+  yönlü** olduğu doğrulanmalı (çizilmeyen kadar çizilen de).
+- **49–50 · 61–62** (istemci tarafı): sunucu karşılıklarıyla birlikte kırılıyorlar mı?
+- **67** (geri doldurma): T2, zaten biliniyor.
+- **6** ("TR günü 00:00 UTC"): projede **4 kez** tekrarlamış sınıf; kilidi bu tekrar sayısına
+  yetiyor mu?
+- **30** (benzersiz sıralama ayracı): test ayracın **varlığını** mı yoksa **benzersizliğini**
+  mi iddia ediyor? 11.18'in dersi tam olarak ikisinin farkıydı.
+- **`ArchitectureDocTests` ailesi**: atıfların gerçekliğini denetliyor, **maddenin
+  doğruluğunu değil**. Kanıtı elimizde: `ARCHITECTURE.md` §4 adım 8 `permissions`/
+  `role_permissions` tablolarını anlatıyor ama 12.13'te ölçüldü — o tablolar **çalışma anında
+  hiç okunmuyor** (canlıda 0 satır). Doküman **çürük** ve hiçbir test bunu söylemiyor.
+
+#### Faz A — Bozma turu (yalnız kırılgan alt kümede)
+
+Madde başına protokol, sırayla: kuralı **boz** → **yalnız o maddenin** testini koş →
+**kırmızıya döndüğünü gör** → **geri al** → tabloya işle (`kilitli` / `tesadüfen yeşil`).
+
+⚠️ Bozma **anlamlı** olmalı: kodu derlenmez yapmak bir bozma değildir. Kuralın *ihlal edilmiş
+ama çalışan* hâlini üret — gerçek bir geliştiricinin yanlışlıkla yazabileceği hâli.
+
+#### Faz B — Bulunan delikleri kapat
+
+🔑 **Doğru soru "testi genişletsem yeter mi?" DEĞİL**, 12.11'in dersi: *"korumayı taramanın
+erişemeyeceği yere taşıyabilir miyim?"* — derleyici (`init` → CS8852), veritabanı kısıtı
+(unique indeks), ya da türetilen (elle tutulmayan) bir kapsam.
+
+⚠️ **Yapılmayacak:** 67 maddede kör bozma turu. Maliyeti birkaç oturum, bilgi getirisi ise
+tasnifin işaret ettiği alt kümeden fazla değil — 🟢 etiketli maddelerin (derleyici/DB kısıtı)
+bozulması zaten **derlenmiyor** ya da **veritabanı reddediyor**.
+
 ### 🧹 Test altyapısı — 12.15b'nin bıraktığı iki açık madde
 
 Bunlar ürün hatası değil, **denetim aracının** hatası; ama bu projede denetim aracının

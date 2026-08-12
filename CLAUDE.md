@@ -156,6 +156,10 @@ literali yazma — `{` yer tutucu sanılıyor.
 varlığın bir metoduna taşımaktır (§7 madde 53 — açarsan test kırılır, bilerek). Ayrıca daha önce
 kullanılmamış bir Tailwind sınıfı yazdıysan `npm run build` çalıştır — yoksa buton
 **beyaz üstüne beyaz** çizilir (12.10 canlı bulgusu).
+📋 **İki açık test-altyapısı maddesi (T1/T2) ve bir planlanmış denetim** var:
+`Progress.md` → *"Test altyapısı — 12.15b'nin bıraktığı iki açık madde"* ve
+*"GÖRÜNMEZ SÖZLEŞME DENETİMİ"*. Denetimin özeti: 67 maddenin hepsinin testi var, sorun
+**iddiası zayıf testler** — bu projede beş fazda beş kez patladı.
 Plan: `Memory_Bank/Progress.md` → "FAZ 12".
 
 > 🔑 **Panel süper admin parolası** `secrets/panel-admin.json`'dadır (git'e girmez; biçim ve

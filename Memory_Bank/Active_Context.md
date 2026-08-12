@@ -79,6 +79,15 @@
 > kullanıcıları **ilgisiz** bir testi kırdı (süper admin listenin ilk sayfasından düştü).
 > **Backend 1099 → 1106, mobil 822. Görünmez sözleşme 66 → 67.**
 >
+> 📋 **PLANLANDI (uygulanmadı): görünmez sözleşme denetimi.** 67 maddenin **67'sinin de**
+> testi var; bu projede beş fazda beş kez patlayan şey **iddiası zayıf test** (12.11 tarama
+> kapsamı · 12.6 golden toleransı · 12.13 yanlış nesneye bakan test · 12.14 taşma testi ·
+> 12.15b migration). Reçete `Progress.md` → *"GÖRÜNMEZ SÖZLEŞME DENETİMİ"*: **Faz 0** kilit
+> cinsine göre tasnif (kod okumak yeterli) → **Faz A** yalnız kırılgan alt kümede bozma turu
+> → **Faz B** delikleri *taramanın erişemeyeceği yere taşıyarak* kapat.
+> ⚠️ **Ön koşulu T1/T2** (aşağıdaki açık maddeler): biriken test kullanıcıları bozma turunun
+> sonuçlarını zehirler.
+>
 > ⏭️ **Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) · **12.16 adayı**
 > kategori bazlı bildirim aboneliği (12.15'in elle gönderimi canlıda doğrulandıktan sonra;
 > ⚠️ ikinci bir dispatcher **yazılmaz**, var olan tek sahip genişletilir).
