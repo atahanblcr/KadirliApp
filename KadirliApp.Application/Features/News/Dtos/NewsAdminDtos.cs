@@ -79,7 +79,73 @@ public class NewsAdminDto
     /// </remarks>
     public bool OverrideIsStale { get; set; }
 
+    // ── Bildirim (Faz 12.15) ────────────────────────────────────────────────────
+
+    /// <summary>Bildirimin gönderildiği an — <c>null</c> ise hiç gönderilmemiş.</summary>
+    /// <remarks>
+    /// 🔑 Liste satırında da taşınıyor (yalnız ayrıntıda değil): yöneticinin en sık soracağı
+    /// soru <i>"bunu duyurdum mu?"</i> ve cevabı her kaydı tek tek açarak aramak, pratikte
+    /// aramamak demektir. Süzgeç karşılığı <c>QueryNewsAdminDto.Notified</c>.
+    /// </remarks>
+    public DateTime? NotificationSentAt { get; set; }
+
+    /// <summary>Gönderimi açan kampanya — panel buradan gönderim panosuna bağlantı çizer.</summary>
+    public Guid? NotificationCampaignId { get; set; }
+
+    /// <summary>Gönderim anında yazılan bildirim satırı sayısı (tarihçe).</summary>
+    public int? NotificationRecipientCount { get; set; }
+
+    public string? NotificationSentByName { get; set; }
+
     public List<NewsCategoryRefDto> Categories { get; set; } = new();
+}
+
+/// <summary>
+/// Faz 12.15 — <b>"gönder" butonunun etrafındaki her şey</b>: gönderilebilir mi, gönderilirse
+/// ne yazacak, kaç kişiye gidecek.
+/// </summary>
+/// <remarks>
+/// 🔴 <b>Üç alanın da sunucudan gelmesi zorunlu</b> (12.2b'nin <c>CanCancel</c> dersi,
+/// §7 madde 37): görünüm kendi koşulunu yazarsa komutun reddedeceği bir buton çizilir.
+/// 🔑 <see cref="Title"/>/<see cref="Body"/> <b>gerçekten gidecek metnin kendisidir</b>
+/// (<c>NewsNotificationText</c>) — "yaklaşık böyle olacak" bir örnek değil. Önizleme ile
+/// gönderim ayrışırsa yönetici okuduğu metni onaylamış olmaz.
+/// ⚠️ <see cref="EstimatedRecipients"/> <b>gönderimin kendi sorgusundan</b> gelir
+/// (<c>INotificationDispatcher.EstimateRecipientsAsync</c>, §7 madde 38): ayrı bir sayım
+/// "342 kişiye gidecek" der, gönderim 280 satır yazar ve fark hiçbir yerde görünmez.
+/// </remarks>
+public class NewsNotificationPreviewDto
+{
+    public Guid ArticleId { get; set; }
+
+    public bool CanSend { get; set; }
+
+    /// <summary>Gönderilemiyorsa <b>sebebi</b> — panel butonun yerine bunu basar.</summary>
+    public string? Reason { get; set; }
+
+    /// <summary>Gönderilecek başlık (etkin başlık, tavanlanmış).</summary>
+    public string Title { get; set; } = default!;
+
+    /// <summary>Gönderilecek gövde — <b>kendi kendine yeterli</b> olmak zorunda.</summary>
+    public string Body { get; set; } = default!;
+
+    /// <summary>Bildirim tercihi + aktiflik süzgecinden geçen kullanıcı sayısı.</summary>
+    public int EstimatedRecipients { get; set; }
+
+    // ── Gönderilmişse ───────────────────────────────────────────────────────────
+    public DateTime? SentAt { get; set; }
+    public Guid? CampaignId { get; set; }
+    public int? RecipientCount { get; set; }
+    public string? SentByName { get; set; }
+}
+
+/// <summary>Gönderim sonucunun panele dönen özeti — mesaj <b>sayıyı söyler</b>.</summary>
+public class NewsNotificationResultDto
+{
+    public Guid CampaignId { get; set; }
+    public int RecipientCount { get; set; }
+    public string Title { get; set; } = default!;
+    public string Body { get; set; } = default!;
 }
 
 /// <summary>Panel liste süzgeci.</summary>
@@ -101,6 +167,17 @@ public class QueryNewsAdminDto
     public bool? SourceUpdated { get; set; }
 
     public bool? Featured { get; set; }
+
+    /// <summary>
+    /// Faz 12.15 — <c>true</c> → yalnız bildirimi gönderilmiş, <c>false</c> → yalnız
+    /// gönderilmemiş kayıtlar.
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <c>false</c> tarafı asıl işe yarayan taraf: <i>"bugün hangi haberi duyurmayı
+    /// atladım?"</i> sorusunun tek cevabı. Yalnız <c>true</c> sunulsaydı süzgeç bir rapor
+    /// aracı olur, bir iş listesi olmazdı.
+    /// </remarks>
+    public bool? Notified { get; set; }
 
     public DateTime? From { get; set; }
     public DateTime? To { get; set; }

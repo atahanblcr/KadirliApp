@@ -286,6 +286,14 @@ public class NewsSyncService : INewsSyncService
                     {
                         article.MarkSourceGone(now);
                         run.MarkedGone++;
+
+                        // 🔴 Faz 12.15 — kaynaktan kalkan haberin bildirimleri de düşer
+                        // (§7 madde 24). Kalsalardı vatandaş bildirime dokunur ve **boş
+                        // sayfaya** düşerdi: gone bir kayıt public uçtan zaten yok.
+                        // ⚠️ Kaydetme burada değil — bütün mutabakat tek `SaveChanges` ile
+                        // kapanıyor (`CompleteRunAsync`), yoksa yarıda kesilen bir koşu
+                        // "bildirimleri silinmiş ama hâlâ yayında" kayıtlar bırakırdı.
+                        await NewsNotificationCleanup.RemoveDeliveredAsync(_uow, article.Id, ct);
                     }
                 }
                 else if (article.SourceState == NewsSourceStates.Gone)

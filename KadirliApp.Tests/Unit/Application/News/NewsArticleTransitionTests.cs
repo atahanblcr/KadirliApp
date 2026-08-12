@@ -160,4 +160,67 @@ public class NewsArticleTransitionTests
 
         article.Categories.Should().HaveCount(1);
     }
+
+    // ── Bildirim işareti (Faz 12.15) ────────────────────────────────────────
+
+    [Fact]
+    public void MarkNotificationSent_RecordsTheCampaignAndTheCount()
+    {
+        var article = Article();
+        var campaignId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+
+        article.MarkNotificationSent(campaignId, 1243, adminId, Now).Should().BeTrue();
+
+        article.NotificationSent.Should().BeTrue();
+        article.NotificationCampaignId.Should().Be(campaignId);
+        article.NotificationRecipientCount.Should().Be(1243);
+        article.NotificationSentBy.Should().Be(adminId);
+        article.NotificationSentAt.Should().Be(Now);
+    }
+
+    /// <summary>
+    /// 🔴 İkinci çağrı kaydı <b>değiştirmez</b> ve bunu söyler.
+    /// </summary>
+    /// <remarks>
+    /// Sessizce ezseydi en tehlikeli hasar doğardı: ilk kampanyanın kimliği kaybolur, panel
+    /// yeni kampanyaya bağlanır ve <i>şehre iki kez push atıldığı</i> hiçbir yerde görünmezdi.
+    /// </remarks>
+    [Fact]
+    public void MarkNotificationSent_IsTerminal_AndTheSecondCallChangesNothing()
+    {
+        var article = Article();
+        var first = Guid.NewGuid();
+        article.MarkNotificationSent(first, 10, null, Now);
+
+        var again = article.MarkNotificationSent(Guid.NewGuid(), 999, Guid.NewGuid(), Now.AddDays(1));
+
+        again.Should().BeFalse();
+        article.NotificationCampaignId.Should().Be(first);
+        article.NotificationRecipientCount.Should().Be(10);
+        article.NotificationSentAt.Should().Be(Now);
+    }
+
+    /// <summary>
+    /// Arşivleme, geri alma ve kaynağın <c>gone</c> olması işarete <b>dokunmaz</b>.
+    /// </summary>
+    /// <remarks>
+    /// Gönderim terminaldir (§7 madde 37): FCM'e iletilmiş mesaj geri çağrılamaz, dolayısıyla
+    /// "hiç gönderilmemiş" durumuna dönmek yalan olurdu — ve panel o yalana bakıp şehre
+    /// ikinci kez yazardı.
+    /// </remarks>
+    [Fact]
+    public void VisibilityTransitions_DoNotClearTheNotificationMark()
+    {
+        var article = Article();
+        article.MarkNotificationSent(Guid.NewGuid(), 10, null, Now);
+
+        article.Archive("gerekçe", null, Now);
+        article.MarkSourceGone(Now);
+        article.Unarchive();
+        article.MarkSourcePublished(Now);
+
+        article.NotificationSent.Should().BeTrue();
+        article.NotificationSentAt.Should().Be(Now);
+    }
 }

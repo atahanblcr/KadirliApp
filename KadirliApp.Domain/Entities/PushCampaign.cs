@@ -46,10 +46,10 @@ public class PushCampaign : BaseEntity
     /// </summary>
     public string? TargetNeighborhoods { get; set; }
 
-    /// <summary>Gönderimi doğuran şey: <c>announcement</c> · <c>power_outage</c> · <c>manual</c>.</summary>
+    /// <summary>Gönderimi doğuran şey: <c>announcement</c> · <c>power_outage</c> · <c>manual</c> · <c>news</c>.</summary>
     public string Source { get; set; } = default!;
 
-    /// <summary>Kaynak kaydın kimliği (duyuru id'si gibi). Manuel gönderimde <c>null</c>.</summary>
+    /// <summary>Kaynak kaydın kimliği (duyuru ya da haber id'si). Manuel gönderimde <c>null</c>.</summary>
     public Guid? SourceId { get; set; }
 
     /// <summary>Manuel gönderimde butona basan yönetici. Otomatik gönderimlerde <c>null</c>.</summary>
@@ -127,6 +127,18 @@ public static class PushCampaignSources
     /// <summary>Panelden elle gönderilen tek seferlik bildirim.</summary>
     public const string Manual = "manual";
 
+    /// <summary>
+    /// Faz 12.15 — panelden <b>bir habere</b> bağlı olarak gönderilen bildirim.
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <c>Manual</c>'dan ayrı bir kaynak olmak zorunda ve fark <c>SourceId</c>: elle
+    /// gönderimin gidilecek bir kaydı yoktur (<c>RelatedType = null</c>), haber bildiriminin
+    /// vardır. Aynı kova sayılsalardı pano "elle gönderim" derken bir kısmı deep-link taşırdı
+    /// ve <b>"aynı haber ikinci kez gönderilmesin"</b> kuralının tutunacağı bir anahtar
+    /// kalmazdı — kısmi unique indeks tam olarak <c>(source, source_id)</c> üzerinde duruyor.
+    /// </remarks>
+    public const string News = "news";
+
     public static readonly IReadOnlySet<string> All =
-        new HashSet<string>(StringComparer.Ordinal) { Announcement, PowerOutage, Manual };
+        new HashSet<string>(StringComparer.Ordinal) { Announcement, PowerOutage, Manual, News };
 }

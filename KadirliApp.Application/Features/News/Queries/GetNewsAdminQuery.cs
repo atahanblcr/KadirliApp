@@ -93,6 +93,12 @@ public class GetNewsAdminQueryHandler : IRequestHandler<GetNewsAdminQuery, Paged
         if (dto.Featured == true) query = NewsVisibility.Featured(query, now);
         else if (dto.Featured == false) query = NewsVisibility.NotFeatured(query, now);
 
+        // Faz 12.15 — ölçüt `NotificationSentAt`, `NotificationCampaignId` DEĞİL: kampanya
+        // FK'sı `SetNull` (kampanya bir gün temizlenebilir) ve o an kayıt sessizce
+        // "hiç gönderilmemiş" tarafına düşerdi.
+        if (dto.Notified == true) query = query.Where(x => x.NotificationSentAt != null);
+        else if (dto.Notified == false) query = query.Where(x => x.NotificationSentAt == null);
+
         if (dto.From is { } from)
             query = query.Where(x => x.SourcePublishedAt >= from.Date);
 

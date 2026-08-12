@@ -2,7 +2,16 @@
 
 > **Amaç:** Flutter mobil istemcisinin tek referansı. Zarf şeması, hata kodları, auth akışı, sayfalama, tarih/görsel kuralları ve public uç envanteri.
 > **Makine-okur şema:** `docs/openapi.json` (OpenAPI 3.0; `openapi_generator`/`dio` ile kod üretimi için). Bu doküman insan rehberi, openapi.json kesin şema — **çeliştiğinde openapi.json + mevcut kod kazanır.**
-> Son gözden geçirme: **9 Ağustos 2026 (Faz 12.4)** — **etkinlik uçları additive olarak genişledi.**
+> Son gözden geçirme: **13 Ağustos 2026 (Faz 12.15)** — **public yüzeyde değişiklik YOK**, ama
+> **üretilen veride bir yenilik var:** push `data.relatedType` artık **`"news"`** değerini de
+> taşıyabiliyor (`relatedId` = haber kimliği → mobilde `/haberler/:id`). Yeni uç eklenmedi,
+> hiçbir DTO değişmedi.
+> ⚠️ Görünmez sözleşme #18'in **kabul edilmiş sınırı burada devreye giriyor:** mağazadaki
+> **12.14 öncesi** sürümler bu türü tanımaz → bildirimi listede **okur**, dokununca **hiçbir
+> yere gitmez** ve hata da almaz. Eşleme mobilde 12.14'te yazıldı (bilinçli olarak bir sürüm
+> önce). 🔑 Bu yüzden push **gövdesi kendi kendine yeterli** üretiliyor (başlık + haberin ilk
+> cümlesi, `NewsNotificationText`): gezinemeyen kullanıcı da **bilgiyi almış** olmalı.
+> Önceki: **9 Ağustos 2026 (Faz 12.4)** — **etkinlik uçları additive olarak genişledi.**
 > `EventResponseDto`'ya dört alan (`districtId` · `districtName` · `provinceName` · **`locationLabel`**),
 > `GET /v1/events`'e üç süzgeç (`districtId` · **`locationScope`** · `onlyLocal`) eklendi.
 > **Hiçbir alan silinmedi/yeniden adlandırılmadı** → mağazadaki eski sürümler tek satır değişmeden

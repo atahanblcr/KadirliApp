@@ -58,13 +58,14 @@ public class NewsAdminController : Controller
         [FromQuery] bool? edited,
         [FromQuery] bool? sourceUpdated,
         [FromQuery] bool? featured,
+        [FromQuery] bool? notified,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
         [FromQuery] string? sort,
         [FromQuery] int page = 1)
     {
         var result = await _sender.Send(new GetNewsAdminQuery(
-            BuildQuery(search, categoryId, state, edited, sourceUpdated, featured, from, to, sort, page, PageSize)));
+            BuildQuery(search, categoryId, state, edited, sourceUpdated, featured, notified, from, to, sort, page, PageSize)));
 
         ViewBag.Search = search;
         ViewBag.CategoryId = categoryId;
@@ -72,6 +73,7 @@ public class NewsAdminController : Controller
         ViewBag.Edited = edited;
         ViewBag.SourceUpdated = sourceUpdated;
         ViewBag.Featured = featured;
+        ViewBag.Notified = notified;
         ViewBag.From = from;
         ViewBag.To = to;
         ViewBag.Sort = sort;
@@ -92,6 +94,11 @@ public class NewsAdminController : Controller
     {
         var article = await _sender.Send(new GetNewsAdminByIdQuery(id));
         if (article is null) return NotFound();
+
+        // 🔴 Faz 12.15 — butonun koşulu, gidecek metin ve alıcı sayısı SUNUCUDAN gelir
+        // (12.2b'nin `CanCancel` dersi): görünüm kendi koşulunu yazsaydı komutun
+        // reddedeceği bir buton çizerdi.
+        ViewBag.Notification = await _sender.Send(new GetNewsNotificationPreviewQuery(id));
 
         return View(article);
     }
@@ -270,6 +277,48 @@ public class NewsAdminController : Controller
         return BackToList(returnUrl, id);
     }
 
+    /// <summary>
+    /// Faz 12.15 — haberi <b>tek tıkla</b> push olarak gönderir.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>Aksiyon adı izin eylemini belirler ve "SendNotification" öneki
+    /// <c>PanelPermissionFilter.ActionFor</c>'a ELLE eklendi</b> (§7 madde 19'un dördüncü
+    /// tekrarı). Eklenmeseydi POST olduğu için sessizce <c>update</c>'e düşerdi: bu ekran
+    /// izin matrisinin <b>içinde</b> olduğu için yalnız <i>başlık düzeltme</i> yetkisi olan
+    /// bir moderatör <b>tüm şehre push atabilir</b> hâle gelirdi ve bunu hiçbir yer söylemezdi.
+    ///
+    /// 🔑 <b>Toplu karşılığı bilinçli olarak YOK.</b> "SendNotificationSelected" yazmak
+    /// teknik olarak kolaydı; ama tek tıkla 20 haberin şehre gitmesi, bu alt-fazın var olma
+    /// sebebiyle (bildirim yorgunluğu → kullanıcı bildirimleri tümden kapatır → <i>kesinti</i>
+    /// bildirimini de almaz) doğrudan çelişirdi.
+    ///
+    /// ⚠️ Mesaj <b>sayıyı söyler</b>: "gönderildi" demek, gerçekte 0 kişiye yazılmışken
+    /// yöneticiyi yanıltır (12.3'ün <c>NotificationSuffix</c> deseni).
+    /// </remarks>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendNotification(Guid id, string? returnUrl)
+    {
+        var result = await _sender.Send(new SendNewsNotificationCommand { Id = id, AdminId = GetAdminId() });
+
+        if (!result.Success)
+        {
+            TempData["Error"] = result.Error?.Message ?? "Bildirim gönderilemedi.";
+            return BackToList(returnUrl, id);
+        }
+
+        var sent = result.Data!;
+
+        TempData["Success"] = sent.RecipientCount > 0
+            ? $"Bildirim {sent.RecipientCount} kişiye yazıldı — teslim durumu Bildirim Gönderimleri ekranından izlenebilir."
+            // 🔑 "0 alıcı" bir hata değil bir CEVAP: hedeflemeye uyan (aktif + bildirimleri
+            // açık) kimse çıkmamış. "Gönderildi" deyip geçmek, gitmeyen bir bildirimi
+            // gitmiş göstermek olurdu.
+            : "Bildirim oluşturuldu ancak hedeflemeye uyan kullanıcı bulunamadı (aktif ve bildirimleri açık kullanıcı yok).";
+
+        return BackToList(returnUrl, id);
+    }
+
     // ── Toplu işlem ─────────────────────────────────────────────────────────────
     // ⚠️ Ad "…Selected" ile biter, "Bulk…" ile başlamaz: izin eylemi aksiyon adının
     // ÖNEKİNDEN türetilir (§7 madde 19/29) ve `BulkArchive` sessizce `update`'e düşerdi.
@@ -314,6 +363,7 @@ public class NewsAdminController : Controller
         [FromQuery] bool? edited,
         [FromQuery] bool? sourceUpdated,
         [FromQuery] bool? featured,
+        [FromQuery] bool? notified,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
         [FromQuery] string? sort)
@@ -322,12 +372,12 @@ public class NewsAdminController : Controller
         // Pagination.Clamp yüzünden ilk sayfayı "tüm liste" sanmak demektir (11.16b tuzağı).
         var (rows, total) = await PanelCsv.CollectAsync<NewsAdminDto>(
             (p, size) => _sender.Send(new GetNewsAdminQuery(
-                BuildQuery(search, categoryId, state, edited, sourceUpdated, featured, from, to, sort, p, size))));
+                BuildQuery(search, categoryId, state, edited, sourceUpdated, featured, notified, from, to, sort, p, size))));
 
         if (PanelCsv.RejectIfTooLarge(total) is { } tooLarge)
         {
             TempData["Error"] = tooLarge;
-            return RedirectToAction(nameof(Index), new { search, categoryId, state, edited, sourceUpdated, featured, from, to, sort });
+            return RedirectToAction(nameof(Index), new { search, categoryId, state, edited, sourceUpdated, featured, notified, from, to, sort });
         }
 
         return PanelCsv.File(rows, CsvColumns, "haberler");
@@ -343,7 +393,7 @@ public class NewsAdminController : Controller
 
     private static QueryNewsAdminDto BuildQuery(
         string? search, Guid? categoryId, string? state, bool? edited, bool? sourceUpdated,
-        bool? featured, DateTime? from, DateTime? to, string? sort, int page, int limit) => new()
+        bool? featured, bool? notified, DateTime? from, DateTime? to, string? sort, int page, int limit) => new()
         {
             Search = search,
             CategoryId = categoryId,
@@ -351,6 +401,7 @@ public class NewsAdminController : Controller
             Edited = edited,
             SourceUpdated = sourceUpdated,
             Featured = featured,
+            Notified = notified,
             From = from,
             To = to,
             Sort = sort,
@@ -368,6 +419,8 @@ public class NewsAdminController : Controller
         new("Elle düzenlendi", x => x.HasOverrides ? "Evet" : "Hayır"),
         new("Kaynağı güncellendi", x => x.OverrideIsStale ? "Evet" : "Hayır"),
         new("Öne çıkan", x => x.IsFeatured ? "Evet" : "Hayır"),
+        // Faz 12.15 — CSV ekrandaki süzgeci taşıdığı gibi ekrandaki bilgiyi de taşımalı.
+        new("Bildirim gönderildi", x => x.NotificationSentAt is null ? "Hayır" : PanelCsv.Date(x.NotificationSentAt)),
         new("Düzenleyen", x => x.OverrideUpdatedByName),
         new("Kaldırma gerekçesi", x => x.ArchivedReason),
         new("Kaynakta değişiklik", x => PanelCsv.Date(x.ModifiedAt)),

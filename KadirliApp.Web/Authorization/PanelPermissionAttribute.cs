@@ -64,7 +64,22 @@ public sealed class PanelPermissionFilter : IAsyncAuthorizationFilter
         // olduğu için sessizce "update"e düşerdi. Sonuç absürt ama sessiz olurdu:
         // *yayından kaldırmak `approve` isterken, yayına geri döndürmek `update` ile
         // yapılabilirdi.* Listede `Unverify`/`Unban` çiftleri zaten vardı — desen takip edildi.
-        if (StartsWithAny(actionName, "Approve", "Reject", "Verify", "Unverify", "Ban", "Unban", "UpdateStatus", "Resolve", "Archive", "Unarchive"))
+        //
+        // 🔴 Faz 12.15'te "SendNotification" eklendi ve BU DA ELLE EKLENMEK ZORUNDAYDI —
+        // §7 madde 19'un dördüncü tekrarı (BulkApprove 11.18 · Archive 12.10 · Unarchive
+        // 12.13 · SendNotification 12.15). Ad hiçbir önekle eşleşmiyor ve POST olduğu için
+        // sessizce "update"e düşerdi. Sonuç, listedeki en ağır sessiz yetki yükselmesi
+        // olurdu: **yalnız başlık düzeltme yetkisi olan bir moderatör tüm şehre push
+        // atabilirdi** ve bunu ne panel ne test söylerdi. Haber ekranı (Archive/Unarchive'ın
+        // aksine PushCampaignsAdmin'in aksine) izin matrisinin İÇİNDE, yani moderatöre
+        // açık — tuzak burada teorik değil.
+        //
+        // 📌 Neden "approve" ve neden yeni bir eylem değil: matris beş eylem tanıyor
+        // (read/create/update/delete/approve) ve "approve" bu projede *"içeriği şehre
+        // ulaştırma kararı"* kovası. Altıncı bir eylem eklemek izin tablosunu, matris
+        // arayüzünü ve seed'i birden değiştirirdi; kazancı ise "arşivleyebilen ama bildirim
+        // gönderemeyen moderatör" gibi pratikte istenmemiş bir ayrım olurdu.
+        if (StartsWithAny(actionName, "Approve", "Reject", "Verify", "Unverify", "Ban", "Unban", "UpdateStatus", "Resolve", "Archive", "Unarchive", "SendNotification"))
             return "approve";
 
         if (Contains(actionName, "Delete") || Contains(actionName, "Remove")) return "delete";

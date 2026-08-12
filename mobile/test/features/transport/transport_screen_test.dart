@@ -90,6 +90,12 @@ void main() {
   /// Bugün **kesin olarak ileride** olan iki kalkış saati üretir (Kadirli saatiyle).
   /// Gece yarısına yakın koşulduğunda ertesi güne taşmamak için son sefer 23:30'da
   /// sabitlenir; o pencerede de en az bir "sıradaki" kalkış kalır.
+  /// Şimdiye göre "yakında" iki kalkış saati.
+  ///
+  /// ⚠️ **Bunun üzerine "sıradaki sefer var" iddiası KURULAMAZ.** Gün taşmasında
+  /// sabit 23:30'a kırpıyor, yani saat 23:30'u geçtiğinde ürettiği saatler
+  /// **geçmişte** kalır — kart haklı olarak "Bugünkü seferler bitti" der.
+  /// Saate bağlı iddialar `now` enjekte edilebilen **kart** testinde kurulur.
   List<String> soonTimes({DateTime? now}) {
     final t = now == null ? AppDate.nowInTurkey : AppDate.toTurkey(now);
     String at(int minutesFromNow) {
@@ -138,23 +144,57 @@ void main() {
     return adapter;
   }
 
-  testWidgets('şehirlerarası hatlar sıradaki kalkışla listelenir', (
-    tester,
-  ) async {
-    // ⚠️ Sabit saatli fixture ("07:00 · 10:30 · 14:00 · 17:30") bu iddiayı **duvar
-    // saatine bağımlı** kılıyordu: akşam koşulduğunda bugünkü seferler bittiği için
-    // kart "Bugünkü seferler bitti · Yarın 07:00" yazıyor ve test kırmızıya dönüyordu
-    // (11.10'daki "yalnız geceleri patlayan fixture" hatasının akşam sürümü).
-    // Sefer saati artık **şimdiye göre** üretiliyor → gün içinde her saatte geçerli.
+  testWidgets('şehirlerarası hatlar listelenir', (tester) async {
     await openTransport(tester, intercityItems: [intercity(times: soonTimes())]);
 
     expect(find.text('Kadirli → Adana'), findsOneWidget);
     expect(find.text('Kadirli Seyahat'), findsOneWidget);
     expect(find.text('1 sa 45 dk'), findsOneWidget);
     expect(find.text('220 ₺'), findsOneWidget);
-    // "Sıradaki HH:mm · …" satırı saate göre değişiyor; sabit kısmı doğrula.
-    expect(find.textContaining('Sıradaki '), findsOneWidget);
     expect(find.text('Toplam 1 hat'), findsOneWidget);
+  });
+
+  /// 🐛 **"Sıradaki" iddiası buraya TAŞINDI (12.15 oturumunda kırmızı bulundu).**
+  ///
+  /// Ekran seviyesinde bu satır **duvar saatine** bağımlıydı ve iki kez yamandı:
+  /// önce sabit saatli fixture akşamları patladı, sonra `soonTimes()` "şimdiye göre"
+  /// üretmeye çevrildi — ama gün taşmasını **sabit 23:30**'a kırpıyordu. Yani saat
+  /// 23:30'u geçtiğinde fixture'ın ürettiği iki sefer de **geçmişte** kalıyor, kart
+  /// haklı olarak *"Bugünkü seferler bitti"* yazıyor ve test kırmızıya dönüyordu.
+  /// (Bu oturumda 23:5x'te yakalandı.)
+  ///
+  /// 🔑 Asıl hata yamanın kendisi değil **yeri**: ekran testi `now` enjekte edemiyor,
+  /// yani iddia günün son yarım saatinde *tanım gereği* doğru olamaz. Kart seviyesinde
+  /// `now` enjekte edilebiliyor (§ checklist: *"tarih gösteren karta `now` enjekte
+  /// edilebilmeli"* — bu projede 4 kez tekrarlamış sınıf) ve iddia orada **her saatte**
+  /// geçerli. Ekran testine kalan, saatten bağımsız olan kısım.
+  testWidgets('kart sıradaki kalkışı yazar (now enjekte edilir)', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    // 3 Ağustos 2026 Pazartesi, Kadirli 12:00 (UTC+3) — 14:00 seferi henüz gelmedi.
+    final monday = DateTime.utc(2026, 8, 3, 9);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: IntercityRouteCard(
+              now: monday,
+              expanded: false,
+              onToggle: () {},
+              route: IntercityRoute.fromJson(intercity(times: ['14:00'])),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('Sıradaki 14:00'), findsOneWidget);
   });
 
   testWidgets('kart açılınca tüm kalkış saatleri görünür, tekrar dokunmak kapatır', (

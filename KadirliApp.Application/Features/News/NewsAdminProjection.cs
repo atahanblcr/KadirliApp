@@ -69,6 +69,12 @@ public static class NewsAdminProjection
         IsFeatured = x.IsFeatured,
         FeaturedUntil = x.FeaturedUntil,
 
+        // Faz 12.15 — "bunu duyurdum mu?" liste satırında da cevaplanır.
+        NotificationSentAt = x.NotificationSentAt,
+        NotificationCampaignId = x.NotificationCampaignId,
+        NotificationRecipientCount = x.NotificationRecipientCount,
+        NotificationSentByName = users.Where(u => u.Id == x.NotificationSentBy).Select(u => u.Username).FirstOrDefault(),
+
         HasOverrides = x.TitleOverride != null || x.ExcerptOverride != null || x.CoverImageFileIdOverride != null,
         OverrideUpdatedAt = x.OverrideUpdatedAt,
         OverrideUpdatedByName = users.Where(u => u.Id == x.OverrideUpdatedBy).Select(u => u.Username).FirstOrDefault(),

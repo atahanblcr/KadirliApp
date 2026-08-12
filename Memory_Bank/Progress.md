@@ -4498,7 +4498,7 @@ açılıyor, bağlantılar tarayıcıda açılıyor · **görsel olmayan haber**
 
 ---
 
-### 12.15 — Haberler: bildirim — [ ]
+### 12.15 — Haberler: bildirim — [x] ✅ TAMAMLANDI (13 Ağustos 2026)
 
 **Hedef:** Yöneticinin bir haberi **tek tıkla** push olarak gönderebilmesi.
 
@@ -4546,7 +4546,141 @@ emülatörde bildirim düşüyor, dokununca **haber detayı** açılıyor · ayn
 gönderilemiyor (buton yerine bağlantı) · haber arşivlenince bildirimleri düşüyor ·
 bildirimi kapatmış kullanıcı **almıyor** · gövde **tek başına anlamlı**.
 
+#### ✅ Teslim edildi (13 Ağustos 2026)
+
+**Yapılanlar (plan):**
+
+- **`PushCampaignSources.News`** (additive) + `PanelDisplay.PushSources["news"]` Türkçe rozeti
+  + denetim izinde ayrı satır (`send-notification` → *"Haber bildirimi gönderdi"*).
+  🔑 `manual`'dan **ayrı** bir kaynak olmak zorundaydı ve fark `SourceId`: elle gönderimin
+  gidilecek bir kaydı yok, haberinkinin var — ve o kimlik "ikinci kez gönderilemez"
+  kuralının veritabanındaki çıpası.
+- **`SendNewsNotificationCommand`** — hedeflemenin tek sahibi `INotificationDispatcher`
+  (§7 madde 38), hedef `all` (haberin mahallesi yok), `relatedType`/`NotificationType`
+  = `"news"`, `RelatedId` = haber kimliği.
+- **Panel deseni `PowerOutagesAdminController`'dan**: buton yalnız gönderilebilir kayıtta
+  aktif, gönderilmişse **buton yerine** "Gönderim kaydına git", koşul **sunucudan**
+  (`NewsNotificationPreviewDto`), mesaj **sayıyı söyler** ("Bildirim 3 kişiye yazıldı" /
+  "hedeflemeye uyan kullanıcı bulunamadı").
+- **Temizlik:** haber arşivlenirse ya da `gone` olursa bildirimleri **fiziksel** düşer;
+  güncelleme ikinci bildirim üretmez (üretemez — işaret terminal).
+- Mobil tarafta **tek satır değişmedi**: `news → /haberler/:id` eşlemesi 12.14'te yazılmıştı.
+
+#### 🔴 Karar 1: kolon `announcement_id` DEĞİL — reddedilmiş tasarım DÜŞÜRÜLDÜ
+
+12.12 `news_articles.announcement_id`'yi *"haberin bildirimi bir **duyuru** olarak açılır"*
+varsayımıyla açmıştı (kesinti modülünün yolu, §7 madde 41). **12.15 o yolu reddetti** —
+her haber push'u bir `Announcement` satırı açardı, yani haber **Duyurular listesinde de**
+görünür ve iki modül birbirine karışırdı (kullanıcı kararı).
+
+Kolon **hiç yazılmamıştı** (canlıda ölçüldü: 56 satırın 56'sı `NULL`) ve adı artık
+reddedilmiş bir tasarımı anlatıyordu → düşürüldü. Yerine `notification_campaign_id` (FK →
+`push_campaigns`, `SetNull`) + `notification_sent_at` + `notification_sent_by` +
+`notification_recipient_count` geldi, dördü de **`init`** (§7 madde 53'ün deseni).
+🐛 **EF bu göçü RENAME olarak üretmek istedi** (ikisi de nullable `uuid`; sezgisel
+eşleştirme). Teknik olarak çalışırdı ama **niyeti gizlerdi** — migration elle `DropColumn`
++ `AddColumn`'a çevrildi.
+
+#### 🔴 Karar 2: gönderim TERMİNAL ve kural ÜÇ katmanda birden yaşıyor
+
+Panelin butonu (görünüm) · komutun `NotificationSent` denetimi (sunucu) ·
+**`push_campaigns` üzerinde kısmi unique indeks** (`source = 'news' AND source_id IS NOT NULL`).
+
+🔑 **Üçüncüsü neden gerekli:** ilk ikisi bir **yarışı** yakalayamaz. Gönderim ile işaretleme
+aynı `SaveChanges` içinde değil — kampanya kimliği ancak dispatcher yazdıktan **sonra**
+doğuyor. İki eşzamanlı istek ikisi de "gönderilmemiş" görüp **şehre iki push** atabilirdi.
+⚠️ İndeksin kapsamı **bilerek dar**: duyuru/kesintide aynı kaynağa ikinci gönderim
+**meşrudur** (§7 madde 37) ve genel bir unique indeks o yolu sessizce kapatırdı.
+⚠️ 12.13'ün *"koruma ile kurtarma birlikte yazılır"* dersi burada **gerekmiyor** ve sebebi
+önemli: senkron kilidinin aksine bu satır **terminal** — yarıda kalmış bir hâli yok.
+⚠️ `MarkNotificationSent` ikinci çağrıda kaydı **değiştirmez** ve `false` döner. Sessizce
+ezseydi ilk kampanyanın kimliği kaybolur, panel yenisine bağlanır ve *iki kez gönderildiği*
+**hiçbir yerde görünmezdi**.
+
+#### 🔴 Karar 3: planın koşulu EKSİKTİ — görünmezliğin ÜÇ ekseni var
+
+Plan butonun koşulunu *"arşivlenmemiş + kaynağı yayında"* diye yazıyordu. Oysa haberin
+görünmezliğinin **üç** ekseni var (§7 madde 58/59) ve üçüncüsü sinsi: **dışlanmış
+kategorideki** bir haber panelde *"Yayında"* görünür ama uygulamada **yoktur**. Bildirimi
+gönderilseydi vatandaş bildirimi alır, dokunur ve **boş sayfaya** düşerdi — 11.15c'de
+duyurularda birebir yaşanan hasar (§7 madde 24).
+
+Kural `NewsNotificationRules`'ta ve ölçüt **`NewsVisibility.Published` sorgusunun kendisi**;
+bellek kopyası yazılmadı (ayrıştıkları an §7 madde 23). Aynı sınıfı hem önizleme hem komut
+çağırıyor — ayrı yazılsalardı 12.2b'nin dersi tekrarlanırdı (*görünüm kendi koşulunu
+yazarsa komutun reddedeceği bir buton çizilir*).
+
+#### 🔴 Karar 4: gövde KENDİ KENDİNE YETERLİ (`NewsNotificationText`)
+
+§7 madde 18'in kabul edilmiş bedelinin **tek hafifletmesi**: eski sürümler `news` türünü
+tanımaz → bildirimi **okur**, dokununca **hiçbir yere gitmez**. Gövde her koşulda haberin
+**ilk cümlesini** taşıyor (özet override → kaynak özeti → düz metin → **son çare başlık**)
+ve **asla boş olamıyor** — `PushCampaign.Body` `IsRequired` ve FCM boş gövdeli mesajı kimi
+cihazda **hiç göstermiyor**, yani özetsiz bir haberin bildirimi sessizce buharlaşırdı.
+Tavan 180 karakter (500 değil): bildirim **gölgede** okunuyor.
+
+#### 🔴 İzin: "SendNotification" öneki ELLE eklendi — §7 madde 19'un DÖRDÜNCÜ tekrarı
+
+(`BulkApprove` 11.18 · `Archive` 12.10 · `Unarchive` 12.13 · `SendNotification` 12.15.)
+Ad hiçbir önekle eşleşmiyor ve POST olduğu için sessizce **`update`**'e düşerdi. Bu, listedeki
+**en ağır** sessiz yetki yükselmesi olurdu: haber ekranı izin matrisinin **içinde** (moderatöre
+açık), yani *yalnız başlık düzeltme yetkisi olan bir moderatör tüm şehre push atabilirdi.*
+Önek `approve`'a bağlandı; altıncı bir eylem uydurulmadı (matris beş eylem tanıyor ve
+"approve" bu projede *"içeriği şehre ulaştırma kararı"* kovası).
+
+#### ➕ Plan dışı üç ek (kullanıcı sözleşmesi: "serbest, ama raporla")
+
+1. **Gönderim önizlemesi.** Kart, gidecek **başlığın ve gövdenin kendisini** ve
+   *"@N kişiye gönderilecek"* sayısını gösteriyor. Sayı **gönderimin kendi sorgusundan**
+   (`EstimateRecipientsAsync`, §7 madde 38) — ayrı bir sayım "342" der, gönderim 280 yazar
+   ve fark hiçbir yerde görünmez (12.2b'nin tuzağı). Metin de gerçekten gidenle **aynı**:
+   ayrışsaydı yönetici okuduğu metni onaylamış olmazdı.
+2. **"Bildirimi gönderilmemiş" süzgeci** (+ listede "Bildirildi" rozeti + CSV sütunu).
+   Asıl işe yarayan taraf `false`: *"bugün hangi haberi duyurmayı atladım?"* sorusunun tek
+   cevabı. Yalnız "gönderilmiş" sunulsaydı süzgeç bir **rapor** olurdu, **iş listesi**
+   olmazdı. Ölçüt `notification_sent_at` — `notification_campaign_id` **değil**, çünkü FK
+   `SetNull` ve kampanya bir gün temizlenirse kayıt sessizce "hiç gönderilmemiş" tarafına düşerdi.
+3. **Panodan habere geri bağlantı.** Haber ekranından kampanyaya bağlantı vardı, tersi
+   yoktu: pano bir **çıkmaz sokaktı**, yönetici *"bu hangi haberdi?"* sorusunu ancak başlığı
+   arayarak cevaplayabilirdi.
+
+#### 🐛 Bu oturumda bulunanlar
+
+- **EF, yeni indeksi eskisinin ÜSTÜNE yazdı.** `HasIndex(x => new { Source, SourceId })`
+  ikinci kez çağrıldığında EF ikisini **aynı indeks** sayıyor: üretilen migration, duyuru
+  idempotency'sinin dayandığı `ix_push_campaigns_source_source_id`'yi **DROP** ediyordu.
+  Ne derleyici ne test söylerdi — yalnız `AnnouncementNotificationGenerator`'ın "bu duyurunun
+  kampanyası var mı?" sorgusu büyüyen bir tabloyu tam taramaya başlardı. Çözüm **adlı aşırı
+  yükleme + `HasDatabaseName`** (ikincisi de şart: snake_case eklentisi aksi hâlde
+  `…_source_source_id1` bırakıyor). 🔑 Bunu yakalayan bir test değil, **üretilen SQL'i okuma
+  kuralıydı** (checklist §6).
+- **Mobil süitte bir test kırmızıydı ve haklıydı** (12.15 ile ilgisiz, oturumda düzeltildi):
+  `transport_screen_test`'in *"sıradaki kalkış"* iddiası **duvar saatine** bağımlıydı.
+  Daha önce iki kez yamanmıştı; kalan hata `soonTimes()`'ın gün taşmasını **sabit 23:30**'a
+  kırpmasıydı → saat 23:30'u geçince fixture'ın ürettiği seferler **geçmişte** kalıyor, kart
+  haklı olarak *"Bugünkü seferler bitti"* diyor. 🔑 Asıl hata yamanın kendisi değil **yeri**:
+  ekran testi `now` enjekte edemiyor, yani iddia günün son yarım saatinde *tanım gereği*
+  doğru olamaz. İddia `now` enjekte edilebilen **kart** testine taşındı (checklist §5'in
+  4 kez tekrarlamış maddesi), ekrana saatten bağımsız kısım kaldı.
+
+#### Testler
+
+**Backend 1053 → 1099 (+46)**, mobil 821 → **822** (+1, yukarıdaki taşınan iddia).
+Yeni dosyalar: `Unit/Application/News/NewsNotificationTextTests` (14) ·
+`NewsNotificationRulesTests` (7) · `NewsArticleTransitionTests`'e bildirim bölümü (3) ·
+`Integration/Panel/PanelNewsNotificationTests` (18, gerçek Postgres).
+
+**Bozma turu (kuralı boz → kırmızıya dönüyor mu):** izin öneki kaldırıldı ✅ (2 test) ·
+kategori dışlaması kapısı kaldırıldı ✅ (2 test) · arşivde bildirim temizliği kaldırıldı ✅ ·
+`MarkNotificationSent` terminalliği kaldırıldı ✅. Dördü de kırmızıya döndü.
+
+#### Yeni görünmez sözleşmeler
+
+**64** (üç katmanlı terminallik) · **65** (görünmezliğin üç ekseni) · **66** (bildirim
+temizliği + kendi kendine yeterli gövde). Toplam **63 → 66**.
+
 ---
+
 
 ## 📌 Bu blok için açık kalan / bilinçli ertelenen maddeler
 

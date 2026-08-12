@@ -14,12 +14,14 @@
     bool? edited = ViewBag.Edited;
     bool? sourceUpdated = ViewBag.SourceUpdated;
     bool? featured = ViewBag.Featured;
+    bool? notified = ViewBag.Notified;
     DateTime? from = ViewBag.From;
     DateTime? to = ViewBag.To;
     string? sort = ViewBag.Sort;
 
     var hasFilter = !string.IsNullOrWhiteSpace(search) || categoryId != null || state != null
-                    || edited != null || sourceUpdated != null || featured != null || from != null || to != null;
+                    || edited != null || sourceUpdated != null || featured != null || notified != null
+                    || from != null || to != null;
 
     var bulkFormId = BulkToolbarViewModel.FormIdFor("NewsAdmin");
 }
@@ -101,6 +103,18 @@
                 <option value="">Tümü</option>
                 <option value="true" selected="@(featured == true)">Yalnız öne çıkanlar</option>
                 <option value="false" selected="@(featured == false)">Öne çıkmayanlar</option>
+            </select>
+        </div>
+
+        <div>
+            @* 🔑 Asıl işe yarayan taraf "Gönderilmemiş": *"bugün hangi haberi duyurmayı
+               atladım?"* sorusunun tek cevabı. Yalnız "Gönderilmiş" sunulsaydı süzgeç bir
+               rapor aracı olur, bir iş listesi olmazdı. *@
+            <label for="notified" class="mb-1 block text-xs font-medium text-gray-600">Bildirim</label>
+            <select id="notified" name="notified" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                <option value="false" selected="@(notified == false)">Bildirimi gönderilmemiş</option>
+                <option value="true" selected="@(notified == true)">Bildirimi gönderilmiş</option>
             </select>
         </div>
 
@@ -213,6 +227,16 @@
                                     {
                                         <span class="inline-flex items-center gap-1 rounded bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
                                             <i class="fas fa-star"></i> Öne çıkarma süresi doldu
+                                        </span>
+                                    }
+                                    @* Faz 12.15 — rozet YALNIZ gönderilmişte çizilir. "Gönderilmedi"
+                                       rozeti her satırda görünür ve hiçbir şey söylemezdi; eksikliği
+                                       arayan kişinin aracı süzgeç. *@
+                                    @if (item.NotificationSentAt is { } notifiedAt)
+                                    {
+                                        <span class="inline-flex items-center gap-1 rounded bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800"
+                                              title="@notifiedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm") · @(item.NotificationRecipientCount?.ToString() ?? "?") kişi">
+                                            <i class="fas fa-paper-plane"></i> Bildirildi
                                         </span>
                                     }
                                 </div>

@@ -7,6 +7,7 @@ using KadirliApp.Application.Common.Auditing;
 using KadirliApp.Application.Common.Caching;
 using KadirliApp.Application.Common.Interfaces;
 using KadirliApp.Application.Common.Models;
+using KadirliApp.Application.Features.News.Services;
 using KadirliApp.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -62,6 +63,14 @@ public class ArchiveNewsArticleCommandHandler : IRequestHandler<ArchiveNewsArtic
             return ApiResponse<bool>.FailureResponse("NOT_FOUND", "Haber bulunamadı.");
 
         article.Archive(request.Reason, request.AdminId, DateTime.UtcNow);
+
+        // 🔴 Faz 12.15 — haber görünmez oluyorsa bildirimleri de düşer (§7 madde 24).
+        // Kalsalardı vatandaş bildirime dokunup **boş sayfaya** düşerdi; 11.15c'de silinen
+        // duyurunun 9 ölü bildirimiyle birebir aynı hasar. ⚠️ "Gönderildi" işareti ve
+        // kampanya satırı DURUR: gönderim terminaldir, geri alma ikinci bir push'a kapı
+        // açmamalı.
+        await NewsNotificationCleanup.RemoveDeliveredAsync(_uow, article.Id, ct);
+
         await _uow.SaveChangesAsync(ct);
 
         return ApiResponse<bool>.SuccessResponse(true);

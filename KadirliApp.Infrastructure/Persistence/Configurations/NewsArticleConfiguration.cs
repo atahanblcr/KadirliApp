@@ -64,6 +64,17 @@ public class NewsArticleConfiguration : IEntityTypeConfiguration<NewsArticle>
          .HasForeignKey(x => x.CoverImageFileIdOverride)
          .OnDelete(DeleteBehavior.SetNull);
 
+        // Faz 12.15 — bildirimi açan kampanya. Gezinme özelliği YOK (panel yalnız kimliği
+        // kullanıp bağlantı çiziyor); FK yine de kurulu ki kampanya kimliği uydurulamasın.
+        // ⚠️ SetNull bilinçli: kampanya bir gün temizlenirse haber kaybolmaz. `sent_at`
+        // damgası ayrı bir kolonda durduğu için "gönderildi mi?" sorusunun cevabı FK'ya
+        // bağlı değil — bağlı olsaydı kampanyanın silinmesi haberi sessizce
+        // "hiç gönderilmemiş" hâline döndürür ve panel ikinci bir push teklif ederdi.
+        b.HasOne<PushCampaign>()
+         .WithMany()
+         .HasForeignKey(x => x.NotificationCampaignId)
+         .OnDelete(DeleteBehavior.SetNull);
+
         // Koleksiyon salt-okunur bir özellik üzerinden veriliyor; EF alanı kullanmalı.
         b.Navigation(x => x.Categories).UsePropertyAccessMode(PropertyAccessMode.Field);
 

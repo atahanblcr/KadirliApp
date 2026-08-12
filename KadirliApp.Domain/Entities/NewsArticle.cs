@@ -13,7 +13,7 @@ namespace KadirliApp.Domain.Entities;
 ///   <item><b><c>*Override</c> — yöneticinin sahibi.</b> Yalnız <see cref="SetOverrides"/> /
 ///         <see cref="ClearOverrides"/> yazar. Senkron bu alanları <b>göremez</b>.</item>
 ///   <item><b>Bizim alanlarımız</b> (<see cref="IsArchived"/>, <see cref="IsFeatured"/>,
-///         <see cref="AnnouncementId"/>): WordPress'te karşılığı yok, geçişleri yine
+///         <see cref="NotificationCampaignId"/>): WordPress'te karşılığı yok, geçişleri yine
 ///         varlığın metotlarında.</item>
 /// </list>
 ///
@@ -68,6 +68,10 @@ public class NewsArticle : BaseEntity
     private DateTime? _archivedAt;
     private bool _isFeatured;
     private DateTime? _featuredUntil;
+    private Guid? _notificationCampaignId;
+    private DateTime? _notificationSentAt;
+    private Guid? _notificationSentBy;
+    private int? _notificationRecipientCount;
 
     /// <summary>WordPress gönderi kimliği — <b>kayıt eşleştirmesinin tek anahtarı</b> (unique).</summary>
     /// <remarks>
@@ -167,8 +171,42 @@ public class NewsArticle : BaseEntity
     /// <summary>Öne çıkarmanın bitiş anı; <c>null</c> = süresiz.</summary>
     public DateTime? FeaturedUntil { get => _featuredUntil; init => _featuredUntil = value; }
 
-    /// <summary>Faz 12.15'te dolacak: haberin bildirimi bir <b>duyuru</b> olarak açılır.</summary>
-    public Guid? AnnouncementId { get; set; }
+    /// <summary>
+    /// Faz 12.15 — haberin bildirimini açan <c>PushCampaign</c>. <b>Terminal:</b> bir kez
+    /// dolduktan sonra hiçbir yol onu boşaltmaz.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>Kolonun adı neden <c>AnnouncementId</c> değil:</b> 12.12'de bu alan "haberin
+    /// bildirimi bir <i>duyuru</i> olarak açılır" varsayımıyla açılmıştı (kesinti modülünün
+    /// yaptığı gibi, §7 madde 41). 12.15'te kullanıcı o yolu <b>reddetti</b>: her haber
+    /// push'u bir <c>Announcement</c> satırı açacak, yani haber <b>Duyurular listesinde de</b>
+    /// görünecek ve iki modül birbirine karışacaktı. Kolon hiç yazılmamıştı (canlıda 56
+    /// satırın 56'sı <c>NULL</c>) ve adı reddedilmiş bir tasarımı anlatıyordu — bu yüzden
+    /// düşürüldü, yerine bu geldi.
+    ///
+    /// ⚠️ <b>Kabul edilen bedeli:</b> mağazadaki <b>eski sürümler</b> <c>relatedType="news"</c>
+    /// türünü tanımaz → bildirimi listede <b>okur</b>, dokununca <b>hiçbir yere gitmez</b>
+    /// (§7 madde 18). Zorunlu hafifletmesi <c>NewsNotificationText</c>: gövde <b>kendi kendine
+    /// yeterli</b> olmak zorunda.
+    /// </remarks>
+    public Guid? NotificationCampaignId { get => _notificationCampaignId; init => _notificationCampaignId = value; }
+
+    /// <summary>Bildirimin gönderildiği an — <c>null</c> ise hiç gönderilmemiş.</summary>
+    public DateTime? NotificationSentAt { get => _notificationSentAt; init => _notificationSentAt = value; }
+
+    /// <summary>Butona basan yönetici.</summary>
+    public Guid? NotificationSentBy { get => _notificationSentBy; init => _notificationSentBy = value; }
+
+    /// <summary>Gönderim anında yazılan bildirim satırı sayısı — <b>tarihçe</b>, canlı sayaç değil.</summary>
+    /// <remarks>
+    /// Kampanya satırındaki sayaçlar (FCM'in kabul/ret kırılımı) zamanla değişir; bu alan
+    /// yalnız "o an kaç kişiye yazıldı" sorusunu cevaplar ve haber listesinde kampanyaya
+    /// gitmeden görülebilsin diye burada durur.
+    /// </remarks>
+    public int? NotificationRecipientCount { get => _notificationRecipientCount; init => _notificationRecipientCount = value; }
+
+    /// <summary><c>true</c> ise bu haberin bildirimi çoktan gitmiştir (ikinci kez gönderilemez).</summary>
+    public bool NotificationSent => _notificationSentAt is not null;
 
     // ⚠️ Gezinme özellikleri de `init`: açık bir setter, ayrımın <b>üçüncü</b> kapısını
     // aralardı — `article.SourceImage = başkaDosya` yazmak kaydedildiğinde FK'yı da değiştirir,
@@ -318,6 +356,34 @@ public class NewsArticle : BaseEntity
     {
         _isFeatured = featured;
         _featuredUntil = featured ? until : null;
+    }
+
+    /// <summary>
+    /// Faz 12.15 — bildirimin gittiğini <b>kalıcı olarak</b> işaretler. İkinci çağrı
+    /// kaydı <b>değiştirmez</b> ve <c>false</c> döner.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>Neden geçiş burada ve neden idempotent:</b> "bu haber bildirildi mi?" sorusunun
+    /// cevabını yazan tek yer burasıdır ve alan <c>init</c> olduğu için başka hiçbir yerden
+    /// yazılamaz (<c>CS8852</c>, §7 madde 53'ün deseni). İkinci çağrının <b>sessizce ezmesi</b>
+    /// en tehlikeli davranış olurdu: ilk kampanyanın kimliği kaybolur, panel yeni kampanyaya
+    /// bağlanır ve <i>şehre iki kez push atıldığı</i> hiçbir yerde görünmezdi.
+    ///
+    /// ⚠️ İşaret <b>geri alınmaz</b> — arşivleme de, kaynağın <c>gone</c> olması da, geri alma
+    /// da buraya dokunmaz. Gönderim terminaldir (§7 madde 37): FCM'e iletilmiş bir mesaj geri
+    /// çağrılamaz, dolayısıyla "gönderilmedi" durumuna dönmek <b>yalan</b> olurdu ve panel o
+    /// yalana bakıp ikinci bir push atardı.
+    /// </remarks>
+    /// <returns>İşaret bu çağrıda kondu mu.</returns>
+    public bool MarkNotificationSent(Guid campaignId, int recipientCount, Guid? adminId, DateTime now)
+    {
+        if (_notificationSentAt is not null) return false;
+
+        _notificationCampaignId = campaignId;
+        _notificationRecipientCount = recipientCount;
+        _notificationSentBy = adminId;
+        _notificationSentAt = now;
+        return true;
     }
 
     private static bool Blank(string? value) => string.IsNullOrWhiteSpace(value);

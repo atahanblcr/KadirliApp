@@ -29,5 +29,35 @@ public class PushCampaignConfiguration : IEntityTypeConfiguration<PushCampaign>
         b.HasIndex(x => new { x.Source, x.SourceId });
         // Panonun "tamamlanmamış kampanyalar" süzgeci + job'ın tamamlama kontrolü.
         b.HasIndex(x => x.CompletedAt);
+
+        // 🔴 Faz 12.15 — "aynı haber ikinci kez gönderilemez" kuralının SON kapısı.
+        //
+        // Kural üç katmanda yaşıyor ve üçü de gerekli: panel butonu (görünüm), komutun
+        // `NotificationSent` denetimi (sunucu) ve bu indeks (veritabanı). İlk ikisi bir
+        // YARIŞI yakalayamaz: gönderim ile işaretleme aynı `SaveChanges` içinde değil
+        // (kampanya kimliği ancak dispatcher yazdıktan sonra doğuyor), yani iki eşzamanlı
+        // istek ikisi de "gönderilmemiş" görüp **şehre iki push** atabilirdi.
+        //
+        // ⚠️ Kapsam bilerek DAR (`source = 'news'`): duyuru/kesinti kampanyalarında aynı
+        // kaynağa ikinci bir gönderim MEŞRU (yeniden gönderim yeni kampanya açar, §7 madde
+        // 37) — genel bir unique indeks o yolu sessizce kapatırdı.
+        // ⚠️ 12.13'ün "koruma ile kurtarma birlikte yazılır" dersi burada GEREKMİYOR ve
+        // sebebi önemli: senkron kilidinin aksine bu satır **terminal** — yarıda kalmış bir
+        // durumu yok, dolayısıyla "takılmış kaydı kurtar" adımı da yok.
+        //
+        // 🐛 <b>ADLI aşırı yükleme şart.</b> İlk yazımda `HasIndex(x => new { Source, SourceId })`
+        // ikinci kez çağrıldı ve EF ikisini **aynı indeks** sayıp üsttekini SESSİZCE ezdi:
+        // üretilen migration, duyuru idempotency'sinin dayandığı `ix_push_campaigns_source_
+        // source_id`'yi **DROP** ediyordu. Ne derleyici ne test söylerdi — yalnız
+        // `AnnouncementNotificationGenerator`ın "bu duyurunun kampanyası var mı?" sorgusu
+        // büyüyen bir tabloyu tam taramaya başlardı. (Üretilen SQL'i okuma kuralı, checklist §6.)
+        // ⚠️ İkinci ad (`HasDatabaseName`) de şart: adlı aşırı yüklemenin ilk parametresi
+        // MODEL adıdır; snake_case adlandırma eklentisi veritabanı adını yine kendisi türetir
+        // ve `…_source_source_id1` gibi bir ad bırakır.
+        b.HasIndex(new[] { nameof(PushCampaign.Source), nameof(PushCampaign.SourceId) },
+                   "NewsSourceUnique")
+         .IsUnique()
+         .HasFilter("source = 'news' AND source_id IS NOT NULL")
+         .HasDatabaseName("ix_push_campaigns_news_source_id_unique");
     }
 }

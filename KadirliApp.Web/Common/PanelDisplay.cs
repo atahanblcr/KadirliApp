@@ -321,6 +321,11 @@ public static class PanelDisplay
         ["unarchive"] = new("Yayına aldı", "bg-green-100 text-green-800", "fa-box-open"),
         ["feature"] = new("Öne çıkardı", "bg-amber-100 text-amber-800", "fa-star"),
         ["sync"] = new("Senkron başlattı", "bg-indigo-100 text-indigo-800", "fa-rotate"),
+
+        // Faz 12.15. ⚠️ "send-push"tan ayrı bir satır: o, gidilecek kaydı olmayan tek
+        // seferlik gönderim; bu, bir habere bağlı ve **geri alınamaz** olan gönderim.
+        // Denetim izinde ikisi karışsaydı "kim şehre haber duyurdu?" sorusu cevapsız kalırdı.
+        ["send-notification"] = new("Haber bildirimi gönderdi", "bg-sky-100 text-sky-800", "fa-paper-plane"),
     };
 
     // ── Hata kayıtları (Faz 12.1) ───────────────────────────────────────────────
@@ -392,7 +397,11 @@ public static class PanelDisplay
     {
         ["announcement"] = new("Duyuru", "bg-indigo-100 text-indigo-800", "fa-bell"),
         ["power_outage"] = new("Elektrik kesintisi", "bg-amber-100 text-amber-800", "fa-bolt"),
-        ["manual"] = new("Elle gönderim", "bg-purple-100 text-purple-800", "fa-paper-plane")
+        ["manual"] = new("Elle gönderim", "bg-purple-100 text-purple-800", "fa-paper-plane"),
+        // Faz 12.15 — "Elle gönderim"den ayrı bir satır olmak zorunda: ikisi de yönetici
+        // tetikliyor ama haber bildiriminin gidilecek bir kaydı var (deep-link) ve panoda
+        // o satırdan habere geri bağlantı çiziliyor.
+        ["news"] = new("Haber", "bg-sky-100 text-sky-800", "fa-newspaper")
     };
 
     private static readonly Dictionary<string, PanelBadge> PushTargets = new(StringComparer.OrdinalIgnoreCase)

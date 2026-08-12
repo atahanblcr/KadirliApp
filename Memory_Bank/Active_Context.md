@@ -1,5 +1,73 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 13 Ağustos 2026 — **FAZ 12.15 TAMAMLANDI: Haber bildirimi.**
+> Haberler bloğu (12.12–12.15) **kapandı**. Backend 1053 → **1099** (+46), mobil 821 → **822**.
+> Görünmez sözleşme **63 → 66**.
+>
+> 🔑 **TESLİM EDİLEN:** Yönetici bir haberi panelden **tek tıkla** şehre duyurabiliyor.
+> `relatedType="news"` → mobilde `/haberler/:id` (eşleme 12.14'te yazılmıştı, **mobilde tek
+> satır değişmedi**). Hedefleme yine tek sahipte (`INotificationDispatcher`).
+>
+> 🔴 **KARAR 1 — kolon `announcement_id` DEĞİL, ve o kolon DÜŞÜRÜLDÜ.** 12.12 onu
+> *"haberin bildirimi bir duyuru olarak açılır"* varsayımıyla açmıştı; 12.15 o yolu
+> **reddetti** (her push bir `Announcement` satırı açar → haber **Duyurular listesinde de**
+> görünür, iki modül karışır). Kolon hiç yazılmamıştı (canlıda 56/56 `NULL` ölçüldü) ve adı
+> reddedilmiş bir tasarımı anlatıyordu. 🐛 EF göçü **RENAME** olarak üretmek istedi
+> (ikisi de nullable `uuid`) — migration elle `DropColumn` + `AddColumn`'a çevrildi:
+> *çalışan ama niyeti gizleyen* bir göç, bir sonraki okuyanı yanıltır.
+>
+> 🔴 **KARAR 2 — gönderim TERMİNAL ve kural ÜÇ katmanda:** buton (görünüm) · komut (sunucu) ·
+> **kısmi unique indeks** (`source='news' AND source_id IS NOT NULL`). Üçüncüsü şart çünkü
+> ilk ikisi **yarışı yakalayamaz**: gönderim ile işaretleme aynı `SaveChanges`'te değil
+> (kampanya kimliği dispatcher yazdıktan sonra doğuyor) → iki eşzamanlı istek **şehre iki
+> push** atabilirdi. ⚠️ İndeks **dar** kapsamlı: duyuru/kesintide ikinci gönderim meşru.
+> ⚠️ 12.13'ün "kurtarma da yaz" dersi burada **gerekmiyor** — terminal satırın yarıda kalmış
+> hâli yok.
+>
+> 🔴 **KARAR 3 — PLANIN KOŞULU EKSİKTİ.** Plan *"arşivlenmemiş + kaynağı yayında"* diyordu;
+> görünmezliğin **üçüncü** ekseni (dışlanmış kategori, §7 madde 59) atlanmıştı. O kayıt
+> panelde **"Yayında"** görünür ama uygulamada **yoktur** → bildirimi gönderilseydi vatandaş
+> dokunur ve **boş sayfaya** düşerdi (11.15c'nin 9 ölü bildirimi, §7 madde 24). Ölçüt
+> `NewsVisibility` **sorgusunun kendisi**; bellek kopyası yazılmadı.
+>
+> 🔴 **KARAR 4 — gövde KENDİ KENDİNE YETERLİ.** §7 madde 18'in kabul edilmiş bedelinin tek
+> hafifletmesi: eski sürümler `news` türünü tanımaz, dokununca hiçbir yere gitmez. Gövde her
+> koşulda haberin **ilk cümlesini** taşır (özet → düz metin → **son çare başlık**) ve **asla
+> boş olamaz** (boş gövdeyi kimi cihaz hiç göstermez → bildirim sessizce buharlaşır).
+>
+> 🔴 **İZİN: "SendNotification" öneki ELLE eklendi — §7 madde 19'un DÖRDÜNCÜ tekrarı**
+> (BulkApprove 11.18 · Archive 12.10 · Unarchive 12.13 · SendNotification 12.15). Eklenmeseydi
+> POST olduğu için `update`'e düşerdi ve haber ekranı matrisin **içinde** olduğu için sonuç
+> listedeki en ağırı olurdu: *yalnız başlık düzeltme yetkisi olan moderatör tüm şehre push
+> atabilirdi.*
+>
+> ➕ **PLAN DIŞI ÜÇ EK:** **gönderim önizlemesi** (gidecek metnin **kendisi** + alıcı sayısı,
+> ikisi de gönderimin kendi kaynağından) · **"bildirimi gönderilmemiş" süzgeci** (asıl işe
+> yarayan taraf: *"hangi haberi duyurmayı atladım?"*) · **panodan habere geri bağlantı**
+> (pano bir çıkmaz sokaktı).
+>
+> 🐛 **EF, YENİ İNDEKSİ ESKİSİNİN ÜSTÜNE YAZDI.** Aynı kolon kümesine ikinci `HasIndex`
+> çağrısı EF'te **aynı indeks** sayılıyor: üretilen migration duyuru idempotency'sinin
+> dayandığı lookup indeksini **DROP** ediyordu — ne derleyici ne test söylerdi, yalnız bir
+> sorgu sessizce tam taramaya düşerdi. Çözüm adlı aşırı yükleme **+ `HasDatabaseName`**.
+> 🔑 Bunu yakalayan bir test değil, **üretilen SQL'i okuma** kuralıydı.
+>
+> 🐛 **Mobil süitte 12.15 ile ilgisiz bir test kırmızıydı ve haklıydı** (düzeltildi):
+> `transport_screen_test`'in "sıradaki kalkış" iddiası duvar saatine bağımlıydı ve daha önce
+> **iki kez** yamanmıştı. Kalan hata `soonTimes()`'ın gün taşmasını **sabit 23:30**'a
+> kırpmasıydı → 23:30'dan sonra fixture geçmiş saat üretiyor. 🔑 Hata yamanın kendisi değil
+> **yeri**: ekran testi `now` enjekte edemez, iddia günün son yarım saatinde tanım gereği
+> doğru olamaz. İddia kart testine taşındı.
+>
+> ⏭️ **Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) · **12.16 adayı**
+> kategori bazlı bildirim aboneliği (12.15'in elle gönderimi canlıda doğrulandıktan sonra;
+> ⚠️ ikinci bir dispatcher **yazılmaz**, var olan tek sahip genişletilir).
+> 📌 Kalan borç: gövde override'ı (12.13'ten) ve arşiv derinliğinin 50'den büyütülmesi.
+
+---
+
+## Önceki oturum — FAZ 12.14
+
 > Son güncelleme: 12 Ağustos 2026 — **FAZ 12.14 TAMAMLANDI: Haberler mobil (13. modül).**
 > Kod tümüyle mobilde: `lib/features/news/` (2 model + repo + yerel depo + 2 provider dosyası
 > + 3 ekran + 3 widget) + `app_modules`/`app_routes`/`app_router` satırları + bildirim

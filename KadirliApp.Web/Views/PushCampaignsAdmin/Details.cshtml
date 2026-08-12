@@ -36,6 +36,19 @@
                 </span>
             </div>
 
+            @*
+                Faz 12.15 — zincirin geri yönü. Haber ekranından buraya bağlantı vardı;
+                buradan habere dönüş yoktu, yani pano bir çıkmaz sokaktı: yönetici
+                "bu hangi haberdi?" sorusunu ancak başlığı arayarak cevaplayabilirdi.
+            *@
+            @if (Model.Source == KadirliApp.Domain.Entities.PushCampaignSources.News && Model.SourceId is { } newsId)
+            {
+                <a asp-controller="NewsAdmin" asp-action="Details" asp-route-id="@newsId"
+                   class="mb-4 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-newspaper"></i> Bu bildirimin haberine git
+                </a>
+            }
+
             @* ⚠️ Ham basılmaz — Razor kaçışı varsayılan, @Html.Raw burada yasak. *@
             <h3 class="text-lg font-semibold text-gray-900 break-words">@Model.Title</h3>
             <p class="mt-2 text-sm text-gray-700 whitespace-pre-line break-words">@Model.Body</p>

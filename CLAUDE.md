@@ -11,7 +11,7 @@ ve güvenlik kapanışı yapılmış (oturum iptali · zorunlu parola değişimi
 hesap kilidi). Yayın hazırlığının Apple gerektirmeyen kısmı tamam.
 
 **Şimdi Faz 12** — gözlem, alan modeli ve giriş kolaylığı (+ plan dışı **Haberler** bloğu,
-12.12–12.15); **hepsi additive**
+12.12–12.15 — **kapandı**); **hepsi additive**
 (hiçbir DTO alanı silinmiyor, hiçbir tablo düşürülmüyor). **12.1 bitti:** hata günlüğü modülü
 (`ErrorLogsAdmin`). **12.2 bitti:** şüpheli giriş günlüğü — "kim, nereden, ne zaman girmeye
 çalıştı?" artık panelden görülüyor (`LoginAttemptsAdmin`), `super_admin`'e kısılmış e-posta
@@ -110,15 +110,35 @@ istemci onları zarifçe gizlediği için **hiç kimse hata almayacaktı**). �
 ÖNCE** hesaplanır; sonrasıyla hesaplansaydı her koşu haberi "değişmiş" sayıp sonsuza kadar
 yeniden yazardı. 🔴 Yeniden deneme **yok** (imzalı adresin hatası kalıcı). 12.14 öncesi kayıtlar
 `MirrorNewsBodyImagesJob` ile onarılıyor. Ayrıca **okuma boyutu** ayarı (çarpım **tavanlı**).
-**1053 backend + 821 mobil test, 63 görünmez sözleşme.**
+**12.15 bitti — Haberler bloğu (12.12–12.15) KAPANDI.** Yönetici bir haberi panelden **tek
+tıkla** şehre duyurabiliyor; `relatedType="news"` mobilde `/haberler/:id`'ye gidiyor (eşleme
+12.14'te yazıldığı için **mobilde tek satır değişmedi**). 🔴 Gönderim **terminal** ve kural
+**üç katmanda**: buton · komut · **kısmi unique indeks** — ilk ikisi yarışı yakalayamaz
+(gönderim ile işaretleme aynı `SaveChanges`'te değil, kampanya kimliği sonra doğuyor →
+**şehre iki push**). 🔴 **Planın koşulu eksikti:** görünmezliğin üç ekseni var, plan ikisini
+sayıyordu — **dışlanmış kategorideki** haber panelde "Yayında" görünür ama uygulamada
+**yoktur**; bildirimi gönderilseydi vatandaş boş sayfaya düşerdi. 🔴 12.12'nin
+`announcement_id` kolonu **düşürüldü**: reddedilmiş bir tasarımı anlatıyordu ve hiç
+yazılmamıştı (56/56 `NULL`, ölçüldü). 🔑 Gövde **kendi kendine yeterli** — eski sürümler
+`news` türünü tanımıyor, dokununca hiçbir yere gitmiyor; "Detay için dokunun" diyen bir
+bildirim onlara **yalan söylerdi**. ➕ Plan dışı: **gönderim önizlemesi** · **"bildirimi
+gönderilmemiş" süzgeci** · **panodan habere geri bağlantı**.
+🐛 EF, yeni indeksi eskisinin **üstüne yazdı** (aynı kolon kümesi = aynı indeks) ve üretilen
+migration duyuru idempotency indeksini **DROP** ediyordu — yakalayan test değil, **üretilen
+SQL'i okuma** kuralıydı.
 
-**⏭️ Sırada 12.15:** Haber bildirimi (elle gönderim · `relatedType="news"` · deep-link).
-⚠️ `news → /haberler/:id` eşlemesi mobilde **12.14'te yazıldı** (aynı sürümde gitmesi
-gerekiyordu) — 12.15'te yalnız sunucu tarafı kalıyor.
-Açık duran diğer maddeler: 12.7/12.8 sosyal giriş.
+**1099 backend + 822 mobil test, 66 görünmez sözleşme.**
+
+**⏭️ Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) ·
+**12.16 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher **yazılmaz**,
+var olan tek sahip genişletilir).
 ⚠️ `?featured=false` ve aramanın **en az 2 karakter** kuralı kontrata girdi (`API_CONTRACT.md`).
-⚠️ Yeni bir `Un…` aksiyonu yazarsan önekini `PanelPermissionFilter.ActionFor`'a **elle ekle**:
-`Archive` öneki `Unarchive`'ı yakalamaz ve aksiyon sessizce `update` iznine düşer.
+⚠️ Yeni bir `Un…` aksiyonu yazarsan (ya da `SendNotification` gibi hiçbir önekle eşleşmeyen
+bir moderasyon aksiyonu) önekini `PanelPermissionFilter.ActionFor`'a **elle ekle**:
+`Archive` öneki `Unarchive`'ı yakalamaz ve aksiyon sessizce `update` iznine düşer
+(bu tuzak 4 kez tekrarladı: 11.18 · 12.10 · 12.13 · 12.15).
+⚠️ Aynı kolon kümesine **ikinci bir EF indeksi** eklerken adlı aşırı yükleme + `HasDatabaseName`
+kullan; yoksa EF öncekini **sessizce ezer** ve migration onu `DROP` eder (12.15 bulgusu).
 ⚠️ Moderasyon alanına yazarken `CS8852` alırsan **çözüm alanı `set`'e açmak değil**, geçişi
 varlığın bir metoduna taşımaktır (§7 madde 53 — açarsan test kırılır, bilerek). Ayrıca daha önce
 kullanılmamış bir Tailwind sınıfı yazdıysan `npm run build` çalıştır — yoksa buton
