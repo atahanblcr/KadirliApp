@@ -20,15 +20,13 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | Madde | Nerede | Durum / blokaj |
 |---|---|---|
 | **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
-| **12.16 — KVKK: belge yönetimi + rıza kaydı** | `### 12.16` | 🔴 **Planı yazılı, kod yok. En yüksek öncelik** (kullanıcı kararı). Bugün bedeli **sıfır**; mağazaya çıktıktan sonra §5 kırıcı-değişiklik olur |
+| **12.16 — KVKK: belge yönetimi + rıza kaydı** | `### 12.16` | 🔴 **Planı yazılı ve 8 kararı ONAYLANDI (14 Ağu); kod yok. En yüksek öncelik.** Bugün bedeli **sıfır**; mağazaya çıktıktan sonra §5 kırıcı-değişiklik olur. ⚠️ Onayın kısıtı: *yapıyı/mimariyi bozmadan* — 18 adımlı reçete + ikinci sahip yasağı |
 | **12.17 — KVKK: mobil** | `### 12.17` | 12.16'ya bağlı |
-| 🔴 **12.7'nin bozma turu** | `### 12.7` kapanış notu | `ValidateAudience=false` bozması ortamın güvenlik sınıflandırıcısı yüzünden **koşulamadı**; elle koşulmalı |
 
 ### B. Karar bekleyenler (kod değil, tercih)
 
 | Madde | Nerede | Ne gerekiyor |
 |---|---|---|
-| **KVKK bloğunun 8 kararı** | `### 12.16` → *"Alınacak kararlar"* | Tablo hazır ve gerekçeli; **kullanıcı onayı bekliyor** |
 | **12.18 adayı — kategori bazlı bildirim aboneliği** | *"açık kalan / ertelenen maddeler"* | *(12.16 adayıydı, KVKK öne alındığı için kaydı.)* Ön koşul: 12.15'in **elle gönderimi canlıda doğrulanmalı**. ⚠️ İkinci bir dispatcher yazılmaz |
 | **Haber gövde override'ı** | Haberler bloğu | İkinci sürümde **eklemeli** alan olarak (tam override değil) |
 | **Haber arşiv derinliği (bugün 50)** | Haberler bloğu | Tamamı ~273 istek + ~1.6 GB görsel. **Kod değişikliği gerekmiyor, karar gerekiyor** |
@@ -2922,7 +2920,7 @@ seçili kaldı**. Bu turda yukarıdaki **2 numaralı hata bulundu.**
 
 > **Teslim edildi.** `POST /v1/auth/social` (Google + Apple) · `user_identities` tablosu ·
 > bağla/çöz uçları · `GET /v1/users/me` → `linkedIdentities[]` · panelde **"Bağlı hesaplar"**
-> kutusu ve denetim izli kaldırma. **Backend 1114 → 1180 (+66).**
+> kutusu ve denetim izli kaldırma. **Backend 1114 → 1182 (+68).**
 > Görünmez sözleşme **67 → 70** (68 · 69 · 70).
 >
 > 🔴 **KARAR 1 — plandan bilinçli sapma: Google için `GoogleJsonWebSignature.ValidateAsync`
@@ -2977,10 +2975,22 @@ seçili kaldı**. Bu turda yukarıdaki **2 numaralı hata bulundu.**
 > 🐛 **Panel CSS'inde iki sınıf eksikti** (`hover:text-red-800` · `gap-y-2`) → `npm run build`.
 > 12.10'un *"beyaz üstüne beyaz"* bulgusunun aynısı; bu sefer **yazmadan önce ölçüldü**.
 >
-> ⚠️ **BOZMA TURU KOŞULAMADI — dürüst not.** `ValidateAudience = false` yazıp süiti koşturma
-> denemesi ortamın güvenlik sınıflandırıcısı tarafından **engellendi**; kaynak anında geri
-> alındı (`git diff` temiz). Kilidin gücü bu yüzden bozma turuyla değil **iddianın şekliyle**
-> kanıtlandı (Karar 2). 📌 **Bir sonraki oturumun ilk işi bu bozma turunu elle koşmak olmalı.**
+> ✅ **BOZMA TURU KOŞULDU (14 Ağu, aynı iş) — VE BİR DELİK BULDU.** Üç madde de bilerek
+> bozuldu: `aud` kapatıldı → 🔴 **4 test** (saf + uç, iki katmanda birden) · kimlik çalma
+> kapısı devre dışı → 🔴 1 test · **`token_type` kontrolü silindi → 🟢 YEŞİL KALDI.**
+>
+> 🐛 **MADDE 70'İN KİLİDİ SAHTEYDİ.** Test doğru davranışı ölçüyordu ama **yanlış sebepten**
+> geçiyordu: bugünkü sosyal jetonun `phone` claim'i **zaten yok**, yani tür kontrolü tamamen
+> silinse de metot `null` dönüyor. Sözleşme *"türler ayrıdır"* diyordu, test yalnızca
+> *"sosyal jetonda telefon yok"*u ölçüyordu. 🔴 Bugün iki bağımsız sebep koruyor ama biri
+> **tesadüfi**: sosyal jetona yarın bir `phone` claim'i eklenirse (ör. *"sağlayıcıdan gelen
+> telefonu ön dolduralım"*) ayakta kalan **tek** koruma `token_type` olur ve onu silen
+> değişikliği **hiçbir test yakalamazdı** → **OTP'siz kayıt**.
+> ✅ Kapatıldı: `ASocialTypedToken_IsRejectedAsAPhoneToken_EvenWhenItCarriesAPhoneClaim`
+> jetonu **elle** üretiyor (sosyal türde ama telefon taşıyan) + ters yön eklendi; aynı bozma
+> tekrarlandı → **kırmızı**. 📌 *"İddiası zayıf test"* sınıfının **altıncı** tekrarı ve
+> **ilk kez bozma turu tarafından** yakalanan hâli. 🔑 Ders: *iki bağımsız sebep koruyorsa,
+> testin HANGİSİNİ tuttuğunu ölç.*
 >
 > ➕ **PLAN DIŞI İKİ EK (kullanıcı sözleşmesi: serbest ama raporla):**
 > 1. **`GET /v1/users/me` → `linkedIdentities[]`** — plan yalnız POST/DELETE diyordu, ama
@@ -2995,7 +3005,7 @@ seçili kaldı**. Bu turda yukarıdaki **2 numaralı hata bulundu.**
 >    başka bir uygulamanın jetonuyla giriş girişiminin ta kendisidir — kaydedilmeseydi o
 >    saldırı **tamamen görünmez** olurdu.
 >
-> **Doğrulama:** `dotnet test` **1180/1180**. Sosyal doğrulama testleri **ağa çıkmıyor**:
+> **Doğrulama:** `dotnet test` **1182/1182**. Sosyal doğrulama testleri **ağa çıkmıyor**:
 > gerçek RSA anahtarıyla imzalanmış gerçek biçimli jetonlar, sahte bir JWKS üzerinden
 > **gerçek doğrulayıcıdan** geçiyor (sahte bir `ISocialTokenVerifier` yazılsaydı bu fazın
 > bir numaralı kuralı hiç kilitlenmemiş olurdu).
@@ -5254,7 +5264,24 @@ yüzden aşağıdaki modelin merkezinde **sürüm** var, "onaylandı" bayrağı 
 📌 Bu, projenin zaten iki kez öğrendiği hasar sınıfının (§7 madde 55 — *"senkron panelin
 yazdığını ezer"*) üçüncü biçimi: **bir kayıt, kendisini anlamlı kılan bağlamı kaybediyor.**
 
-## ⚙️ Alınacak kararlar (planlandı; **kullanıcı onayı bekliyor**)
+## ⚙️ Alınan kararlar — ✅ **KULLANICI ONAYLADI (14 Ağustos 2026)**
+
+> Kullanıcının onayı bir kayıtla geldi: *"yeter ki projenin yapısını, mimarisini bozmayalım."*
+> Bu, sekiz kararın **hepsini** bağlayan bir kısıt olarak yazıya geçiriliyor ve 12.16'nın
+> bitti-kriterine ek üç madde koyuyor:
+>
+> 1. **Yeni modül 18 adımlı reçeteyi izler** (`ARCHITECTURE.md` §4) — atlanan adım bu projede
+>    doğrudan yeni bir görünmez sözleşmeye dönüşüyor.
+> 2. **Var olan hiçbir kural ikinci bir sahiple çoğaltılmaz.** KVKK bloğunun üç temas noktası
+>    var ve üçü de **var olana bağlanır**, yenisi yazılmaz: rıza geri alma → var olan
+>    `DELETE /v1/users/me` (10.8), izin matrisi → `PanelMenu.Items`'tan **türeyen** modül
+>    anahtarı, denetim izi → `IAuditableCommand`.
+> 3. **Hiçbir DTO alanı silinmez/yeniden adlandırılmaz** (§5). `register`'a eklenen `consents`
+>    alanı **additive**'dir; zorunluluğu bir **yapılandırma kapısıyla** açılır ki mağazaya
+>    çıkılmış olsa bile eski sürümler tek commit'te kırılmasın.
+>
+> ⚠️ Kod **bu oturumda yazılmadı** (kullanıcı kararı: *"geri kalanına bir sonraki oturumda
+> devam edeceğiz"*). Aşağıdaki tablo artık bir *öneri* değil **onaylanmış karar** kaydıdır.
 
 | Karar | Öneri | Gerekçe |
 |---|---|---|

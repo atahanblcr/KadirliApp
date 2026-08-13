@@ -449,6 +449,16 @@ birincisi zayıftır — *"yanlış `aud`'lu jeton reddedilir"* iddiası **hiçb
 etmeyen** bir gerçeklemede de yeşil kalır. `TheSameToken_IsAccepted_OnceItsAudienceIsOneOfOurs`
 birebir aynı jetonun, yalnız `aud` listesine eklendiğinde **kabul edildiğini** gösterir; ikisi
 birlikte reddin sebebinin **gerçekten o kontrol** olduğunu kanıtlar (§7 madde 50'nin dersi).
+🐛 **70'in kilidi ilk yazımda SAHTEYDİ ve bozma turu onu yakaladı** (14 Ağu 2026):
+`token_type` kontrolü `ValidateTempToken`'dan tamamen silindiğinde test **yeşil kaldı** —
+bugünkü sosyal jetonun `phone` claim'i **zaten yok**, yani metot tür kontrolü olmasa da
+`null` dönüyordu. Sözleşme *"türler ayrıdır"* diyordu, test *"sosyal jetonda telefon yok"*u
+ölçüyordu: iki bağımsız sebep koruyordu ve **biri tesadüfiydi**. Kilit artık `token_type`'ı
+doğrudan hedefliyor — `ASocialTypedToken_IsRejectedAsAPhoneToken_EvenWhenItCarriesAPhoneClaim`
+jetonu **elle** üretiyor (sosyal türde **ama telefon taşıyan**), yani tesadüfi korumanın
+devre dışı kaldığı hâli kuruyor; ters yönü de var. 🔑 Ders: *iki bağımsız sebep koruyorsa,
+testin **hangisini** tuttuğunu ölç* — yoksa tesadüfi olan kaybolduğunda kilit de kaybolur
+ve kimse fark etmez.
 ⚠️ **67 bir kez daha farklı bir tür:** maddenin bir yüzü **ölçüm**dür
 (`MissingJsonKey_MaterialisesAsFalse` — EF'in JSON materyalizasyonu varsayılan başlatıcıyı
 çalıştırmıyor), diğer yüzü ise bir **migration**dır ve migration'lar bir kez koştuğu için

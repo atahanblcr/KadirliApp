@@ -152,7 +152,7 @@ kimlik satırları **fiziksel** silinir (kişisel veri + benzersizlik: kalsaydı
 Google hesabıyla **bir daha asla** kayıt olamazdı). 🐛 Bulunan gerçek hata: yapılandırma
 **DI kaydında** okunuyordu → kod doğruydu ama **kendi testinden erişilemiyordu**.
 
-**1180 backend + 824 mobil test, 70 görünmez sözleşme.**
+**1182 backend + 824 mobil test, 70 görünmez sözleşme.**
 
 **⏭️ Sırada:** **12.16 KVKK rıza yönetimi** (planlandı, kod yok — **en yüksek öncelik**;
 metin panelden düzenlenebilir olduğu için rıza **sürüme** bağlanır, "onaylandı" bayrağına
@@ -160,8 +160,13 @@ değil. 🔴 Uygulama henüz mağazada olmadığı için bugün bedeli **sıfır
 değişikliği olur) · 12.8 sosyal giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı
 bugün yazılabilir**) · **12.18 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir
 dispatcher **yazılmaz**, var olan tek sahip genişletilir).
-⚠️ **12.7'nin bozma turu KOŞULAMADI** (ortamın güvenlik sınıflandırıcısı engelledi) —
-bir sonraki oturumun ilk işi.
+🐛 **12.7'nin bozma turu koşuldu ve BİR DELİK BULDU:** madde 70'in testi doğru davranışı
+ölçüyordu ama **yanlış sebepten** geçiyordu (sosyal jetonun `phone` claim'i zaten yok →
+`token_type` kontrolü silinse de `null` dönüyor). İki bağımsız sebep koruyordu ama biri
+**tesadüfi**. İddia elle üretilen bir jetonla (sosyal türde **ama telefon taşıyan**) gerçek
+değişmeze çevrildi. 🔑 **Ders: iki bağımsız sebep koruyorsa, testin HANGİSİNİ tuttuğunu ölç.**
+✅ **12.16'nın (KVKK) 8 kararı onaylandı** — kısıt: *yapıyı/mimariyi bozmadan* (18 adımlı
+reçete + **ikinci sahip yasağı** + `consents` alanı additive). Kod sonraki oturumda.
 ⚠️ `?featured=false` ve aramanın **en az 2 karakter** kuralı kontrata girdi (`API_CONTRACT.md`).
 ⚠️ Yeni bir `Un…` aksiyonu yazarsan (ya da `SendNotification` gibi hiçbir önekle eşleşmeyen
 bir moderasyon aksiyonu) önekini `PanelPermissionFilter.ActionFor`'a **elle ekle**:

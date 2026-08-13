@@ -1,7 +1,7 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
 > Son güncelleme: 13 Ağustos 2026 — **FAZ 12.7 TAMAMLANDI: Sosyal giriş (backend).**
-> Backend 1114 → **1180** (+66), mobil 824 (değişmedi — 12.7 mobile dokunmadı).
+> Backend 1114 → **1182** (+68), mobil 824 (değişmedi — 12.7 mobile dokunmadı).
 > Görünmez sözleşme **67 → 70**.
 >
 > 🔑 **TESLİM EDİLEN:** `POST /v1/auth/social` (Google + Apple) · `user_identities` tablosu ·
@@ -46,9 +46,19 @@
 > (bilinçli olarak listeye eklendi) · panel CSS'inde iki sınıf eksikti (`npm run build` —
 > 12.10'un "beyaz üstüne beyaz" bulgusu, bu sefer **yazmadan önce ölçüldü**).
 >
-> ⚠️ **BOZMA TURU KOŞULAMADI (dürüst not):** `ValidateAudience=false` bozması ortamın
-> güvenlik sınıflandırıcısı tarafından engellendi; kaynak anında geri alındı.
-> **Bir sonraki oturumun ilk işi bunu elle koşmak.**
+> ✅ **BOZMA TURU KOŞULDU (14 Ağu) VE BİR DELİK BULDU.** `aud` kapatıldı → 🔴 **4 test**
+> (saf + uç); kimlik çalma kapısı devre dışı → 🔴 1 test; **`token_type` kontrolü silindi →
+> 🟢 YEŞİL KALDI.**
+> 🐛 **Madde 70'in kilidi sahteydi:** test doğru davranışı ölçüyordu ama **yanlış sebepten**
+> geçiyordu — sosyal jetonun `phone` claim'i **zaten yok**, yani tür kontrolü silinse de
+> `null` dönüyor. Sözleşme *"türler ayrıdır"* diyordu, test *"sosyal jetonda telefon yok"*u
+> ölçüyordu. 🔴 İki bağımsız sebep koruyor ama biri **tesadüfi**: jetona yarın bir `phone`
+> claim'i eklenirse ayakta kalan tek koruma `token_type` olur ve onu silen değişikliği
+> hiçbir test yakalamazdı → **OTP'siz kayıt**. ✅ Jeton **elle** üretilerek (sosyal türde ama
+> telefon taşıyan) iddia gerçek değişmeze çevrildi + ters yön eklendi; bozma tekrarlandı →
+> **kırmızı**. 📌 *"İddiası zayıf test"* sınıfının **altıncı** tekrarı — ve **ilk kez bozma
+> turu tarafından** yakalanan hâli. 🔑 Ders: *iki bağımsız sebep koruyorsa, testin
+> HANGİSİNİ tuttuğunu ölç.*
 >
 > ➕ **PLAN DIŞI İKİ EK:** profile `linkedIdentities[]` (12.8'in ekranının durumu okuyacak
 > **hiçbir yolu yoktu**) · sosyal giriş için ayrı `LoginChannels.Social` + `bad_social_token`
@@ -64,7 +74,13 @@
 > rızayı bugün zorunlu yapmanın bedeli **sıfır**; yayından sonra aynı şey §5 kırıcı-değişikliği
 > olur (`register` yeni zorunlu alan istediği gün **her eski sürümde kayıt 400 döner**).
 > ⚠️ *Kategori bazlı bildirim aboneliği* 12.16'dan **12.18'e** kaydı.
-> 📌 Planın 8 kararı gerekçeli yazıldı, **kullanıcı onayı bekliyor** (`Progress.md` → 12.16).
+> ✅ **Planın 8 kararı KULLANICI TARAFINDAN ONAYLANDI (14 Ağu)** — kısıtıyla birlikte:
+> *"yeter ki projenin yapısını, mimarisini bozmayalım."* Bu kısıt 12.16'nın bitti-kriterine
+> **üç madde** olarak yazıldı: 18 adımlı reçete eksiksiz · var olan hiçbir kural **ikinci bir
+> sahiple** çoğaltılmaz (rıza geri alma → mevcut `DELETE /v1/users/me`, izin → `PanelMenu`'den
+> türeyen anahtar, iz → `IAuditableCommand`) · `consents` alanı **additive** ve zorunluluğu
+> bir **yapılandırma kapısıyla** açılır. ⚠️ **Kod yazılmadı** — kullanıcı kararı: sonraki
+> oturum (`Progress.md` → 12.16).
 
 ---
 

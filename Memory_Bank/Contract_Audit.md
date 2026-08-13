@@ -306,8 +306,35 @@ Bu üçünde §8'in üç sorusuna verilen cevaplar:
    eklendi: birebir aynı jeton, yalnız `aud` listesi değiştiği için kabul ediliyor.
    📌 Bu tam olarak B4'te öğrenilen dersin (*"iddiam totoloji mi?"*) ikinci uygulanışı.
 
-⚠️ **Not — bozma turu ÇALIŞTIRILAMADI ve bu dürüstçe yazılıyor.** `ValidateAudience = false`
-yazıp süiti koşturma denemesi ortamın güvenlik sınıflandırıcısı tarafından **engellendi**
-(kaynak geri alındı, `git diff` temiz). Kilidin gücü bu yüzden bozma turuyla değil
-**iddianın şekliyle** kanıtlandı: iki yönlü iddia, tek yönlü olanın geçireceği iki
-gerçeklemeyi de eler. Bir sonraki oturumda bozma turu elle koşulmalı.
+### ✅ Bozma turu KOŞULDU (14 Ağustos 2026, kullanıcı isteğiyle aynı oturumda)
+
+Üç maddenin üçünde de kural bilerek bozuldu ve sonuç **ölçüldü**:
+
+| Bozma | Beklenen | Ölçülen |
+|---|---|---|
+| `ValidateAudience = false` | Kırmızı | 🔴 **4 test**, iki katmanda birden: `TokenIssuedForAnotherApp_IsRejected_…` · `TheSameToken_IsAccepted_OnceItsAudienceIsOneOfOurs` (saf) + `TokenIssuedForAnotherApp_IsRejectedByTheEndpoint` · `ARejectedSocialAttempt_IsRecordedForThePanel` (uç) |
+| `GuardIdentityIsFreeAsync` kapısı devre dışı | Kırmızı | 🔴 `AnIdentityAlreadyLinkedElsewhere_CannotBeStolen` |
+| `ValidateTempToken`'dan `token_type` kontrolü silindi | Kırmızı | 🟢 **YEŞİL KALDI — delik bulundu** ⬇ |
+
+🐛 **MADDE 70'İN KİLİDİ SAHTE ÇIKTI ve bozma turu onu yakaladı.**
+`SocialTempToken_CannotBeUsedAsThePhoneRegistrationToken` doğru davranışı ölçüyordu ama
+**yanlış sebepten** geçiyordu: bugünkü sosyal jetonun `phone` claim'i **zaten yok**, yani
+`token_type` kontrolü tamamen silindiğinde bile metot `null` döndürüyor. Sözleşme
+*"türler ayrıdır"* diyordu, test ise yalnızca *"sosyal jetonda telefon yok"*u ölçüyordu.
+
+🔴 **Neden önemli:** bugün iki bağımsız sebep koruyor ama biri **tesadüfi**. Sosyal jetona
+yarın bir `phone` claim'i eklenirse (ör. *"sağlayıcıdan gelen telefonu ön dolduralım"*) ya da
+iki üretici ortak bir yardımcıya çekilirse, ayakta kalan **tek** koruma `token_type` olur —
+ve onu silen değişikliği **hiçbir test yakalamazdı**. Sonuç madde 70'in tam olarak
+engellediği şey olurdu: **OTP'siz kayıt**.
+
+✅ **Kapatıldı:** `ASocialTypedToken_IsRejectedAsAPhoneToken_EvenWhenItCarriesAPhoneClaim`
+jetonu **elle** üretiyor (sosyal türde **ama telefon taşıyan**), yani tesadüfi korumanın
+devre dışı kaldığı hâli kuruyor; ikinci yön (`APhoneTypedToken_WithTheSameShape_IsAccepted`)
+de eklendi. Aynı bozma tekrarlandı → **kırmızı**. Kilit artık gerçek.
+
+📌 Bu, *"iddiası zayıf test"* sınıfının **altıncı** tekrarı (12.11 tarama kapsamı · 12.6
+golden toleransı · 12.13 yanlış nesneye bakan test · 12.14 taşma testi · 12.15b migration ·
+**12.7 tesadüfi koruma**) — ve **ilk kez bozma turu tarafından yakalandı**, denetim turunda
+değil. 🔑 Ders: *iki bağımsız sebep koruyorsa, testin HANGİSİNİ tuttuğunu ölç;* aksi hâlde
+tesadüfi olan kaybolduğunda kilit de kaybolur ve kimse fark etmez.
