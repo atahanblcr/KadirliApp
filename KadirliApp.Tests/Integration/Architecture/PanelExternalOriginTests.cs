@@ -128,6 +128,76 @@ public class PanelExternalOriginTests
             "Çözüm varlığı wwwroot/lib'e almaktır, buraya istisna yazmak değil.");
     }
 
+    /// <summary>
+    /// 🔴 <b>Faz A bozma turunun bulgusu (13 Ağu 2026): taramanın KAPSAMI delikti.</b>
+    ///
+    /// <para>
+    /// Yukarıdaki tarama yalnız <c>Views/**/*.cshtml</c>'i okuyor. Ölçüldü:
+    /// <c>wwwroot/css/panel.css</c>'in başına
+    /// <c>@import url(https://fonts.googleapis.com/…)</c> eklendiğinde <b>üç ayak da yeşil
+    /// kaldı</b> — kaynak taraması (görünüm değil), canlı CSP testi (başlık doğru, ihlal
+    /// yalnız tarayıcı konsolunda) ve varlık kapısı (dosya var ve boş değil). Yani panel,
+    /// 12.9'un <b>tam olarak yerelleştirdiği</b> yazı tipine sessizce geri bağlanabilirdi.
+    /// </para>
+    ///
+    /// <para>
+    /// 🔑 12.11'in dersi burada da geçerli — çözüm "bir dosya adı daha ekle" değil,
+    /// <b>kapsamı türetmek</b>: <c>wwwroot</c> altındaki <b>bizim yazdığımız</b> her
+    /// varlık taranır (dizinden okunur, elle liste yok).
+    /// </para>
+    ///
+    /// <para>
+    /// 📌 <c>wwwroot/lib</c> **bilinçli olarak dışarıda**: orası üçüncü taraf dosyaların
+    /// <i>vendor</i> kopyası ve içeriğini biz yazmıyoruz (lisans başlıkları, kaynak harita
+    /// yorumları dış adres içerir). Risk *bizim yazdığımız bir başvuru*; oradaki dosyaların
+    /// yerinde ve boş olmadığı ayrıca denetleniyor.
+    /// ⚠️ Yorum satırları eleniyor: <c>panel.css</c> Tailwind'in lisans başlığında
+    /// <c>https://tailwindcss.com</c> taşıyor ve o bir **yükleme** değil.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void NoCommittedPanelAsset_LoadsAResourceFromAnExternalOrigin()
+    {
+        var wwwroot = Path.Combine(RepositoryRoot(), "KadirliApp.Web", "wwwroot");
+        var lib = Path.Combine(wwwroot, "lib") + Path.DirectorySeparatorChar;
+
+        var assets = Directory
+            .GetFiles(wwwroot, "*.*", SearchOption.AllDirectories)
+            .Where(f => f.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
+                        || f.EndsWith(".js", StringComparison.OrdinalIgnoreCase))
+            .Where(f => !f.StartsWith(lib, StringComparison.Ordinal))
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+
+        assets.Should().NotBeEmpty(
+            "kapsam dizinden TÜRETİLİYOR — türetme çalışmıyorsa bu test hiçbir şey denetlemiyor");
+
+        // CSS: `url(https://…)` ve `@import "https://…"` · JS: dize hâlinde dış origin.
+        var externalReference = new Regex(
+            @"(?<css>url\(\s*['""]?\s*(https?:)?//)|(?<import>@import\s+(url\(\s*)?['""]?\s*(https?:)?//)|(?<js>['""`](https?:)?//[a-z0-9.-]+\.[a-z]{2,})",
+            RegexOptions.IgnoreCase);
+
+        var offenders = new List<string>();
+
+        foreach (var file in assets)
+        {
+            // Yorumları at: lisans başlıkları ve kaynak harita satırları dış adres taşır
+            // ama hiçbiri bir YÜKLEME değildir.
+            var text = Regex.Replace(File.ReadAllText(file), @"/\*.*?\*/", " ", RegexOptions.Singleline);
+            text = Regex.Replace(text, @"(?m)^\s*//.*$", " ");
+
+            foreach (Match match in externalReference.Matches(text))
+                offenders.Add($"{Path.GetRelativePath(wwwroot, file).Replace('\\', '/')} → {match.Value.Trim()}");
+        }
+
+        offenders.Should().BeEmpty(
+            "panelin KENDİ varlıkları da dış origine bağlanamaz (§7 madde 51). Görünümlerdeki " +
+            "başvuruyu kesip aynı bağımlılığı panel.css'e bir @import olarak yazmak, 12.9'un " +
+            "kapattığı deliği geri açar — üstelik daha sinsi biçimde: yönetici hiçbir hata " +
+            "görmez, yalnız yazı tipi/harita sessizce gelmez. Çözüm varlığı wwwroot/lib'e " +
+            "almaktır. Bulunanlar: {0}", string.Join(", ", offenders));
+    }
+
     // ── 2) Yerel varlık başvuruları gerçekten var ─────────────────────────────
 
     /// <summary>

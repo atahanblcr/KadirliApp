@@ -4950,6 +4950,37 @@ etkisizleştirildiğinde kırmızıya döndü.
 
 **Testler:** backend 1110 → **1111**.
 
+### ✅ FAZ A KOŞULDU (aynı oturum) — DENETİM BİTTİ
+
+10 maddelik kırılgan alt kümenin **hepsinde** bozma turu koşuldu (kuralı *çalışır ama ihlal
+edilmiş* hâle getir → yalnız o testi koş → sonucu yaz → geri al).
+
+**Altısı kilitli çıktı:** 18 (tanınmayan tür duyuruya düşürüldü) · 29 (`ApproveSelected` →
+`BulkApprove`, 7 test kırıldı) · 49 (`days` boşken "hiçbir gün", 3 test) · 50 (gün kontrolü
+düşürüldü — golden değil **davranış** testi yakaladı) · 62 (anlık görüntüden başlık silindi,
+3 test) · 51/52'nin ana ayakları (görünüme `unpkg`, CSP'ye `'unsafe-inline'`, guard çağrısının
+silinmesi).
+
+**Beş delik bulundu ve kapatıldı:**
+
+| # | Delik | Kapatma |
+|---|---|---|
+| **27** | Kesintinin başlangıç sınırı **yalnız panelde** kilitliydi; mobil ayak hiç iddia etmiyordu — bozma tüm mobil süiti yeşil bıraktı | `power_outage_model_test.dart` → *"tam BAŞLANGIÇ anında sürüyor"* (ayna artık iki taraflı) |
+| **30** | Süpürme 8 sıralama haritasından **yalnız Announcements**'ı geziyordu; `Campaigns.end_asc`'in ayracı düşürüldü, hiçbir test kırılmadı | `EverySortMapInTheProject_…` — harita listesi `PanelSorts`'tan **yansımayla**; iki satırın tüm alanları eşit tutulup her anahtarda kararlılık ölçülüyor |
+| **51** | Tarama yalnız `Views/**`; aynı bağımlılığı `panel.css`'e `@import` olarak yazmak **üç ayağı da** yeşil bırakıyordu (12.9'un yerelleştirdiği fontun sessiz dönüşü) | `NoCommittedPanelAsset_LoadsAResourceFromAnExternalOrigin` — `wwwroot` (lib hariç) **dizinden türetilerek** taranıyor, yorumlar eleniyor |
+| **52** | 🔴 **12.11'in dersi bu dosyada hâlâ ayaktaydı:** modül kümesi türetiliyordu ama dosyalar `Update*.cs` **deseniyle** bulunuyordu → `ReviseAdCommand.cs` hiç taranmadı | `EveryStatusCarryingCommand_CallsTheGuard_RegardlessOfItsFileName` — kapsam **tipten** kurulur (`Status` taşıyan her `IRequest<>`), guard komutun **kendi klasöründe** aranır |
+| **61** | *"İstemci kırpmaz"* iddiası **metnin** kaldığına bakıyordu; `<blockquote>` etiketleri silinince metin duruyor ve test yeşil kalıyordu | İddia doğru değişmeze çevrildi: `Html`'e giden veri sunucudan gelenin **birebir aynısı** |
+
+🔑 **En değerli bulgu 52:** 12.11 korumayı derleyiciye taşımıştı ama **taramanın kendisi**
+aynı kalmıştı ve tam olarak aynı biçimde delikti. Ders üçüncü kez doğrulandı: *bir taramanın
+kapsamı da elle tutulan bir listedir* — çözüm listeyi büyütmek değil, kapsamı **türetmek**.
+
+📌 **Beş deliğin dördü "kapsam", biri "iddia şekli".** Bu projede zayıf test, çoğunlukla
+*yanlış şeye* bakan test değil, **doğru şeye ama dar bir kümede** bakan testtir.
+
+**Sonuç: 67 maddenin tamamı bugün 🟢 ya da 🟢🟢.** Tablo: `Memory_Bank/Contract_Audit.md`.
+**Testler:** backend 1111 → **1114**, mobil 822 → **824**.
+
 ### 🧹 Test altyapısı — 12.15b'nin bıraktığı iki açık madde (⬆️ İKİSİ DE KAPANDI, yukarı bak)
 
 Bunlar ürün hatası değil, **denetim aracının** hatası; ama bu projede denetim aracının

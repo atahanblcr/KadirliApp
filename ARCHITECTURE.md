@@ -471,9 +471,25 @@ birlikte. Kapatılanlar ve yeni kilitleri:
   kapsam matris controller'larından **yansımayla türetilir** ve adı hiçbir şey söylemeyen bir
   yazma aksiyonu artık sessizce `update`'e değil **kırmızıya** düşer.
 
-Risk dağılımı bugün: 🟢🟢 6 · 🟢 52 · 🟠 8 · 🔴 3 (**51 · 52 · 67** — üçü de gerekçeli).
+**Denetim aynı gün tamamlandı** (Faz 0 tasnif → B1–B7 → T1/T2 → Faz A bozma turu) ve
+**on iki delik** kapatıldı. Faz A'nın kalıcı dersi: bulunan beş deliğin **dördü kapsam**
+deliğiydi — kilit doğru şeye bakıyordu ama **dar bir kümede**:
+
+- **30** sekiz sıralama haritasından yalnız birini süpürüyordu → kapsam artık `PanelSorts`'tan
+  **yansımayla** türetiliyor.
+- **51** yalnız `Views/**`'ı tarıyordu; aynı bağımlılık `panel.css`'e bir `@import` olarak
+  yazılabilirdi → `wwwroot` (lib hariç) **dizinden türetilerek** taranıyor.
+- **52** modül kümesini türetiyor ama dosyaları `Update*.cs` **deseniyle** buluyordu —
+  12.11'in dersi aynı testin içinde hâlâ açıktı → kapsam artık **tipten** kuruluyor
+  (`Status` taşıyan her `IRequest<>`).
+- **27** panelde kilitliydi, **mobil aynada** hiç iddia edilmiyordu → istemci sınır testi eklendi.
+- **61** *"istemci kırpmaz"* iddiası **metnin** kaldığına bakıyordu → iddia doğru değişmeze
+  çevrildi (`Html`'e giden veri birebir aynı).
+
+Risk dağılımı bugün: **🟢🟢 6 · 🟢 61 · 🟠 0 · 🔴 0.**
 Yeni bir sözleşme yazarken `Contract_Audit.md`'ye de bir satır ekle: madde numarası, kilidin
-**cinsi** ve neden o cinsin yeterli olduğu.
+**cinsi** ve neden o cinsin yeterli olduğu. ⚠️ Kilit bir **tarama** ya da **elle tutulan
+liste** ise şunu sor: *kapsam dizinden mi, tipten mi, elden mi geliyor?*
 
 | # | Sözleşme | Bozulursa ne olur |
 |---|---|---|

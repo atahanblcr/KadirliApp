@@ -118,7 +118,19 @@
 > tablosunda koşar, satırları EF yazar ve EF **tam** JSON yazar → anahtarsız satır test
 > ortamında hiç doğmaz. Ayrım pahalıydı: yanlış sebep, planın "tek kullanımlık veritabanı"
 > seçeneğine götürüyordu ve **o çözüm işe yaramazdı**.
-> **Backend 1111 test.** ⏭️ Sırada **Faz A** (kalan **10 madde**; 2 🔴: 51 · 52).
+> ✅ **VE FAZ A KOŞULDU — DENETİM BİTTİ.** 10 maddelik kırılgan alt kümenin **altısı kilitli
+> çıktı**, **beş delik** bulundu ve kapatıldı: **27** (kesintinin başlangıç sınırı yalnız
+> panelde kilitliydi, mobil ayna hiç iddia etmiyordu) · **30** (süpürme 8 sıralama
+> haritasından yalnız birini geziyordu) · **51** (tarama yalnız `Views/**`; aynı bağımlılığı
+> `panel.css`'e bir `@import` olarak yazmak **üç ayağı da** yeşil bırakıyordu) · **52**
+> (🔴 **12.11'in dersi bu dosyada hâlâ ayaktaydı** — modül kümesi türetiliyordu ama dosyalar
+> `Update*.cs` **deseniyle** bulunuyordu; `ReviseAdCommand.cs` hiç taranmadı) · **61**
+> (*"istemci kırpmaz"* iddiası **metnin** kaldığına bakıyordu, etiket silinince metin duruyor).
+> Dördü **kapsamı türeterek** kapatıldı (dizinden/tipten/yansımayla), biri iddianın şeklini
+> düzelterek. 🔑 *Bir taramanın kapsamı da elle tutulan bir listedir* dersi **üçüncü kez**
+> doğrulandı. 📌 Beş deliğin **dördü kapsam**, biri iddia şekli.
+> **Sonuç: 67 maddenin tamamı 🟢/🟢🟢.** Tablo: `Memory_Bank/Contract_Audit.md`.
+> **Backend 1114, mobil 824.**
 >
 > ⏭️ **Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) · **12.16 adayı**
 > kategori bazlı bildirim aboneliği (12.15'in elle gönderimi canlıda doğrulandıktan sonra;

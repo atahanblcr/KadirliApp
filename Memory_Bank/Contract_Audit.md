@@ -5,7 +5,10 @@
 > **"kilidi sahte mi?"**
 >
 > **Bu dosya kalıcıdır.** Sonraki oturumlar baştan tasnif etmez, buradan devam eder.
-> Faz A (bozma turu) yalnız 🔴 ve 🟠 satırlarda koşacak.
+>
+> ✅ **DURUM (13 Ağu 2026): Faz 0 · Faz B (B1–B7) · T1/T2 · Faz A — HEPSİ KOŞULDU.**
+> 67 maddenin tamamı bugün 🟢 ya da 🟢🟢. Faz A'nın 10 maddelik kırılgan alt kümesinde
+> **dört delik daha** bulundu ve kapatıldı (27 · 30 · 51 · 52); altısı **kilitli çıktı**.
 >
 > Reçetenin tamamı: `Memory_Bank/Progress.md` → *"GÖRÜNMEZ SÖZLEŞME DENETİMİ"*.
 > Faz 0 koşuldu: **13 Ağustos 2026**. Yöntem: her maddenin kilidini taşıyan dosya **açılıp
@@ -50,7 +53,7 @@ ama sözleşmenin **iddia edilen yüzü** ile **yazılı yüzü** aynı değil. 
 | 15 | `AdCategory` filtresi **TAM EŞLEŞME** | Davranış | 🟢 ✅ | **B3 ile kapatıldı**: `InvisibleContractsTests.AdCategoryFilter_IsAnExactMatch_NotAHierarchicalOne` (alt kategori ilanı kendi kategorisinde görünür, **kökte görünmez**) |
 | 16 | Push `data` sözlüğünün anahtarları | Davranış + **tek sahip sabit** | 🟢 ✅ | **B1 ile kapatıldı**: adların tek sahibi `Application/Features/Notifications/PushDataKeys`; `PushNotificationsJobTests` anahtar kümesini **düz metin** iddia ediyor (sabiti yeniden adlandırmak testi kurtarmaz) |
 | 17 | `unreadCount` gövdenin içinde ve **filtreden bağımsız** | Davranış | 🟢 ✅ | **B4 ile kapatıldı**: `NotificationsTests` — `?limit=1` isteğinde sayaç **2** kalmalı. ⚠️ İddia bilerek **sayfalamaya** bağlandı: yalnız `unreadOnly` üzerinden kurulan eşitlik bu uçta totolojidir ve hiçbir bozma onu kırmazdı |
-| 18 | `relatedType` → mobil rota; tanınmayan tür iptal | İstemci tarafı | 🟠 | `mobile/test/features/notifications/notification_link_test.dart` (sunucunun ürettiği türle bağı yok — madde 16 ile aynı boşluğun diğer ucu) |
+| 18 | `relatedType` → mobil rota; tanınmayan tür iptal | İstemci tarafı | 🟢 ✅ | `notification_link_test.dart` — **Faz A'da kilitli çıktı**: tanınmayan türü duyuruya düşürmek testi kırdı |
 | 19 | İzin eylemi aksiyon **adından** türer | Davranış + **türetilmiş kapsam** | 🟢 ✅ | **B6 ile kapatıldı**: `PanelModeratorPermissionTests.EveryWriteAction_SaysWhatItIs_InsteadOfSilentlyFallingBackToUpdate` — kapsam matris controller'larından **yansımayla türetilir**; adı hiçbir şey söylemeyen yazma aksiyonu **kırmızıdır**. 🔑 Sessiz varsayılan artık **yazılı karara** dönüştü |
 | 20 | Menü · matris · `[PanelPermission]` aynı anahtar | Yansıma (türetilmiş) | 🟢 | `PanelModeratorPermissionTests.MenuModules_MatchThePermissionMatrixModules` |
 | 21 | Slug üretiminin tek sahibi `SlugHelper` | Saf birim + davranış | 🟢 ✅ | **B5 ile kapatıldı**: `InvisibleContractsTests.SlugGeneration_HasASingleOwner_EvenThroughItsWrappers` — sarmalayıcı (`BusinessRules.Slugify`) helper'la **aynı çıktıyı** vermeli ve seed'lenen satırların slug'ları helper'ınkiyle eşleşmeli |
@@ -59,10 +62,10 @@ ama sözleşmenin **iddia edilen yüzü** ile **yazılı yüzü** aynı değil. 
 | 24 | Bildirim hedefi yaşadığı sürece görünür | Davranış | 🟢 | `PanelBusinessRuleTests.NotificationList_Hides…` · `DeletingAnnouncement_AlsoRemovesItsNotifications` |
 | 25 | Onay, süresi dolmuş ilana taze pencere verir | Davranış + saf birim | 🟢 | `PanelBusinessRuleTests.ApprovingExpiredAd_…` + `Unit/…/Moderation/ModerationTransitionTests` |
 | 26 | `QueryAdDto.Status` yalnız panel yolunda okunur | Davranış | 🟢 ✅ | **B2 ile kapatıldı**: `InvisibleContractsTests.PublicAdsList_IgnoresTheStatusFilter_SoPendingAdsCanNeverLeak` — sözleşmenin adını taşıdığı **ilan** ucunda üç sorgu birden denetleniyor |
-| 27 | Kesinti süren/planlı/bitti tanımı panel↔mobil | Saf birim (iki dilde ayrı) | 🟠 | `PanelPowerOutageFilterTests` (birim kısmı) + `mobile/…/power_outage_model_test.dart` — **iki ayna, tek kaynak değil** |
+| 27 | Kesinti süren/planlı/bitti tanımı panel↔mobil | Saf birim (iki ayna) | 🟢 ✅ | **Faz A'da mobil ayak DELİK çıktı** (başlangıç sınırı hiç iddia edilmiyordu, bozma yeşil kaldı) → `power_outage_model_test.dart`'a *'tam BAŞLANGIÇ anında sürüyor'* eklendi; panel ayağı `PanelPowerOutageFilterTests` |
 | 28 | Geri getirme ≠ yayına alma | Davranış | 🟢 | `PanelTrashTests.Restore_DoesNotPublishTheRecord` |
-| 29 | Toplu aksiyon `…Selected` + tek-kayıt komutu | Davranış + yansıma | 🟠 | `PanelBulkActionTests.BulkPrefixNaming_WouldSilentlyDowngradePermission` · `…AppliesBusinessRules_NotJustStatusUpdate`. Adlandırma kuralını **tarayan** bir test yok (madde 19 ile aynı kök) |
-| 30 | Her sıralama anahtarı **benzersiz** ayraçla biter | Saf birim — **kapsam elle** | 🟠 | `PanelSortingTests.EveryKey_ProducesStableOrderForTiedRows` yalnız **Announcements** haritasını süpürüyor (+ `PanelErrorLogTests` / `PanelLoginAttemptTests` kendi modülleri için). Kalan haritalar süpürülmüyor. 📌 İddia şekli **doğru**: bellek-içi sıralama kararlı olduğu için ayraç *yoksa da*, *benzersiz değilse de* kırmızıya döner |
+| 29 | Toplu aksiyon `…Selected` + tek-kayıt komutu | Davranış + **türetilmiş kapsam** | 🟢 ✅ | **Faz A'da kilitli çıktı** — `ApproveSelected` → `BulkApprove` bozması 7 testi kırdı; B6'nın yeni testi aksiyonu **adıyla** söyledi |
+| 30 | Her sıralama anahtarı **benzersiz** ayraçla biter | Saf birim — **türetilmiş kapsam** | 🟢 ✅ | **Faz A'da kapsam deliği ölçüldü** (Campaigns'in ayracı düşürüldü, hiçbir test kırılmadı) → `PanelSortingTests.EverySortMapInTheProject_…` haritaları **yansımayla** geziyor |
 | 31 | Hata kaydı yazımı isteği düşüremez | Davranış | 🟢 | `PanelErrorLogTests` (+ `ChannelErrorLogSink` davranışı) |
 | 32 | `Fingerprint` tekilleştirmesi + benzersiz indeks | Saf birim + **DB kısıtı** | 🟢🟢 | `Unit/…/Observability/ErrorFingerprintTests` + `PanelErrorLogTests.SameError_Twice_ProducesOneRow_WithCountTwo` |
 | 33 | `Source` sunucuda sabit + `Path` maskeli | Davranış + saf birim | 🟢 | `PanelErrorLogTests.ClientSuppliedMessage_IsEscaped_…` + `SensitiveDataMaskerTests` |
@@ -81,10 +84,10 @@ ama sözleşmenin **iddia edilen yüzü** ile **yazılı yüzü** aynı değil. 
 | 46 | `OperatingDays` tek sahip; `0` yasak; uç elemez | Saf birim + davranış | 🟢 | `Unit/…/Transport/OperatingDaysTests` + `PanelTransportFieldModelTests.Endpoint_DoesNotFilterSchedulesByDay` · `Schedule_WithNoDay_IsRejectedAndSaysWhy` |
 | 47 | `vehicle_type` metin; süzgeçte bilinmeyen süzmez | Saf birim + davranış | 🟢 | `Unit/…/Transport/TransportVehicleTypeTests` + `PanelTransportFieldModelTests.UnknownVehicleTypeFilter_FallsBackToTheFullList` |
 | 48 | Kalkış noktası sözlükten; pasif değer kaydı kilitlemez | Davranış | 🟢 | `PanelTransportFieldModelTests.PassiveDeparturePoint_StaysSelectedOnAnExistingRoute` · `RouteWithADeactivatedDeparturePoint_CanStillBeEdited` |
-| 49 | İstemcide boş/eksik `days` = "her gün" | İstemci tarafı (davranış, golden değil) | 🟠 | `mobile/test/features/transport/operating_days_test.dart` — yedi günün **tek tek** denetlendiği doğrulandı |
-| 50 | "Kalktı" yalnız bugün çalışan sefer için | İstemci tarafı — **iddia iki yönlü** | 🟠 | `mobile/…/transport_screen_test.dart`: *"bugün çalışmayan seferin üstü ÇİZİLMEZ"* **ve** *"…saati geçen seferin üstü ÇİZİLİR"*. 📌 **Ön hipotez ÇÜRÜDÜ**: golden'a bağımlılık kalmamış |
-| 51 | Panel dış origine bağlanamaz, satır içi `on*=` yok | **Kaynak taraması** + canlı yanıt + açılış kapısı | 🔴 | `Integration/Architecture/PanelExternalOriginTests` (kapsam: **yalnız** `KadirliApp.Web/Views/**/*.cshtml`) + `PanelContentSecurityPolicyTests` (canlı) + `Unit/Web/PanelAssetGuardTests`. Tarama `wwwroot/js/panel.js`'i ve `Views/` dışındaki hiçbir şeyi görmüyor |
-| 52 | Moderasyon durumunu yalnız geçiş komutları yazar | **Kaynak taraması** (dosya adı deseni **elle**) + davranış + derleyici | 🔴 | `ModerationSingleOwnerTests` — modül kümesi `Approve*.cs`'ten **türetiliyor** ✅ ama taranan dosyalar hâlâ `Update*.cs` deseninde ❌ (12.11'in `ExtendMyAdCommand` dersinin **aynısı hâlâ ayakta**). Davranış ayağı: `PanelModerationOwnershipTests` |
+| 49 | İstemcide boş/eksik `days` = "her gün" | İstemci tarafı (davranış) | 🟢 ✅ | `operating_days_test.dart` — **Faz A'da kilitli çıktı** (3 test kırmızı) |
+| 50 | "Kalktı" yalnız bugün çalışan sefer için | İstemci tarafı — iddia iki yönlü | 🟢 ✅ | `transport_screen_test.dart` — **Faz A'da kilitli çıktı** (gün kontrolü düşürüldü → kırmızı) |
+| 51 | Panel dış origine bağlanamaz, satır içi `on*=` yok | Kaynak taraması (**kapsam türetildi**) + canlı yanıt + açılış kapısı | 🟢 ✅ | **Faz A'da kapsam deliği ölçüldü**: `panel.css`'e Google Fonts `@import`'u üç ayağı da yeşil bıraktı → yeni `NoCommittedPanelAsset_LoadsAResourceFromAnExternalOrigin` `wwwroot`'u (lib hariç) **dizinden türeterek** tarıyor |
+| 52 | Moderasyon durumunu yalnız geçiş komutları yazar | **Yansıma** + davranış + derleyici | 🟢 ✅ | **Faz A'da 12.11'in dersi HÂLÂ açıktı**: `Update*` desenine uymayan `ReviseAdCommand.cs` hiç taranmadı → yeni `EveryStatusCarryingCommand_CallsTheGuard_RegardlessOfItsFileName` kapsamı **tipten** kuruyor |
 | 53 | Moderasyon alanları `init` olmak zorunda | **Derleyici** + yansıma | 🟢🟢 | `ModerationSingleOwnerTests.EveryModeratedEntity_ExposesItsModerationFieldsAsInitOnly` (alan listesi tipin **kendisinden** türetiliyor) |
 | 54 | `modified_after` **site-yerel** saatte | Saf birim (gidiş-dönüş) | 🟢 | `Unit/…/News/WordPressTimeWindowTests` — dönüşüm, çakışma payı ve yön ayrı ayrı iddia ediliyor. ⚠️ *"`DateTime.UtcNow` asla doğrudan yazılmaz"* yüzü taranmıyor (düşük etki: tek sahip küçük ve okunur) |
 | 55 | `Source*` ↔ `*Override` iki sahip, ikisi de `init` | **Yansıma** + derleyici | 🟢🟢 | `Integration/Architecture/NewsSourceOwnershipTests` — alan listesi tipten türetiliyor (kaynak taraması **değil**) |
@@ -93,8 +96,8 @@ ama sözleşmenin **iddia edilen yüzü** ile **yazılı yüzü** aynı değil. 
 | 58 | Haber durumu türetilir; `gone` > `archived` | Saf birim + davranış | 🟢 | `Unit/…/News/NewsStatesTests` + `PanelNewsTests.EditForm_HasNoVisibilityToggle` |
 | 59 | Kategori görünürlüğü **dışlama** semantiği | Davranış | 🟢 | `PanelNewsTests.ExcludingACategory_HidesEveryArticleInIt_EvenIfTheyHaveOtherVisibleCategories` · `TheReversePreview_CountsOnlyArticlesThatWouldActuallyComeBack` |
 | 60 | Aynı anda tek senkron koşusu (kısmi unique indeks) | **DB kısıtı** + davranış | 🟢🟢 | `PanelNewsTests.ASecondRunCannotBeOpenedWhileOneIsStillActive` · `TheSyncService_ReportsBlockedInsteadOfFailing_…` |
-| 61 | Gövdenin tek çizim sahibi `NewsBody` | İstemci tarafı | 🟠 | `mobile/test/features/news/news_body_test.dart` — "istemci sunucudan geleni KIRPMAZ" doğrudan iddia ediliyor |
-| 62 | "Kaydedilenler" anlık görüntü saklar | İstemci tarafı | 🟠 | `mobile/…/news_screen_test.dart` (`kaydedilen haber ağa çıkmadan listelenir`, `bozuk bir kayıt bütün listeyi düşürmez`) |
+| 61 | Gövdenin tek çizim sahibi `NewsBody` | İstemci tarafı | 🟢 ✅ | **Faz A'da zayıf iddia bulundu**: `<blockquote>` etiketleri silindiğinde test yeşil kaldı (metin duruyordu) → yeni iddia `Html`'e giden verinin **birebir aynı** olması |
+| 62 | "Kaydedilenler" anlık görüntü saklar | İstemci tarafı | 🟢 ✅ | `news_screen_test.dart` — **Faz A'da kilitli çıktı** (3 test kırmızı) |
 | 63 | Gövde görselleri aynalanır; **sağlama aynalamadan ÖNCE** | Davranış | 🟢 | `NewsSyncTests.SecondRun_DoesNotRewriteTheArticle_…` · `Backfill_DoesNotTouchTheChecksum_…` · `TheSameBodyImage_InTwoArticles_IsStoredOnce` + `Unit/…/News/NewsBodyImagesTests` |
 | 64 | Haber bildirimi terminal — kural **üç katmanda** | Davranış + **DB kısıtı** | 🟢🟢 | `PanelNewsNotificationTests.TheDatabase_RefusesASecondNewsCampaignForTheSameArticle` · `TheUniqueIndex_DoesNotAffectOtherSources` + `NewsArticleTransitionTests.MarkNotificationSent_IsTerminal_…` |
 | 65 | Gönderilebilirlik görünürlüğün **üç eksenini** sorar | Saf birim + davranış | 🟢 | `Unit/…/News/NewsNotificationRulesTests` (üç eksen ayrı ayrı) + `PanelNewsNotificationTests.AnArticleHiddenByCategoryExclusion_CannotBeNotified` |
@@ -106,13 +109,14 @@ ama sözleşmenin **iddia edilen yüzü** ile **yazılı yüzü** aynı değil. 
 | Risk | Tasnif anında | **Faz B'den sonra (bugün)** | Maddeler |
 |---|---|---|---|
 | 🟢🟢 En düşük (derleyici / DB kısıtı) | 6 | 6 | 32 · 53 · 55 · 60 · 64 |
-| 🟢 Düşük (davranış / saf birim) | 45 | **53** | + 6 · 15 · 16 · 17 · 19 · 21 · 26 (B1–B7 ✅) + 67 (T2 ✅) |
-| 🟠 Orta (istemci · elle kapsam · ayna) | 9 | **8** | 18 · 27 · 29 · 30 · 49 · 50 · 61 · 62 |
-| 🔴 Yüksek | 7 | **2** | 51 · 52 |
+| 🟢 Düşük (davranış / saf birim) | 45 | **61** | + 6 · 15 · 16 · 17 · 19 · 21 · 26 (B1–B7 ✅) · 67 (T2 ✅) · 18 · 27 · 29 · 30 · 49 · 50 · 51 · 52 · 61 · 62 (Faz A ✅) |
+| 🟠 Orta (istemci · elle kapsam · ayna) | 9 | **0** | — |
+| 🔴 Yüksek | 7 | **0** | — |
 
-> 🔑 **Faz A'nın kalan alt kümesi: 10 madde** (2 🔴 + 8 🟠). Kalan 57 maddede kör bozma turu
-> **yapılmayacak** (reçetenin kendi kuralı).
-> ✅ **Ön koşul T1/T2 kapandı** — Faz A artık güvenilir bir zeminde koşabilir.
+> 🔑 **Faz A koşuldu ve bitti.** 10 maddelik kırılgan alt kümenin **altısı kilitli çıktı**
+> (18 · 29 · 49 · 50 · 62 + 51/52'nin ana ayakları), **dördünde delik bulundu ve kapatıldı**
+> (27 · 30 · 51 · 52). Kalan 57 maddede kör bozma turu **yapılmadı** — reçetenin kendi kuralı.
+> ✅ Ön koşul T1/T2 de kapandı.
 
 ---
 
@@ -211,16 +215,63 @@ yazılması gerektiğini gösterdi.
 
 ---
 
-## 7. Sırada ne var
+## 7. ✅ FAZ A — BOZMA TURU (13 Ağustos 2026, aynı oturum)
 
-1. ~~**T1/T2** (reçetenin ön koşulu)~~ → ✅ **kapandı** (§6). Zemin artık güvenilir.
-2. **Faz A — bozma turu**, kalan **10 maddelik** alt kümede (2 🔴 + 8 🟠). Protokol madde başına:
-   kuralı **anlamlı** şekilde boz (derlenmez hâle getirmek bozma değildir) → yalnız o maddenin
-   testini koş → kırmızıya döndüğünü gör → geri al → bu tabloya `kilitli` / `tesadüfen yeşil` yaz.
-   ~~⚠️ B1–B7 için bozma turu gereksiz~~ → **B1–B7 kapatıldı ve bozma turları yine de koşuldu**
-   (§5); yeni yazılan bir testin kilitlediğini görmek, deliğin varlığını kanıtlamaktan ayrı bir iş.
-3. **Faz B — kalan delikleri kapat.** Soru "testi genişletsem yeter mi?" değil:
-   **"korumayı taramanın erişemeyeceği yere taşıyabilir miyim?"**
-   Kalan iki 🔴: **51** (tarama kapsamı `Views/**` — `wwwroot/js/panel.js` ve `Views/` dışı
-   görülmüyor) · **52** (tarama ayağı hâlâ `Update*.cs` dosya adı deseni tutuyor — 12.11'in
-   dersi aynı testin içinde ayakta).
+10 maddelik kırılgan alt kümenin **hepsinde** koşuldu. Protokol madde başına: kuralı
+**anlamlı** (derlenebilir, çalışan) biçimde boz → yalnız o maddenin testini koş → sonucu
+kaydet → geri al.
+
+| # | Bozma | Sonuç |
+|---|---|---|
+| **18** | Tanınmayan `relatedType`'ı duyuru rotasına düşür | 🔴 **kilitli** |
+| **29** | `ApproveSelected` → `BulkApprove` | 🔴 **kilitli** (7 test; B6'nın testi aksiyonu **adıyla** söyledi) |
+| **49** | `days` boşken "hiçbir gün" say | 🔴 **kilitli** (3 test) |
+| **50** | Üstü çizili kararından gün kontrolünü düşür | 🔴 **kilitli** (golden değil, davranış testi) |
+| **62** | Anlık görüntüden başlık/özeti düşür | 🔴 **kilitli** (3 test) |
+| **51-a** | Görünüme `unpkg` script'i ekle | 🔴 **kilitli** |
+| **51-b** | CSP'ye `'unsafe-inline'` ekle | 🔴 **kilitli** |
+| **52-a** | `UpdateAdCommandHandler`'dan guard çağrısını sil | 🔴 **kilitli** |
+| **27** | `isActive`'i "başlangıç anı hariç" yap | 🟢 **YEŞİL KALDI → delik** |
+| **30** | `Campaigns.end_asc`'ten `ThenBy(Id)`'yi düşür | 🟢 **YEŞİL KALDI → delik** |
+| **51-c** | `panel.css`'e Google Fonts `@import`'u ekle | 🟢 **YEŞİL KALDI → delik** |
+| **52-b** | `Update*` desenine uymayan, guard çağırmayan `ReviseAdCommand.cs` ekle | 🟢 **YEŞİL KALDI → delik** |
+| **61** | İstemcide `<blockquote>` etiketlerini sil | 🟢 **YEŞİL KALDI → delik** |
+
+### Bulunan beş delik ve kapatılışları
+
+| # | Delik | Kapatma |
+|---|---|---|
+| **27** | Panel başlangıç sınırını (`dâhil`) kilitliyor, **mobil ayak hiç iddia etmiyordu** — ayna tek taraflı | `power_outage_model_test.dart`: *"tam BAŞLANGIÇ anında kesinti sürüyor sayılır"* |
+| **30** | Süpürme yalnız **Announcements** haritasını geziyordu (8 haritadan 1'i) | `EverySortMapInTheProject_…`: harita listesi `PanelSorts`'tan **yansımayla** okunuyor; iki satırın tüm alanları eşit tutulup her anahtarda kararlılık ölçülüyor |
+| **51** | Tarama yalnız `Views/**` — aynı bağımlılık `panel.css`'e bir `@import` olarak yazılabilirdi ve **üç ayak da yeşil kalıyordu** | `NoCommittedPanelAsset_LoadsAResourceFromAnExternalOrigin`: `wwwroot` (lib hariç) **dizinden türetilerek** taranıyor; yorumlar eleniyor (Tailwind lisans başlığı bir *yükleme* değil) |
+| **52** | 🔴 **12.11'in dersi bu dosyada hâlâ ayaktaydı:** modül kümesi türetiliyordu ama dosyalar `Update*.cs` **deseniyle** bulunuyordu | `EveryStatusCarryingCommand_CallsTheGuard_RegardlessOfItsFileName`: kapsam **tipten** kurulur (moderasyonlu modüllerin `Commands` ad alanındaki `Status` taşıyan her `IRequest<>`); guard komutun **kendi klasöründe** aranır |
+| **61** | *"İstemci kırpmaz"* iddiası **metnin** kaldığına bakıyordu; etiket silinince metin duruyor | İddia doğru değişmeze çevrildi: `Html`'e giden veri, sunucudan gelenin **birebir aynısı** |
+
+🔑 **Faz A'nın en değerli bulgusu 52:** 12.11 korumayı derleyiciye taşımıştı ama *taramanın
+kendisi* aynı kalmıştı — ve tam olarak aynı biçimde delikti. Ders üçüncü kez doğrulandı:
+**bir taramanın kapsamı da elle tutulan bir listedir**; çözüm listeyi büyütmek değil,
+kapsamı **türetmek**.
+
+📌 **Beş deliğin dördü "kapsam", biri "iddia şekli".** Yani bu projede zayıf test, çoğunlukla
+*yanlış şeye bakan* test değil, **doğru şeye ama dar bir kümede** bakan testtir.
+
+**Testler:** backend 1111 → **1114**, mobil 822 → **824**.
+
+---
+
+## 8. Sırada ne var
+
+**Denetimin kendisi bitti.** Faz 0 (tasnif) · Faz B (B1–B7) · T1/T2 · Faz A — hepsi koşuldu;
+67 maddenin tamamı bugün 🟢 ya da 🟢🟢 ve **on iki delik** kapatıldı (B1–B7 + 27 · 30 · 51 · 52 · 61).
+
+Bu dosya bundan sonra **bakım** dosyasıdır:
+
+1. **Yeni bir görünmez sözleşme yazarken** buraya bir satır ekle: madde no, kilidin **cinsi**
+   ve neden o cinsin yeterli olduğu (`CODE_REVIEW_CHECKLIST` §10'da da bir satırı var).
+2. **Bir kilit "kaynak taraması" ya da "elle tutulan liste" cinsindense** kapsamını sor:
+   *dizinden mi, tipten mi, elden mi geliyor?* Faz A'da bulunan beş deliğin **dördü** kapsamdı.
+3. **Yeni bir test yazdığında** iddiayı yazdıktan sonra sor: **"bunu nasıl bozardım?"** —
+   somut cevabı yoksa iddia totoloji olabilir (T2 ve B4'te birer kez yaşandı).
+4. **Kalan kırılgan cins yok** ama tek istisna dosyada dürüstçe yazılı: madde 67'nin
+   *duman testi* ayağı (`TheBackfill_LeftNoUserRowWithoutTheNewsKey`) hâlâ vakumdur —
+   gerçek kilit `TheBackfillStatement_…`.

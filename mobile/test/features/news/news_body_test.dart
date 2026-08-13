@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kadirli_app/core/theme/app_theme.dart';
 import 'package:kadirli_app/features/news/presentation/widgets/news_body.dart';
@@ -144,5 +145,32 @@ void main() {
     expect(find.textContaining('Birinci madde'), findsWidgets);
     expect(find.textContaining('İkinci madde'), findsWidgets);
     expect(find.textContaining('Kalın'), findsWidgets);
+  });
+
+  // 🔴 Faz A bozma turu (13 Ağu 2026): yukarıdaki iddia **yetmiyordu.**
+  // `<blockquote>` etiketleri istemcide silindiğinde test YEŞİL kaldı — çünkü
+  // metin duruyor, kaybolan yalnız **biçim**. Oysa sözleşmenin (§7 madde 61)
+  // söylediği şey "metin kaybolmaz" değil, **"istemci gövdeye dokunmaz"**.
+  // Doğru değişmez doğrudan iddia ediliyor: `Html`'e giden veri, sunucudan
+  // gelenin **birebir aynısı** olmalı.
+  testWidgets('gövde `Html`e DEĞİŞTİRİLMEDEN gider (ikinci beyaz liste yok)', (
+    tester,
+  ) async {
+    const source =
+        '<blockquote>Alıntı</blockquote>'
+        '<figure><img src="/uploads/a.jpg"><figcaption>Altyazı</figcaption></figure>'
+        '<p>Gövde <a href="https://ornek.test">bağlantı</a> ile.</p>';
+
+    await pumpBody(tester, source);
+
+    final rendered = tester.widget<Html>(find.byType(Html));
+    expect(
+      rendered.data,
+      source,
+      reason:
+          'temizliğin tek sahibi SUNUCU (12.12 `NewsHtmlPolicy`). İstemci gövdeyi '
+          'yeniden yazarsa gazetenin yarın kullanacağı bir etiket sessizce yutulur: '
+          'sunucu "gönderdim" der, ekranda biçim kaybolur, log temizdir.',
+    );
   });
 }

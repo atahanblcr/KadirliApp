@@ -227,6 +227,83 @@ public class ModerationSingleOwnerTests
             string.Join(", ", offenders));
     }
 
+    /// <summary>
+    /// 🔴 <b>Faz A bozma turunun bulgusu (13 Ağu 2026): 12.11'in dersi bu dosyada HÂLÂ ayaktaydı.</b>
+    ///
+    /// <para>
+    /// Yukarıdaki iki tarama modül kümesini <b>türetiyor</b> ✅ ama taradıkları dosyaları
+    /// <c>Update*.cs</c> <b>deseniyle</b> buluyor ❌ — yani kapsam yine elle tutuluyor.
+    /// Ölçüldü: <c>Features/Ads/Commands/</c> altına durum alanı taşıyan ve guard
+    /// çağırmayan bir <c>ReviseAdCommand.cs</c> konduğunda <b>hiçbir test kırılmadı</b>.
+    /// Bu, 12.11'in <c>ExtendMyAdCommand</c> bulgusunun birebir aynısı — o zaman koruma
+    /// derleyiciye taşınmıştı, ama <i>taramanın kendisi</i> aynı kalmıştı.
+    /// </para>
+    ///
+    /// <para>
+    /// 🔑 Bu test kapsamı <b>yansımayla</b> kurar (dosya adına bakmaz): moderasyonlu
+    /// modüllerin <c>Commands</c> ad alanındaki <b>her</b> MediatR isteği taranır ve
+    /// <c>Status</c> özelliği taşıyan her biri için guard çağrısı aranır. Yarın eklenen
+    /// <c>ReviseAdCommand</c> kendiliğinden kapsama girer — ada değil <b>tipe</b> bakıldığı için.
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠️ Guard çağrısı komutun <b>kendi klasöründe</b> aranır (komut ve handler ayrı
+    /// dosyalarda olabiliyor), modül genelinde değil: modül genelinde aramak, aynı modüldeki
+    /// <i>başka</i> bir komutun guard'ını bu komuta sayardı — deliğin ikinci yüzü tam buydu.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void EveryStatusCarryingCommand_CallsTheGuard_RegardlessOfItsFileName()
+    {
+        var featuresRoot = FeaturesRoot();
+        var modules = ModeratedModules();
+
+        var commands = typeof(KadirliApp.Application.Common.Moderation.ModerationStatusGuard).Assembly
+            .GetTypes()
+            .Where(t => t is { IsAbstract: false, IsClass: true } or { IsValueType: true })
+            .Where(t => t.Namespace is not null
+                        && modules.Any(m => t.Namespace!.Contains($".Features.{m}.Commands", StringComparison.Ordinal)))
+            .Where(t => t.GetInterfaces().Any(i => i.IsGenericType
+                            && i.GetGenericTypeDefinition() == typeof(MediatR.IRequest<>)))
+            .Where(t => t.GetProperty("Status")?.PropertyType == typeof(string)
+                        || t.GetProperty("Status")?.PropertyType == typeof(string))
+            .OrderBy(t => t.Name, StringComparer.Ordinal)
+            .ToList();
+
+        commands.Should().NotBeEmpty(
+            "durum alanı taşıyan komut YANSIMAYLA bulunamadıysa test hiçbir şey denetlemiyor " +
+            "(§5 gereği alan DTO'da duruyor olmalı)");
+
+        var offenders = new List<string>();
+
+        foreach (var command in commands)
+        {
+            var sourceFile = Directory
+                .GetFiles(featuresRoot, "*.cs", SearchOption.AllDirectories)
+                .FirstOrDefault(f => Regex.IsMatch(
+                    File.ReadAllText(f), $@"(record|class)\s+{Regex.Escape(command.Name)}\b"));
+
+            if (sourceFile is null)
+            {
+                offenders.Add($"{command.Name} (kaynak dosyası bulunamadı)");
+                continue;
+            }
+
+            // Guard, komutun kendi klasöründe çağrılmalı (komut + handler aynı yerde).
+            var guarded = Directory
+                .GetFiles(Path.GetDirectoryName(sourceFile)!, "*.cs", SearchOption.TopDirectoryOnly)
+                .Any(f => File.ReadAllText(f).Contains("ModerationStatusGuard.EnsureUnchanged"));
+
+            if (!guarded) offenders.Add(command.Name);
+        }
+
+        offenders.Should().BeEmpty(
+            "durum alanı taşıyan HER komut guard'ı çağırmalı (§7 madde 52) — dosya adı ne olursa " +
+            "olsun. 12.11'de `ExtendMyAdCommand` tam bu yüzden taranmamıştı; Faz A'da aynı deliğin " +
+            "hâlâ açık olduğu ölçüldü (`ReviseAdCommand.cs` eklendi, hiçbir test kırılmadı). " +
+            "Guard çağırmayan komutlar: {0}", string.Join(", ", offenders));
+    }
+
     // ── 3) Faz 12.11: geçiş VARLIĞIN kendisinde ve alanlar kapalı ──────────────
 
     /// <summary>

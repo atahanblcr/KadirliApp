@@ -136,7 +136,7 @@ materyalizasyonu varsayılan başlatıcıyı çalıştırmıyor** (anahtarsız J
 canlıda 13/13) → geri doldurma migration'ı **zorunluydu**; test silinmedi, ölçüm belgeye
 çevrildi.
 
-**1111 backend + 822 mobil test, 67 görünmez sözleşme.**
+**1114 backend + 824 mobil test, 67 görünmez sözleşme.**
 
 **⏭️ Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) ·
 **12.16 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher **yazılmaz**,
@@ -163,10 +163,11 @@ vardı; sorun **iddiası zayıf testler** (beş fazda beş kez patladı). Kapat�
 16 · 17 · 19 · 21 · 26; yedisinin de **bozma turu koşuldu**. 🔑 En değerlisi **madde 19**:
 adı hiçbir önekle eşleşmeyen bir panel yazma aksiyonu artık sessizce `update` iznine değil
 **kırmızıya** düşüyor (kapsam yansımayla türetiliyor) — o test ilk koşusunda **iki gerçek
-vaka** buldu. ✅ **T1/T2 de kapandı** (dört test sınıfı artık kendi `users` satırlarını siliyor; geri
-doldurma SQL'i paylaşılan bir sabite çıkarıldı ve **planın gerekçesi ölçümle düzeltildi** —
-test DB'si koşular arasında yeniden kullanılmıyor). ⏭️ Sırada **Faz A**: kalan 10 madde
-(2 🔴: 51 tarama kapsamı · 52 tarama ayağının dosya adı deseni).
+vaka** buldu. ✅ **T1/T2 ve Faz A da bitti — DENETİM KAPANDI.** Faz A'da **beş delik daha** bulunup
+kapatıldı (27 · 30 · 51 · 52 · 61); dördü **kapsam** deliğiydi ve dördü de kapsamı
+**türeterek** (dizinden/tipten/yansımayla) kapatıldı. 🔑 En önemlisi **52**: 12.11 korumayı
+derleyiciye taşımıştı ama **taramanın kendisi** hâlâ `Update*.cs` deseni tutuyordu — aynı
+delik, aynı dosyada. **67 maddenin tamamı bugün 🟢/🟢🟢.**
 Plan: `Memory_Bank/Progress.md` → "FAZ 12".
 
 > 🔑 **Panel süper admin parolası** `secrets/panel-admin.json`'dadır (git'e girmez; biçim ve

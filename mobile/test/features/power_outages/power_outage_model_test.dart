@@ -65,6 +65,27 @@ void main() {
       expect(item.isActive(now: now), isFalse);
       expect(item.status(now: now), PowerOutageStatus.past);
     });
+
+    // 🔴 Faz A bozma turu (13 Ağu 2026): BAŞLANGIÇ sınırı burada **hiç iddia
+    // edilmiyordu.** `isActive`'i "başlangıç anı hariç" yapan bozma tüm mobil
+    // süiti YEŞİL bıraktı — oysa panel tarafı bunu ayrıca kilitliyor
+    // (`PanelPowerOutageFilterTests.StartMoment_IsInclusive_OutageCountsAsOngoing`).
+    // §7 madde 27 iki tanımın **birebir** aynı olmasını şart koşuyor; ayna tek
+    // taraflı kilitliyken panel "sürüyor" derken vatandaş "planlı" görür ve
+    // **kimse hata almaz** (madde 23'ün sınıfı).
+    test('tam BAŞLANGIÇ anında kesinti sürüyor sayılır (sınır DÂHİL)', () {
+      final item = outage(start: Duration.zero, end: const Duration(hours: 2));
+
+      expect(
+        item.isActive(now: now),
+        isTrue,
+        reason:
+            'başlangıç anı DÂHİL — panel tarafındaki PowerOutagePhaseRules ile '
+            'birebir aynı olmak zorunda (§7 madde 27)',
+      );
+      expect(item.isUpcoming(now: now), isFalse);
+      expect(item.status(now: now), PowerOutageStatus.active);
+    });
   });
 
   group('süre ve geri sayım', () {

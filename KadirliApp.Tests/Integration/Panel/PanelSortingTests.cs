@@ -1,5 +1,7 @@
 extern alias WebPanel;
 
+using System.Collections;
+using System.Reflection;
 using FluentAssertions;
 using KadirliApp.Application.Common.Sorting;
 using KadirliApp.Application.Features.Announcements.Queries.GetAnnouncements;
@@ -98,6 +100,114 @@ public class PanelSortingTests : IAsyncLifetime
                 $"'{key}' anahtarında eşit satırların sırası girdi sırasına göre değişmemeli " +
                 "(ikincil sıra yoksa sayfalı listede kayıt kaybolur)");
         }
+    }
+
+    /// <summary>
+    /// 🔴 <b>Faz A bozma turunun bulgusu (13 Ağu 2026):</b> yukarıdaki süpürme yalnız
+    /// <b>Announcements</b> haritasını geziyordu. Ölçüldü: <c>Campaigns</c>'in
+    /// <c>end_asc</c>/<c>end_desc</c> anahtarlarından benzersiz ayraç (<c>ThenBy(Id)</c>)
+    /// kaldırıldığında <b>hiçbir test kırılmadı</b> — yani §7 madde 30 sekiz haritanın
+    /// yalnız birinde kilitliydi.
+    ///
+    /// <para>
+    /// 🔑 Çözüm testi "genişletmek" değil, <b>kapsamı türetmek</b> (12.11'in dersi):
+    /// harita listesi <see cref="PanelSorts"/>'un <b>kendisinden</b> yansımayla okunur.
+    /// Yarın eklenen dokuzuncu bir harita kendiliğinden kapsama girer; elle bir liste
+    /// tutulmaz — çünkü *bir taramanın kapsamı da elle tutulan bir listedir.*
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠️ Ölçüt yine <b>davranış</b>: iki satırın <b>bütün</b> alanları eşit (yalnız
+    /// <c>Id</c>'leri farklı), dolayısıyla her anahtar için birincil sıra berabere kalır.
+    /// Bellek-içi sıralama <b>kararlı</b> olduğu için, benzersiz bir ayraç yoksa sonuç
+    /// <b>girdi sırasını</b> izler — ters sırayla verilen aynı iki satır ters çıkar ve
+    /// test kırmızıya döner. Ayraç <i>var ama benzersiz değilse</i> de aynı şey olur
+    /// (11.18'in dersi: "bir ikincil anahtar koymak" yetmez).
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void EverySortMapInTheProject_ProducesStableOrderForTiedRows()
+    {
+        var maps = typeof(PanelSorts)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.FieldType.IsGenericType
+                        && f.FieldType.GetGenericTypeDefinition() == typeof(SortMap<>))
+            .ToList();
+
+        maps.Should().HaveCountGreaterThan(5,
+            "kapsam PanelSorts'tan TÜRETİLİYOR — türetme çalışmıyorsa bu test hiçbir şey denetlemiyor");
+
+        var unstable = new List<string>();
+        var unevaluated = new List<string>();
+
+        foreach (var field in maps)
+        {
+            var map = field.GetValue(null)!;
+            var entity = field.FieldType.GetGenericArguments()[0];
+            var idProperty = entity.GetProperty("Id")!;
+
+            object Row(Guid id)
+            {
+                var row = Activator.CreateInstance(entity)!;
+                idProperty.SetValue(row, id);
+                return row;
+            }
+
+            var first = Row(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+            var second = Row(Guid.Parse("22222222-2222-2222-2222-222222222222"));
+
+            var keys = (IEnumerable<string>)map.GetType().GetProperty("Keys")!.GetValue(map)!;
+            var apply = map.GetType().GetMethod("Apply")!;
+
+            foreach (var key in keys)
+            {
+                try
+                {
+                    var forward = OrderedIds(apply, map, entity, first, second, key);
+                    var reversed = OrderedIds(apply, map, entity, second, first, key);
+
+                    if (!forward.SequenceEqual(reversed))
+                        unstable.Add($"{field.Name}.{key}");
+                }
+                catch (TargetInvocationException ex) when (ex.InnerException is NullReferenceException)
+                {
+                    // Gezinme özelliğine bakan anahtar bellek-içi değerlendirilemiyor.
+                    unevaluated.Add($"{field.Name}.{key}");
+                }
+            }
+        }
+
+        unstable.Should().BeEmpty(
+            "her sıralama anahtarı BENZERSİZ bir ayraçla (ThenBy(Id)) bitmeli (§7 madde 30). " +
+            "Bitmezse eşit değerli satırlarda Postgres sırayı garanti etmez ve sayfalı listede " +
+            "aynı kayıt iki sayfada birden görünüp bir başkası HİÇ görünmez — hata vermeyen " +
+            "veri kaybı. Kararsız anahtarlar: {0}", string.Join(", ", unstable));
+
+        unevaluated.Should().BeEmpty(
+            "bellek-içi değerlendirilemeyen anahtar, bu testin kapsamındaki bir DELİKTİR: " +
+            "sessizce atlanırsa kapsam yine elle tutulmuş olur. Böyle bir anahtar doğarsa " +
+            "ya satırı kurarken ilgili gezinme nesnesi doldurulmalı ya da anahtar burada " +
+            "bilinçli olarak muaf tutulup gerekçesi yazılmalı. Değerlendirilemeyenler: {0}",
+            string.Join(", ", unevaluated));
+    }
+
+    /// <summary>İki satırı verilen sırayla sıralayıp kimlik listesini döndürür.</summary>
+    private static List<Guid> OrderedIds(
+        MethodInfo apply, object map, Type entity, object a, object b, string key)
+    {
+        var array = Array.CreateInstance(entity, 2);
+        array.SetValue(a, 0);
+        array.SetValue(b, 1);
+
+        var queryable = typeof(Queryable)
+            .GetMethods()
+            .First(m => m.Name == nameof(Queryable.AsQueryable) && m.IsGenericMethod)
+            .MakeGenericMethod(entity)
+            .Invoke(null, new object[] { array })!;
+
+        var ordered = (IEnumerable)apply.Invoke(map, new[] { queryable, (object)key })!;
+        var idProperty = entity.GetProperty("Id")!;
+        return ordered.Cast<object>().Select(x => (Guid)idProperty.GetValue(x)!).ToList();
     }
 
     [Fact]
