@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using KadirliApp.Application.Common.Utils;
 using KadirliApp.Domain.Entities;
 using KadirliApp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -127,6 +128,13 @@ public class InvisibleContractsTests : IClassFixture<CustomWebApplicationFactory
     {
         var response = await _client.GetAsync(url);
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>Kendi kapsamında bir <c>AppDbContext</c> açar (Faz 0 denetiminde eklenen testler kullanıyor).</summary>
+    private async Task<T> InDbAsync<T>(Func<AppDbContext, Task<T>> action)
+    {
+        using var scope = _factory.Services.CreateScope();
+        return await action(scope.ServiceProvider.GetRequiredService<AppDbContext>());
     }
 
     private async Task<string> GetUserTokenAsync(string phone, string username)
@@ -316,11 +324,18 @@ public class InvisibleContractsTests : IClassFixture<CustomWebApplicationFactory
     /// çevirmemeli** — çevirirse gün bir geri kayar. 11.7 / 11.10 / 11.11'de bu ders üç kez
     /// yeniden öğrenildi (ve 11.10 testleri bu yüzden yalnız geceleri kırılıyordu).
     /// </summary>
+    /// <remarks>
+    /// 🔴 <b>Faz 0 denetiminin bulgusu (B7):</b> bu test 13 Ağustos 2026'ya kadar sözleşmenin
+    /// saydığı <b>üç</b> alandan yalnız ikisini ölçüyordu — <c>funeralDate</c> hiç
+    /// iddia edilmiyordu. Vefat, gün alanının en çok görüldüğü modül (ilan listesi ve detay
+    /// aynı alanı basıyor) ve tam da 11.11'de bir kez kaymıştı. "Kilidin adı değil
+    /// <b>kapsamı</b> önemlidir."
+    /// </remarks>
     [Fact]
     public async Task DayOnlyDateFields_AreStoredAsMidnightUtc_WithTimeInASeparateField()
     {
         var day = new DateTime(2027, 3, 15, 0, 0, 0, DateTimeKind.Utc);
-        Guid eventId, scheduleId, pharmacyId;
+        Guid eventId, scheduleId, pharmacyId, deathId;
 
         using (var scope = _factory.Services.CreateScope())
         {
@@ -353,9 +368,22 @@ public class InvisibleContractsTests : IClassFixture<CustomWebApplicationFactory
             };
             db.PharmacySchedules.Add(schedule);
 
+            // B7: sözleşmenin üçüncü alanı — vefat ilanının cenaze günü.
+            var death = new DeathNotice
+            {
+                Id = Guid.NewGuid(),
+                DeceasedName = "CLAUDE-TEST Görünmez Sözleşme Merhum",
+                FuneralDate = day,
+                FuneralTime = new TimeSpan(13, 0, 0),
+                Status = "approved",
+                AddedBy = Guid.Empty
+            };
+            db.DeathNotices.Add(death);
+
             await db.SaveChangesAsync();
             eventId = ev.Id;
             scheduleId = schedule.Id;
+            deathId = death.Id;
         }
 
         try
@@ -379,6 +407,18 @@ public class InvisibleContractsTests : IClassFixture<CustomWebApplicationFactory
                 DateTime.Parse(raw, null, System.Globalization.DateTimeStyles.RoundtripKind)
                     .ToUniversalTime().Should().Be(day, "nöbet günü kaydırılmadan aynen dönmeli");
             }
+
+            // B7 — üçüncü alan: funeralDate. Saat AYRI alanda; gün UTC gece yarısı.
+            using (var doc = await GetJsonAsync($"/v1/deaths/{deathId}"))
+            {
+                var data = doc.RootElement.GetProperty("data");
+                var raw = data.GetProperty("funeralDate").GetString()!;
+                DateTime.Parse(raw, null, System.Globalization.DateTimeStyles.RoundtripKind)
+                    .ToUniversalTime().Should().Be(day,
+                        "cenaze günü kaydırılmadan aynen dönmeli; istemci saat dilimine çevirirse gün bir geri kayar");
+                data.GetProperty("funeralTime").GetString().Should().StartWith("13:00",
+                    "cenaze saati gün alanına GÖMÜLMEZ, ayrı alanda taşınır");
+            }
         }
         finally
         {
@@ -386,7 +426,220 @@ public class InvisibleContractsTests : IClassFixture<CustomWebApplicationFactory
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             await db.Events.Where(e => e.Id == eventId).ExecuteDeleteAsync();
             await db.PharmacySchedules.Where(s => s.Id == scheduleId).ExecuteDeleteAsync();
+            await db.DeathNotices.IgnoreQueryFilters().Where(d => d.Id == deathId).ExecuteDeleteAsync();
         }
+    }
+
+    // ---------------------- 15 + 26) İlan listesinin iki sessiz kuralı (Faz 0 denetimi: B2/B3)
+
+    /// <summary>
+    /// 🔴 <b>Madde 26 (B2) — <c>?status=</c> public uçta ETKİSİZDİR.</b>
+    ///
+    /// <para>
+    /// <c>QueryAdDto.Status</c> yalnız panel/admin yolunda okunur; public uç
+    /// (<c>OnlyPublished=true</c>) onu yok sayar. Handler'daki <c>else if</c> bir gün
+    /// <c>if</c>'e çevrilirse <c>GET /v1/ads?status=pending</c> **onaylanmamış ilanları
+    /// iletişim telefonlarıyla** herkese açar — 10.5'te bir kez yaşandı.
+    /// </para>
+    ///
+    /// <para>
+    /// 🔑 <b>Bu test Faz 0 denetiminde doğdu.</b> Kural <c>PublicVisibilityTests</c> içinde
+    /// <b>vefat</b> modülü için ölçülüydü; sözleşmenin adını taşıdığı <b>ilan</b> ucunda
+    /// hiçbir iddia yoktu. Yani sızıntının gerçekten yaşandığı modül korumasızdı ve
+    /// "testi var" cevabı doğruydu — <i>başka bir modülün testi</i>.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task PublicAdsList_IgnoresTheStatusFilter_SoPendingAdsCanNeverLeak()
+    {
+        var categoryId = await InDbAsync(db => db.AdCategories.Where(c => c.ParentId == null).Select(c => c.Id).FirstAsync());
+        var ownerId = await InDbAsync(db => db.Users.Select(u => u.Id).FirstAsync());
+        var pendingId = Guid.NewGuid();
+
+        await InDbAsync(async db =>
+        {
+            db.Ads.Add(new Ad
+            {
+                Id = pendingId,
+                CategoryId = categoryId,
+                UserId = ownerId,
+                Title = $"{Marker} Onay bekleyen ilan",
+                Description = "Bu ilan moderasyondan geçmedi.",
+                ContactPhone = "+905331110099",
+                Price = 1234,
+                Status = "pending",
+                ExpiresAt = DateTime.UtcNow.AddDays(30)
+            });
+            await db.SaveChangesAsync();
+            return 0;
+        });
+
+        try
+        {
+            foreach (var url in new[]
+                     {
+                         "/v1/ads?status=pending&limit=50",
+                         "/v1/ads?status=rejected&limit=50",
+                         "/v1/ads?limit=50"
+                     })
+            {
+                using var doc = await GetJsonAsync(url);
+                var ids = doc.RootElement.GetProperty("data").GetProperty("items").EnumerateArray()
+                    .Select(i => i.GetProperty("id").GetGuid()).ToList();
+                ids.Should().NotContain(pendingId,
+                    $"public uç ({url}) moderasyondan geçmemiş ilanı ASLA döndürmemeli — " +
+                    "istemcinin gönderdiği status süzgeci burada yok sayılır (§7 madde 26)");
+            }
+        }
+        finally
+        {
+            await InDbAsync(async db =>
+            {
+                await db.Ads.IgnoreQueryFilters().Where(a => a.Id == pendingId).ExecuteDeleteAsync();
+                return 0;
+            });
+        }
+    }
+
+    /// <summary>
+    /// 🔴 <b>Madde 15 (B3) — kategori süzgeci TAM EŞLEŞMEDİR.</b>
+    ///
+    /// <para>
+    /// Kök kategori, alt kategorilerindeki ilanları <b>getirmez</b>. Mobil kategori şeridi
+    /// tam bu yüzden "içeri iniyor" (11.x): filtre hiyerarşik yapılsaydı şerit tasarımı
+    /// gereksizleşir, üstelik kök seçimi bir anda çok daha büyük bir liste döndürürdü —
+    /// hiçbir hata vermeden, yalnız ekran değişerek.
+    /// </para>
+    ///
+    /// <para>
+    /// 🔑 <b>Faz 0 denetiminin bulgusu:</b> bu semantiği ölçen tek bir test yoktu. En yakını
+    /// <c>AdsMobileTests.Categories_ReturnSeededHierarchy_Anonymously</c>'ydi ve o
+    /// <b>kategori ağacı ucunu</b> denetliyor, ilan süzgecini değil.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task AdCategoryFilter_IsAnExactMatch_NotAHierarchicalOne()
+    {
+        var (rootId, childId) = await InDbAsync(async db =>
+        {
+            var child = await db.AdCategories
+                .Where(c => c.ParentId != null)
+                .Select(c => new { c.Id, ParentId = c.ParentId!.Value })
+                .FirstAsync();
+            return (child.ParentId, child.Id);
+        });
+        var ownerId = await InDbAsync(db => db.Users.Select(u => u.Id).FirstAsync());
+        var childAdId = Guid.NewGuid();
+
+        await InDbAsync(async db =>
+        {
+            db.Ads.Add(new Ad
+            {
+                Id = childAdId,
+                CategoryId = childId,
+                UserId = ownerId,
+                Title = $"{Marker} Alt kategori ilanı",
+                Description = "Alt kategoride yayında.",
+                ContactPhone = "+905331110098",
+                Price = 4321,
+                Status = "approved",
+                ApprovedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddDays(30)
+            });
+            await db.SaveChangesAsync();
+            return 0;
+        });
+
+        try
+        {
+            using (var doc = await GetJsonAsync($"/v1/ads?categoryId={childId}&limit=50"))
+            {
+                doc.RootElement.GetProperty("data").GetProperty("items").EnumerateArray()
+                    .Select(i => i.GetProperty("id").GetGuid())
+                    .Should().Contain(childAdId, "kendi kategorisinde görünmeli");
+            }
+
+            using (var doc = await GetJsonAsync($"/v1/ads?categoryId={rootId}&limit=50"))
+            {
+                doc.RootElement.GetProperty("data").GetProperty("items").EnumerateArray()
+                    .Select(i => i.GetProperty("id").GetGuid())
+                    .Should().NotContain(childAdId,
+                        "kök kategori alt kategori ilanlarını GETİRMEZ (§7 madde 15) — " +
+                        "mobil kategori şeridi bu yüzden hiyerarşide içeri iniyor");
+            }
+        }
+        finally
+        {
+            await InDbAsync(async db =>
+            {
+                await db.Ads.IgnoreQueryFilters().Where(a => a.Id == childAdId).ExecuteDeleteAsync();
+                return 0;
+            });
+        }
+    }
+
+    // ------------------- 21) Slug üretiminin TEK SAHİBİ (Faz 0 denetimi: B5)
+
+    /// <summary>
+    /// 🔴 <b>Madde 21 (B5) — slug üretiminin tek sahibi <c>SlugHelper</c>'dır ve
+    /// SARMALAYICILARI ona delege eder.</b>
+    ///
+    /// <para>
+    /// Projede iki sarmalayıcı var: <c>DbSeeder.Slugify</c> ve <c>BusinessRules.Slugify</c>.
+    /// İkisi de bugün tek satırlık delegasyon — ama <b>hiçbir test bunu söylemiyordu</b>:
+    /// <c>SlugAndPaginationTests</c> yalnız helper'ın <i>kendi</i> davranışını ölçüyor.
+    /// Bir sarmalayıcıya "hızlıca" bir <c>ToLowerInvariant()</c> kopyası geri gelse
+    /// 10.9–11.15b arasında yaşanan hata dirilirdi: Türkçe <c>'İ'</c> (U+0130)
+    /// <c>ToLowerInvariant()</c> ile küçülmediği için slug'a ham girer ve
+    /// <b>"İstasyon" ≠ "istasyon"</b> olur → aynı mahalle iki kayıt olarak yaşar.
+    /// </para>
+    ///
+    /// <para>
+    /// 🔑 İki ayak birden gerekli: (a) doğrudan çağrılabilen sarmalayıcı <b>aynı çıktıyı</b>
+    /// vermeli, (b) seeder'ın <b>veritabanına yazdığı</b> satırlar helper'ın ürettiğiyle
+    /// birebir aynı olmalı — ikincisi <c>DbSeeder.Slugify</c> <c>internal</c> olduğu için
+    /// davranışla ölçülüyor (kaynak taraması değil: taramanın kapsamı da elle tutulan bir
+    /// listedir, §7 madde 53).
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task SlugGeneration_HasASingleOwner_EvenThroughItsWrappers()
+    {
+        // (a) Sarmalayıcı gerçekten delege ediyor mu — tuzağın tam merkezindeki girdilerle.
+        foreach (var name in new[] { "İstasyon", "ĞÜŞİÖÇ", "Ilıca", "Çukurova Mahallesi", "Şehit Öğretmen" })
+        {
+            KadirliApp.Application.Features.Businesses.Commands.BusinessRules.Slugify(name)
+                .Should().Be(SlugHelper.Slugify(name),
+                    "slug üretiminin tek sahibi SlugHelper'dır; sarmalayıcı kendi gerçeklemesini yazamaz " +
+                    "(§7 madde 21 — 'İ' ToLowerInvariant ile küçülmez ve mükerrer kayıt doğar)");
+        }
+
+        // (b) Seeder'ın DB'ye yazdığı satırlar da aynı kuraldan geçmiş olmalı.
+        // ⚠️ GuideCategories bilerek DIŞARIDA: orada slug'ı yönetici elle verebiliyor
+        // (`CreateGuideCategoryCommand.Slug`), yani eşitsizlik hata değil veridir.
+        var mismatches = await InDbAsync(async db =>
+        {
+            var rows = new List<(string Table, string Name, string Slug)>();
+            rows.AddRange((await db.Neighborhoods.Select(x => new { x.Name, x.Slug }).ToListAsync())
+                .Select(x => ("neighborhoods", x.Name, x.Slug)));
+            rows.AddRange((await db.AnnouncementTypes.Select(x => new { x.Name, x.Slug }).ToListAsync())
+                .Select(x => ("announcement_types", x.Name, x.Slug)));
+            rows.AddRange((await db.EventCategories.Select(x => new { x.Name, x.Slug }).ToListAsync())
+                .Select(x => ("event_categories", x.Name, x.Slug)));
+            rows.AddRange((await db.PlaceCategories.Select(x => new { x.Name, x.Slug }).ToListAsync())
+                .Select(x => ("place_categories", x.Name, x.Slug)));
+            rows.AddRange((await db.BusinessCategories.Select(x => new { x.Name, x.Slug }).ToListAsync())
+                .Select(x => ("business_categories", x.Name, x.Slug)));
+
+            return rows
+                .Where(r => r.Slug != SlugHelper.Slugify(r.Name))
+                .Select(r => $"{r.Table}: \"{r.Name}\" → \"{r.Slug}\" (beklenen \"{SlugHelper.Slugify(r.Name)}\")")
+                .ToList();
+        });
+
+        mismatches.Should().BeEmpty(
+            "seed'lenen kayıtla panelden eklenen kayıt AYNI slug kuralından geçmeli; " +
+            "ayrıştıkları an aynı ad iki farklı slug alır ve fark hiçbir yerde görünmez");
     }
 
     // ------------------------------------------- 7) Ulaşım saatleri: tarihsiz duvar saati

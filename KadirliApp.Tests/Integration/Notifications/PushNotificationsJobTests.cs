@@ -116,6 +116,29 @@ public class PushNotificationsJobTests : IClassFixture<CustomWebApplicationFacto
         push.Sent.Select(m => m.Token).Should().Contain(new[] { goodToken, badToken }).And.NotContain((string?)null);
         push.Sent.Should().OnlyContain(m => m.Data != null && m.Data.ContainsKey("notificationId"));
 
+        // 🔴 §7 madde 16 — anahtar ADLARI kontrat. Faz 0 (B1) öncesinde yalnız yukarıdaki
+        // "notificationId var mı" iddiası vardı; `relatedType` yeniden adlandırılsa deep-link
+        // ölür ve HİÇBİR test kırmızıya dönmezdi. Aşağıda anahtarlar **düz metin** yazılı:
+        // sabiti (PushDataKeys) yeniden adlandırmak bu testi kurtarmaz, çünkü test sabite
+        // değil mobilin okuduğu dizenin kendisine bakıyor (push_messaging.dart).
+        var okMessage = push.Sent.Single(m => m.Data!["notificationId"] == seeded.okNotif.ToString());
+        okMessage.Data!.Keys.Should().BeEquivalentTo(
+            new[] { "notificationId", "type", "relatedId", "relatedType" },
+            "mobil `PushPayload.fromData` tam olarak bu dört anahtarı okuyor (§7 madde 16); " +
+            "biri yeniden adlandırılırsa kullanıcı bildirime dokunur, hiçbir yere gitmez, hata da almaz");
+        okMessage.Data["type"].Should().Be("announcement");
+        okMessage.Data["relatedType"].Should().Be("announcement",
+            "mobil rotayı bu değerden üretiyor (§7 madde 18)");
+        okMessage.Data["relatedId"].Should().NotBeNullOrWhiteSpace();
+        okMessage.Data["relatedId"].Should().NotBe(Guid.Empty.ToString(),
+            "hedef kimliği yazılamıyorsa istemci boş sayfaya gider");
+
+        // Alanı boş olan bildirimde anahtar HİÇ yazılmaz (null string olarak değil):
+        // FCM `data`'sı Map<String,String>'tir, "null" dizesi istemcide geçerli bir kimlik sanılırdı.
+        push.Sent.Single(m => m.Data!["notificationId"] == seeded.badNotif.ToString())
+            .Data!.Keys.Should().Equal(new[] { "notificationId" },
+                "türü/hedefi olmayan bildirimde diğer anahtarlar yazılmaz");
+
         await InDbAsync(async db =>
         {
             var ok = await db.Notifications.AsNoTracking().FirstAsync(x => x.Id == seeded.okNotif);

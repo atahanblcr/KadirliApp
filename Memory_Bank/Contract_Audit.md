@@ -38,7 +38,7 @@ ama sözleşmenin **iddia edilen yüzü** ile **yazılı yüzü** aynı değil. 
 | 3 | `ads/{id}` artıştan ÖNCEKİ `viewCount` | Davranış | 🟢 | `InvisibleContractsTests.AdDetail_IncrementsViewCount_AndReturnsPreIncrementValue` |
 | 4 | `search` ↔ `searchTerm` ayrımı | Davranış + istemci | 🟢 | `InvisibleContractsTests.SearchParameterName_…` + `mobile/…/transport_screen_test.dart` |
 | 5 | `places.amenities` JSON içeren **metin** | Davranış | 🟢 | `InvisibleContractsTests.Places_Amenities_IsJsonEncodedText_NotAJsonObject` |
-| 6 | Gün alanları "TR günü, 00:00 UTC" | Davranış — **kapsam eksik** | 🟠 | `InvisibleContractsTests.DayOnlyDateFields_…` (yalnız `eventDate` + `dutyDate`; **`funeralDate` iddia edilmiyor** → B7) |
+| 6 | Gün alanları "TR günü, 00:00 UTC" | Davranış | 🟢 ✅ | `InvisibleContractsTests.DayOnlyDateFields_…` — **B7 ile kapatıldı**: `funeralDate` ayağı eklendi (üç alanın üçü de ölçülüyor) |
 | 7 | Ulaşım saatleri iki biçimli duvar saati | Davranış | 🟢 | `InvisibleContractsTests.TransportDepartureTimes_AreDatelessWallClock_InTwoDifferentFormats` |
 | 8 | `UpdateMyAd` sıra/kapak bilmez | Davranış | 🟢 | `InvisibleContractsTests.UpdateMyAd_AppendsNewImagesAsNonCover_…` |
 | 9 | Görsel URL'leri **göreli** | Davranış + açılış kapısı | 🟢 | `InvisibleContractsTests.ImageUrls_AreReturnedRelative_…` + `Unit/Api/ProductionReadinessGuardTests` |
@@ -47,18 +47,18 @@ ama sözleşmenin **iddia edilen yüzü** ile **yazılı yüzü** aynı değil. 
 | 12 | Yollar kebab-case | Davranış | 🟢 | `InvisibleContractsTests.RoutePaths_AreKebabCase_AndPascalCaseIs404` |
 | 13 | Sayısal özellik InvariantCulture | Saf birim | 🟢 | `Unit/Application/Ads/AdSubmissionRulesTests` (`"2020,5"` reddi ayrı testte) |
 | 14 | `select` değeri metinle + harf duyarlı | Saf birim | 🟢 | `AdSubmissionRulesTests` |
-| 15 | `AdCategory` filtresi **TAM EŞLEŞME** | **İDDİA EKSİK** | 🔴 | *Yok.* En yakını `Integration/Ads/AdsMobileTests.Categories_ReturnSeededHierarchy_Anonymously` — o **kategori ağacı** ucunu denetliyor, ilan **süzgecinin** semantiğini değil → B3 |
-| 16 | Push `data` sözlüğünün anahtarları | **İDDİA EKSİK** | 🔴 | `Integration/Notifications/PushNotificationsJobTests` yalnız `ContainsKey("notificationId")` diyor; `type`/`relatedId`/`relatedType` **hiçbir yerde** iddia edilmiyor → B1 |
-| 17 | `unreadCount` gövdenin içinde ve **filtreden bağımsız** | Davranış — **yarısı eksik** | 🔴 | `Integration/Notifications/NotificationsTests` (varlık + read-all sonrası 0) · `PanelBusinessRuleTests.UnreadCount_UsesSameLivenessFilterAsTheList` (canlılık). **"`unreadOnly=true`'da da toplam"** iddiası yok → B4 |
+| 15 | `AdCategory` filtresi **TAM EŞLEŞME** | Davranış | 🟢 ✅ | **B3 ile kapatıldı**: `InvisibleContractsTests.AdCategoryFilter_IsAnExactMatch_NotAHierarchicalOne` (alt kategori ilanı kendi kategorisinde görünür, **kökte görünmez**) |
+| 16 | Push `data` sözlüğünün anahtarları | Davranış + **tek sahip sabit** | 🟢 ✅ | **B1 ile kapatıldı**: adların tek sahibi `Application/Features/Notifications/PushDataKeys`; `PushNotificationsJobTests` anahtar kümesini **düz metin** iddia ediyor (sabiti yeniden adlandırmak testi kurtarmaz) |
+| 17 | `unreadCount` gövdenin içinde ve **filtreden bağımsız** | Davranış | 🟢 ✅ | **B4 ile kapatıldı**: `NotificationsTests` — `?limit=1` isteğinde sayaç **2** kalmalı. ⚠️ İddia bilerek **sayfalamaya** bağlandı: yalnız `unreadOnly` üzerinden kurulan eşitlik bu uçta totolojidir ve hiçbir bozma onu kırmazdı |
 | 18 | `relatedType` → mobil rota; tanınmayan tür iptal | İstemci tarafı | 🟠 | `mobile/test/features/notifications/notification_link_test.dart` (sunucunun ürettiği türle bağı yok — madde 16 ile aynı boşluğun diğer ucu) |
-| 19 | İzin eylemi aksiyon **adından** türer | **Kapsamı elle tutulan liste** | 🔴 | `PanelModeratorPermissionTests.ActionName_MapsToTheExpectedPermission` — `[InlineData]` **elle** yazılmış; gerçek aksiyon kümesinden türetilmiyor. Tuzak 4 kez tekrarladı (11.18 · 12.10 · 12.13 · 12.15) → B6 |
+| 19 | İzin eylemi aksiyon **adından** türer | Davranış + **türetilmiş kapsam** | 🟢 ✅ | **B6 ile kapatıldı**: `PanelModeratorPermissionTests.EveryWriteAction_SaysWhatItIs_InsteadOfSilentlyFallingBackToUpdate` — kapsam matris controller'larından **yansımayla türetilir**; adı hiçbir şey söylemeyen yazma aksiyonu **kırmızıdır**. 🔑 Sessiz varsayılan artık **yazılı karara** dönüştü |
 | 20 | Menü · matris · `[PanelPermission]` aynı anahtar | Yansıma (türetilmiş) | 🟢 | `PanelModeratorPermissionTests.MenuModules_MatchThePermissionMatrixModules` |
-| 21 | Slug üretiminin tek sahibi `SlugHelper` | Saf birim — **tek sahiplik iddia edilmiyor** | 🔴 | `Unit/Application/Common/SlugAndPaginationTests` yalnız **helper'ın davranışını** ölçüyor; `DbSeeder.Slugify`'ın ona **delege ettiğini** hiçbir test söylemiyor → B5 |
+| 21 | Slug üretiminin tek sahibi `SlugHelper` | Saf birim + davranış | 🟢 ✅ | **B5 ile kapatıldı**: `InvisibleContractsTests.SlugGeneration_HasASingleOwner_EvenThroughItsWrappers` — sarmalayıcı (`BusinessRules.Slugify`) helper'la **aynı çıktıyı** vermeli ve seed'lenen satırların slug'ları helper'ınkiyle eşleşmeli |
 | 22 | Cache grup adları yalnız `CacheGroups` sabitleri | Yansıma (türetilmiş) | 🟢 | `Unit/Application/Caching/CacheContractTests` (grup kümesini kaynaktan türetiyor) |
 | 23 | Panel sayaçları = public görünürlük tanımı | Davranış | 🟢 | `PanelBusinessRuleTests.DashboardActiveAds_ExcludesExpiredOnes` · `…Announcements_CountsOnlyPublishedOnes` |
 | 24 | Bildirim hedefi yaşadığı sürece görünür | Davranış | 🟢 | `PanelBusinessRuleTests.NotificationList_Hides…` · `DeletingAnnouncement_AlsoRemovesItsNotifications` |
 | 25 | Onay, süresi dolmuş ilana taze pencere verir | Davranış + saf birim | 🟢 | `PanelBusinessRuleTests.ApprovingExpiredAd_…` + `Unit/…/Moderation/ModerationTransitionTests` |
-| 26 | `QueryAdDto.Status` yalnız panel yolunda okunur | **İDDİA EKSİK (yanlış modülde)** | 🔴 | `Integration/Security/PublicVisibilityTests` aynı kuralı **vefat** için ölçüyor; sözleşmenin adını taşıdığı **ilan** ucunda (`GET /v1/ads?status=pending`, 10.5'te bir kez sızdı) test **yok** → B2 |
+| 26 | `QueryAdDto.Status` yalnız panel yolunda okunur | Davranış | 🟢 ✅ | **B2 ile kapatıldı**: `InvisibleContractsTests.PublicAdsList_IgnoresTheStatusFilter_SoPendingAdsCanNeverLeak` — sözleşmenin adını taşıdığı **ilan** ucunda üç sorgu birden denetleniyor |
 | 27 | Kesinti süren/planlı/bitti tanımı panel↔mobil | Saf birim (iki dilde ayrı) | 🟠 | `PanelPowerOutageFilterTests` (birim kısmı) + `mobile/…/power_outage_model_test.dart` — **iki ayna, tek kaynak değil** |
 | 28 | Geri getirme ≠ yayına alma | Davranış | 🟢 | `PanelTrashTests.Restore_DoesNotPublishTheRecord` |
 | 29 | Toplu aksiyon `…Selected` + tek-kayıt komutu | Davranış + yansıma | 🟠 | `PanelBulkActionTests.BulkPrefixNaming_WouldSilentlyDowngradePermission` · `…AppliesBusinessRules_NotJustStatusUpdate`. Adlandırma kuralını **tarayan** bir test yok (madde 19 ile aynı kök) |
@@ -103,14 +103,14 @@ ama sözleşmenin **iddia edilen yüzü** ile **yazılı yüzü** aynı değil. 
 
 ### Dağılım
 
-| Risk | Adet | Maddeler |
-|---|---|---|
-| 🟢🟢 En düşük (derleyici / DB kısıtı) | 6 | 32 · 53 · 55 · 60 · 64 · (9 kısmen) |
-| 🟢 Düşük (davranış / saf birim) | 45 | 1–5, 7–14, 20, 22–25, 28, 31, 33–48, 54, 56–59, 63, 65, 66 |
-| 🟠 Orta (istemci · elle kapsam · ayna) | 9 | 6 · 18 · 27 · 29 · 30 · 49 · 50 · 61 · 62 |
-| 🔴 Yüksek | 7 | **15 · 16 · 17 · 19 · 21 · 26** (yeni) · **51 · 52 · 67** (bilinen) |
+| Risk | Tasnif anında | **Faz B'den sonra (bugün)** | Maddeler |
+|---|---|---|---|
+| 🟢🟢 En düşük (derleyici / DB kısıtı) | 6 | 6 | 32 · 53 · 55 · 60 · 64 |
+| 🟢 Düşük (davranış / saf birim) | 45 | **52** | + 6 · 15 · 16 · 17 · 19 · 21 · 26 (B1–B7 ile kapatıldı ✅) |
+| 🟠 Orta (istemci · elle kapsam · ayna) | 9 | **8** | 18 · 27 · 29 · 30 · 49 · 50 · 61 · 62 |
+| 🔴 Yüksek | 7 | **3** | 51 · 52 · 67 |
 
-> 🔑 **Faz A'nın alt kümesi budur: 16 madde** (7 🔴 + 9 🟠). Kalan 51 maddede kör bozma turu
+> 🔑 **Faz A'nın kalan alt kümesi: 11 madde** (3 🔴 + 8 🟠). Kalan 56 maddede kör bozma turu
 > **yapılmayacak** (reçetenin kendi kuralı).
 
 ---
@@ -153,14 +153,51 @@ denetimin ilk gerçek kazancı.
 
 ---
 
-## 5. Sırada ne var
+## 5. ✅ FAZ B — B1–B7 KAPATILDI (aynı oturum, 13 Ağustos 2026)
+
+Yedisi de kapatıldı ve **yedisinin de bozma turu koşuldu**: kural *ihlal edilmiş ama çalışan*
+hâle getirildi (derlenmez yapmak bozma değildir), yalnız o maddenin testi koşuldu, kırmızıya
+döndüğü görüldü, sonra geri alındı.
+
+| # | Kapatma | Bozma turu — kuralı böyle ihlal ettik | Sonuç |
+|---|---|---|---|
+| **B1** | Anahtar adlarının **tek sahibi** `PushDataKeys` (yeni); `PushNotificationsJobTests` anahtar kümesini **düz metin** iddia ediyor | `RelatedType = "related_type"` (snake_case'e çevirme refleksi) | 🔴 kırmızı ✅ |
+| **B2** | `InvisibleContractsTests.PublicAdsList_IgnoresTheStatusFilter…` | `if (OnlyPublished && string.IsNullOrWhiteSpace(dto.Status))` — *"istemci status verdiyse ona uy"* | 🔴 kırmızı ✅ |
+| **B3** | `InvisibleContractsTests.AdCategoryFilter_IsAnExactMatch…` | Süzgeci hiyerarşik yaptık (`\|\| x.Category.ParentId == …`) | 🔴 kırmızı ✅ |
+| **B4** | `NotificationsTests` — `?limit=1`'de sayaç 2 kalmalı | `UnreadCount = items.Count(i => !i.IsRead)` (sayacı **listeden türetme**) | 🔴 kırmızı ✅ |
+| **B5** | `InvisibleContractsTests.SlugGeneration_HasASingleOwner…` | `BusinessRules.Slugify`'a `ToLowerInvariant().Replace(" ","-")` kopyası (10.9'un birebir hatası) | 🔴 kırmızı ✅ |
+| **B6** | `PanelModeratorPermissionTests.EveryWriteAction_SaysWhatItIs…` — kapsam **yansımayla türetiliyor** | `ActionFor`'dan `"SendNotification"` önekini sildik (12.15'te elle eklenmişti) | 🔴 kırmızı ✅ — test aksiyonu **adıyla** söyledi: `NewsAdminController.SendNotification` |
+| **B7** | `DayOnlyDateFields_…`'a `funeralDate` ayağı | Projeksiyonda `x.FuneralDate.AddHours(3)` (*"TR saatiyle gösterelim"* refleksi) | 🔴 kırmızı ✅ |
+
+**Testler:** backend 1106 → **1110**. Mobil değişmedi (822).
+
+### 🔑 B6 hem düzeltme hem ölçüm oldu
+
+Yeni yapısal test **ilk koşusunda iki gerçek vaka buldu**: `NewsAdminController.ResetOverrides`
+ve `NewsAdminController.Feature`. Yani madde 19'un tuzağı, sayılan dört tekrardan sonra
+sessizce **beşinci ve altıncı** kez tekrarlamıştı ve kimse fark etmemişti.
+
+İkisinin de izni **bilinçli olarak değiştirilmedi** (davranış değişikliği bu denetimin kapsamı
+değil) ama artık **yazılı**: testteki `deliberateFallbacks` listesine gerekçeleriyle girdiler.
+⚠️ `Feature` sınırda bir karar — manşet şeridi vatandaşın ilk gördüğü yer; ileride `approve`
+kovasına taşınırsa **adı da** değişmeli, yoksa o satır sessizce yalan söylemeye başlar.
+
+🔑 **Değişen şey listenin içeriği değil, varsayılanın yönü:** eskiden adı bir şey söylemeyen
+aksiyon **sessizce `update`'e** düşerdi; şimdi **kırmızıya** düşüyor ve üç seçenek sunuluyor
+(adı değiştir · öneki ekle · gerekçesiyle listeye yaz). Ritüel, kapıya dönüştü.
+
+---
+
+## 6. Sırada ne var
 
 1. **T1/T2** (reçetenin ön koşulu, `Progress.md` → *"Test altyapısı"*). Faz A'ya girmeden
    kapatılmalı: biriken test kullanıcıları bozma turunun sonuçlarını zehirler.
-2. **Faz A — bozma turu**, yalnız yukarıdaki **16 maddelik** alt kümede. Protokol madde başına:
+2. **Faz A — bozma turu**, kalan **11 maddelik** alt kümede (3 🔴 + 8 🟠). Protokol madde başına:
    kuralı **anlamlı** şekilde boz (derlenmez hâle getirmek bozma değildir) → yalnız o maddenin
    testini koş → kırmızıya döndüğünü gör → geri al → bu tabloya `kilitli` / `tesadüfen yeşil` yaz.
-   ⚠️ B1–B7 için bozma turu **gereksiz**: deliğin varlığı kod okunarak kanıtlandı, doğrudan
-   Faz B'ye gidebilirler.
-3. **Faz B — delikleri kapat.** Soru "testi genişletsem yeter mi?" değil:
+   ~~⚠️ B1–B7 için bozma turu gereksiz~~ → **B1–B7 kapatıldı ve bozma turları yine de koşuldu**
+   (§5); yeni yazılan bir testin kilitlediğini görmek, deliğin varlığını kanıtlamaktan ayrı bir iş.
+3. **Faz B — kalan delikleri kapat.** Soru "testi genişletsem yeter mi?" değil:
    **"korumayı taramanın erişemeyeceği yere taşıyabilir miyim?"**
+   Kalan üç 🔴: **51** (tarama kapsamı `Views/**`) · **52** (tarama ayağının `Update*.cs`
+   deseni) · **67** (T2 — migration tek koşar).

@@ -94,8 +94,20 @@
 > iddia ediliyor — `relatedType` yeniden adlandırılsa **deep-link ölür ve iki süit de yeşil
 > kalır**. **B2 (madde 26)**: kural vefatta ölçülü, **ilanda değil** — oysa 10.5'te telefonla
 > sızan ilandı. Hiçbiri bozma turu gerektirmiyor (varlıkları kod okunarak kanıtlandı).
-> ⏭️ Sırada **T1/T2** (ön koşul) → **Faz A** (16 madde) → **Faz B** (delikleri *taramanın
-> erişemeyeceği yere taşıyarak* kapat).
+> ✅ **VE B1–B7 AYNI OTURUMDA KAPATILDI (Faz B).** Yedisinin de **bozma turu koşuldu**:
+> B1 anahtar adının tek sahibi **`PushDataKeys`** (test anahtarları **düz metin** iddia ediyor
+> — sabiti yeniden adlandırmak testi kurtarmaz) · B2 ilan ucunda `?status=` sızıntısı ·
+> B3 kategori tam-eşleşme · B4 `unreadCount` · B5 slug tek sahipliği · B6 izin öneki ·
+> B7 `funeralDate`. **Backend 1106 → 1110**, mobil 822.
+> 🔑 **B4'te bir tuzağa düşülüp çıkıldı:** ilk iddia (*"süzgeçli ve süzgeçsiz aynı sayaç"*)
+> bu uçta **totolojiydi** — hiçbir bozma kıramazdı; yani denetlediğimiz sınıfın bir yenisi
+> üretiliyordu. İddia **sayfalamaya** bağlandı (`?limit=1` → sayaç yine 2) ve kırılabilir oldu.
+> 🔑 **B6 hem düzeltme hem ölçüm:** yeni yapısal test **ilk koşusunda iki gerçek vaka buldu**
+> (`ResetOverrides` · `Feature`) — madde 19'un tuzağı dört tekrardan sonra sessizce **beşinci
+> ve altıncı** kez tekrarlamış. İzinler bilinçli olarak **değiştirilmedi** ama artık gerekçeli
+> yazılı; ⚠️ `Feature` sınırda bir karar. Asıl kazanç: adı bir şey söylemeyen yazma aksiyonu
+> artık sessizce `update`'e değil **kırmızıya** düşüyor.
+> ⏭️ Sırada **T1/T2** (ön koşul) → **Faz A** (kalan **11 madde**; 3 🔴: 51 · 52 · 67).
 >
 > ⏭️ **Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) · **12.16 adayı**
 > kategori bazlı bildirim aboneliği (12.15'in elle gönderimi canlıda doğrulandıktan sonra;

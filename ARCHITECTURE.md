@@ -455,10 +455,25 @@ bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te gü
 🔍 **"Testi var" ≠ "kilitli".** 13 Ağustos 2026'da bu tablonun **kilit denetimi** koşuldu
 (Faz 0 — tasnif): her maddenin kilidini taşıyan dosya açıldı ve **iddianın şekli** incelendi.
 Sonuç `Memory_Bank/Contract_Audit.md`: 67 satırlık kalıcı tablo (*madde · kilit cinsi · risk ·
-dosya*), risk dağılımı 🟢🟢 6 · 🟢 45 · 🟠 9 · 🔴 7 ve **yedi somut delik** (B1–B7) — en ağırı
-**madde 16**: push `data` anahtarlarından yalnız `notificationId`'nin *varlığı* iddia ediliyor.
-Yeni bir sözleşme yazarken oraya da bir satır ekle: madde numarası, kilidin **cinsi** ve
-neden o cinsin yeterli olduğu.
+dosya*) ve **yedi somut delik** (B1–B7) — hepsi **aynı oturumda kapatıldı**, bozma turlarıyla
+birlikte. Kapatılanlar ve yeni kilitleri:
+
+- **16** → anahtar adlarının tek sahibi `Application/Features/Notifications/PushDataKeys`;
+  `PushNotificationsJobTests` anahtar kümesini **düz metin** iddia eder (sabiti yeniden
+  adlandırmak testi kurtarmaz).
+- **26 · 15 · 21 · 6** → `Integration/Contracts/InvisibleContractsTests`
+  (`PublicAdsList_IgnoresTheStatusFilter…` · `AdCategoryFilter_IsAnExactMatch…` ·
+  `SlugGeneration_HasASingleOwner…` · `DayOnlyDateFields_…`'ın `funeralDate` ayağı).
+- **17** → `Integration/Notifications/NotificationsTests`; iddia bilerek **sayfalamaya**
+  bağlıdır (`?limit=1` → sayaç değişmez), çünkü `unreadOnly` üzerinden kurulan eşitlik bu
+  uçta totolojidir.
+- **19** → `PanelModeratorPermissionTests.EveryWriteAction_SaysWhatItIs_InsteadOfSilentlyFallingBackToUpdate`:
+  kapsam matris controller'larından **yansımayla türetilir** ve adı hiçbir şey söylemeyen bir
+  yazma aksiyonu artık sessizce `update`'e değil **kırmızıya** düşer.
+
+Risk dağılımı bugün: 🟢🟢 6 · 🟢 52 · 🟠 8 · 🔴 3 (**51 · 52 · 67** — üçü de gerekçeli).
+Yeni bir sözleşme yazarken `Contract_Audit.md`'ye de bir satır ekle: madde numarası, kilidin
+**cinsi** ve neden o cinsin yeterli olduğu.
 
 | # | Sözleşme | Bozulursa ne olur |
 |---|---|---|
@@ -477,7 +492,7 @@ neden o cinsin yeterli olduğu.
 | 13 | İlan sayısal özellikleri **InvariantCulture**, binlik ayracı **yok** (`2020.5` ✓, `2020,5` ✗) | *(11.14'te düzeltildi — eskiden `2020,5` geçiyor ve `20205` okunuyordu)* |
 | 14 | Kategori `select`/`multiSelect` değeri **seçenek metniyle** ve **harf duyarlı** doğrulanır | Seçenek metni panelden yeniden adlandırılırsa eski ilanlar güncellenemez hâle gelir |
 | 15 | `AdCategory` filtresi **TAM EŞLEŞME** — kök kategori alt kategori ilanlarını getirmez | Mobil bu yüzden kategori şeridinde "içeri iniyor"; filtre hiyerarşik yapılırsa şerit tasarımı gereksizleşir |
-| 16 | Push `data` sözlüğü **tam olarak** `notificationId` (her zaman) + `type` + `relatedId` + `relatedType` taşır ve hepsi **metin**tir (`SendPushNotificationsJob.BuildData`) | Anahtar adı değişirse deep-link **sessizce ölür**: bildirime dokunan kullanıcı hiçbir yere gitmez, hata da görmez |
+| 16 | Push `data` sözlüğü **tam olarak** `notificationId` (her zaman) + `type` + `relatedId` + `relatedType` taşır ve hepsi **metin**tir (`SendPushNotificationsJob.BuildData`; adların tek sahibi **`PushDataKeys`**, Faz 0 — B1) | Anahtar adı değişirse deep-link **sessizce ölür**: bildirime dokunan kullanıcı hiçbir yere gitmez, hata da görmez |
 | 17 | `GET /v1/notifications` `unreadCount`'u **sayfalı gövdenin İÇİNE** koyar (zarf `meta`'sı filtreyle sabitlendiği için) ve bu sayı **filtreden bağımsız** toplamdır | `unreadOnly=true` isteğinde de rozet doğru kalsın diye; `meta`'ya taşınırsa istemci sayacı kaybeder |
 | 18 | `relatedType` değerleri mobilde **rota üretir** (`announcement`→`/duyurular/:id` …); tanınmayan tür ve GUID olmayan kimlik **gezinmeyi iptal eder** | Sunucu yeni bir `relatedType` üretmeye başlarsa mobil onu sessizce yok sayar → `app_notification.dart` eşlemesine eklenmeli |
 | 19 | Panelde izin eylemi **aksiyon adından türetilir** (`PanelPermissionFilter.ActionFor`): `Approve/Reject/Verify/Ban/UpdateStatus…` → `approve`, `Delete…` → `delete`, `Create/Add…` → `create`, `Update/Edit…` → `update`, geri kalan GET → `read`, geri kalan POST → `update` | Aksiyon **yeniden adlandırılırsa** izin sessizce değişir. Örnek: `UpdateStatus` → `SetStatus` yapılsa şikayet sonuçlandırma `approve` yerine `update` iznine düşer ve düzenleme yetkisi olan moderatör moderasyon kararı verebilir hâle gelir |

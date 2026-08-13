@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Hangfire;
 using KadirliApp.Application.Common.Interfaces;
+using KadirliApp.Application.Features.Notifications;
 using KadirliApp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -170,13 +171,17 @@ public class SendPushNotificationsJob
         public int InvalidTokens;
     }
 
-    /// <summary>Mobil istemcinin push'tan ilgili kayda deep-link yapıp bildirimi okundu işaretleyebilmesi için veri yükü.</summary>
+    /// <summary>
+    /// Mobil istemcinin push'tan ilgili kayda deep-link yapıp bildirimi okundu işaretleyebilmesi için veri yükü.
+    /// ⚠️ Anahtar adları <b>kontrat</b> (§7 madde 16) ve tek sahibi
+    /// <see cref="Application.Features.Notifications.PushDataKeys"/> — satır içi dize yazma.
+    /// </summary>
     private static IReadOnlyDictionary<string, string>? BuildData(Domain.Entities.Notification n)
     {
-        var data = new Dictionary<string, string> { ["notificationId"] = n.Id.ToString() };
-        if (n.Type is not null) data["type"] = n.Type;
-        if (n.RelatedId is not null) data["relatedId"] = n.RelatedId.Value.ToString();
-        if (n.RelatedType is not null) data["relatedType"] = n.RelatedType;
+        var data = new Dictionary<string, string> { [PushDataKeys.NotificationId] = n.Id.ToString() };
+        if (n.Type is not null) data[PushDataKeys.Type] = n.Type;
+        if (n.RelatedId is not null) data[PushDataKeys.RelatedId] = n.RelatedId.Value.ToString();
+        if (n.RelatedType is not null) data[PushDataKeys.RelatedType] = n.RelatedType;
         return data;
     }
 }

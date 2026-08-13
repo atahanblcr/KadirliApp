@@ -136,7 +136,7 @@ materyalizasyonu varsayılan başlatıcıyı çalıştırmıyor** (anahtarsız J
 canlıda 13/13) → geri doldurma migration'ı **zorunluydu**; test silinmedi, ölçüm belgeye
 çevrildi.
 
-**1106 backend + 822 mobil test, 67 görünmez sözleşme.**
+**1110 backend + 822 mobil test, 67 görünmez sözleşme.**
 
 **⏭️ Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) ·
 **12.16 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher **yazılmaz**,
@@ -157,11 +157,14 @@ varlığın bir metoduna taşımaktır (§7 madde 53 — açarsan test kırılı
 kullanılmamış bir Tailwind sınıfı yazdıysan `npm run build` çalıştır — yoksa buton
 **beyaz üstüne beyaz** çizilir (12.10 canlı bulgusu).
 📋 **İki açık test-altyapısı maddesi (T1/T2) var** (`Progress.md` → *"Test altyapısı —
-12.15b'nin bıraktığı iki açık madde"*). **Görünmez sözleşme denetiminin Faz 0'ı (tasnif)
-koşuldu:** çıktı `Memory_Bank/Contract_Audit.md` — 67 maddenin her birinin **kilit cinsi ·
-risk · kilidi taşıyan dosya**. 67'sinin de testi var; sorun **iddiası zayıf testler** (beş
-fazda beş kez patladı) ve Faz 0 **yedi somut delik** buldu (B1–B7; en ağırı madde 16 — push
-`data` anahtarları). ⏭️ Sırada T1/T2 → Faz A (yalnız 16 maddelik kırılgan alt küme) → Faz B.
+12.15b'nin bıraktığı iki açık madde"*). **Görünmez sözleşme denetiminin Faz 0'ı (tasnif) ve
+bulduğu yedi deliğin kapatılması (B1–B7) bitti:** çıktı `Memory_Bank/Contract_Audit.md` —
+67 maddenin her birinin **kilit cinsi · risk · kilidi taşıyan dosya**. 67'sinin de testi
+vardı; sorun **iddiası zayıf testler** (beş fazda beş kez patladı). Kapatılanlar: 6 · 15 ·
+16 · 17 · 19 · 21 · 26; yedisinin de **bozma turu koşuldu**. 🔑 En değerlisi **madde 19**:
+adı hiçbir önekle eşleşmeyen bir panel yazma aksiyonu artık sessizce `update` iznine değil
+**kırmızıya** düşüyor (kapsam yansımayla türetiliyor) — o test ilk koşusunda **iki gerçek
+vaka** buldu. ⏭️ Sırada T1/T2 → Faz A (kalan 11 madde; 3 🔴: 51 · 52 · 67).
 Plan: `Memory_Bank/Progress.md` → "FAZ 12".
 
 > 🔑 **Panel süper admin parolası** `secrets/panel-admin.json`'dadır (git'e girmez; biçim ve

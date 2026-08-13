@@ -4873,6 +4873,40 @@ bulundu ve hiçbiri bozma turu gerektirmedi (varlıkları kod okunarak kanıtlan
 o dosyada 12 test var, 13–22 başka dosyalarda yaşıyor. Doküman testi bunu söylemiyor çünkü
 **atıfların gerçekliğini** denetliyor, maddenin doğruluğunu değil.
 
+### ✅ FAZ B (aynı oturum) — B1–B7 KAPATILDI
+
+Yedi deliğin yedisi de kapatıldı ve **yedisinin de bozma turu koşuldu** (kural *ihlal edilmiş
+ama çalışan* hâle getirildi → yalnız o maddenin testi koşuldu → kırmızı görüldü → geri alındı):
+
+| # | Kapatma | Bozma | Sonuç |
+|---|---|---|---|
+| B1 | Anahtar adlarının tek sahibi **`PushDataKeys`** (yeni sınıf); test anahtar kümesini **düz metin** iddia ediyor — sabiti yeniden adlandırmak testi kurtarmaz | `RelatedType = "related_type"` | 🔴 ✅ |
+| B2 | `PublicAdsList_IgnoresTheStatusFilter_SoPendingAdsCanNeverLeak` | `OnlyPublished && string.IsNullOrWhiteSpace(dto.Status)` | 🔴 ✅ |
+| B3 | `AdCategoryFilter_IsAnExactMatch_NotAHierarchicalOne` | süzgeci hiyerarşik yaptık | 🔴 ✅ |
+| B4 | `NotificationsTests` — `?limit=1`'de sayaç **2** kalmalı | `UnreadCount = items.Count(…)` | 🔴 ✅ |
+| B5 | `SlugGeneration_HasASingleOwner_EvenThroughItsWrappers` | `BusinessRules.Slugify`'a `ToLowerInvariant()` kopyası | 🔴 ✅ |
+| B6 | `EveryWriteAction_SaysWhatItIs_InsteadOfSilentlyFallingBackToUpdate` — kapsam **yansımayla türetiliyor** | `ActionFor`'dan `SendNotification` önekini sildik | 🔴 ✅ (test aksiyonu **adıyla** söyledi) |
+| B7 | `DayOnlyDateFields_…`'a `funeralDate` ayağı | `x.FuneralDate.AddHours(3)` | 🔴 ✅ |
+
+🔑 **B4'te bir tuzağa düşülüp çıkıldı (dürüst not):** ilk yazılan iddia *"süzgeçli ve süzgeçsiz
+istek aynı sayacı versin"*di ve bu uçta **totolojidir** — süzgeç zaten "okunmamışlar" olduğu
+için hiçbir makul bozma onu kıramazdı. Yani denetlediğimiz hata sınıfının (**iddiası zayıf
+test**) bir yenisi üretilmek üzereydi. İddia **sayfalamaya** bağlandı (`?limit=1` → sayaç yine
+2) ve ancak o zaman kırılabilir oldu.
+
+🔑 **B6 hem düzeltme hem ölçüm oldu:** yeni yapısal test **ilk koşusunda iki gerçek vaka
+buldu** — `NewsAdminController.ResetOverrides` ve `NewsAdminController.Feature`. Madde 19'un
+tuzağı, sayılan dört tekrardan sonra sessizce **beşinci ve altıncı** kez tekrarlamış ve kimse
+fark etmemişti. İkisinin izni de **bilinçli olarak değiştirilmedi** (davranış değişikliği bu
+denetimin kapsamı değil) ama artık **yazılı**: gerekçeleriyle `deliberateFallbacks` listesinde.
+⚠️ `Feature` sınırda: manşet şeridi vatandaşın ilk gördüğü yer — `approve` kovasına taşınırsa
+**adı da** değişmeli. 📌 Asıl kazanç listenin içeriği değil **varsayılanın yönü**: adı bir şey
+söylemeyen yazma aksiyonu artık sessizce `update`'e değil **kırmızıya** düşüyor.
+
+**Testler:** backend 1106 → **1110**, mobil 822 (değişmedi). Görünmez sözleşme sayısı **67**
+(yeni sözleşme doğmadı — var olanların kilitleri sağlamlaştı).
+**Kalan:** 11 madde Faz A'ya (3 🔴: 51 · 52 · 67 — üçü de `Contract_Audit.md`'de gerekçeli).
+
 ### 🧹 Test altyapısı — 12.15b'nin bıraktığı iki açık madde
 
 Bunlar ürün hatası değil, **denetim aracının** hatası; ama bu projede denetim aracının

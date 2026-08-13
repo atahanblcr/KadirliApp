@@ -175,6 +175,46 @@ public class NotificationsTests : IClassFixture<CustomWebApplicationFactory>
             targetType = "all",
             sendPushNotification = true
         });
+        // 🔴 §7 madde 17 (Faz 0 denetimi — B4): `unreadCount` rozeti SAYFADAN ve SÜZGEÇTEN
+        // BAĞIMSIZ bir toplamdır — sayfalı gövdenin İÇİNDE taşınır ama gövdeye ait değildir.
+        //
+        // ⚠️ İddianın şekli özenle seçildi: yalnız "süzgeçli ve süzgeçsiz istek aynı sayacı
+        // versin" demek bu uçta neredeyse TOTOLOJİDİR — süzgeç zaten "okunmamışlar" olduğu
+        // için içindeki okunmamış sayısı toplamla matematiksel olarak eşittir ve hiçbir
+        // makul bozma onu kırmazdı (yani "iddiası zayıf test" sınıfının ta kendisi olurdu).
+        // Gerçekten kırılabilen iddia SAYFALAMADIR: sayaç listeden türetilirse `limit=1`
+        // isteğinde rozet "1 okunmamış" der, oysa kullanıcının 2 okunmamış bildirimi vardır.
+        var thirdAnnId = await CreateAnnouncementAsync(admin, new
+        {
+            title = "Bildirim Testi 3",
+            body = "x",
+            typeId,
+            targetType = "all",
+            sendPushNotification = true
+        });
+        (await NotificationCountAsync(thirdAnnId, userA)).Should().Be(1);
+
+        // A'nın durumu: 1 okunmuş + 2 okunmamış bildirim.
+        using (var doc = JsonDocument.Parse(await (await _client.SendAsync(
+                   Authorized(HttpMethod.Get, "/v1/notifications?limit=1", tokenA))).Content.ReadAsStringAsync()))
+        {
+            var data = doc.RootElement.GetProperty("data");
+            data.GetProperty("items").GetArrayLength().Should().Be(1, "sayfa boyutu 1 istendi");
+            data.GetProperty("unreadCount").GetInt32().Should().Be(2,
+                "unreadCount SAYFADAN bağımsızdır (§7 madde 17): sayaç listeden türetilirse " +
+                "rozet sayfa boyutuna göre küçülür ve kullanıcı bildirimlerinin bir kısmını " +
+                "hiç görmediğini anlamaz — hata da almaz");
+        }
+
+        // Süzgeç ayağı: liste daralır, sayaç daralmaz.
+        using (var doc = JsonDocument.Parse(await (await _client.SendAsync(
+                   Authorized(HttpMethod.Get, "/v1/notifications?unreadOnly=true&limit=1", tokenA))).Content.ReadAsStringAsync()))
+        {
+            var data = doc.RootElement.GetProperty("data");
+            data.GetProperty("unreadCount").GetInt32().Should().Be(2,
+                "unreadOnly süzgeci rozeti değiştirmez — sayaç filtreden bağımsız toplamdır");
+        }
+
         var readAll = await _client.SendAsync(Authorized(HttpMethod.Post, "/v1/notifications/read-all", tokenA));
         readAll.StatusCode.Should().Be(HttpStatusCode.OK);
         using (var doc = JsonDocument.Parse(await readAll.Content.ReadAsStringAsync()))

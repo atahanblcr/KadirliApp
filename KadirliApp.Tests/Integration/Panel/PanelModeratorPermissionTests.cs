@@ -114,6 +114,106 @@ public class PanelModeratorPermissionTests : IAsyncLifetime
     // ─────────────────────── Yapısal denetimler ───────────────────────
 
     /// <summary>
+    /// 🔴 <b>§7 madde 19 (Faz 0 denetimi — B6): sessiz varsayılanı BİLİNÇLİ KARARA çevirir.</b>
+    ///
+    /// <para>
+    /// Yukarıdaki <c>ActionName_MapsToTheExpectedPermission</c> teorisi eşlemeyi kilitliyor
+    /// ama <b>kapsamını elle tutuyor</b>: <c>[InlineData]</c> yalnız *aklımıza gelen* adları
+    /// içeriyor. Tuzak tam bu yüzden <b>dört kez</b> tekrarladı — <c>BulkApprove</c> (11.18) ·
+    /// <c>Archive</c> (12.10) · <c>Unarchive</c> (12.13) · <c>SendNotification</c> (12.15) —
+    /// ve her seferinde "çözüm" listeye elle bir satır eklemek oldu. Yani koruma değil,
+    /// <b>ritüel</b>: hatırlayan düzeltiyordu, hatırlamayan sessizce yetki açıyordu.
+    /// </para>
+    ///
+    /// <para>
+    /// 🔑 <b>Bu test kapsamı TÜRETİR:</b> matrise tabi her panel controller'ının yazma
+    /// aksiyonlarını yansımayla toplar ve adı <b>hiçbir şey söylemeyen</b> her aksiyonu
+    /// kırmızıya döndürür. Böylece varsayılan artık "sessizce <c>update</c>" değil,
+    /// <b>"bir karar ver ve yaz"</b>: ya adı bir önekle eşleşsin (ör. <c>Approve…</c>),
+    /// ya öneki <c>ActionFor</c>'a eklensin, ya da bilinçli olarak aşağıdaki listeye girsin.
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠️ Ayırt etme hilesi ikinci bir önek listesi yazmadan çalışıyor: adı bir anahtar
+    /// kelimeyle eşleşen aksiyon GET'te de aynı eylemi döndürür (<c>Edit</c> → hep
+    /// <c>update</c>), adı <b>hiçbir şey söylemeyen</b> aksiyon ise fiile düşer
+    /// (GET → <c>read</c>, POST → <c>update</c>). Yani "geri düştü mü?" sorusu
+    /// <c>ActionFor</c>'un kendisine sorulur — kopya bir liste tutulmaz (§7 madde 53).
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void EveryWriteAction_SaysWhatItIs_InsteadOfSilentlyFallingBackToUpdate()
+    {
+        // 📌 Bilinçli istisnalar: adı bir şey söylemeyen ama "update" izni DOĞRU olan
+        // aksiyonlar. Listeye ad eklemek bir karardır — yorumuyla birlikte yazılır.
+        var deliberateFallbacks = new HashSet<string>(StringComparer.Ordinal)
+        {
+            // 🔍 İkisi de Faz 0 denetiminde (13 Ağu 2026) bu testin İLK KOŞUSUNDA bulundu —
+            // yani madde 19'un tuzağı, sayılan dört tekrardan sonra sessizce **beşinci ve
+            // altıncı** kez tekrarlamış. İkisi de bugün "update" iznine düşüyor ve karar
+            // **bilinçli olarak korundu** (davranış değişikliği bu denetimin kapsamı değil;
+            // amaç sessiz varsayılanı yazılı karara çevirmekti):
+            //
+            // • ResetOverrides — yöneticinin override'larını temizleyip kaydı kaynağın
+            //   hâline döndürür. Görünürlüğe DOKUNMAZ (§7 madde 58: görünürlüğün tek yolu
+            //   Archive/Unarchive), yalnız başlık/özet/kapak alanlarını yazar. Yani
+            //   "Edit"in geri alma hâli → `update` doğru eylem.
+            //
+            // • Feature — manşet şeridine çıkarır/indirir (§7: `?featured=true`). Bir kaydı
+            //   görünür ya da görünmez YAPAMAZ, yalnız öne çıkarır; "içeriği şehre ulaştırma
+            //   kararı" (approve kovası) değil, editoryal bir vurgu. ⚠️ Sınırda bir karar:
+            //   manşet, vatandaşın ilk gördüğü şerittir — ileride "approve"a taşınırsa
+            //   ADI DA değişmeli (ör. `FeatureApprove` değil, öneki ActionFor'a eklenmeli),
+            //   yoksa bu satır sessizce yalan söylemeye başlar.
+            "ResetOverrides",
+            "Feature",
+        };
+
+        var matrixControllers = typeof(WebPanel::Program).Assembly.GetTypes()
+            .Where(t => t is { IsAbstract: false, IsClass: true }
+                        && typeof(Controller).IsAssignableFrom(t)
+                        && t.GetCustomAttribute<PanelPermissionAttribute>() is not null)
+            .ToList();
+
+        matrixControllers.Should().NotBeEmpty(
+            "kapsam türetiliyor — türetme çalışmıyorsa bu test hiçbir şey denetlemiyor demektir");
+
+        var silent = new List<string>();
+
+        foreach (var controller in matrixControllers)
+        {
+            var writeActions = controller
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(m => !m.IsSpecialName)
+                .Where(m => m.GetCustomAttribute<NonActionAttribute>() is null)
+                .Where(m => m.GetCustomAttribute<HttpPostAttribute>() is not null);
+
+            foreach (var action in writeActions)
+            {
+                var name = action.Name;
+                if (deliberateFallbacks.Contains(name)) continue;
+
+                // Adı bir anahtar kelimeyle eşleşiyorsa GET'te de aynı eylemi verir.
+                // Vermiyorsa ad hiçbir şey söylememiş, fiile düşülmüş demektir.
+                var asPost = PanelPermissionFilter.ActionFor(name, "POST");
+                var asGet = PanelPermissionFilter.ActionFor(name, "GET");
+                if (asPost == "update" && asGet == "read")
+                    silent.Add($"{controller.Name}.{name}");
+            }
+        }
+
+        silent.Should().BeEmpty(
+            "adı hiçbir önekle eşleşmeyen bir yazma aksiyonu sessizce 'update' iznine düşer " +
+            "(§7 madde 19). Bu dört kez yaşandı ve en ağırı 12.15'ti: yalnız BAŞLIK DÜZELTME " +
+            "yetkisi olan bir moderatör tüm şehre push atabilirdi. Üç seçenek var ve üçü de " +
+            "bilinçli: (a) aksiyonu bir önekle adlandır (Approve…/Update…/Delete…), " +
+            "(b) yeni öneki PanelPermissionFilter.ActionFor'a ekle, (c) 'update' gerçekten " +
+            "doğruysa bu testteki deliberateFallbacks listesine gerekçesiyle yaz. " +
+            "Sessizce varsayılana düşmek artık bir seçenek değil. Adı söylemeyen aksiyonlar: {0}",
+            string.Join(", ", silent));
+    }
+
+    /// <summary>
     /// Moderatöre açılan her controller <c>[PanelPermission]</c> taşımalı. Rol listesine
     /// "moderator" eklenip öznitelik unutulursa moderatör o modülde **sınırsız** yetki
     /// kazanır — sessiz ve tehlikeli.
