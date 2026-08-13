@@ -146,6 +146,12 @@
 > **davranış** testiyle iki ayaklı, bozma turunda 3 test kırmızı. · Madde 67'nin duman testi
 > **dürüst adlandırıldı** (`SmokeCheck_…_VacuousOnAFreshDatabase`).
 > ⏭️ **Sırada: 12.7/12.8 sosyal giriş — Apple Developer aboneliği ONAYLANMADI, bekliyor.**
+> (12.7 backend ayağı Apple'dan **bağımsız**, istenirse bugün yazılabilir.)
+> 🚦 **Ne kaldığını tek bakışta görmek için:** `Progress.md`'nin **en üstündeki AÇIK MADDELER
+> PANOSU** (13 Ağu'da eklendi). Sebep ölçüldü: durum bilgisi **beş ayrı yere** dağılmıştı,
+> 5000+ satırlık dosyada tepede hiçbir indeks yoktu ve alt-faz durum işaretleri **yalnız Faz
+> 11–12'de** vardı. Pano yalnız **açık** maddeleri tutar; kapanan satır **silinir** — büyüyen
+> liste çürür, küçülen liste çürümez.
 >
 > ⏭️ **Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) · **12.16 adayı**
 > kategori bazlı bildirim aboneliği (12.15'in elle gönderimi canlıda doğrulandıktan sonra;

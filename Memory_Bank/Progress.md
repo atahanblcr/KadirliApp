@@ -2,6 +2,58 @@
 
 Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barındırır. Herhangi bir bağlam kaybında (context reset) buraya bakılarak nelerin tamamlandığı anlaşılabilir.
 
+---
+
+## 🚦 AÇIK MADDELER PANOSU — *tek bakışta ne kaldı*
+
+> **Son doğrulama: 13 Ağustos 2026** (kutulara değil **koda/şemaya** bakılarak).
+> Bu pano **yalnız AÇIK maddeleri** listeler; bir madde kapandığında satırı **silinir**
+> (işaretlenmez). Gerekçe: bu dosya 5000+ satır ve durum bilgisi beş ayrı yere dağılmıştı —
+> 13 Ağu denetiminde **22 kutunun 21'i** bayat, iki başlık da yanlış çıktı. Büyüyen bir liste
+> yine çürür; **küçülen bir liste** çürümez.
+>
+> ⚠️ Bu panoyu hiçbir test denetlemiyor (bilinçli karar — bkz. *"Progress.md doc-test'e
+> bağlanmayacak"*). Tek güvence, kapatan kişinin satırı **silmesi**.
+
+### A. Ürün — Faz 12'nin açık kalan tek maddesi
+
+| Madde | Nerede | Durum / blokaj |
+|---|---|---|
+| **12.7 — Sosyal giriş: backend** | `### 12.7` | Planı ayrıntılı yazılı, kod yok. 🟢 **Apple'dan bağımsız — bugün yazılabilir** |
+| **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor) |
+
+### B. Karar bekleyenler (kod değil, tercih)
+
+| Madde | Nerede | Ne gerekiyor |
+|---|---|---|
+| **12.16 adayı — kategori bazlı bildirim aboneliği** | *"açık kalan / ertelenen maddeler"* | Ön koşul: 12.15'in **elle gönderimi canlıda doğrulanmalı**. ⚠️ İkinci bir dispatcher yazılmaz |
+| **Haber gövde override'ı** | Haberler bloğu | İkinci sürümde **eklemeli** alan olarak (tam override değil) |
+| **Haber arşiv derinliği (bugün 50)** | Haberler bloğu | Tamamı ~273 istek + ~1.6 GB görsel. **Kod değişikliği gerekmiyor, karar gerekiyor** |
+| **Progress.md arşivleme** | *"Progress.md'nin şekli"* | Faz 12 kapanınca 11+12 → `Progress_Archive.md` |
+
+### C. Deploy / yayın fazı (mobil geliştirmeyi bloklamaz, **yayından önce zorunlu**)
+
+| Madde | Nerede | Not |
+|---|---|---|
+| 🍎 **Apple ekosistemi** | 11.16 notları | Abonelik · sertifikalar · TestFlight · App Store Connect · **APNs `.p8`** · mağaza görselleri. **12.8'in tek blokajı** |
+| 🤖 **Play** | 11.16 notları | Yayın anahtarı (`keytool`) + Play Console → internal test |
+| **IaC / CD** | dış analiz notları | `Dockerfile` yok, `.tf`/`.bicep` yok, `dotnet.yml`'de **deploy adımı yok** (adı "CI/CD" ama içerik yalnız CI) |
+| **`uploads/` kalıcı volume** | `10.14/(3)` | Bugün risk **yok** (API compose'da değil). API konteynerleştiği gün doğar |
+| **Seq production kimlik doğrulaması** | `docker-compose.yml` | Yerelde bilinçli olarak kapalı; production'da `SEQ_FIRSTRUN_ADMINPASSWORD` + API key |
+
+### D. Bilinçli olarak ertelenmiş (ölçüldü — "yapılmadı" değil, **"gerekmediği ölçüldü"**)
+
+| Madde | Nerede | Neden ertelendi |
+|---|---|---|
+| **Anemik domain + Domain Events** | dış analiz notları | İki kez ölçüldü, **somut kazanç bulunamadı** (ilan listesi zaten cache'li değil; proje açık tek-sahip arayüzleri kullanıyor) → **Faz 13 adayı** |
+| **`IQueryable` sızıntısı** | dış analiz notları | Canlı zarar arandı, **bulunamadı** (12 `SoftRemove` çağrısının hepsi izlenen nesnede) |
+| **Madde 67'nin duman testi** | `Memory_Bank/Contract_Audit.md` | Bu ortamda **vakum** ve artık **adı bunu söylüyor** (`SmokeCheck_…_VacuousOnAFreshDatabase`); gerçek kilit yanındaki testte |
+
+📌 **Bunların dışında açık madde yoktur.** Görünmez sözleşme denetimi (Faz 0 · B1–B7 · T1/T2 ·
+Faz A) **bitti**, 67 maddenin tamamı 🟢/🟢🟢 — tablo `Memory_Bank/Contract_Audit.md`.
+
+---
+
 ## Faz 0 - İskelet ve Kurulum
 - [x] **Solution ve Projelerin Oluşturulması**: Clean Architecture yapısına uygun olarak `KadirliApp.Domain`, `KadirliApp.Application`, `KadirliApp.Infrastructure`, `KadirliApp.Api` ve `KadirliApp.Web` (MVC Panel) projeleri `dotnet new` komutlarıyla yaratıldı.
 - [x] **Bağımlılıklar (NuGet)**: EntityFrameworkCore, Npgsql.EntityFrameworkCore.PostgreSQL, MediatR, FluentValidation, BCrypt.Net-Next, JwtBearer vb. paketler ilgili projelere eklendi.
@@ -2261,7 +2313,13 @@ menü satırına modül anahtarı verildi (2 test) · `data-confirm` butona taş
 - Alıcısı olmayan mahalleye gönderim → **"Hedeflemeye uyan kullanıcı bulunamadı — hiç bildirim
   yazılmadı"** + **"Alıcı yok"** rozeti (sessizce "gönderildi" demedi)
 
-🐛 **12.2'DEN DEVRALINAN MOBİL ÇÖKME — HÂLÂ AÇIK, KÖK NEDEN DOĞRULANMADI.**
+🐛 **12.2'DEN DEVRALINAN MOBİL ÇÖKME** ✅ *(bu başlık **12.2b günü** yazıldı ve o gün doğruydu;
+**12.3'te kök neden bulundu ve kilitlendi** — kabuk rotasına `push` → mükerrer sayfa anahtarı,
+tek sahip `core/router/app_nav.dart`, kilit `mobile/test/core/navigation/shell_page_key_test.dart`.
+13 Ağu 2026 açık-madde denetiminde bu satır **bayat** bulundu: "HÂLÂ AÇIK" diyordu ve açık
+madde arayan birini yanıltıyordu.)*
+
+**O günkü durum (tarihsel kayıt):** kök neden doğrulanmamıştı.
 `Navigator._debugCheckDuplicatedPageKeys` assertion'ı **widget testinde yeniden üretilemedi**:
 yazılan test düzeltme geri alındığında da **yeşil kaldı**, yani hiçbir şey kilitlemiyordu ve
 projenin kendi ölçütüne göre değersizdi → **silindi.** `error_logs`'taki yığın izi tamamen
