@@ -107,7 +107,18 @@
 > ve altıncı** kez tekrarlamış. İzinler bilinçli olarak **değiştirilmedi** ama artık gerekçeli
 > yazılı; ⚠️ `Feature` sınırda bir karar. Asıl kazanç: adı bir şey söylemeyen yazma aksiyonu
 > artık sessizce `update`'e değil **kırmızıya** düşüyor.
-> ⏭️ Sırada **T1/T2** (ön koşul) → **Faz A** (kalan **11 madde**; 3 🔴: 51 · 52 · 67).
+> ✅ **VE T1/T2 (Faz A'nın ön koşulu) DA KAPANDI.** **T1:** dört sınıf artık kendi `users`
+> satırlarını siliyor (biri hiç temizlik yapmıyordu). 🐛 İlk yazım dört testi kırdı — kullanıcı
+> silme, `InitializeAsync`'in sonunda da çağrılan temizliğin içine konmuştu, yani kurulum kendi
+> kurduğunu siliyordu → 🔑 *temizliğin **kapsamı** kadar **çağrıldığı yer** de sözleşmenin
+> parçasıdır.* **T2:** SQL paylaşılan bir sabite çıkarıldı (`NotificationPreferenceBackfill`),
+> test eski biçimli satırı **kendi eliyle** üretip aynı metni koşturuyor.
+> 🔬 **Planın gerekçesi ölçümle çürüdü:** test DB'si koşular arasında *yeniden kullanılmıyor*
+> (Testcontainers her koşuda yeni konteyner). Gerçek sebep: migration **boş** bir `users`
+> tablosunda koşar, satırları EF yazar ve EF **tam** JSON yazar → anahtarsız satır test
+> ortamında hiç doğmaz. Ayrım pahalıydı: yanlış sebep, planın "tek kullanımlık veritabanı"
+> seçeneğine götürüyordu ve **o çözüm işe yaramazdı**.
+> **Backend 1111 test.** ⏭️ Sırada **Faz A** (kalan **10 madde**; 2 🔴: 51 · 52).
 >
 > ⏭️ **Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) · **12.16 adayı**
 > kategori bazlı bildirim aboneliği (12.15'in elle gönderimi canlıda doğrulandıktan sonra;

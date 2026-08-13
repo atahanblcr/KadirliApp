@@ -70,7 +70,31 @@ public class PanelPushCampaignTests : IAsyncLifetime
         await CleanCampaignsAsync();
     }
 
-    public Task DisposeAsync() => CleanCampaignsAsync();
+    public async Task DisposeAsync()
+    {
+        await CleanCampaignsAsync();
+        await CleanUsersAsync();
+    }
+
+    /// <summary>
+    /// 🧹 <b>T1 (Faz 0 denetimi):</b> bu sınıfın vatandaş kullanıcılarını siler.
+    /// </summary>
+    /// <remarks>
+    /// 🐛 <b>Neden kampanya temizliğinden AYRI:</b> ilk yazımda kullanıcı silme
+    /// <c>CleanCampaignsAsync</c>'in içine kondu ve <b>dört test birden kırıldı</b> —
+    /// çünkü <c>InitializeAsync</c> kullanıcıları kurduktan <b>sonra</b> aynı temizliği
+    /// çağırıyor, yani kurulum kendi kendini siliyordu. Ders küçük ama tam bu maddenin
+    /// konusu: <i>temizliğin kapsamı kadar ÇAĞRILDIĞI YER de sözleşmenin parçasıdır.</i>
+    /// Kullanıcı silme yalnız <see cref="DisposeAsync"/>'ten çağrılır.
+    /// </remarks>
+    private Task CleanUsersAsync() => _factory.WithScopeAsync(async sp =>
+    {
+        var db = sp.GetRequiredService<AppDbContext>();
+        await db.Users.IgnoreQueryFilters()
+            .Where(u => u.Phone == "+905550000901" || u.Phone == "+905550000902"
+                     || u.Phone == "+905550000903" || u.Phone == "+905550000904")
+            .ExecuteDeleteAsync();
+    });
 
     // ────────────────────────────────────────────────────────────────────────
     // Kurulum yardımcıları
@@ -106,6 +130,8 @@ public class PanelPushCampaignTests : IAsyncLifetime
         var db = sp.GetRequiredService<AppDbContext>();
         await db.Notifications.Where(n => n.Title.StartsWith(Marker)).ExecuteDeleteAsync();
         await db.PushCampaigns.Where(c => c.Title.StartsWith(Marker)).ExecuteDeleteAsync();
+        // ⚠️ Kullanıcılar burada SİLİNMEZ: bu metot `InitializeAsync`'in sonunda da çağrılıyor
+        // (kurulum kendi kendini silerdi). Kullanıcı temizliği `CleanUsersAsync`'te.
     });
 
     private async Task<T> InDbAsync<T>(Func<AppDbContext, Task<T>> action)

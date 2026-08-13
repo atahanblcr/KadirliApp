@@ -212,14 +212,23 @@ public class NotificationPreferenceAxisTests : IAsyncLifetime
     /// geri getirildiğinde anahtarsız dönerdi.
     ///
     /// 🐛 <b>DÜRÜST NOT — bu testin iddiası SINIRLI ve bozma turunda ölçüldü.</b>
-    /// Migration'ın <c>Up()</c>'ı boşaltıldı ve test <b>yeşil kaldı</b>: migration'lar bir
-    /// kez koşar ve test veritabanı koşular arasında yeniden kullanılıyor
-    /// (<c>__EFMigrationsHistory</c>'de kayıt zaten var), yani bu test bir migration
-    /// regresyonunu <b>ancak sıfırdan kurulan bir veritabanında</b> yakalayabilir.
-    /// Bu yüzden 12.15b'nin asıl kilidi burası değil, <see cref="MissingJsonKey_MaterialisesAsFalse"/>:
-    /// o, geri doldurmanın <b>neden gerekli olduğunu</b> ölçüyor ve EF'in davranışı
-    /// değişmediği sürece kırılmaz. Burası bir <b>duman testi</b> — silmiyoruz (yeni kurulan
-    /// ortamda gerçek değeri var) ama "kilitli" saymıyoruz.
+    /// Migration'ın <c>Up()</c>'ı boşaltıldı ve test <b>yeşil kaldı</b>.
+    ///
+    /// 🔬 <b>SEBEP DÜZELTİLDİ (Faz 0 — T2, 13 Ağu 2026).</b> Burada önce *"migration bir kez
+    /// koşar ve test veritabanı koşular arasında yeniden kullanılıyor"* yazıyordu — <b>yanlış</b>.
+    /// Ölçüldü: <c>WebPanelApplicationFactory</c> her koşuda <b>yeni</b> bir Testcontainers
+    /// konteyneri kurar (<c>WithReuse</c> yok) ve migration'lar her koşuda baştan uygulanır.
+    /// Gerçek sebep başka: migration <b>boş</b> bir <c>users</c> tablosunda koşar, satırları
+    /// sonradan EF yazar ve EF her zaman <b>tam</b> JSON yazar — yani <i>anahtarsız bir satır
+    /// test ortamında hiç doğmaz</i> ve bu iddia <b>tanım gereği vakumdur</b>.
+    ///
+    /// 🔑 Ayrım önemliydi, çünkü yanlış sebep yanlış çözüme götürüyordu: *"ayrı, tek
+    /// kullanımlık bir veritabanı"* seçeneği <b>işe yaramazdı</b> (sıfırdan kurulan bir
+    /// veritabanında da eski biçimli satır yoktur). Doğru çözüm ifadeyi <b>dışarı almak</b>
+    /// oldu → <see cref="TheBackfillStatement_AddsTheMissingKey_ButNeverOverwritesAnExplicitChoice"/>
+    /// eski biçimli satırı kendi eliyle üretip aynı metni koşturuyor. Burası bir <b>duman
+    /// testi</b> olarak kalıyor (yeni kurulan gerçek bir ortamda değeri var) ama "kilitli"
+    /// sayılmıyor.
     /// </remarks>
     [Fact]
     public async Task TheBackfill_LeftNoUserRowWithoutTheNewsKey()
@@ -233,6 +242,127 @@ public class NotificationPreferenceAxisTests : IAsyncLifetime
         });
 
         missing.Should().Be(0);
+    }
+
+    /// <summary>
+    /// 🔑 <b>Faz 0 denetimi (T2) — geri doldurmanın GERÇEK kilidi.</b>
+    ///
+    /// <para>
+    /// Yukarıdaki duman testi bir migration regresyonunu yakalayamıyor ve <b>sebebi ölçüldü</b>:
+    /// migration <b>boş</b> bir <c>users</c> tablosunda koşar, satırları sonradan EF yazar ve
+    /// EF her zaman <b>tam</b> JSON yazar — yani anahtarsız bir satır test ortamında
+    /// <b>hiç doğmaz</b>. (⚠️ Eski gerekçe *"test veritabanı koşular arasında yeniden
+    /// kullanılıyor"*du ve <b>yanlıştı</b>: Testcontainers her koşuda sıfırdan kurar,
+    /// migration'lar baştan uygulanır. Aynı gözlemin iki sebebi vardı, yanlış olanı
+    /// seçilmişti — ve yanlış sebep yanlış çözüme götürüyordu: "ayrı, tek kullanımlık
+    /// veritabanı" <b>işe yaramazdı</b>, çünkü sıfırdan kurulan bir veritabanında da eski
+    /// biçimli satır yoktur.)
+    /// </para>
+    ///
+    /// <para>
+    /// Bu test eksik parçayı sağlar: eski biçimli satırı <b>kendi eliyle</b> üretir ve
+    /// migration'ın koşturduğu <b>aynı metni</b>
+    /// (<see cref="NotificationPreferenceBackfill.Statement"/>) koşturur. Böylece kilitlenen
+    /// şey "migration çalıştı mı" değil, <b>ifadenin doğru olup olmadığıdır</b> — asıl
+    /// kırılgan yer de burası:
+    /// </para>
+    ///
+    /// <list type="number">
+    ///   <item>eksik anahtar <b>tamamlanmalı</b> (yoksa mevcut kullanıcılar sessizce
+    ///         haber bildiriminden düşer),</item>
+    ///   <item><b>açık tercih EZİLMEMELİ</b> — *"haber bildirimi istemiyorum"* diyen bir
+    ///         kullanıcının tercihi geri doldurmadan sağ çıkmalı; ezilseydi tercih sessizce
+    ///         <b>açılırdı</b>, hiçbir hata vermeden.</item>
+    /// </list>
+    ///
+    /// <para>
+    /// 🔬 <b>Bozma turunun ölçtüğü (dürüst not):</b> ikinci iddiayı <b>iki</b> mekanizma
+    /// birden koruyor — <c>WHERE NOT (… ? 'News')</c> ve <c>||</c> operand sırası — ve
+    /// <b>yalnız birini</b> bozmak testi <b>yeşil bırakıyor</b>, çünkü davranış değişmiyor.
+    /// İkisi birden bozulduğunda kırmızıya dönüyor (ölçüldü). Bu yüzden iddia bilerek
+    /// <b>davranış</b> olarak yazıldı ("tercih sağ çıkar"), gerçeklemenin şekli olarak değil:
+    /// SQL'in nasıl yazıldığını iddia eden bir test, derinlemesine savunmanın bir ayağını
+    /// kaldıran zararsız bir düzenlemede de kırmızıya döner ve yanlış şeyi kilitler.
+    /// İlk iddia (eksik anahtar tamamlanır) ise <b>tek başına</b> kilitli: ifade
+    /// etkisizleştirildiğinde kırmızıya döndü.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task TheBackfillStatement_AddsTheMissingKey_ButNeverOverwritesAnExplicitChoice()
+    {
+        var legacyId = Guid.NewGuid();   // anahtarı HİÇ olmayan satır (12.15b öncesinin hâli)
+        var optedOutId = Guid.NewGuid(); // "haber istemiyorum" demiş satır (News: false)
+
+        await InDbAsync(async db =>
+        {
+            await db.Database.OpenConnectionAsync();
+
+            // ⚠️ JSON literali ExecuteSqlRaw'a verilemez ('{' yer tutucu sanılır) → ham komut.
+            await using (var seed = db.Database.GetDbConnection().CreateCommand())
+            {
+                // ⚠️ `$$"""…"""`: JSON'un `{` karakteri düz metin kalsın diye enterpolasyon
+                // ayracı `{{…}}`'ye çekildi. Tek `$` ile yazılsaydı `{"Announcements"` bir
+                // ifade sanılır ve dosya DERLENMEZ (ilk yazımda tam bu oldu).
+                seed.CommandText = $$"""
+                    INSERT INTO users (id, phone, role, notification_preferences, created_at, updated_at, is_active, is_banned)
+                    VALUES
+                      ('{{legacyId}}',   '+905550000965', 'user', '{"Announcements": true}'::jsonb,                now(), now(), true, false),
+                      ('{{optedOutId}}', '+905550000966', 'user', '{"Announcements": true, "News": false}'::jsonb, now(), now(), true, false);
+                    """;
+                await seed.ExecuteNonQueryAsync();
+            }
+
+            // Migration'ın koşturduğu METNİN TA KENDİSİ.
+            await using (var backfill = db.Database.GetDbConnection().CreateCommand())
+            {
+                backfill.CommandText = NotificationPreferenceBackfill.Statement;
+                await backfill.ExecuteNonQueryAsync();
+            }
+            return 0;
+        });
+
+        try
+        {
+            var (legacy, optedOut) = await InDbAsync(async db =>
+            {
+                await db.Database.OpenConnectionAsync();
+                await using var read = db.Database.GetDbConnection().CreateCommand();
+                read.CommandText =
+                    $"SELECT id, notification_preferences ->> 'News' FROM users WHERE id IN ('{legacyId}', '{optedOutId}');";
+                await using var reader = await read.ExecuteReaderAsync();
+
+                string? legacyValue = null, optedOutValue = null;
+                while (await reader.ReadAsync())
+                {
+                    var id = reader.GetGuid(0);
+                    var value = reader.IsDBNull(1) ? null : reader.GetString(1);
+                    if (id == legacyId) legacyValue = value; else optedOutValue = value;
+                }
+                return (legacyValue, optedOutValue);
+            });
+
+            legacy.Should().Be("true",
+                "anahtarı olmayan satıra varlığın beyan ettiği varsayılan yazılmalı — " +
+                "yoksa mevcut bütün kullanıcılar haber bildiriminden SESSİZCE düşer (§7 madde 67)");
+
+            optedOut.Should().Be("false",
+                "açık tercih EZİLMEMELİ: '||' çakışan anahtarda SAĞDAKİ operandı seçer, bu yüzden " +
+                "mevcut değer sağda durmalı. Operandlar ters yazılsaydı geri doldurma, haber " +
+                "bildirimi istemeyen herkesin tercihini sessizce AÇARDI");
+        }
+        finally
+        {
+            // ⚠️ Temizlik YALNIZ kendi satırlarını kapsar (12.15b'nin dersi: geniş bir
+            // onarım/temizlik başka bir testin iddiasını iddiasız bırakır).
+            await InDbAsync(async db =>
+            {
+                await db.Database.OpenConnectionAsync();
+                await using var cleanup = db.Database.GetDbConnection().CreateCommand();
+                cleanup.CommandText = $"DELETE FROM users WHERE id IN ('{legacyId}', '{optedOutId}');";
+                await cleanup.ExecuteNonQueryAsync();
+                return 0;
+            });
+        }
     }
 
     // ────────────────────────────────────────────────────────────────────────

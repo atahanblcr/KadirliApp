@@ -4907,7 +4907,50 @@ söylemeyen yazma aksiyonu artık sessizce `update`'e değil **kırmızıya** d�
 (yeni sözleşme doğmadı — var olanların kilitleri sağlamlaştı).
 **Kalan:** 11 madde Faz A'ya (3 🔴: 51 · 52 · 67 — üçü de `Contract_Audit.md`'de gerekçeli).
 
-### 🧹 Test altyapısı — 12.15b'nin bıraktığı iki açık madde
+### ✅ T1 ve T2 KAPATILDI (aynı oturum) — Faz A'nın ön koşulu tamam
+
+**T1 — dört sınıf artık kendi `users` satırlarını siliyor.** `PanelNewsNotificationTests` ·
+`PanelPushCampaignTests` · `PanelPowerOutageNeighborhoodTests` · `PushNotificationsJobTests`
+(sonuncusunun **hiç** temizliği yoktu, `IAsyncLifetime` bile). Kapsam **dar**: her sınıf yalnız
+kendi telefon numaralarını siler (12.15b'nin dersi — geniş temizlik başka bir testin iddiasını
+iddiasız bırakır).
+
+🐛 **İlk yazım dört testi birden kırdı ve ders tam bu maddenin konusu:** kullanıcı silme,
+kampanya/duyuru temizliğinin **içine** kondu; oysa `PanelPushCampaignTests` ve
+`PanelPowerOutageNeighborhoodTests`'te o temizlik `InitializeAsync`'in **sonunda** da
+çağrılıyor — yani kurulum kendi kurduğu kullanıcıları siliyordu.
+🔑 *Temizliğin **kapsamı** kadar **çağrıldığı yer** de sözleşmenin parçasıdır.* Kullanıcı silme
+ayrı bir `CleanUsersAsync`'e alındı ve yalnız `DisposeAsync`'ten çağrılıyor.
+(`PanelNewsNotificationTests` kırılmadı çünkü orada temizlik kurulumdan **önce** koşuyor.)
+
+**T2 — karar: SQL paylaşılan bir sabite çıkarıldı** (kullanıcı seçimi; plandaki üç seçenekten
+biri **ölçümle elendi**). Yeni tek sahip `Infrastructure/Persistence/NotificationPreferenceBackfill`;
+migration onu çağırıyor, yeni test eski biçimli (anahtarsız) bir satırı **kendi eliyle** üretip
+**aynı metni** koşturuyor.
+
+🔬 **Planın gerekçesi YANLIŞTI ve ölçümle düzeltildi.** Yazılı sebep *"migration bir kez koşar
+ve test veritabanı koşular arasında yeniden kullanılıyor"*du. Ölçüldü: `WebPanelApplicationFactory`
+her koşuda **yeni** bir Testcontainers konteyneri kuruyor (`WithReuse` yok, migration'lar her
+koşuda baştan uygulanıyor). Gerçek sebep başka: migration **boş** bir `users` tablosunda koşar,
+satırları sonradan EF yazar ve EF her zaman **tam** JSON yazar → *anahtarsız satır test
+ortamında hiç doğmaz*, yani iddia **tanım gereği vakumdu**.
+🔑 Ayrım pahalıydı: yanlış sebebe inanan biri planın 2. seçeneğini (*"migration testleri için
+tek kullanımlık veritabanı"*) seçerdi ve **o çözüm işe yaramazdı** — sıfırdan kurulan bir
+veritabanında da eski biçimli satır yoktur. (12.13'ün dersi: *yanlış bir sebep, yanlış bir
+düzeltmeden pahalıdır.*)
+
+🔬 **Bozma turu bir şey daha ölçtü:** "açık tercih ezilmemeli" iddiasını **iki** mekanizma
+birden koruyor — `WHERE NOT (… ? 'News')` ve `||` operand sırası — ve **yalnız birini** bozmak
+testi **yeşil bırakıyor** (ikisi de ayrı ayrı ölçüldü), ikisi birden bozulduğunda kırmızıya
+dönüyor. Bu bir test zaafı **değil**, derinlemesine savunma; ama iddianın **davranış** olarak
+yazılması gerektiğini gösterdi ("tercih sağ çıkar"), gerçeklemenin şekli olarak değil —
+yoksa savunmanın bir ayağını kaldıran zararsız bir düzenleme de testi kırar ve test **yanlış
+şeyi** kilitler. İlk iddia (eksik anahtar tamamlanır) **tek başına** kilitli: ifade
+etkisizleştirildiğinde kırmızıya döndü.
+
+**Testler:** backend 1110 → **1111**.
+
+### 🧹 Test altyapısı — 12.15b'nin bıraktığı iki açık madde (⬆️ İKİSİ DE KAPANDI, yukarı bak)
 
 Bunlar ürün hatası değil, **denetim aracının** hatası; ama bu projede denetim aracının
 hatası ürün hatasına dönüşüyor (yeşil kalan bir test, olmayan bir güvence).

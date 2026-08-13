@@ -603,6 +603,15 @@ public class PanelNewsNotificationTests : IAsyncLifetime
             await db.Set<NewsArticle>().Where(x => x.WpId >= WpIdFloor && x.WpId < WpIdCeiling).ExecuteDeleteAsync();
             await db.PushCampaigns.Where(c => c.Title.StartsWith(Marker)).ExecuteDeleteAsync();
             await db.Set<NewsCategory>().Where(x => x.WpId >= WpIdFloor && x.WpId < WpIdCeiling).ExecuteDeleteAsync();
+
+            // 🧹 T1 (Faz 0 denetimi): bu sınıf kendi vatandaş kullanıcılarını da SİLER.
+            // Panel listeleri sayfalı; biriken test kullanıcıları seed'deki süper admini ilk
+            // sayfadan düşürüp **ilgisiz** testleri kırıyordu (12.15b'de birebir yaşandı).
+            // ⚠️ Temizlik YALNIZ kendi telefonlarını kapsar — geniş bir silme başka bir
+            // testin kurulumunu götürür (12.15b'nin ikinci dersi).
+            await db.Users.IgnoreQueryFilters()
+                .Where(u => u.Phone == "+905550000951" || u.Phone == "+905550000952")
+                .ExecuteDeleteAsync();
         });
     }
 }

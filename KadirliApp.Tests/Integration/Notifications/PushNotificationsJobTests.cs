@@ -20,11 +20,51 @@ namespace KadirliApp.Tests.Integration.Notifications;
 /// Faz 10.11 doğrulaması: SendPushNotificationsJob. No-op sağlayıcıda (IsConfigured=false) hiç göndermez ve DB'ye
 /// dokunmaz; gerçek sağlayıcıda fcm_sent/fcm_sent_at/fcm_error doğru yazılır ve UNREGISTERED token temizlenir.
 /// </summary>
-public class PushNotificationsJobTests : IClassFixture<CustomWebApplicationFactory>
+public class PushNotificationsJobTests : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
+    /// <summary>Bu sınıfın ürettiği kullanıcıların telefon öneki — temizliğin kapsamı budur.</summary>
+    private const string PhonePrefix = "+90509999";
+
     private readonly CustomWebApplicationFactory _factory;
 
     public PushNotificationsJobTests(CustomWebApplicationFactory factory) => _factory = factory;
+
+    public Task InitializeAsync() => CleanAsync();
+
+    public Task DisposeAsync() => CleanAsync();
+
+    /// <summary>
+    /// 🧹 <b>T1 (Faz 0 denetimi):</b> bu sınıf 12.15b'de "kalıcı <c>users</c> satırı bırakan
+    /// dört sınıftan biri" olarak işaretlenmişti ve tek temizliği bile yoktu.
+    ///
+    /// <para>
+    /// Biriken test kullanıcıları sayfalı panel listelerini kaydırır ve <b>kendisiyle
+    /// ilgisiz</b> testleri kırar (12.15b'de seed'deki süper admin kullanıcı listesinin ilk
+    /// sayfasından düştü ve <c>PanelUsabilityTests</c> kırmızıya döndü). Denetimin bozma
+    /// turlarının güvenilir olması da buna bağlı: kırmızıya dönen bir test, bozduğumuz kural
+    /// yüzünden mi yoksa satır sayısı yüzünden mi kırıldı ayırt edilemezse ölçüm işe yaramaz.
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠️ Kapsam <b>dar</b>: yalnız bu sınıfın telefon öneki. Geniş bir temizlik başka bir
+    /// testin kurulumunu götürür ve onun iddiasını <b>iddiasız</b> bırakır — 12.15b'de
+    /// birebir yaşandı. ⚠️ Sıra da önemli: bildirimler kullanıcıya FK ile bağlı, önce onlar.
+    /// </para>
+    /// </summary>
+    private async Task CleanAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var userIds = await db.Users.IgnoreQueryFilters()
+            .Where(u => u.Phone.StartsWith(PhonePrefix))
+            .Select(u => u.Id)
+            .ToListAsync();
+        if (userIds.Count == 0) return;
+
+        await db.Notifications.Where(n => userIds.Contains(n.UserId)).ExecuteDeleteAsync();
+        await db.Users.IgnoreQueryFilters().Where(u => userIds.Contains(u.Id)).ExecuteDeleteAsync();
+    }
 
     /// <summary>Test için IPushService sahtesi: belirli token'ları başarısız/geçersiz işaretler, gönderileni kaydeder.</summary>
     private sealed class FakePushService : IPushService

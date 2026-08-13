@@ -34,12 +34,13 @@ namespace KadirliApp.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(
-                """
-                UPDATE users
-                SET notification_preferences = '{"News": true}'::jsonb || notification_preferences
-                WHERE NOT (notification_preferences ? 'News');
-                """);
+            // 🔑 Faz 0 denetimi (T2): ifade artık burada DEĞİL, tek sahibi
+            // `NotificationPreferenceBackfill.Statement`. Sebep: migration bir kez ve
+            // **boş** bir users tablosunda koştuğu için "geri doldurma çalıştı" iddiası
+            // test ortamında tanım gereği vakumdu (bozma turunda ölçüldü). Metin dışarı
+            // alınınca test onu eliyle kurduğu eski biçimli bir satır üzerinde koşturup
+            // gerçekten kilitleyebiliyor — özellikle `||` operand sırasını.
+            migrationBuilder.Sql(Persistence.NotificationPreferenceBackfill.Statement);
         }
 
         /// <inheritdoc />

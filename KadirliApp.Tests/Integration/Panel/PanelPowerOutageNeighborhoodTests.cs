@@ -92,7 +92,11 @@ public class PanelPowerOutageNeighborhoodTests : IAsyncLifetime
         return created;
     }
 
-    public Task DisposeAsync() => CleanAsync();
+    public async Task DisposeAsync()
+    {
+        await CleanAsync();
+        await CleanUsersAsync();
+    }
 
     // ────────────────────────────────────────────────────────────────────────
     // Kurulum
@@ -135,6 +139,18 @@ public class PanelPowerOutageNeighborhoodTests : IAsyncLifetime
             .Where(o => o.AreaDetail != null && o.AreaDetail.Contains(Marker)).ExecuteDeleteAsync();
         await db.Announcements.IgnoreQueryFilters()
             .Where(a => a.Title.Contains(Marker)).ExecuteDeleteAsync();
+        // ⚠️ Kullanıcılar burada SİLİNMEZ: bu metot `InitializeAsync`'in sonunda da çağrılıyor
+        // (kurulum kendi kendini silerdi — ilk yazımda üç test bu yüzden kırıldı).
+        // Kullanıcı temizliği `CleanUsersAsync`'te, yalnız `DisposeAsync`'ten çağrılır.
+    });
+
+    /// <summary>🧹 T1 (Faz 0 denetimi): yalnız bu sınıfın vatandaş kullanıcıları.</summary>
+    private Task CleanUsersAsync() => _factory.WithScopeAsync(async sp =>
+    {
+        var db = sp.GetRequiredService<AppDbContext>();
+        await db.Users.IgnoreQueryFilters()
+            .Where(u => u.Phone == "+905550000931" || u.Phone == "+905550000932")
+            .ExecuteDeleteAsync();
     });
 
     private async Task<T> InDbAsync<T>(Func<AppDbContext, Task<T>> action)

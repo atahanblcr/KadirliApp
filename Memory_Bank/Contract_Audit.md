@@ -99,19 +99,20 @@ ama sözleşmenin **iddia edilen yüzü** ile **yazılı yüzü** aynı değil. 
 | 64 | Haber bildirimi terminal — kural **üç katmanda** | Davranış + **DB kısıtı** | 🟢🟢 | `PanelNewsNotificationTests.TheDatabase_RefusesASecondNewsCampaignForTheSameArticle` · `TheUniqueIndex_DoesNotAffectOtherSources` + `NewsArticleTransitionTests.MarkNotificationSent_IsTerminal_…` |
 | 65 | Gönderilebilirlik görünürlüğün **üç eksenini** sorar | Saf birim + davranış | 🟢 | `Unit/…/News/NewsNotificationRulesTests` (üç eksen ayrı ayrı) + `PanelNewsNotificationTests.AnArticleHiddenByCategoryExclusion_CannotBeNotified` |
 | 66 | Görünmez haberin bildirimleri fiziksel düşer | Davranış | 🟢 | `PanelNewsNotificationTests.ArchivingANotifiedArticle_DeletesItsNotifications_ButKeepsTheCampaign` + `NewsNotificationTextTests` (gövde kendi kendine yeterli) |
-| 67 | Bildirim tercihi **kaynağa göre** + geri doldurma | Davranış 🟢 / **kuruluma bağlı** 🔴 | 🔴 | `Integration/Panel/NotificationPreferenceAxisTests` — eksen ayrımı ve `MissingJsonKey_MaterialisesAsFalse` **kilitli**; `TheBackfill_LeftNoUserRowWithoutTheNewsKey` bozma turunda **yeşil kaldı** (migration bir kez koşar) = **T2**, biliniyor |
+| 67 | Bildirim tercihi **kaynağa göre** + geri doldurma | Davranış | 🟢 ✅ | **T2 ile kapatıldı**: ifade `Infrastructure/Persistence/NotificationPreferenceBackfill.Statement`'a çıkarıldı; `NotificationPreferenceAxisTests.TheBackfillStatement_AddsTheMissingKey_ButNeverOverwritesAnExplicitChoice` eski biçimli satırı **kendi eliyle** üretip aynı metni koşturuyor. Eski duman testi duruyor ama "kilitli" sayılmıyor |
 
 ### Dağılım
 
 | Risk | Tasnif anında | **Faz B'den sonra (bugün)** | Maddeler |
 |---|---|---|---|
 | 🟢🟢 En düşük (derleyici / DB kısıtı) | 6 | 6 | 32 · 53 · 55 · 60 · 64 |
-| 🟢 Düşük (davranış / saf birim) | 45 | **52** | + 6 · 15 · 16 · 17 · 19 · 21 · 26 (B1–B7 ile kapatıldı ✅) |
+| 🟢 Düşük (davranış / saf birim) | 45 | **53** | + 6 · 15 · 16 · 17 · 19 · 21 · 26 (B1–B7 ✅) + 67 (T2 ✅) |
 | 🟠 Orta (istemci · elle kapsam · ayna) | 9 | **8** | 18 · 27 · 29 · 30 · 49 · 50 · 61 · 62 |
-| 🔴 Yüksek | 7 | **3** | 51 · 52 · 67 |
+| 🔴 Yüksek | 7 | **2** | 51 · 52 |
 
-> 🔑 **Faz A'nın kalan alt kümesi: 11 madde** (3 🔴 + 8 🟠). Kalan 56 maddede kör bozma turu
+> 🔑 **Faz A'nın kalan alt kümesi: 10 madde** (2 🔴 + 8 🟠). Kalan 57 maddede kör bozma turu
 > **yapılmayacak** (reçetenin kendi kuralı).
+> ✅ **Ön koşul T1/T2 kapandı** — Faz A artık güvenilir bir zeminde koşabilir.
 
 ---
 
@@ -188,16 +189,38 @@ aksiyon **sessizce `update`'e** düşerdi; şimdi **kırmızıya** düşüyor ve
 
 ---
 
-## 6. Sırada ne var
+## 6. ✅ T1 / T2 — Faz A'nın ön koşulu (aynı oturum)
 
-1. **T1/T2** (reçetenin ön koşulu, `Progress.md` → *"Test altyapısı"*). Faz A'ya girmeden
-   kapatılmalı: biriken test kullanıcıları bozma turunun sonuçlarını zehirler.
-2. **Faz A — bozma turu**, kalan **11 maddelik** alt kümede (3 🔴 + 8 🟠). Protokol madde başına:
+**T1** — dört sınıf (`PanelNewsNotificationTests` · `PanelPushCampaignTests` ·
+`PanelPowerOutageNeighborhoodTests` · `PushNotificationsJobTests`) artık kendi `users`
+satırlarını siliyor; kapsam **dar** (yalnız kendi telefon numaraları).
+🐛 İlk yazım **dört testi kırdı**: kullanıcı silme, `InitializeAsync`'in sonunda da çağrılan
+temizliğin içine konmuştu → kurulum kendi kurduğunu siliyordu. 🔑 *Temizliğin **kapsamı**
+kadar **çağrıldığı yer** de sözleşmenin parçasıdır.*
+
+**T2** — karar: **SQL paylaşılan bir sabite çıkarıldı** (`NotificationPreferenceBackfill.Statement`).
+🔬 Planın gerekçesi **yanlıştı ve ölçümle düzeltildi**: test DB'si koşular arasında *yeniden
+kullanılmıyor* (Testcontainers her koşuda yeni konteyner kurar). Gerçek sebep: migration **boş**
+bir `users` tablosunda koşar, satırları sonradan EF yazar ve EF **tam** JSON yazar → anahtarsız
+satır test ortamında **hiç doğmaz**. Bu ayrım pahalıydı: yanlış sebep, planın 2. seçeneğine
+(*tek kullanımlık veritabanı*) götürüyordu — **o çözüm işe yaramazdı**.
+🔬 Bozma turu bir şey daha ölçtü: "açık tercih ezilmez" iddiasını **iki** mekanizma birden
+koruyor (`WHERE` + `||` operand sırası); **yalnız birini** bozmak testi yeşil bırakıyor, ikisi
+birden kırmızıya döndürüyor. Derinlemesine savunma — ama iddianın **davranış** olarak
+yazılması gerektiğini gösterdi.
+
+---
+
+## 7. Sırada ne var
+
+1. ~~**T1/T2** (reçetenin ön koşulu)~~ → ✅ **kapandı** (§6). Zemin artık güvenilir.
+2. **Faz A — bozma turu**, kalan **10 maddelik** alt kümede (2 🔴 + 8 🟠). Protokol madde başına:
    kuralı **anlamlı** şekilde boz (derlenmez hâle getirmek bozma değildir) → yalnız o maddenin
    testini koş → kırmızıya döndüğünü gör → geri al → bu tabloya `kilitli` / `tesadüfen yeşil` yaz.
    ~~⚠️ B1–B7 için bozma turu gereksiz~~ → **B1–B7 kapatıldı ve bozma turları yine de koşuldu**
    (§5); yeni yazılan bir testin kilitlediğini görmek, deliğin varlığını kanıtlamaktan ayrı bir iş.
 3. **Faz B — kalan delikleri kapat.** Soru "testi genişletsem yeter mi?" değil:
    **"korumayı taramanın erişemeyeceği yere taşıyabilir miyim?"**
-   Kalan üç 🔴: **51** (tarama kapsamı `Views/**`) · **52** (tarama ayağının `Update*.cs`
-   deseni) · **67** (T2 — migration tek koşar).
+   Kalan iki 🔴: **51** (tarama kapsamı `Views/**` — `wwwroot/js/panel.js` ve `Views/` dışı
+   görülmüyor) · **52** (tarama ayağı hâlâ `Update*.cs` dosya adı deseni tutuyor — 12.11'in
+   dersi aynı testin içinde ayakta).
