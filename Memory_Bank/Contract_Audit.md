@@ -54,7 +54,7 @@ ama sözleşmenin **iddia edilen yüzü** ile **yazılı yüzü** aynı değil. 
 | 16 | Push `data` sözlüğünün anahtarları | Davranış + **tek sahip sabit** | 🟢 ✅ | **B1 ile kapatıldı**: adların tek sahibi `Application/Features/Notifications/PushDataKeys`; `PushNotificationsJobTests` anahtar kümesini **düz metin** iddia ediyor (sabiti yeniden adlandırmak testi kurtarmaz) |
 | 17 | `unreadCount` gövdenin içinde ve **filtreden bağımsız** | Davranış | 🟢 ✅ | **B4 ile kapatıldı**: `NotificationsTests` — `?limit=1` isteğinde sayaç **2** kalmalı. ⚠️ İddia bilerek **sayfalamaya** bağlandı: yalnız `unreadOnly` üzerinden kurulan eşitlik bu uçta totolojidir ve hiçbir bozma onu kırmazdı |
 | 18 | `relatedType` → mobil rota; tanınmayan tür iptal | İstemci tarafı | 🟢 ✅ | `notification_link_test.dart` — **Faz A'da kilitli çıktı**: tanınmayan türü duyuruya düşürmek testi kırdı |
-| 19 | İzin eylemi aksiyon **adından** türer | Davranış + **türetilmiş kapsam** | 🟢 ✅ | **B6 ile kapatıldı**: `PanelModeratorPermissionTests.EveryWriteAction_SaysWhatItIs_InsteadOfSilentlyFallingBackToUpdate` — kapsam matris controller'larından **yansımayla türetilir**; adı hiçbir şey söylemeyen yazma aksiyonu **kırmızıdır**. 🔑 Sessiz varsayılan artık **yazılı karara** dönüştü |
+| 19 | İzin eylemi aksiyon **adından** türer | Davranış + **türetilmiş kapsam** | 🟢 ✅ | ➕ **13 Ağu:** B6'nın bulduğu `Feature` **`approve`'a taşındı** (manşet şeridi = "içeriği şehre ulaştırma" kararı; 5. tekrar) — kilit teori + davranış testiyle iki ayaklı. **B6 ile kapatıldı**: `PanelModeratorPermissionTests.EveryWriteAction_SaysWhatItIs_InsteadOfSilentlyFallingBackToUpdate` — kapsam matris controller'larından **yansımayla türetilir**; adı hiçbir şey söylemeyen yazma aksiyonu **kırmızıdır**. 🔑 Sessiz varsayılan artık **yazılı karara** dönüştü |
 | 20 | Menü · matris · `[PanelPermission]` aynı anahtar | Yansıma (türetilmiş) | 🟢 | `PanelModeratorPermissionTests.MenuModules_MatchThePermissionMatrixModules` |
 | 21 | Slug üretiminin tek sahibi `SlugHelper` | Saf birim + davranış | 🟢 ✅ | **B5 ile kapatıldı**: `InvisibleContractsTests.SlugGeneration_HasASingleOwner_EvenThroughItsWrappers` — sarmalayıcı (`BusinessRules.Slugify`) helper'la **aynı çıktıyı** vermeli ve seed'lenen satırların slug'ları helper'ınkiyle eşleşmeli |
 | 22 | Cache grup adları yalnız `CacheGroups` sabitleri | Yansıma (türetilmiş) | 🟢 | `Unit/Application/Caching/CacheContractTests` (grup kümesini kaynaktan türetiyor) |
@@ -272,6 +272,9 @@ Bu dosya bundan sonra **bakım** dosyasıdır:
    *dizinden mi, tipten mi, elden mi geliyor?* Faz A'da bulunan beş deliğin **dördü** kapsamdı.
 3. **Yeni bir test yazdığında** iddiayı yazdıktan sonra sor: **"bunu nasıl bozardım?"** —
    somut cevabı yoksa iddia totoloji olabilir (T2 ve B4'te birer kez yaşandı).
-4. **Kalan kırılgan cins yok** ama tek istisna dosyada dürüstçe yazılı: madde 67'nin
-   *duman testi* ayağı (`TheBackfill_LeftNoUserRowWithoutTheNewsKey`) hâlâ vakumdur —
-   gerçek kilit `TheBackfillStatement_…`.
+4. **Kalan kırılgan cins yok.** Tek istisna dosyada dürüstçe yazılı ve 13 Ağu'da **adıyla da
+   söylenir hâle getirildi**: madde 67'nin *duman testi* ayağı bu ortamda vakumdur →
+   `SmokeCheck_NoUserRowLacksTheNewsKey_VacuousOnAFreshDatabase` (gerçek kilit
+   `TheBackfillStatement_AddsTheMissingKey_ButNeverOverwritesAnExplicitChoice`).
+   🔑 Test silinmedi: gerçek bir ortamda (üretimden geri yüklenmiş bir veritabanında) değeri
+   var — ama **yeşil ama boş bir güvence, testsizlikten kötüdür**, o yüzden adı sınırını söylüyor.

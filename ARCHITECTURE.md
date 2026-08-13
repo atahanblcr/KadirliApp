@@ -275,8 +275,19 @@ Sırayla; her adım bir öncekine dayanır. (Örnek: "Kayıp Eşya" modülü.)
 7. **Admin controller** — `KadirliApp.Api/Controllers/Admin/LostItemsAdminController.cs`,
    **`AdminApiControllerBase`'den türet** (yetki politikası orada), her eyleme
    `[RequirePermission("lost-items", "read|create|update|delete|approve")]`.
-8. **İzin adı** — `lost-items` iznini `permissions` tablosuna ekle (seed ya da migration) ve
-   panel rollerine dağıt. İzin yoksa moderator 403 alır.
+8. **İzin adı** — `lost-items` anahtarını **`PanelMenu.Items`'a** yaz (adım 9). İzin matrisi
+   (`StaffAdminController.Modules`) **o listeden türüyor**, yani modül Personel ekranında
+   kendiliğinden belirir ve yönetici moderatöre okuma/yazma/onay bayraklarını oradan verir.
+   Yetkiler kullanıcı başına **`admin_permissions`** tablosuna yazılır; izin denetimi
+   (`IPermissionService.HasAsync` → hem API'nin `[RequirePermission]`'ı hem panelin
+   `[PanelPermission]`'ı) **yalnız o tabloyu** okur. İzin verilmemişse moderatör 403 alır.
+   ⚠️ **`permissions` / `role_permissions` tablolarına satır eklemene gerek YOK.** Şemada
+   duruyorlar ama **çalışma anında hiç okunmuyorlar** — 12.13'te ölçüldü (canlıda 0 satır) ve
+   13 Ağu 2026'da kaynak taramasıyla doğrulandı: `RolePermission` yalnız `AppDbContext` ve
+   kendi yapılandırmasında geçiyor, hiçbir sorgu ona dokunmuyor.
+   📌 Bu adım, doküman testinin **yakalayamadığı** çürüme sınıfının canlı örneğiydi: atıfları
+   geçerliydi (tablolar gerçekten var), dilbilgisi sağlamdı ve **yanlıştı**. Doküman testi
+   *sarkan işaretçi* garantisi verir, **doğruluk** garantisi değil.
 9. **Panel** — `KadirliApp.Web/Controllers/LostItemsAdminController.cs` +
    `Views/LostItemsAdmin/{Index,Create,Edit}.cshtml`. Mevcut bir modülün view'larını
    kopyalayıp uyarlamak en hızlısı (tablo + filtre + form deseni sabittir).
@@ -431,7 +442,8 @@ geri doldurma). **61–62 (Faz 12.14)** 49–50 gibi **tümüyle istemci tarafı
 ⚠️ **67 bir kez daha farklı bir tür:** maddenin bir yüzü **ölçüm**dür
 (`MissingJsonKey_MaterialisesAsFalse` — EF'in JSON materyalizasyonu varsayılan başlatıcıyı
 çalıştırmıyor), diğer yüzü ise bir **migration**dır ve migration'lar bir kez koştuğu için
-davranış testiyle kilitlenemez: `TheBackfill_LeftNoUserRowWithoutTheNewsKey` bozma turunda
+davranış testiyle kilitlenemez: `SmokeCheck_NoUserRowLacksTheNewsKey_VacuousOnAFreshDatabase` (eski adı
+`TheBackfill_…`) bozma turunda
 **yeşil kaldı** (test veritabanı yeniden kullanılıyor) ve bu, dosyada dürüstçe yazılı.
 Asıl kilit ölçümün kendisidir.
 ⚠️ **55 diğerlerinden bir kez daha farklı bir tür:** karşılığı kaynak **taraması değil

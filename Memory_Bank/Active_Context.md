@@ -132,6 +132,21 @@
 > **Sonuç: 67 maddenin tamamı 🟢/🟢🟢.** Tablo: `Memory_Bank/Contract_Audit.md`.
 > **Backend 1114, mobil 824.**
 >
+> 🧹 **VE DOKÜMAN BAKIM BORÇLARI + iki küçük açık KAPATILDI (aynı oturum).**
+> `docs/openapi.json` yenilendi — ama önce bir iddia **çürüdü**: "üç alt-faz geride" dediğim
+> `featured`/`locationScope` şemada **zaten vardı** (büyük harfle; grep harf duyarlılığından
+> yanılmıştı); canlı Swagger'la derin karşılaştırmada **143 uç birebir aynı**, tek gerçek fark
+> `UpdateNotificationPreferencesCommand.news` (4 satır). · `ARCHITECTURE.md` §4 adım 8
+> **düzeltildi**: `permissions`/`role_permissions` çalışma anında **hiç okunmuyor** (kaynak
+> taramasıyla doğrulandı), gerçek yol `PanelMenu.Items` → izin matrisi → `admin_permissions`.
+> · **22 bayat kutu** hizalandı (21'i yapılmıştı, işaretlenmemişti; tek açık `uploads/`
+> volume'ü ve o **deploy fazına ait**). · `Class1.cs` silindi.
+> 🔑 **`Feature` izni `approve`'a taşındı** — yalnız başlık düzeltme yetkisi olan moderatör
+> mobil **manşet şeridini** belirleyebiliyordu (§7 madde 19'un **5. tekrarı**); kilit teori +
+> **davranış** testiyle iki ayaklı, bozma turunda 3 test kırmızı. · Madde 67'nin duman testi
+> **dürüst adlandırıldı** (`SmokeCheck_…_VacuousOnAFreshDatabase`).
+> ⏭️ **Sırada: 12.7/12.8 sosyal giriş — Apple Developer aboneliği ONAYLANMADI, bekliyor.**
+>
 > ⏭️ **Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) · **12.16 adayı**
 > kategori bazlı bildirim aboneliği (12.15'in elle gönderimi canlıda doğrulandıktan sonra;
 > ⚠️ ikinci bir dispatcher **yazılmaz**, var olan tek sahip genişletilir).

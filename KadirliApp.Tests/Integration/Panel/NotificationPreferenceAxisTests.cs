@@ -203,9 +203,17 @@ public class NotificationPreferenceAxisTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// 🔴 <b>Geri doldurma gerçekten koştu:</b> hiçbir kullanıcı satırında <c>News</c>
+    /// 🟡 <b>DUMAN TESTİ — adı sınırını söylüyor.</b> Hiçbir kullanıcı satırında <c>News</c>
     /// anahtarı eksik değil.
     /// </summary>
+    /// <remarks>
+    /// 📌 Ad 13 Ağu 2026'da <c>TheBackfill_LeftNoUserRowWithoutTheNewsKey</c>'den değiştirildi:
+    /// eski ad <b>bir güvence vaat ediyordu</b> ("geri doldurma koştu"), oysa iddia bu ortamda
+    /// **vakumdur** (aşağıdaki gerekçe). Bu projede yeşil ama boş bir güvence, testsizlikten
+    /// kötüdür — o yüzden testi silmek yerine **adı dürüst yapıldı**: gerçek bir ortamda
+    /// (üretimden geri yüklenmiş bir veritabanında) hâlâ değeri var, ama kimse ona
+    /// "geri doldurmanın kilidi" diye bakmasın.
+    /// </remarks>
     /// <remarks>
     /// Yukarıdaki ölçümün doğrudan sonucu. Bu iddia şemaya değil <b>veriye</b> bakıyor.
     /// ⚠️ Sorgu ham SQL: global soft-delete süzgeci uygulanmamalı — silinmiş bir kullanıcı
@@ -231,7 +239,7 @@ public class NotificationPreferenceAxisTests : IAsyncLifetime
     /// sayılmıyor.
     /// </remarks>
     [Fact]
-    public async Task TheBackfill_LeftNoUserRowWithoutTheNewsKey()
+    public async Task SmokeCheck_NoUserRowLacksTheNewsKey_VacuousOnAFreshDatabase()
     {
         var missing = await InDbAsync(async db =>
         {
@@ -439,7 +447,7 @@ public class NotificationPreferenceAxisTests : IAsyncLifetime
 
         // 🐛 `MissingJsonKey_MaterialisesAsFalse` bir satırı BİLEREK 12.15b öncesi hâline
         // döndürüyor (ölçümün kendisi bu). Onarılmazsa aynı sınıftaki
-        // `TheBackfill_LeftNoUserRowWithoutTheNewsKey` onu sayar ve **haklı olarak** kırılır —
+        // `SmokeCheck_NoUserRowLacksTheNewsKey_VacuousOnAFreshDatabase` onu sayar ve **haklı olarak** kırılır —
         // paylaşılan veritabanında bir testin yan etkisi diğerinin iddiasına karışıyor
         // (12.14b'deki "yeni tekilleştirme testleri kırar" dersinin aynısı).
         // Onarım migration'ın SQL'inin aynısı ve idempotent.
@@ -449,7 +457,7 @@ public class NotificationPreferenceAxisTests : IAsyncLifetime
         await db.Database.ExecuteSqlRawAsync(
             // 🐛 Onarım YALNIZ bu testin kendi satırlarını kapsar (`+90555000096%`).
             // İlk yazımda `WHERE NOT (… ? 'News')` ile BÜTÜN tabloyu onarıyordu ve bu,
-            // `TheBackfill_LeftNoUserRowWithoutTheNewsKey`'i **iddiasız** bırakıyordu:
+            // `SmokeCheck_NoUserRowLacksTheNewsKey_VacuousOnAFreshDatabase`'i **iddiasız** bırakıyordu:
             // bozma turunda migration boşaltıldı, kolon tablodan silindi ve test yine
             // YEŞİL kaldı — çünkü kurulum onu her koşuda kendisi onarıyordu.
             // (12.10/12.13'ün "iddiası zayıf test, testsizlikten kötüdür" dersi.)

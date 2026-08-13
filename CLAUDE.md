@@ -168,6 +168,11 @@ kapatıldı (27 · 30 · 51 · 52 · 61); dördü **kapsam** deliğiydi ve dörd
 **türeterek** (dizinden/tipten/yansımayla) kapatıldı. 🔑 En önemlisi **52**: 12.11 korumayı
 derleyiciye taşımıştı ama **taramanın kendisi** hâlâ `Update*.cs` deseni tutuyordu — aynı
 delik, aynı dosyada. **67 maddenin tamamı bugün 🟢/🟢🟢.**
+🧹 Ardından **doküman bakım borçları kapatıldı**: `openapi.json` yenilendi (tek gerçek fark
+`news` alanıydı — "üç alt-faz geride" teşhisi **ölçümle çürüdü**), `ARCHITECTURE.md` §4 adım 8
+düzeltildi (`permissions`/`role_permissions` **çalışma anında hiç okunmuyor**), Progress.md'nin
+**22 bayat kutusu** hizalandı, `Class1.cs` silindi. ➕ `Feature` aksiyonu artık `approve`
+iznine tabi (manşet şeridi = §7 madde 19'un 5. tekrarı).
 Plan: `Memory_Bank/Progress.md` → "FAZ 12".
 
 > 🔑 **Panel süper admin parolası** `secrets/panel-admin.json`'dadır (git'e girmez; biçim ve

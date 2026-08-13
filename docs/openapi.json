@@ -11145,6 +11145,10 @@
                     "campaigns": {
                         "type": "boolean",
                         "nullable": true
+                    },
+                    "news": {
+                        "type": "boolean",
+                        "nullable": true
                     }
                 },
                 "additionalProperties": false

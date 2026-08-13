@@ -530,13 +530,13 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
   - **Kalıcı kural:** bir kayıt aynı anda onaylı+reddedilmiş olamaz — `Reject` onay izini, `Approve` da red gerekçesini **null'lar**. Bu kural sonradan kampanyada da eksik çıktı (11.15b) ve `CODE_REVIEW_CHECKLIST` §2'ye madde olarak girdi. "Kim reddetti" izi `IAuditableCommand`'dan okunur, onay alanları ezilerek değil.
   - **Doğrulama:** panelden sebep girerek reddet → `rejected_reason`/`rejected_at` dolu, `approved_by`/`approved_at` NULL → sahibi `GET /v1/users/me/ads?status=rejected` çağırınca gerekçeyi görüyor. Regresyon testi: `Reject_StoresReason_ClearsApprovalTrail_And_VisibleInMyAds`.
 
-- [ ] **(2) 🟠 `/hangfire` dashboard'unda yetkilendirme filtresi YOK — production fazında zorunlu.**
+- [x] **(2) 🟠 `/hangfire` dashboard'unda yetkilendirme filtresi YOK — production fazında zorunlu.** ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   - **Tespit:** `UseHangfireDashboard` çağrısında `IDashboardAuthorizationFilter` verilmemiş. Hangfire'ın varsayılan davranışı yalnız **yerel (localhost) isteklere** izin vermek olduğundan bugün dev ortamında sorun görünmüyor.
   - **Etki:** Uygulama bir reverse proxy (nginx/Traefik/IIS) arkasına alındığı anda tüm istekler proxy'den geliyormuş gibi görünür, localhost koruması KALKAR → **iş kuyruğu paneli herkese açılır** (job tetikleme, kuyruk temizleme, argüman görüntüleme).
   - **Yapılacak:** `IDashboardAuthorizationFilter` implementasyonu — panel cookie auth'una bağlanıp `admin`/`super_admin` rolü şartı (Web host'ta) veya ayrı basic-auth (Api host'ta). Aynı deploy turunda `ForwardedHeaders` middleware'i de yapılandırılmalı (aksi hâlde rate limit partition'ları da tek IP'ye düşer — bkz. SUNUM.MD Bölüm VI/G3).
   - **Doğrulama:** Giriş yapmamış oturumla `/hangfire` → 302/403; admin oturumuyla → 200.
 
-- [ ] **(3) 🔴 `uploads/` için kalıcı Docker volume YOK — veri kaybı riski.**
+- [ ] **(3) 🔴 `uploads/` için kalıcı Docker volume YOK — veri kaybı riski.** ⏭️ *(13 Ağu 2026: **deploy fazına ait** — API bugün compose'da değil, `uploads/` repo yanında düz klasör; volume bağlanacak servis yok. Risk API konteynerleştiği gün doğar.)*
   - **Tespit:** `docker-compose.yml` yalnız `pgdata` ve `seqdata` volume'larını tanımlıyor. Yüklenen görseller (`LocalFileStorageService` → `uploads/`) konteynerin yazılabilir katmanında duruyor.
   - **Etki:** Konteyner yeniden oluşturulursa (imaj güncellemesi, `docker compose down`) **yüklenmiş TÜM görseller kalıcı olarak kaybolur** — ilan fotoğrafları, duyuru/etkinlik/kampanya görselleri, profil fotoğrafları. `files` tablosundaki kayıtlar kalır ama dosyalar gider → kırık görsel.
   - **Yapılacak:** `uploads` için named volume (veya bind mount) tanımla; API servisini compose'a aldığında `volumes: - uploaddata:/app/uploads`. Orta vadede object storage'a (S3/MinIO) geçiş değerlendirilmeli — `IFileStorageService` soyutlaması zaten mevcut, adaptör eklemek yeterli.
@@ -891,9 +891,9 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
 - **Tuzaklar:** `FilterChoiceChip.onTap` **nullable değil** → devre dışı bırakmak için gövdede erken dönüş; misafir formunda başa uyarı şeridi eklenince gönder butonu ekran dışında kalıyor ve `ListView` tembel olduğu için hiç kurulmuyor → testte elle sürükleme; `adb shell input text` **boşlukta kesiyor** → `%s`; POST gövdesi testte `String` değil `Map` (`jsonDecode` gerekmez).
 
 ### 11.13 — Bildirimler tamamlama + FCM Push — [x] ✅ TAMAMLANDI (2 Ağustos 2026, 4. oturum)
-- [ ] **Bildirim merkezi:** `GET /v1/notifications?page=` (okunmamış rozet `data.unreadCount`), okundu (`PATCH …/{id}/read`), tümü okundu (`POST …/read-all`), boş/yükleniyor durumları.
-- [ ] **FCM:** `firebase_core`+`firebase_messaging` kur; izin iste; token al → giriş sonrası `POST /v1/notifications/fcm-token` (11.3 stub'ı gerçekle — **yalnız `deviceFcmTokenProvider` override edilecek**, çağıran kod değişmeyecek). Ön plan/arka plan/terminated handler'ları.
-- [ ] **Deep-link:** push `data.notificationId/relatedType/relatedId` → `go_router` ile ilgili ekrana git + `PATCH …/read`. **Hedef rotalar 11.6-11.11'de zaten hazır** (`/duyurular/:id`, `/kesintiler/:id`, `/ilanlar/:id`, `/etkinlikler/:id`, `/kampanyalar/:id`, `/vefat/:id`, `/taksi/:id`, `/mekanlar/:id`) ve `kAppModules` **12/12 `ready`** → eşleme tek listeden türetilebilir.
+- [x] **Bildirim merkezi:** `GET /v1/notifications?page=` (okunmamış rozet `data.unreadCount`), okundu (`PATCH …/{id}/read`), tümü okundu (`POST …/read-all`), boş/yükleniyor durumları. ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
+- [x] **FCM:** `firebase_core`+`firebase_messaging` kur; izin iste; token al → giriş sonrası `POST /v1/notifications/fcm-token` (11.3 stub'ı gerçekle — **yalnız `deviceFcmTokenProvider` override edilecek**, çağıran kod değişmeyecek). Ön plan/arka plan/terminated handler'ları. ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
+- [x] **Deep-link:** push `data.notificationId/relatedType/relatedId` → `go_router` ile ilgili ekrana git + `PATCH …/read`. **Hedef rotalar 11.6-11.11'de zaten hazır** (`/duyurular/:id`, `/kesintiler/:id`, `/ilanlar/:id`, `/etkinlikler/:id`, `/kampanyalar/:id`, `/vefat/:id`, `/taksi/:id`, `/mekanlar/:id`) ve `kAppModules` **12/12 `ready`** → eşleme tek listeden türetilebilir. ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
 - **⚠️ FİREBASE DURUMU (2 Ağustos 2026'da denetlendi, aynı gün service-account bağlandı):**
   - ✅ **Var:** `mobile/android/app/google-services.json` (proje `kadirliapp`, paket `app.kadirli`) + `mobile/ios/Runner/GoogleService-Info.plist` (bundle `app.kadirli`). **Commit EDİLMEZ** — artık `.gitignore`'da.
   - ✅ **BAĞLANDI — service-account JSON** (2 Ağu): kullanıcı indirdi → **`secrets/firebase-service-account.json`** (klasör `.gitignore`'da, `chmod 600`; yer tutucu + nasıl edinileceği **`secrets/README.md`**'de, o dosya commit edilir). `appsettings.Development.json` → `Fcm:Provider="Firebase"`, `ServiceAccountKeyPath="../secrets/firebase-service-account.json"` (yol **`KadirliApp.Api/` dizinine göre** çözülür, `FileStorage:UploadDirectory` ile aynı kural). **Doğrulandı:** API açılışında `FCM push sağlayıcısı hazır (...)` logu düşüyor. `appsettings.json` varsayılanı bilinçli olarak `"None"` bırakıldı (yapılandırılmamış ortam sessizce no-op).
@@ -932,7 +932,7 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
 >
 > ⚠️ **Konumu bilinçli:** 11.13'ten sonra, cila (11.15) ve yayın (11.16) fazlarından önce. Daha erken yapılırsa modüller hâlâ değiştiği için doküman anında çürür; daha geç yapılırsa yayın telaşına karışır.
 
-- [ ] **`ARCHITECTURE.md` (kök dizinde) — projenin haritası.** `DOTNET_MASTERCLASS.md` "sıfırdan nasıl inşa edilir" rehberi, `Progress.md` kronolojik karar günlüğü; **ikisi de "şu an neyin nerede olduğunu" soran birine cevap vermiyor.** Bu doküman verecek:
+- [x] **`ARCHITECTURE.md` (kök dizinde) — projenin haritası.** `DOTNET_MASTERCLASS.md` "sıfırdan nasıl inşa edilir" rehberi, `Progress.md` kronolojik karar günlüğü; **ikisi de "şu an neyin nerede olduğunu" soran birine cevap vermiyor.** Bu doküman verecek: ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   - **Modül envanteri tablosu:** her modül için → backend dosyaları (entity / configuration / commands / queries / dtos / controller / panel controller+view) + public uçlar + mobil dosyaları (repository / providers / ekranlar / testler). "İlan fiyatı doğrulaması nerede?" sorusu tabloya bakarak cevaplanmalı.
   - **Katman diyagramı + kural:** `Domain ← Application ← Infrastructure ← Api/Web`; **yanlış yön derlenmez** (proje referanslarıyla zorlanıyor, disiplin meselesi değil) — bu güvence açıkça yazılmalı.
   - 🔑 **"Modül EKLE" reçetesi** — dokunulacak dosyaların tam listesi, sırasıyla (entity → configuration → migration → command/query/dto → controller → izin adı → panel → `API_CONTRACT.md` → mobil repository/model/provider/ekran → `app_modules.dart` + `app_routes.dart` + router → testler).
@@ -940,16 +940,16 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
   - 🔑 **"Modül KALDIR" reçetesi** — feature klasörü + kayıt satırı + rota + izin + panel + testler; **soft-delete'li veriye ne olacağı** dahil.
   - 🔑 **"GÖRÜNMEZ SÖZLEŞMELER" listesi** — kodun kendisine bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıklar. Bilinenler (Progress geçmişinden toplanacak, en az şunlar): `GetPowerOutagesQuery` **bilerek sayfalamıyor** çünkü mobil 11.4/11.6 süren/planlı ayrımını tam listeye bakarak yapıyor · `announcements` NOT_FOUND **200 + `success:false`** quirk'i (istemci buna göre yazıldı) · `GET /v1/ads/{id}` **her çağrıda `view_count` artırır ve artıştan ÖNCEKİ değeri döner** · taksi/ulaşım arama parametresi **`searchTerm`**, diğerlerinde `search` · `places.amenities` **jsonb ama DTO `string`** → JSON içeren metin gelir · `dutyDate`/`eventDate`/`funeralDate` **"TR günü 00:00 UTC"** → saat dilimi kaydırılmaz · ulaşım saatleri **tarihsiz duvar saati**, iki farklı biçimde (`"07:00"` / `"06:30:00"`) · `UpdateMyAdCommand` görsel **sırası/kapağı** kavramını bilmiyor.
   - **Test haritası:** hangi katmanda ne test ediliyor, yeni kod için hangi test yazılır, `flutter test` / `dotnet test` nasıl koşulur, bilinen test tuzakları (yüzey boyutu, kalıcı vs geçici hata, `pumpAndSettle` + `Timer`, shimmer sonsuz animasyonu).
-- [ ] **Backend iş kuralı testleri — en büyük gerçek açık.** Bugün **41.000 satır C#'a karşılık 90 test** var ve çoğu uç seviyesinde entegrasyon testi; handler'lardaki iş kuralları neredeyse çıplak. (Karşılaştırma: mobilde 43.000 satıra **578 test**.) Yani **bugün biri bir handler'ı değiştirse testler bunu büyük ihtimalle yakalamaz.** Öncelik sırasıyla kilitlenecek kurallar:
+- [x] **Backend iş kuralı testleri — en büyük gerçek açık.** Bugün **41.000 satır C#'a karşılık 90 test** var ve çoğu uç seviyesinde entegrasyon testi; handler'lardaki iş kuralları neredeyse çıplak. (Karşılaştırma: mobilde 43.000 satıra **578 test**.) Yani **bugün biri bir handler'ı değiştirse testler bunu büyük ihtimalle yakalamaz.** Öncelik sırasıyla kilitlenecek kurallar: ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   - **İlan yaşam döngüsü:** moderasyon geçişleri (`pending→approved/rejected`, red gerekçesi zorunlu), **uzatma hakkı** (yalnız `approved`/`expired`, `maxExtensions` dolunca 409), süre dolması, soft-delete'in listelerden düşürmesi.
   - **`AdSubmissionRules` / dinamik kategori alanları:** zorunlu alan, `select` **seçenek metniyle** doğrulama, sayısal alanda `InvariantCulture`, boolean'ın metin taşınması.
   - **Görünürlük kuralları:** public uçların **yalnız onaylı + silinmemiş + süresi geçmemiş** kayıt döndürmesi (modül modül; `PublicVisibilityTests` var ama dar).
   - **Yetki:** rol bazlı panel/admin uçları, `[Authorize]` kaçağı olmaması (mevcut `PublicEndpointAuthorizationTests` genişletilir).
   - **Sayaçlar ve tekillik:** `view_count`/`phone_click`/`whatsapp_click` artışı, kampanya `code_view` **aynı kullanıcıda ikinci kez artmaz**, taksi `total_calls`.
   - **Hedef: `dotnet test` 90 → ~160-180**, ve **her yeni testin gerçekten bir kuralı kilitlediği** (kural bozulunca kırmızı olduğu) doğrulanır — 11.12'de pull-to-refresh regresyon testinde yapıldığı gibi.
-- [ ] **CI (GitHub Actions):** her push/PR'da `dotnet build` + `dotnet test` + `flutter analyze` + `flutter test`. Testler "biri hatırlarsa" değil **otomatik** koşsun; kırık commit ana dala giremesin.
-- [ ] **`CLAUDE.md` (kök):** yeni bir oturumun/geliştiricinin ilk 30 saniyede okuyacağı özet — proje ne, nasıl çalıştırılır, hangi dokümanı ne zaman okumalı (`ARCHITECTURE.md` = harita, `DOTNET_MASTERCLASS.md` = referans, `Progress.md` = geçmiş, `API_CONTRACT.md` = istemci kontratı), değişmez kurallar (kontrat additive, katman yönü, "işlevsiz buton yok", Türkçe arayüz).
-- [ ] **Doküman çürüme önlemi:** `ARCHITECTURE.md` modül tablosunun gerçekle uyumunu denetleyen **küçük bir test** (mobil `kAppModules` ↔ rota ↔ ekran zaten test ediliyor; aynı fikir backend modül listesi için de kurulur) — böylece doküman yalan söylemeye başlayınca süit kırmızı olur.
+- [x] **CI (GitHub Actions):** her push/PR'da `dotnet build` + `dotnet test` + `flutter analyze` + `flutter test`. Testler "biri hatırlarsa" değil **otomatik** koşsun; kırık commit ana dala giremesin. ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
+- [x] **`CLAUDE.md` (kök):** yeni bir oturumun/geliştiricinin ilk 30 saniyede okuyacağı özet — proje ne, nasıl çalıştırılır, hangi dokümanı ne zaman okumalı (`ARCHITECTURE.md` = harita, `DOTNET_MASTERCLASS.md` = referans, `Progress.md` = geçmiş, `API_CONTRACT.md` = istemci kontratı), değişmez kurallar (kontrat additive, katman yönü, "işlevsiz buton yok", Türkçe arayüz). ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
+- [x] **Doküman çürüme önlemi:** `ARCHITECTURE.md` modül tablosunun gerçekle uyumunu denetleyen **küçük bir test** (mobil `kAppModules` ↔ rota ↔ ekran zaten test ediliyor; aynı fikir backend modül listesi için de kurulur) — böylece doküman yalan söylemeye başlayınca süit kırmızı olur. ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
 - **Bitti kriteri:** Projeye ilk kez bakan biri **`ARCHITECTURE.md`'yi okuyarak** (bana ya da geçmiş oturumlara sormadan) yeni bir modül ekleyebilir, mevcut bir modülde alan değiştirebilir ve bir modülü kaldırabilir; `dotnet test` iş kurallarını kilitliyor (kasten bozulan bir kural testi kırıyor); CI yeşil ve her push'ta koşuyor.
 - **Bitti kriteri: ✅ karşılandı.** Teslim edilenler:
   - [x] **`ARCHITECTURE.md` (kök, ~380 satır)** — 10 bölüm: sistem şeması + **katman kuralı** ("yanlış yön derlenmez", proje referans grafiğiyle birlikte) · klasör haritası (backend + mobil) · **20 satırlık modül envanteri** (her modül için `Features/` klasörü + public uçlar + panel controller + **izin adı** + mobil `features/` klasörü + mobil rotalar) + Hangfire iş tablosu · **§4 "Modül EKLE" 18 adımlı reçete** (entity → configuration → migration → feature → controller → izin → panel → kontrat → mobil model/provider/ekran/rota/`kAppModules` → testler → doküman) · **§5 "Modül DEĞİŞTİR"** (additive vs kırıcı alan değişikliği, üç adımlı alan silme planı, sıralama/sayfalama, ortak bileşen uyarısı) · **§6 "Modül KALDIR"** (mobil önce → uç → panel → application → izin → **veri: soft-delete'li satırlar için "tabloyu düşürme" tavsiyesi + `pg_dump` yedeği** → doküman → testler) · **§7 GÖRÜNMEZ SÖZLEŞMELER (15 madde tablo + 5 kod-dışı madde)** · **§8 test haritası** (hangi katmanda ne, nasıl koşulur, yeni kod için hangi test, **bilinen test tuzakları** backend+mobil) · §9 çalıştırma + yapılandırma anahtarları · §10 değişmez kurallar.
@@ -1083,13 +1083,13 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
 
 **B. "Gerçek bir yönetim panelinde olur, burada yok" (yayın sonrası ilk bakım turu)**
 
-- [ ] 🔴 **Denetim izi ekranı yok.** `AuditBehavior` her yazma komutunu `audit_logs`'a yazıyor
+- [x] 🔴 **Denetim izi ekranı yok.** `AuditBehavior` her yazma komutunu `audit_logs`'a yazıyor ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   (canlı DB'de 6 satır var) ama **onu okuyan tek bir ekran, tek bir uç yok** — `KadirliApp.Web`
   ve `KadirliApp.Api/Controllers` içinde `AuditLog` geçen tek satır bile yok. "Bu ilanı kim, ne
   zaman sildi?" sorusu bugün ancak `psql` ile cevaplanıyor. Moderatör rolü artık gerçekten
   çalıştığına göre (11.15b) bu **kaçınılmaz** oldu. Not: `audit_logs.details` **jsonb** →
   LINQ `.Contains()` `like_escape` hatası verir, belleğe alıp süzmek gerekir (11.15b tuzağı).
-- [ ] 🔴 **Şehirlerarası ulaşım panelden hiç yönetilemiyor.** `TransportAdminController` (panel)
+- [x] 🔴 **Şehirlerarası ulaşım panelden hiç yönetilemiyor.** `TransportAdminController` (panel) ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   baştan sona **yalnız `Intracity`** komut/sorgularını çağırıyor. Oysa `Application/Features/Transport`
   içinde `CreateIntercityRouteCommand`, `CreateIntercityScheduleCommand`, `DeleteIntercityScheduleCommand`,
   `CreateIntracityStopCommand`, `DeleteIntracityStopCommand` **hazır** ve yalnız `/v1/admin/transport/*`
@@ -1097,32 +1097,32 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
   "karşılığı olmayan yetki" deseninin ikinci örneği). Sonuç: mobildeki **"Şehirlerarası" sekmesi,
   kalkış saatleri ve şehir içi durak zaman çizelgesi** panelden ne oluşturulabiliyor ne düzenlenebiliyor.
   🔑 Bu, listedeki **tek gerçek işlevsel boşluk** — diğer 11 modülün tamamı panelden yönetilebiliyor.
-- [ ] 🔴 **Silinen kayıt geri getirilemiyor.** Soft delete (`deleted_at`) her modülde var, ama
+- [x] 🔴 **Silinen kayıt geri getirilemiyor.** Soft delete (`deleted_at`) her modülde var, ama ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   panelde **ne çöp kutusu ne geri alma** var. Yanlışlıkla silinen duyuru/ilan/vefat kaydı
   yönetici için kaybolmuş durumda. (`GuideItem` `ISoftDeletable` değil — silme fiziksel,
   onun için geri alma **mümkün değil**, bu ayrıca not edilmeli.)
-- [ ] 🟡 **Tek onay kuyruğu yok, üstelik verisi zaten hesaplanıyor.** Dashboard "Bekleyen Onaylar"
+- [x] 🟡 **Tek onay kuyruğu yok, üstelik verisi zaten hesaplanıyor.** Dashboard "Bekleyen Onaylar" ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   bir `<div>`, tıklanamıyor. `GetDashboardStatsQueryHandler` **`PendingBreakdown`**'ı
   (ilan/vefat/etkinlik/kampanya/şikayet ayrı ayrı) hesaplıyor ama `PendingBreakdown` kelimesi
   `KadirliApp.Web` ve `KadirliApp.Api` içinde **hiç geçmiyor** → hesaplanıp çöpe atılıyor.
   En küçük düzeltme: kırılımı Dashboard'da göstermek ve her satırı ilgili modülün
   `?status=pending` filtresine bağlamak.
-- [ ] 🟡 **Toplu işlem yok.** Hiçbir listede satır seçimi (checkbox) yok → 40 bekleyen ilan
+- [x] 🟡 **Toplu işlem yok.** Hiçbir listede satır seçimi (checkbox) yok → 40 bekleyen ilan ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   tek tek onaylanıyor.
-- [ ] 🟡 **Dışa aktarma yok.** Hiçbir ekranda CSV/Excel çıktısı yok (kaynakta `csv`/`excel`/
+- [x] 🟡 **Dışa aktarma yok.** Hiçbir ekranda CSV/Excel çıktısı yok (kaynakta `csv`/`excel`/ ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   `Dışa Aktar` geçen tek satır bile yok). Belediyeye rapor verilecek en basit senaryo bile
   elle kopyalamaya kalıyor.
-- [ ] 🟡 **Bağımsız bildirim/push ekranı yok ve gönderim sonucu görünmüyor.** Push yalnız
+- [x] 🟡 **Bağımsız bildirim/push ekranı yok ve gönderim sonucu görünmüyor.** Push yalnız ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   duyuruya iliştirilebiliyor (`Bildirim (Push) Gönder` kutusu). "Kaç cihaza gitti, kaç hata
   aldı, `fcm_sent` oldu mu" panelde hiç görünmüyor — canlıda 9 bildirim üretildi, panel bunu
   hiçbir yerde söylemedi. `Notifications` modülünün `ARCHITECTURE.md` tablosunda panel sütunu
   zaten *(yok)*; artık bilinçli bir eksik olarak mı kalacağı karara bağlanmalı.
-- [ ] 🟡 **Sütun sıralaması yalnız İlanlar'da** (ve o da bir açılır liste). Diğer 15 listede
+- [x] 🟡 **Sütun sıralaması yalnız İlanlar'da** (ve o da bir açılır liste). Diğer 15 listede ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   başlığa tıklayarak sıralama yok — tarih/görüntülenme/ad sıralaması yapılamıyor.
-- [ ] 🟡 **Elektrik Kesintileri ekranında hiç arama/filtre yok** — mahalle, tarih aralığı,
+- [x] 🟡 **Elektrik Kesintileri ekranında hiç arama/filtre yok** — mahalle, tarih aralığı, ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   süren/planlanan ayrımı yok; oysa mobil bu ayrımı gösteriyor (11.6, istemcide hesaplıyor).
   Neredeyse tüm diğer listelerde en az bir arama kutusu var.
-- [ ] 🟡 **Global arama yok** (üst çubukta "her yerde ara"). Bir telefon numarasını bulmak için
+- [x] 🟡 **Global arama yok** (üst çubukta "her yerde ara"). Bir telefon numarasını bulmak için ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   yönetici hangi modülde olduğunu önceden bilmek zorunda.
 
 **C. Güvenlik / yayın — bunlar 11.16'nın içine alınmalı**
@@ -1134,13 +1134,13 @@ Public `Api/Controllers/PowerOutagesController`'da POST/PUT/DELETE tamamen kimli
   ✅ **11.15c'de yapıldı (sızıntı tarafı):** satır `@inject IWebHostEnvironment Env` +
   `Env.IsDevelopment()` koşuluna alındı. ⏭️ **11.16'ya kalan:** ilk girişte parola
   değişimini ZORLAMA (kod sızıntısı kapandı, zayıf varsayılan parola duruyor).
-- [ ] 🔴 **Oturum iptal edilemiyor.** Cookie `ExpireTimeSpan = 8 saat` (`Program.cs:41`) ve
+- [x] 🔴 **Oturum iptal edilemiyor.** Cookie `ExpireTimeSpan = 8 saat` (`Program.cs:41`) ve ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   `OnValidatePrincipal` **yok** → personel silinse, banlansa veya rolü düşürülse bile
   **elindeki oturum 8 saat boyunca çalışmaya devam eder**; şifre değişimi de açık oturumları
   düşürmez. (Bu oturumda gözlemlendi: önceki oturumdan kalan moderatör cookie'si panele hâlâ
   giriyordu.) Düzeltme: `OnValidatePrincipal`'da kullanıcıyı DB'den tazele (aktif mi, silinmiş mi,
   rolü ne) — panelin izin filtresi zaten her istekte DB'ye gidiyor, maliyet marjinal.
-- [ ] 🟡 **Panel parola politikası zayıf:** "en az 6 karakter" (`Account/ChangePassword`), 2FA yok,
+- [x] 🟡 **Panel parola politikası zayıf:** "en az 6 karakter" (`Account/ChangePassword`), 2FA yok, ✅ *(13 Ağu 2026 açık-madde denetiminde doğrulandı: **yapılmış**, kutu işaretlenmemişti)*
   başarısız denemede hesap kilidi yok (giriş **hız sınırı** var — o taraf iyi).
 - [x] 🟡 **Silme onayı tarayıcının `confirm()`'i** (21 yerde) ve **neyin silindiğini yazmıyor**
   ("Duyuruyu silmek istediğinize emin misiniz?"). Kayıt adını yazan bir modal, yanlış satırı
@@ -4981,6 +4981,50 @@ kapsamı da elle tutulan bir listedir* — çözüm listeyi büyütmek değil, k
 **Sonuç: 67 maddenin tamamı bugün 🟢 ya da 🟢🟢.** Tablo: `Memory_Bank/Contract_Audit.md`.
 **Testler:** backend 1111 → **1114**, mobil 822 → **824**.
 
+### 🧹 DOKÜMAN BAKIM BORÇLARI KAPATILDI (13 Ağustos 2026, aynı oturum)
+
+Denetim bittikten sonra açık maddeler tek tek **gerçeğe karşı** doğrulandı (kutulara değil,
+koda/şemaya bakılarak). Sonuçlar:
+
+- ✅ **`docs/openapi.json` yenilendi** — ama önce bir **iddia çürüdü**: *"üç alt-faz geride,
+  `featured`/`locationScope` yok"* demiştik; ölçünce görüldü ki ikisi de **vardı**
+  (şemada `Featured`/`LocationScope` olarak, büyük harfle — grep harf duyarlılığından
+  yanılmıştı). Canlı Swagger ile derin karşılaştırma yapıldı: **143 uç birebir aynı, tek
+  gerçek fark** `UpdateNotificationPreferencesCommand.news` alanıydı (12.15b). Dosya
+  yeniden üretildi, fark **4 satır**. 🔑 Ders yine aynı: *bir iddianın sebebini de sonucunu
+  da ölç* — yanlış bir "geride kaldı" teşhisi, gereksiz bir yeniden yazıma götürürdü.
+- ✅ **`ARCHITECTURE.md` §4 adım 8 düzeltildi.** Adım *"izni `permissions` tablosuna ekle"*
+  diyordu; kaynak taramasıyla doğrulandı ki `RolePermission` yalnız `AppDbContext` ve kendi
+  yapılandırmasında geçiyor, **hiçbir sorgu ona dokunmuyor**. Gerçek yol:
+  `PanelMenu.Items` → izin matrisi (`StaffAdminController.Modules` **oradan türüyor**) →
+  yetkiler `admin_permissions`'a yazılıyor → `IPermissionService.HasAsync` **yalnız onu**
+  okuyor. 📌 Bu madde, doküman testinin yakalayamadığı çürüme sınıfının canlı örneğiydi:
+  atıfları geçerliydi, dilbilgisi sağlamdı ve **yanlıştı**.
+- ✅ **22 bayat kutu hizalandı.** Denetim izi, çöp kutusu, toplu işlem, CSV, global arama,
+  sütun sıralaması, oturum iptali, parola politikası, CI, `ARCHITECTURE.md`, mobil bildirim
+  merkezi/FCM/deep-link… **21'i yapılmıştı, kutusu hiç işaretlenmemişti** — kutulara bakan
+  biri projeyi bugün yanlış okurdu. Tek gerçekten açık kalan `uploads/` volume'ü ve o da
+  **deploy fazına ait** (API compose'da değil, bağlanacak servis yok) — kutusu açık bırakıldı,
+  gerekçesi yanına yazıldı.
+- ✅ **`KadirliApp.Domain/Class1.cs` silindi** — iki dış analizin "şablon artığı" diye
+  işaret ettiği boş sınıf; hiçbir yerden referans verilmiyordu.
+
+### ✅ Faz A'nın bıraktığı iki küçük açık da kapatıldı
+
+- **`Feature` izni `approve`'a taşındı** (kullanıcı kararıyla). Aksiyon adı hiçbir önekle
+  eşleşmediği için sessizce `update`'e düşüyordu — yani yalnız **başlık düzeltme** yetkisi
+  olan bir moderatör, mobil ana ekranın **manşet şeridini** belirleyebiliyordu. §7 madde
+  19'un **beşinci** tekrarı. ⚠️ `Feature` tek anahtar (aç/kapa aynı aksiyon) olduğu için
+  `Un…` çifti gerekmedi; ileride ayrı bir `Unfeature` yazılırsa **elle** eklenmeli.
+  Kilit iki ayaklı: teori satırı + **davranış testi** (`Feature_IsRejected_ForAModerator…`,
+  durum koduna değil **kaydın `IsFeatured` alanına** bakıyor — bir 302 hem "reddedildi" hem
+  "yapıldı" olabilir). Bozma turu: önek geri alındı → **3 test kırmızı**.
+- **Madde 67'nin duman testi dürüst adlandırıldı**:
+  `TheBackfill_LeftNoUserRowWithoutTheNewsKey` → `SmokeCheck_NoUserRowLacksTheNewsKey_VacuousOnAFreshDatabase`.
+  Eski ad bir **güvence vaat ediyordu** ("geri doldurma koştu"), oysa iddia bu ortamda
+  vakum. Test silinmedi (gerçek bir ortamda değeri var) ama artık **adı sınırını söylüyor** —
+  bu projede yeşil ama boş bir güvence, testsizlikten kötüdür.
+
 ### 🧹 Test altyapısı — 12.15b'nin bıraktığı iki açık madde (⬆️ İKİSİ DE KAPANDI, yukarı bak)
 
 Bunlar ürün hatası değil, **denetim aracının** hatası; ama bu projede denetim aracının
@@ -5015,8 +5059,10 @@ hatası ürün hatasına dönüşüyor (yeşil kalan bir test, olmayan bir güve
 
 
 - **Kategori bazlı bildirim aboneliği** → 12.16 adayı (yukarıda gerekçe).
-- **Metin arası görsellerin aynalanması** → ikinci sürüm. Bugün hotlink + zarif yer tutucu.
-  ⚠️ %9'u süreli `fbcdn` linki, yani **zamanla kırılacaklar** — bu bilinen bir borç.
+- ~~**Metin arası görsellerin aynalanması** → ikinci sürüm.~~ ✅ **12.14b'de KAPANDI**
+  (`MirrorNewsBodyImagesJob` + §7 madde 63). 📌 Bu satır 13 Ağu 2026'daki açık-madde
+  denetiminde **bayat** bulundu: madde kapanmıştı ama listeden düşmemişti — bu bölümün
+  kendi uyardığı tuzağın (`uploads/` artıkları) birebir tekrarı.
 - **Gövde override'ı** → ikinci sürümde **eklemeli** bir alan olarak (tam override değil).
 - **Arşiv derinliği** bugün **50**. `News:Backfill:MaxPosts` büyütülünce geri imleç kaldığı
   yerden devam eder; 27.284'ün tamamı istenirse ~273 istek + (aynalama ile) ~1.6 GB görsel —

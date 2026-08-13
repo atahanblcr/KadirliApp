@@ -79,7 +79,18 @@ public sealed class PanelPermissionFilter : IAsyncAuthorizationFilter
         // ulaştırma kararı"* kovası. Altıncı bir eylem eklemek izin tablosunu, matris
         // arayüzünü ve seed'i birden değiştirirdi; kazancı ise "arşivleyebilen ama bildirim
         // gönderemeyen moderatör" gibi pratikte istenmemiş bir ayrım olurdu.
-        if (StartsWithAny(actionName, "Approve", "Reject", "Verify", "Unverify", "Ban", "Unban", "UpdateStatus", "Resolve", "Archive", "Unarchive", "SendNotification"))
+        // 🔴 Faz A denetimi (13 Ağu 2026) — "Feature" ELLE eklendi: §7 madde 19'un BEŞİNCİ
+        // tekrarı. Aksiyon haberi mobildeki **manşet şeridine** çıkarır; kaydı görünür ya da
+        // görünmez YAPMAZ ama vatandaşın **ilk gördüğü yer** orasıdır. Adı hiçbir önekle
+        // eşleşmediği için POST olarak sessizce "update"e düşüyordu — yani yalnız BAŞLIK
+        // DÜZELTME yetkisi verilmiş bir moderatör şehrin manşetini belirleyebiliyordu.
+        // Bu tuzağı B6'nın yapısal testi **ilk koşusunda** buldu.
+        //
+        // 📌 Yön bilinçli: yanlış türetme yetki AÇMAMALI, KAPATMALI (bu metodun kendi
+        // kuralı). ⚠️ `Feature` **tek anahtardır** (`Feature(id, isFeatured)` — aç/kapa aynı
+        // aksiyon), bu yüzden `Unarchive`/`Unverify` gibi ikinci bir `Un…` satırı GEREKMEZ;
+        // ama ileride ayrı bir `Unfeature` yazılırsa o da **elle** eklenmelidir.
+        if (StartsWithAny(actionName, "Approve", "Reject", "Verify", "Unverify", "Ban", "Unban", "UpdateStatus", "Resolve", "Archive", "Unarchive", "SendNotification", "Feature"))
             return "approve";
 
         if (Contains(actionName, "Delete") || Contains(actionName, "Remove")) return "delete";

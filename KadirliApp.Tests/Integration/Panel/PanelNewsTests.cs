@@ -174,6 +174,54 @@ public class PanelNewsTests : IAsyncLifetime
         response.StatusCode.Should().NotBe(HttpStatusCode.OK);
     }
 
+    /// <summary>
+    /// 🔴 <b>Faz A denetiminin kapattığı açık (13 Ağu 2026): manşete çıkarmak da bir
+    /// moderasyon kararıdır.</b>
+    ///
+    /// <para>
+    /// <c>Feature</c> aksiyonu hiçbir önekle eşleşmiyordu ve POST olduğu için sessizce
+    /// <c>update</c> iznine düşüyordu (§7 madde 19'un <b>beşinci</b> tekrarı; B6'nın yapısal
+    /// testi onu ilk koşusunda buldu). Sonucu şuydu: yalnız <b>başlık düzeltme</b> yetkisi
+    /// verilmiş bir moderatör, mobil ana ekranın <b>manşet şeridini</b> belirleyebiliyordu —
+    /// vatandaşın ilk gördüğü yer.
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠️ İddia bilerek <b>duruma</b> değil <b>kaydın kendisine</b> bakıyor: bir yönlendirme
+    /// (302) hem "reddedildi" hem "başarıyla yapıldı" anlamına gelebilir, yani durum kodu
+    /// tek başına bu kuralı kilitlemez. Ölçüt, haberin manşete <b>çıkmamış olması</b>.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Feature_IsRejected_ForAModeratorWithOnlyUpdatePermission()
+    {
+        await SetPermissionsAsync(new AdminPermission
+        {
+            UserId = _moderatorId, Module = "news",
+            CanRead = true, CanUpdate = true, CanApprove = false
+        });
+
+        var client = await ModeratorClientAsync();
+
+        await client.PostFormAsync("/NewsAdmin/Feature",
+            new Dictionary<string, string>
+            {
+                ["id"] = _articleId.ToString(),
+                ["isFeatured"] = "true"
+            }, "/NewsAdmin");
+
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            var article = await db.Set<NewsArticle>().AsNoTracking()
+                .FirstAsync(a => a.Id == _articleId);
+
+            article.IsFeatured.Should().BeFalse(
+                "manşete çıkarmak `approve` yetkisi ister — yalnız düzenleme yetkisi olan " +
+                "moderatör vatandaşın ilk gördüğü şeridi belirleyemez (§7 madde 19)");
+        });
+    }
+
     // ────────────────────────────────────────────────────────────────────────
     // 2) Görünürlüğü yazan İKİNCİ yol yok (12.10'un dersi)
     // ────────────────────────────────────────────────────────────────────────

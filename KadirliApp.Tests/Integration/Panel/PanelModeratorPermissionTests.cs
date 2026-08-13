@@ -102,6 +102,9 @@ public class PanelModeratorPermissionTests : IAsyncLifetime
     // DÜZENLEME yetkisi olan moderatör bir vefat ilanını yayından kaldırabilirdi
     // (§7 madde 29'daki BulkApprove hatasının aynısı).
     [InlineData("Archive", "POST", "approve")]
+    // ⚠️ Faz A (13 Ağu 2026): manşete çıkarma da "içeriği şehre ulaştırma" kararıdır.
+    // Önek eklenmeseydi POST olduğu için sessizce "update"e düşerdi (§7 madde 19'un 5. tekrarı).
+    [InlineData("Feature", "POST", "approve")]
     // ⚠️ "UpdateStatus" moderasyon kararıdır — "Update" öneki olarak eşleşirse
     // düzenleme yetkisi olan moderatör şikayet SONUÇLANDIRABİLİR hâle gelir.
     [InlineData("UpdateStatus", "POST", "approve")]
@@ -159,14 +162,11 @@ public class PanelModeratorPermissionTests : IAsyncLifetime
             //   Archive/Unarchive), yalnız başlık/özet/kapak alanlarını yazar. Yani
             //   "Edit"in geri alma hâli → `update` doğru eylem.
             //
-            // • Feature — manşet şeridine çıkarır/indirir (§7: `?featured=true`). Bir kaydı
-            //   görünür ya da görünmez YAPAMAZ, yalnız öne çıkarır; "içeriği şehre ulaştırma
-            //   kararı" (approve kovası) değil, editoryal bir vurgu. ⚠️ Sınırda bir karar:
-            //   manşet, vatandaşın ilk gördüğü şerittir — ileride "approve"a taşınırsa
-            //   ADI DA değişmeli (ör. `FeatureApprove` değil, öneki ActionFor'a eklenmeli),
-            //   yoksa bu satır sessizce yalan söylemeye başlar.
+            // 📌 `Feature` bu listeden ÇIKARILDI (13 Ağu 2026, kullanıcı kararı): manşet
+            //   şeridi vatandaşın **ilk gördüğü yer** ve yalnız başlık düzeltme yetkisi olan
+            //   bir moderatörün onu belirlemesi, §7 madde 19'un uyardığı sessiz yetki
+            //   yükselmesiydi. Öneki `ActionFor`'a eklendi → artık `approve`.
             "ResetOverrides",
-            "Feature",
         };
 
         var matrixControllers = typeof(WebPanel::Program).Assembly.GetTypes()
