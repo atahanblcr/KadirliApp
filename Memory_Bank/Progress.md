@@ -15,18 +15,21 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 > ⚠️ Bu panoyu hiçbir test denetlemiyor (bilinçli karar — bkz. *"Progress.md doc-test'e
 > bağlanmayacak"*). Tek güvence, kapatan kişinin satırı **silmesi**.
 
-### A. Ürün — Faz 12'nin açık kalan tek maddesi
+### A. Ürün — açık maddeler
 
 | Madde | Nerede | Durum / blokaj |
 |---|---|---|
-| **12.7 — Sosyal giriş: backend** | `### 12.7` | Planı ayrıntılı yazılı, kod yok. 🟢 **Apple'dan bağımsız — bugün yazılabilir** |
-| **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor) |
+| **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
+| **12.16 — KVKK: belge yönetimi + rıza kaydı** | `### 12.16` | 🔴 **Planı yazılı, kod yok. En yüksek öncelik** (kullanıcı kararı). Bugün bedeli **sıfır**; mağazaya çıktıktan sonra §5 kırıcı-değişiklik olur |
+| **12.17 — KVKK: mobil** | `### 12.17` | 12.16'ya bağlı |
+| 🔴 **12.7'nin bozma turu** | `### 12.7` kapanış notu | `ValidateAudience=false` bozması ortamın güvenlik sınıflandırıcısı yüzünden **koşulamadı**; elle koşulmalı |
 
 ### B. Karar bekleyenler (kod değil, tercih)
 
 | Madde | Nerede | Ne gerekiyor |
 |---|---|---|
-| **12.16 adayı — kategori bazlı bildirim aboneliği** | *"açık kalan / ertelenen maddeler"* | Ön koşul: 12.15'in **elle gönderimi canlıda doğrulanmalı**. ⚠️ İkinci bir dispatcher yazılmaz |
+| **KVKK bloğunun 8 kararı** | `### 12.16` → *"Alınacak kararlar"* | Tablo hazır ve gerekçeli; **kullanıcı onayı bekliyor** |
+| **12.18 adayı — kategori bazlı bildirim aboneliği** | *"açık kalan / ertelenen maddeler"* | *(12.16 adayıydı, KVKK öne alındığı için kaydı.)* Ön koşul: 12.15'in **elle gönderimi canlıda doğrulanmalı**. ⚠️ İkinci bir dispatcher yazılmaz |
 | **Haber gövde override'ı** | Haberler bloğu | İkinci sürümde **eklemeli** alan olarak (tam override değil) |
 | **Haber arşiv derinliği (bugün 50)** | Haberler bloğu | Tamamı ~273 istek + ~1.6 GB görsel. **Kod değişikliği gerekmiyor, karar gerekiyor** |
 | **Progress.md arşivleme** | *"Progress.md'nin şekli"* | Faz 12 kapanınca 11+12 → `Progress_Archive.md` |
@@ -50,7 +53,8 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | **Madde 67'nin duman testi** | `Memory_Bank/Contract_Audit.md` | Bu ortamda **vakum** ve artık **adı bunu söylüyor** (`SmokeCheck_…_VacuousOnAFreshDatabase`); gerçek kilit yanındaki testte |
 
 📌 **Bunların dışında açık madde yoktur.** Görünmez sözleşme denetimi (Faz 0 · B1–B7 · T1/T2 ·
-Faz A) **bitti**, 67 maddenin tamamı 🟢/🟢🟢 — tablo `Memory_Bank/Contract_Audit.md`.
+Faz A) **bitti**; bugün **70 maddenin** tamamı 🟢/🟢🟢 — tablo `Memory_Bank/Contract_Audit.md`
+(68–70 denetimden sonra, Faz 12.7'de eklendi).
 
 ---
 
@@ -2914,7 +2918,93 @@ seçili kaldı**. Bu turda yukarıdaki **2 numaralı hata bulundu.**
 
 ---
 
-### 12.7 — Sosyal giriş: backend — [ ]
+### 12.7 — Sosyal giriş: backend — [x] ✅ TAMAMLANDI (13 Ağustos 2026)
+
+> **Teslim edildi.** `POST /v1/auth/social` (Google + Apple) · `user_identities` tablosu ·
+> bağla/çöz uçları · `GET /v1/users/me` → `linkedIdentities[]` · panelde **"Bağlı hesaplar"**
+> kutusu ve denetim izli kaldırma. **Backend 1114 → 1180 (+66).**
+> Görünmez sözleşme **67 → 70** (68 · 69 · 70).
+>
+> 🔴 **KARAR 1 — plandan bilinçli sapma: Google için `GoogleJsonWebSignature.ValidateAsync`
+> KULLANILMADI.** O metot **statik** ve **gerçek Google anahtarlarına bağlı**; yani bu fazın
+> *"bir numaralı gerçek zafiyet"* dediği `aud` kuralını **hiçbir testle kilitleyemezdik** —
+> tam olarak 10.11'in `FcmPushService` tuzağı (bayrakla kapalı yol = ilk koşusu canlıda olan
+> yol). Yerine **tek** bir `JwksSocialTokenVerifier` yazıldı: Google ve Apple'ın ikisi de
+> OIDC/RS256, fark yalnız `iss`/`aud`/JWKS adresi — yani **veri**, kod değil. İki ayrı sınıf
+> yazmak aynı güvenlik kuralına **iki sahip** vermek olurdu (§7 madde 23/38/55'in sınıfı).
+> Planın *niyeti* birebir korundu; değişen yalnız gerçekleme.
+>
+> 🔴 **KARAR 2 — `aud` kilidi İKİ YÖNLÜ.** *"Yanlış `aud`'lu jeton reddedilir"* iddiası
+> **hiçbir jetonu kabul etmeyen** bir gerçeklemede de yeşil kalırdı — yani reddin sebebinin
+> gerçekten o kontrol olduğunu kanıtlamazdı. `TheSameToken_IsAccepted_OnceItsAudienceIsOneOfOurs`
+> birebir aynı jetonun, yalnız `aud` listesine eklendiğinde **kabul edildiğini** gösteriyor.
+> 📌 §7 madde 50'nin dersinin ("çizilmeyen kadar çizilen de denetlenmeli") ve B4'ün
+> ("iddiam totoloji mi?") ikinci uygulanışı.
+>
+> 🔴 **KARAR 3 — jeton türü ayrımı = OTP'nin korunması.** Sosyal kayıt taşıyıcısı
+> (`token_type=social_registration`) **telefon TAŞIMAZ** ve telefonlu kayıt jetonunun yerine
+> **geçemez**; `register` **iki jetonu birden** ister. Tek jetona indirgenseydi Google hesabı
+> olan herkes **OTP'siz** hesap açar ve moderasyonun dayandığı *"her hesabın doğrulanmış bir
+> telefonu vardır"* varsayımı sessizce çökerdi (§7 madde 70). 10.2'nin refresh ↔ registration
+> ayrımının üçüncü ayağı.
+>
+> 🔴 **KARAR 4 — hesap silinince kimlik satırları FİZİKSEL silinir.** Plan bunu saymıyordu.
+> İki hasar birden: (a) `provider_user_id` + e-posta **kişisel veri** ve 10.8 anonimleştirme
+> **sözü veriyor**; (b) `(provider, sub)` benzersiz olduğu için satır kalsaydı o kişi aynı
+> Google hesabıyla **bir daha asla** kayıt olamazdı — telefonu yeniden kayda açan silme
+> akışının tam tersi ve hata mesajı *"bu hesap başka bir kullanıcıya bağlı"* olurdu:
+> doğru ama anlaşılmaz.
+>
+> 🔴 **İZİN: panel aksiyonu `RemoveIdentity` adlandırıldı → `delete`.** `Unlink…` yazılsaydı
+> hiçbir önekle eşleşmez, POST olduğu için sessizce `update`'e düşerdi — §7 madde 19'un
+> **`Un…` biçimindeki en sinsi hâli** (Unarchive 12.13'te birebir yaşandı). Bir giriş
+> yöntemini kaldırmak *"profil düzenleme"* değil **güvenlik etkili** bir işlemdir.
+> 🔑 Bu sefer tuzak **doğuşta** yakalandı: `ActionFor`'a elle satır eklemek **gerekmedi**.
+>
+> 🐛 **BULUNAN GERÇEK HATA — yapılandırma DI KAYDINDA okunuyordu.** Entegrasyon süiti
+> "sağlayıcı kapalı" diye **400** döndürdü: `AddInfrastructure` `builder.Build()`'den önce
+> koşuyor, yani kayıt anında okunan bir değeri `ConfigureAppConfiguration` ile **ezmek
+> mümkün değil** (`ARCHITECTURE.md` §8'in kendi yazdığı tuzak). Kod doğruydu ama **kendi
+> testinden erişilemiyordu** — bayrakla kapalı bir yolun *test edilemez* hâli, hiç test
+> edilmemiş yoldan farksızdır. Okuma `AddSingleton(sp => …)` ile çözülme anına ertelendi.
+> ➕ Checklist'e satır olarak eklendi.
+>
+> 🐛 **`EndpointAuthorizationSweepTests` kırmızıya döndü ve HAKLIYDI.** Yeni anonim yazma ucu
+> (`POST /v1/auth/social`) listeye **bilinçli** eklendi (gerekçesiyle). Anonim olması akışın
+> tanımı gereği zorunlu — oturum açmak için oturum istenemez; bağla/çöz uçları ise
+> `[Authorize]`, çünkü **bağlamanın tek meşru yolu** oturum sahibinin kendisidir.
+>
+> 🐛 **Panel CSS'inde iki sınıf eksikti** (`hover:text-red-800` · `gap-y-2`) → `npm run build`.
+> 12.10'un *"beyaz üstüne beyaz"* bulgusunun aynısı; bu sefer **yazmadan önce ölçüldü**.
+>
+> ⚠️ **BOZMA TURU KOŞULAMADI — dürüst not.** `ValidateAudience = false` yazıp süiti koşturma
+> denemesi ortamın güvenlik sınıflandırıcısı tarafından **engellendi**; kaynak anında geri
+> alındı (`git diff` temiz). Kilidin gücü bu yüzden bozma turuyla değil **iddianın şekliyle**
+> kanıtlandı (Karar 2). 📌 **Bir sonraki oturumun ilk işi bu bozma turunu elle koşmak olmalı.**
+>
+> ➕ **PLAN DIŞI İKİ EK (kullanıcı sözleşmesi: serbest ama raporla):**
+> 1. **`GET /v1/users/me` → `linkedIdentities[]`** — plan yalnız POST/DELETE diyordu, ama
+>    12.8'in "Bağlı hesaplar" ekranının **durumu okuyacak hiçbir yolu yoktu**: bağla/çöz
+>    düğmeleri neyin bağlı olduğunu bilmeden çizilemez ("işlevsiz buton yok"un uç karşılığı).
+>    Ayrı bir `GET` uç yerine profile **additive alan** eklendi — ekran profili zaten çekiyor
+>    ve ayrı uç ikinci bir görünürlük kuralı doğururdu.
+> 2. **Sosyal giriş için ayrı `LoginChannels.Social` + `bad_social_token` sebebi** — plan
+>    bunu saymıyordu. `mobile_otp` sayılsaydı panelde **OTP'siz bir giriş OTP girişi gibi**
+>    görünür ve *"bu hesaba hangi yoldan girildi?"* sorusunun cevabı sessizce yanlış olurdu.
+>    🔑 Asıl kazanç başarısız denemede: yanlış `aud`'lu jeton denemelerinin **birikmesi**,
+>    başka bir uygulamanın jetonuyla giriş girişiminin ta kendisidir — kaydedilmeseydi o
+>    saldırı **tamamen görünmez** olurdu.
+>
+> **Doğrulama:** `dotnet test` **1180/1180**. Sosyal doğrulama testleri **ağa çıkmıyor**:
+> gerçek RSA anahtarıyla imzalanmış gerçek biçimli jetonlar, sahte bir JWKS üzerinden
+> **gerçek doğrulayıcıdan** geçiyor (sahte bir `ISocialTokenVerifier` yazılsaydı bu fazın
+> bir numaralı kuralı hiç kilitlenmemiş olurdu).
+>
+> ⏭️ **Sırada 12.8** (mobil) — 🔴 **Apple Developer aboneliği hâlâ bekliyor.** Google ayağı
+> bugün yazılabilir; Apple butonu `Env` bayrağıyla kapalı kalır (backend tarafı zaten
+> yapılandırmayla kapalı ve bu **test edilmiş** bir dal: `ADisabledProvider_SaysSo_…`).
+
+#### Özgün plan (referans)
 
 **Karar gereği telefon çıpa olarak kalır.** Sosyal giriş, var olan kullanıcı için **tek buton**;
 yeni kullanıcı için **kayıt formunu ön dolduran kısayol** (telefon + OTP yine istenir).
@@ -5116,7 +5206,8 @@ hatası ürün hatasına dönüşüyor (yeşil kalan bir test, olmayan bir güve
   📌 Seçenek 3 bu projenin var olan desenine en yakın olanı; karar verilmeden yapılmamalı.
 
 
-- **Kategori bazlı bildirim aboneliği** → 12.16 adayı (yukarıda gerekçe).
+- **Kategori bazlı bildirim aboneliği** → **12.18 adayı** *(13 Ağu 2026'da 12.16'dan kaydı —
+  KVKK bloğu öne alındı; yukarıda gerekçe).*
 - ~~**Metin arası görsellerin aynalanması** → ikinci sürüm.~~ ✅ **12.14b'de KAPANDI**
   (`MirrorNewsBodyImagesJob` + §7 madde 63). 📌 Bu satır 13 Ağu 2026'daki açık-madde
   denetiminde **bayat** bulundu: madde kapanmıştı ama listeden düşmemişti — bu bölümün
@@ -5128,3 +5219,190 @@ hatası ürün hatasına dönüşüyor (yeşil kalan bir test, olmayan bir güve
 - **`docs/openapi.json` + `Memory_Bank/API_CONTRACT.md`** her alt-fazda güncellenir (§4 adım 10).
 - **`ARCHITECTURE.md` modül tablosu** 12.12'de değil, modül **panelde göründüğünde** (12.13)
   tam satırını alır; `ArchitectureDocTests` aksi hâlde kırılır.
+
+---
+
+# ⚖️ KVKK RIZA YÖNETİMİ (12.16 – 12.17) — 13 Ağustos 2026'da planlandı
+
+> **Nereden çıktı:** kullanıcı isteği. *"Kullanıcı kayıt olurken, kayıt bitmeden önce KVKK
+> için iznini almamız gerekli — ve bu metin değişebilmeli, admin panelden düzenlenebilmeli."*
+>
+> 🔴 **Bugünkü durum ÖLÇÜLDÜ (13 Ağu 2026, kaynak taraması): hiçbir şey yok.**
+> `kvkk|aydınlatma|gizlilik|privacy|consent|rıza` deseni `*.cs` · `*.dart` · `*.cshtml`
+> dosyalarında **sıfır** işlevsel eşleşme veriyor (tek geçtiği yer `DeleteMyAccountCommand`'in
+> *yorumunda*, hesap silmenin gerekçesi olarak). Yani: kayıt akışında **onay kutusu yok**,
+> **metin yok**, **rıza kaydı yok**, panelde **düzenlenebilir bir belge yok**.
+>
+> 🔑 **Bu maddenin aciliyeti bir yasal görüşten değil, bir ZAMANLAMA gerçeğinden geliyor:**
+> uygulama **henüz mağazada değil** (Apple aboneliği bekliyor, Play anahtarı üretilmedi).
+> Yani bugün rızayı **zorunlu** yapmanın bedeli **sıfır**. Yayından sonra aynı şeyi yapmak
+> §5'in kırıcı-değişiklik kuralına girer: `POST /v1/auth/register` yeni bir zorunlu alan
+> istemeye başladığı gün, mağazadaki **her eski sürümde kayıt 400 döner** ve uygulama
+> yeni kullanıcı alamaz hâle gelir. **Bu, o kapının açık olduğu son andır.**
+
+## 📌 Neden "bir onay kutusu" değil
+
+Bu maddenin tamamı tek bir cümleden türüyor: **metin panelden değiştirilebiliyorsa, rıza
+kaydı metnin HANGİ HÂLİNE verildiğini bilmek zorundadır.**
+
+Aksi hâlde şu olur ve **hiçbir yerde hata görünmez**: 5.000 kullanıcı v1 metnine onay verir,
+yönetici metni düzenler, artık elimizde *"5.000 kişi bu metne onay verdi"* diyen bir kayıt
+vardır ve **o metin artık ortada yoktur**. Kayıt teknik olarak duruyordur, kanıt olarak
+yoktur. KVKK'nın istediği şey tam olarak *"neye, ne zaman, nasıl rıza verildi"*dir; bu
+yüzden aşağıdaki modelin merkezinde **sürüm** var, "onaylandı" bayrağı değil.
+
+📌 Bu, projenin zaten iki kez öğrendiği hasar sınıfının (§7 madde 55 — *"senkron panelin
+yazdığını ezer"*) üçüncü biçimi: **bir kayıt, kendisini anlamlı kılan bağlamı kaybediyor.**
+
+## ⚙️ Alınacak kararlar (planlandı; **kullanıcı onayı bekliyor**)
+
+| Karar | Öneri | Gerekçe |
+|---|---|---|
+| **Rıza neye bağlanır?** | Kullanıcının **gördüğü sürüme** (`legal_document_versions.id`) | Sunucunun *o anki* sürümüne bağlanırsa bir yarış doğar: kullanıcı v1'i okurken yönetici v2'yi yayınlar → kayıt **okunmamış bir metne** rıza der |
+| **Yayınlanmış sürüm düzenlenebilir mi?** | **Hayır** — yeni sürüm açılır | Düzenlenebilseydi rıza kaydının işaret ettiği metin sessizce değişirdi (bu bloğun var olma sebebi). İhlal **`CS8852`** olmalı (12.11/12.12 deseni: alanlar `init`) |
+| **Zorunlu ↔ isteğe bağlı rıza** | **Ayrı belgeler**, `IsMandatory` bayrağı | 🔴 KVKK'nın en sık ihlal edilen kuralı: *"hizmet için gerekli işleme"* ile *"ticari elektronik ileti"*yi **tek kutuda** toplamak rızayı **geçersiz** kılar. Zorunlu olan kaydı bloklar, isteğe bağlı olan **bloklamaz** |
+| **Onay kutusu ön işaretli mi?** | **Hayır** | Ön işaretli kutu KVKK'da rıza sayılmaz. Mobil tarafın testle kilitlenecek maddesi |
+| **Metin değişince ne olur?** | Sürüm başına **`RequiresReconsent`** bayrağı | Yazım hatası düzeltmesi yeniden onay istemez, kapsam değişikliği ister. Karar **panelde** verilir; bayrak olmasaydı ya herkesi gereksiz rahatsız ederdik ya da esaslı bir değişiklik **hiç kimseye ulaşmazdı** |
+| **Rıza geri alınabilir mi?** | İsteğe bağlı olanlar **evet**; zorunlu olanın geri alınması = **hesap silme** | Zaten var olan `DELETE /v1/users/me` (10.8) bu maddenin karşılığı — yeni bir yol açılmıyor, var olana **bağlanıyor** |
+| **Hesap silinince rıza kaydı ne olur?** | 🔴 **KALIR** (kullanıcı satırı anonimleşir) | ⚠️ **12.7'nin `user_identities` kararının bilinçli TERSİ** ve fark yazılmalı: sosyal kimlik *kanıt değeri olmayan kişisel veridir* → silinir; rıza kaydı **işlemenin hukuki dayanağının kanıtıdır** → silinirse geçmişte yapılmış işlemenin dayanağı kaybolur |
+| **Saklama süresi işi (`Purge…Job`)** | **YAZILMAZ** | Projedeki her yeni tabloya saklama süresi işi yazma refleksi (`CODE_REVIEW_CHECKLIST` §11) burada **yanlış** olur: kanıtı süreyle silmek, kanıtı hiç tutmamakla aynı kapıya çıkar |
+
+## 🗺️ Alt-faz haritası
+
+| # | Alt-faz | Katman | Şema | Tahmini test |
+|---|---|---|---|---|
+| **12.16** | **KVKK: belge yönetimi + rıza kaydı** | backend + panel | ✔ | ~35 backend |
+| **12.17** | **KVKK: mobil** (kayıt akışında rıza · metin ekranı · ayarlardan görüntüleme) | mobil | — | ~20 mobil |
+
+⚠️ **Numaralandırma değişti:** *kategori bazlı bildirim aboneliği* 12.16 adayıydı,
+**12.18'e** kaydı. Gerekçe kullanıcının kendi ifadesi: *"bu çok önemli, hatta çoğu konudan
+daha önemli"* — ve yukarıdaki zamanlama gerçeği (mağazaya çıkmadan yapılırsa bedeli sıfır).
+
+---
+
+### 12.16 — KVKK: belge yönetimi + rıza kaydı — [ ]
+
+#### Alan modeli
+
+- **`LegalDocument : BaseEntity`** (`legal_documents`) — *belge türü*, sürümlerin sahibi:
+  `Type` (`kvkk_aydinlatma` | `acik_riza` | `kullanim_kosullari` | `gizlilik_politikasi`) ·
+  `Title` · `IsMandatory bool` · `ShowAtRegistration bool` · `SortOrder` · `IsActive`.
+  **Unique `(Type)`.** ⚠️ Tür değerleri DTO'ya çıkar → **kontrattır** (§7 madde 47'nin
+  `vehicle_type` kararının aynısı: metin saklanır, enum sırası değil).
+- **`LegalDocumentVersion : BaseEntity`** (`legal_document_versions`):
+  `DocumentId` · `VersionNumber int` · `Body text` (HTML) · `Summary` ·
+  `PublishedAt DateTime?` · `PublishedBy Guid?` · `RequiresReconsent bool` · `EffectiveFrom`.
+  **Unique `(DocumentId, VersionNumber)`** + **kısmi unique** `(DocumentId) WHERE published_at IS NOT NULL AND superseded_at IS NULL`
+  → *"aynı anda en fazla bir yayında sürüm"* kuralı **veritabanında** yaşasın (§7 madde 60'ın
+  kısmi indeks deseni; kodda unutulsa bile ikinci satır INSERT'te reddedilir).
+  🔴 `Body`/`VersionNumber`/`PublishedAt` **`init`** → yayınlanmış sürümü değiştirmek
+  **`CS8852`**; geçişler varlığın metotlarında (`Publish()` · `Supersede()`).
+- **`UserConsent : BaseEntity`** (`user_consents`):
+  `UserId` · `DocumentVersionId` · `Granted bool` · `GrantedAt` · `RevokedAt DateTime?` ·
+  `IpAddress inet?` · `UserAgent` · `Source` (`registration` | `settings` | `reconsent`).
+  **Unique `(UserId, DocumentVersionId)`.**
+  ⚠️ `Granted=false` satırı da yazılır — *"sormadık"* ile *"sorduk, hayır dedi"* farkı
+  KVKK'da anlamlıdır ve yalnız `true` yazılırsa bu fark **hiçbir yerde durmaz**.
+
+#### Uçlar
+
+- **`GET /v1/legal/documents`** *(anonim)* — kayıt ekranının göstereceği belgeler:
+  tür · başlık · özet · **`versionId`** · `isMandatory` · `body`.
+  🔴 **Anonim olmak ZORUNDA** — kullanıcı henüz kayıtlı değil. `EndpointAuthorizationSweepTests`'in
+  anonim listesine **bilinçli** eklenir.
+- **`GET /v1/legal/documents/{type}`** *(anonim)* — tek belge (ayarlar ekranından okuma).
+- **`POST /v1/auth/register`** gövdesine **`consents: [{versionId, granted}]`** eklenir.
+  🔴 **Zorunlu belgelerin hepsi `granted=true` gelmeden kayıt TAMAMLANMAZ** — ve eksik
+  gelirse komut **sebebini söyler** (`MISSING_CONSENT` + hangi belge). Sessizce kaydetmek,
+  bu bloğun kapatmaya çalıştığı hasarın ta kendisi olurdu.
+  🔴 **Rıza satırları kullanıcı ile AYNI `SaveChanges`'te yazılır** (12.7'nin
+  `AttachToNewUserAsync` deseni — `users.id` store-generated, bağ gezinme özelliğinden
+  kurulur). Ayrı yazılsalardı araya düşen bir hata **rızasız bir hesap** bırakırdı ve
+  o hesabın hukuki dayanağı hiçbir yerde olmazdı.
+- **`GET /v1/users/me/consents`** · **`POST /v1/users/me/consents`** — isteğe bağlı rızayı
+  ayarlardan verme/geri alma; ve **yeniden onay** akışı (`RequiresReconsent`).
+
+#### Panel — `LegalDocumentsAdmin`
+
+- Belge listesi → sürümler → **yeni sürüm oluştur** → **önizle** → **yayınla**.
+- 🔴 **`Publish` öneki `PanelPermissionFilter.ActionFor`'a ELLE EKLENECEK → `approve`.**
+  Bu, **§7 madde 19'un YEDİNCİ tekrarı** olur (BulkApprove 11.18 · Archive 12.10 ·
+  Unarchive 12.13 · SendNotification 12.15 · ResetOverrides + Feature Faz 0 ·
+  **Publish 12.16**). Eklenmezse POST olduğu için sessizce `update`'e düşer ve sonuç
+  listedeki en ağırlarından olur: *yalnız başlık düzeltme yetkisi olan bir moderatör,
+  şehrin tamamının onayladığı hukuki metni değiştirebilir.*
+- ⚠️ Yayınlanmış sürüm **düzenlenemez**; form onu salt-okunur gösterir ve "yeni sürüm aç"
+  der (12.10'un `_ModerationStatusField` deseni).
+- **"Kaç kişi onayladı"** sayacı — sürüm başına. 🔑 Sayı **gerçek rıza sorgusundan** gelmeli,
+  ayrı bir sayaç kolonundan değil (§7 madde 59'un önizleme dersi).
+- **Rıza defteri** ekranı: kim · hangi sürüm · ne zaman · nereden. ⚠️ **Yalnız admin**
+  (`AdminOnlyControllers` deseni — IP ve tarayıcı taşıyor, §3).
+- Denetim izi: `publish_legal_version` → `PanelDisplay.AuditAction` satırı.
+
+#### Doğacak görünmez sözleşmeler (§7 tablosuna, **71'den devam**)
+
+| # | Sözleşme | Bozulursa ne olur |
+|---|---|---|
+| 71 | **Rıza, kullanıcının GÖRDÜĞÜ sürüme yazılır** — sunucunun o anki yayında sürümüne değil | Yönetici kullanıcı formu okurken yeni sürüm yayınlarsa kayıt, kullanıcının **hiç görmediği** bir metne rıza verdiğini söyler. Hiçbir hata oluşmaz; kanıt sessizce yanlış olur |
+| 72 | **Yayınlanmış sürüm DEĞİŞTİRİLEMEZ** (alanlar `init`, ihlal `CS8852`); değişiklik yeni sürümdür | Değiştirilebilseydi bütün geçmiş rıza kayıtları **retroaktif olarak** başka bir metni işaret ederdi — tablo dolu, kanıt yok |
+| 73 | **Zorunlu rıza kaydı ile kullanıcı satırı AYNI işlemde yazılır** | Ayrı yazılsalardı araya düşen bir hata **rızasız hesap** bırakırdı: uygulama çalışır, uçlar 200 döner ve o hesabın verisini işlemenin dayanağı **hiçbir yerde olmaz** |
+| 74 | **Hesap silinince rıza kaydı KALIR** (12.7'nin `user_identities` kararının bilinçli tersi) | Silinseydi geçmişte yapılmış işlemenin hukuki dayanağı kaybolurdu. ⚠️ Kullanıcı satırı anonimleşir, rıza satırı **anonim kullanıcıya** bağlı kalır |
+
+#### Bitti kriteri
+
+Panelden yeni bir KVKK sürümü yayınlanıyor · yayınlanmış sürüm **düzenlenemiyor** (derleme
+hatası + panelde salt-okunur) · zorunlu rıza olmadan `register` **reddediliyor ve sebebini
+söylüyor** · rıza satırı **kullanıcıyla aynı işlemde** yazılıyor (bozma turu: rıza yazımı
+kaldırılınca kayıt da geri alınıyor mu?) · `?type=` ucu **anonim** çalışıyor ·
+`Publish` aksiyonu **`approve`** iznine düşüyor (yalnız `update` yetkisi olan moderatör
+reddediliyor) · hesap silindiğinde rıza satırı **duruyor**.
+
+---
+
+### 12.17 — KVKK: mobil — [ ]
+
+- **Kayıt ekranına rıza adımı** (`/kayit`): zorunlu belgeler için **ön işaretsiz** onay
+  kutuları + belge adına dokununca **tam metin** ekranı (`/yasal/:type`).
+  🔴 Onay kutusu ön işaretli olamaz — testle kilitlenir.
+- **"Devam et" butonu**, zorunlu kutuların hepsi işaretlenene kadar **kapalı** ve
+  **sebebini yazar** (§7 madde 42'nin "buton kapalıysa sebebini söyle" kuralı).
+- ⚠️ Belgeler alınamazsa (ağ hatası) kayıt **açılmaz ve sebebini söyler** — 🔴 burada
+  *"şüphede kalınca göster"* kuralı (§5) **GEÇERSİZ**: metni gösteremiyorken rıza almak,
+  rıza almamaktır. Bu, projedeki varsayılan yönün bilinçli tersi ve **yazılmalı**.
+- **Ayarlar → "Yasal metinler"**: yayında olan metinleri okuma + **isteğe bağlı rızayı
+  geri alma** + *"onayladığınız sürüm: v3, 12.08.2026"*.
+- **Yeniden onay akışı**: `RequiresReconsent` işaretli yeni sürüm varsa uygulama açılışında
+  tek seferlik ekran. ⚠️ Kapatılabilir olmalı (zorunlu belgede kapatılamaz).
+- Türkçe hata sözlüğüne yeni kodlar (`MISSING_CONSENT` — `turkish_ui_test.dart` denetler).
+- Golden: kayıt ekranının yeni hâli (açık/koyu, 1.4 ölçek) + metin ekranı.
+
+**Bitti kriteri:** emülatörde kayıt, rıza verilmeden **tamamlanamıyor** · metin panelden
+değiştirilip yayınlanınca **uygulamada yeni metin görünüyor** (uçtan uca zincir) ·
+ayarlardan onaylanan sürüm görünüyor · isteğe bağlı rıza geri alınabiliyor.
+
+---
+
+### 📌 KVKK bloğunun bilinçli olarak KAPSAM DIŞI bıraktıkları
+
+Bunlar *"yapılmadı"* değil, **"bu blokta yapılmayacağı kararlaştırıldı"**:
+
+- **İlgili kişi başvuru formu (KVKK m.11)** — veri sahibinin "verilerimi ver / sil / düzelt"
+  başvurusu. Silme zaten var (10.8); **dışa aktarma yok**. Ayrı bir madde, ayrı bir faz.
+- **Veri işleme envanteri / VERBİS kaydı** — kod işi değil, kurumsal bir yükümlülük.
+- **Çerez politikası** — panelin kendi çerezi var ama panel **halka açık değil**.
+- **Yaş doğrulama** — `Age >= 13` bugün kayıtta zorlanıyor ama **veli onayı** akışı yok.
+
+---
+
+### 🧹 12.7 oturumunda kapatılan iki küçük bayat madde
+
+- 🐛 **`Class1.cs` iki dosya daha duruyordu.** `c594d29` (13 Ağu, doküman bakım turu)
+  *"`Class1.cs` silindi"* diye kaydedildi ama gerçekte yalnız **`KadirliApp.Domain/Class1.cs`**
+  silinmişti; `Application` ve `Infrastructure` altındaki ikisi yerinde duruyordu (ikisi de
+  boş, referanssız). 12.7'de silindi (`grep Class1` → **0**).
+  🔑 Bu, bu dosyanın kendi uyardığı sınıfın **birebir örneği**: *madde kapandı sayıldı,
+  listeden düştü, gerçekte açıktı.* Ve tam olarak `uploads/` artıklarında iki plan turu
+  boyunca yaşananın aynısı. 📌 Ders: *"X silindi"* yazarken **kaç tane X olduğunu say**.
+- **Açık maddeler panosu** güncellendi: 12.7 satırı **silindi** (panonun kuralı gereği
+  kapanan satır işaretlenmez, silinir), 12.16/12.17 (KVKK) ve 12.7'nin **koşulamayan bozma
+  turu** eklendi, *kategori bazlı bildirim aboneliği* 12.18'e kaydırıldı.

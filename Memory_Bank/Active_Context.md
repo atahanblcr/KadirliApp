@@ -1,5 +1,75 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 13 Ağustos 2026 — **FAZ 12.7 TAMAMLANDI: Sosyal giriş (backend).**
+> Backend 1114 → **1180** (+66), mobil 824 (değişmedi — 12.7 mobile dokunmadı).
+> Görünmez sözleşme **67 → 70**.
+>
+> 🔑 **TESLİM EDİLEN:** `POST /v1/auth/social` (Google + Apple) · `user_identities` tablosu ·
+> bağla/çöz uçları (`/v1/users/me/identities`) · `GET /v1/users/me` → `linkedIdentities[]` ·
+> panelde **"Bağlı hesaplar"** kutusu + denetim izli kaldırma. Apple ayağı **yazıldı ve
+> testlendi**, yalnız yapılandırmayla kapalı duruyor (abonelik bekleniyor).
+>
+> 🔴 **KARAR 1 — plandan bilinçli sapma.** Plan Google için `GoogleJsonWebSignature.ValidateAsync`
+> diyordu; o metot **statik ve gerçek Google anahtarlarına bağlı**, yani fazın *"bir numaralı
+> gerçek zafiyet"* dediği **`aud` kuralını hiçbir testle kilitleyemezdik** (10.11'in
+> `FcmPushService` tuzağı). Yerine iki sağlayıcı için **tek** `JwksSocialTokenVerifier`:
+> ikisi de OIDC/RS256, fark yalnız `iss`/`aud`/JWKS adresi — yani **veri**, kod değil.
+> İki ayrı sınıf aynı güvenlik kuralına **iki sahip** vermek olurdu (§7 madde 23/38/55).
+>
+> 🔴 **KARAR 2 — `aud` kilidi İKİ YÖNLÜ.** Tek yönlü iddia (*"yanlış `aud` reddedilir"*),
+> **hiçbir jetonu kabul etmeyen** bir gerçeklemede de yeşil kalırdı.
+> `TheSameToken_IsAccepted_OnceItsAudienceIsOneOfOurs` birebir aynı jetonun yalnız `aud`
+> listesine eklenince **kabul edildiğini** gösteriyor → reddin sebebi **gerçekten o kontrol**.
+> (§7 madde 50'nin ve B4'ün dersinin ikinci uygulanışı.)
+>
+> 🔴 **KARAR 3 — sosyal giriş OTP'yi ATLAMIYOR.** Sosyal kayıt taşıyıcısı **telefon taşımaz**
+> ve telefonlu kayıt jetonunun yerine **geçemez** (`token_type` ayrı); `register` **iki jetonu
+> birden** ister. Tek jetona indirgenseydi Google hesabı olan herkes OTP'siz hesap açar ve
+> *"her hesabın doğrulanmış bir telefonu vardır"* varsayımı **sessizce** çökerdi (§7 madde 70).
+>
+> 🔴 **KARAR 4 — hesap silinince kimlik satırları FİZİKSEL silinir** (plan bunu saymıyordu):
+> kişisel veri **ve** benzersizlik yüzünden kalan satır o kişiyi aynı Google hesabıyla
+> **bir daha asla** kayıt olamaz hâle getirirdi.
+>
+> 🔴 **E-POSTA EŞLEŞMESİYLE OTOMATİK BAĞLAMA YOK** (§7 madde 69): `User.Email` panelden elle
+> giriliyor ve **hiç doğrulanmıyor** → otomatik bağlamak, kurbanın adresiyle Google hesabı
+> açan saldırgana **doğrudan hesabı** verirdi. Eşleştirmenin tek ölçütü `(provider, sub)`.
+>
+> 🐛 **BULUNAN GERÇEK HATA: yapılandırma DI KAYDINDA okunuyordu.** Entegrasyon süiti
+> "sağlayıcı kapalı" diye 400 döndü — `AddInfrastructure` `builder.Build()`'den önce koşuyor,
+> yani kayıt anında okunan değer `ConfigureAppConfiguration` ile **ezilemez**
+> (`ARCHITECTURE.md` §8'in kendi yazdığı tuzak). Kod doğruydu ama **kendi testinden
+> erişilemiyordu**. → `AddSingleton(sp => …)`. 🔑 Bayrakla kapalı bir yolun *test edilemez*
+> hâli, hiç test edilmemiş yoldan farksızdır.
+>
+> 🐛 İki küçük bulgu daha: `EndpointAuthorizationSweepTests` yeni anonim ucu **yakaladı**
+> (bilinçli olarak listeye eklendi) · panel CSS'inde iki sınıf eksikti (`npm run build` —
+> 12.10'un "beyaz üstüne beyaz" bulgusu, bu sefer **yazmadan önce ölçüldü**).
+>
+> ⚠️ **BOZMA TURU KOŞULAMADI (dürüst not):** `ValidateAudience=false` bozması ortamın
+> güvenlik sınıflandırıcısı tarafından engellendi; kaynak anında geri alındı.
+> **Bir sonraki oturumun ilk işi bunu elle koşmak.**
+>
+> ➕ **PLAN DIŞI İKİ EK:** profile `linkedIdentities[]` (12.8'in ekranının durumu okuyacak
+> **hiçbir yolu yoktu**) · sosyal giriş için ayrı `LoginChannels.Social` + `bad_social_token`
+> (yanlış `aud`'lu denemelerin **birikmesi** asıl saldırı sinyalidir; kaydedilmeseydi o
+> saldırı tamamen görünmez olurdu).
+>
+> ⚖️ **AYRICA: KVKK RIZA YÖNETİMİ PLANLANDI (12.16 – 12.17), kod yazılmadı.** Kullanıcı isteği.
+> Ölçüldü: projede KVKK/rıza adına **hiçbir şey yok** (kaynak taraması, 0 işlevsel eşleşme).
+> 🔑 Planın merkezinde **sürüm** var, "onaylandı" bayrağı değil: metin panelden
+> değiştirilebiliyorsa, rıza kaydı metnin **hangi hâline** verildiğini bilmek zorundadır —
+> yoksa *"5.000 kişi onayladı"* diyen bir kayıt kalır ve **o metin artık ortada olmaz**.
+> 🔴 Aciliyet bir yasal görüşten değil **zamanlamadan**: uygulama henüz mağazada değil, yani
+> rızayı bugün zorunlu yapmanın bedeli **sıfır**; yayından sonra aynı şey §5 kırıcı-değişikliği
+> olur (`register` yeni zorunlu alan istediği gün **her eski sürümde kayıt 400 döner**).
+> ⚠️ *Kategori bazlı bildirim aboneliği* 12.16'dan **12.18'e** kaydı.
+> 📌 Planın 8 kararı gerekçeli yazıldı, **kullanıcı onayı bekliyor** (`Progress.md` → 12.16).
+
+---
+
+## Önceki oturum — FAZ 12.15 / 12.15b
+
 > Son güncelleme: 13 Ağustos 2026 — **FAZ 12.15 + 12.15b TAMAMLANDI: Haber bildirimi.**
 > Haberler bloğu (12.12–12.15) **kapandı**. Backend 1053 → **1106** (+53), mobil 821 → **822**.
 > Görünmez sözleşme **63 → 67**.

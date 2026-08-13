@@ -173,6 +173,54 @@ public class ProductionReadinessGuardTests
         act.Should().Throw<InvalidOperationException>().WithMessage("*FileStorage:BaseUrl*");
     }
 
+    /// <summary>
+    /// Faz 12.7 — sosyal giriş "açık" işaretlenmiş ama hiçbir client id yok.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 Sessiz başarısızlık: mobilde "Google ile giriş" butonu <b>çizilir</b>, kullanıcı
+    /// basar ve "bu giriş yöntemi kullanılamıyor" hatası alır — kullanıcının bakış açısından
+    /// ayırt edilemez bir arıza. Ayrıca bayrak açıkken client id boş bırakmak, doğrulamanın
+    /// hiç yapılamaması demektir: sosyal girişin bir numaralı zafiyeti (<c>aud</c>,
+    /// §7 madde 68) tam burada başlar.
+    /// </remarks>
+    [Fact]
+    public void Sosyal_giris_acikken_client_id_yoksa_uygulama_acilmaz()
+    {
+        var settings = HealthyProductionSettings();
+        settings["Auth:Social:Enabled"] = "true";
+
+        var act = () => Validate(settings);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*Auth:Social*");
+    }
+
+    [Fact]
+    public void Sosyal_giris_acik_ve_client_id_varsa_uygulama_acilir()
+    {
+        var settings = HealthyProductionSettings();
+        settings["Auth:Social:Enabled"] = "true";
+        settings["Auth:Social:Google:ClientIds"] = "111-kadirli.apps.googleusercontent.com";
+
+        var act = () => Validate(settings);
+
+        act.Should().NotThrow();
+    }
+
+    /// <summary>
+    /// Bayrak kapalıyken client id aranmaz — Apple aboneliği beklenirken (12.8) canlıdaki
+    /// durum bu olacak ve <b>meşru</b>: sosyal giriş kapalı, telefon + OTP çalışıyor.
+    /// </summary>
+    [Fact]
+    public void Sosyal_giris_kapaliysa_client_id_aranmaz()
+    {
+        var settings = HealthyProductionSettings();
+        settings["Auth:Social:Enabled"] = "false";
+
+        var act = () => Validate(settings);
+
+        act.Should().NotThrow();
+    }
+
     [Fact]
     public void Push_kapaliysa_uygulama_acilir_ama_bu_engelleyici_degildir()
     {

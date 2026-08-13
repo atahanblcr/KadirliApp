@@ -1479,6 +1479,37 @@
                 }
             }
         },
+        "/v1/auth/social": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLoginCommand"
+                            }
+                        },
+                        "text/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLoginCommand"
+                            }
+                        },
+                        "application/*+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLoginCommand"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/v1/auth/register": {
             "post": {
                 "tags": [
@@ -6800,6 +6831,59 @@
                 }
             }
         },
+        "/v1/users/me/identities": {
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LinkIdentityDto"
+                            }
+                        },
+                        "text/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LinkIdentityDto"
+                            }
+                        },
+                        "application/*+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LinkIdentityDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/v1/users/me/identities/{provider}": {
+            "delete": {
+                "tags": [
+                    "Users"
+                ],
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/v1/admin/users": {
             "get": {
                 "tags": [
@@ -9355,6 +9439,20 @@
                 },
                 "additionalProperties": false
             },
+            "LinkIdentityDto": {
+                "type": "object",
+                "properties": {
+                    "provider": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "idToken": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
             "LoginCommand": {
                 "type": "object",
                 "properties": {
@@ -9730,6 +9828,10 @@
                         "type": "integer",
                         "format": "int32",
                         "nullable": true
+                    },
+                    "socialToken": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "additionalProperties": false
@@ -9913,6 +10015,20 @@
                         "items": {
                             "$ref": "#/components/schemas/StaffPermissionDto"
                         },
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "SocialLoginCommand": {
+                "type": "object",
+                "properties": {
+                    "provider": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "idToken": {
+                        "type": "string",
                         "nullable": true
                     }
                 },

@@ -1,0 +1,82 @@
+@model KadirliApp.Web.Models.LinkedIdentitiesViewModel
+@*
+    Faz 12.7 — kullanıcı detayında "Bağlı hesaplar" kutusu.
+
+    🔑 Giriş denemeleri kutusunun aksine bu kutu MODERATÖRE DE AÇIK ve fark bilinçli:
+    burada gösterilen şey bir güvenlik kaydı değil, hesabın kendi alanı (kullanıcı zaten
+    kendi profilinde görüyor). `provider_user_id` ekrana HİÇ çıkmıyor.
+
+    ⚠️ Kutu, bağlantı olmasa da çizilir ve "bağlı hesap yok" der. Hiç çizilmemesi
+    yöneticiye "böyle bir bilgi yok" izlenimi verirdi (_RecentLoginAttempts'teki aynı karar).
+
+    ⚠️ Her satırın formu AYRI ve <form>'lar KARDEŞ (iç içe form tarayıcıda sessizce
+    atılır — checklist §4). `data-confirm` BUTONA değil FORM'a yazılı.
+*@
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-4 py-3">
+        <h3 class="text-sm font-semibold text-gray-800">
+            <i class="fas fa-link mr-1 text-gray-400"></i> Bağlı hesaplar
+        </h3>
+        <span class="text-xs text-gray-500">Giriş için telefon + SMS kodu her zaman geçerlidir.</span>
+    </div>
+
+    @if (Model.Identities is { Count: > 0 })
+    {
+        <ul class="divide-y divide-gray-100">
+            @foreach (var item in Model.Identities)
+            {
+                var badge = PanelDisplay.SocialProvider(item.Provider);
+                <li class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 text-sm">
+                    <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium @badge.Css">
+                        <i class="fab @badge.Icon"></i> @badge.Label
+                    </span>
+
+                    <span class="text-gray-700">@(string.IsNullOrWhiteSpace(item.Email) ? "—" : item.Email)</span>
+
+                    @if (!string.IsNullOrWhiteSpace(item.Email))
+                    {
+                        @if (item.EmailVerified)
+                        {
+                            <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-circle-check"></i> Doğrulanmış
+                            </span>
+                        }
+                        else
+                        {
+                            @* ⚠️ Bu rozet bir uyarıdır: doğrulanmamış e-posta bir kimlik DEĞİLDİR
+                               ve hiçbir eşleştirmede kullanılmaz (§7 madde 69). *@
+                            <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
+                                <i class="fas fa-triangle-exclamation"></i> Doğrulanmamış
+                            </span>
+                        }
+                    }
+
+                    <span class="text-xs text-gray-500">
+                        Bağlandı: @item.LinkedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")
+                        @if (item.LastUsedAt is { } used)
+                        {
+                            <text> · Son kullanım: @used.AddHours(3).ToString("dd.MM.yyyy HH:mm")</text>
+                        }
+                    </span>
+
+                    <form asp-controller="UsersAdmin" asp-action="RemoveIdentity" method="post"
+                          class="ml-auto"
+                          data-confirm="@($"{badge.Label} bağlantısı kaldırılsın mı? Kullanıcı telefon + SMS kodu ile girmeye devam edebilir.")">
+                        <input type="hidden" name="id" value="@Model.UserId" />
+                        <input type="hidden" name="provider" value="@item.Provider" />
+                        <button type="submit"
+                                class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-red-600 hover:text-red-800">
+                            <i class="fas fa-link-slash"></i> Bağlantıyı kaldır
+                        </button>
+                    </form>
+                </li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p class="px-4 py-6 text-center text-sm text-gray-500">
+            Bağlı sosyal hesap yok — kullanıcı telefon + SMS kodu ile giriyor.
+        </p>
+    }
+</div>

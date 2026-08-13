@@ -129,7 +129,8 @@ Telefon + OTP tabanlı. Üç token türü: **access** (kısa ömür, `Authorizat
    → YENİ KULLANICI:{ "isNewUser": true,  "tempToken": ".." }    // henüz hesap YOK
 
 3a) (yalnız yeni) POST /v1/auth/register
-    { "tempToken": "..", "username": "ahmet", "primaryNeighborhoodId": "<guid>", "age": 30 }
+    { "tempToken": "..", "username": "ahmet", "primaryNeighborhoodId": "<guid>", "age": 30,
+      "socialToken": ".." }   // ← Faz 12.7, OPSİYONEL (additive; göndermeyen istemci etkilenmez)
     → { "accessToken": "..", "refreshToken": "..", "expiresIn": 86400 }
 
 4) POST /v1/auth/refresh      { "refreshToken": ".." }
@@ -144,6 +145,46 @@ Telefon + OTP tabanlı. Üç token türü: **access** (kısa ömür, `Authorizat
 - Refresh **tek kullanımlık** (rotasyon): her yenilemede dönen yeni refresh saklanmalı, eskisi çalışmaz.
 - `tempToken` ve `refreshToken` ayrı imzalı → `[Authorize]` uçlarında access token yerine kullanılamaz.
 - Login/verify-otp/register/refresh **anonim**; logout `[Authorize]`.
+
+### 4b. Sosyal giriş (Faz 12.7) — Google / Apple
+
+```
+S1) POST /v1/auth/social      { "provider": "google" | "apple", "idToken": ".." }   // anonim
+    → KAYITLI:       { "isNewUser": false, "accessToken": "..", "refreshToken": "..", "expiresIn": 86400 }
+    → YENİ KULLANICI:{ "isNewUser": true,
+                       "socialToken": "..",                       // ⚠️ TELEFON TAŞIMAZ
+                       "prefill": { "provider": "google", "email": "..", "displayName": ".." } }
+
+S2) (yalnız yeni) normal OTP akışı → tempToken   (adım 1–2 aynen)
+
+S3) POST /v1/auth/register   { "tempToken": "..", ..., "socialToken": ".." }
+    → oturum + sosyal kimlik hesaba BAĞLANIR (aynı işlemde)
+```
+
+🔴 **SOSYAL GİRİŞ OTP'Yİ ATLAMAZ.** `socialToken` telefon taşımaz; yeni kullanıcı her hâlükârda
+telefon doğrulamasından geçer ve `register` **iki jetonu birden** ister. Telefon
+(`User.Phone`) hesabın çıpasıdır ve öyle kalır.
+
+**Bağla / çöz (oturum sahibinin kendi hesabı):**
+- `POST /v1/users/me/identities` `[A]` — `{ "provider": "google", "idToken": ".." }`
+  → `{ "provider", "email", "emailVerified", "linkedAt", "lastUsedAt" }`
+- `DELETE /v1/users/me/identities/{provider}` `[A]` → `{ "removed": true|false }`
+  (zaten bağlı değilse `removed:false` **ve 200** — iki kez basılan düğme hata göstermez)
+- `GET /v1/users/me` yanıtına **`linkedIdentities[]`** eklendi (additive — §5).
+
+**Kurallar:**
+- 🔴 **E-posta eşleşmesiyle otomatik bağlama YOKTUR.** Eşleştirmenin tek ölçütü sağlayıcının
+  `sub`'ıdır. Bağlamanın tek meşru yolu oturum sahibinin kendi ucudur.
+- 🔴 Bir sosyal hesap **tek** KadirliApp hesabına bağlanabilir; başkasına bağlıysa `409 CONFLICT`.
+  Bir kullanıcı bir sağlayıcıdan **tek** hesap bağlayabilir (çözme ucu sağlayıcı adıyla adresliyor).
+- **Son bağlantı da çözülebilir** — telefon + OTP her zaman ayakta, kullanıcı kilitlenmez.
+- Sağlayıcı yapılandırılmamışsa uç `400 SOCIAL_PROVIDER_DISABLED` döner (*"geçersiz jeton"*
+  demez — yapılandırma hatası bir güvenlik hatası gibi görünmemeli).
+- Geçersiz jeton `401`; tanınmayan sağlayıcı `400 VALIDATION_ERROR`.
+- Uç `auth` hız sınırına tabidir. Jetonun imzası · `iss` · **`aud`** · süresi **sunucuda**
+  doğrulanır; `aud` bizim OAuth client id'lerimizden biri olmak zorundadır.
+- Hesap silinince (`DELETE /v1/users/me`) sosyal bağlantılar **tamamen silinir** → aynı
+  Google/Apple hesabıyla yeniden kayıt açılabilir.
 - FCM: giriş sonrası `POST /v1/notifications/fcm-token { token }` ile cihaz token'ı kaydedilmeli (push için).
 
 ---
@@ -210,11 +251,13 @@ Mobil **native istemci CORS kullanmaz** (bu bölüm yalnız Flutter WEB / taray�
 
 ### Auth
 - `POST /v1/auth/login`, `/verify-otp`, `/register`, `/refresh` — anonim
+- `POST /v1/auth/social` — anonim *(Faz 12.7; oturum açmak için oturum istenemez)*
 - `POST /v1/auth/logout` `[A]`
 
 ### Kullanıcı (me)
 - `GET|PATCH|DELETE /v1/users/me` `[A]` (DELETE: yalnız Role=User)
 - `GET /v1/users/me/ads` `[A]`, `GET /v1/users/me/favorites` `[A]`, `PATCH /v1/users/me/notifications` `[A]`
+- `POST /v1/users/me/identities` `[A]`, `DELETE /v1/users/me/identities/{provider}` `[A]` *(Faz 12.7)*
 
 ### İlanlar (Ads)
 - `GET /v1/ads`, `GET /v1/ads/{id}`, `GET /v1/ads/categories`, `GET /v1/ads/categories/{id}/properties` — anonim

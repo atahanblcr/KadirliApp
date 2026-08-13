@@ -23,9 +23,11 @@ public sealed class GetMyProfileQueryHandler : IRequestHandler<GetMyProfileQuery
     {
         var user = await _uow.Repository<User>().Query()
             .Include(x => x.PrimaryNeighborhood)
+            // Faz 12.7 — bağlı sosyal hesaplar (12.8'in "Bağlı hesaplar" ekranı).
+            .Include(x => x.Identities)
             .FirstOrDefaultAsync(x => x.Id == request.UserId, cancellationToken)
             ?? throw new NotFoundException(nameof(User), request.UserId);
 
-        return MyProfileDto.FromUser(user, user.PrimaryNeighborhood?.Name);
+        return MyProfileDto.FromUser(user, user.PrimaryNeighborhood?.Name, user.Identities);
     }
 }

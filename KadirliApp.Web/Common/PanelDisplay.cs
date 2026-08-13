@@ -259,6 +259,9 @@ public static class PanelDisplay
         ["unverify"] = new("Doğrulamayı kaldırdı", "bg-gray-200 text-gray-700", "fa-ban"),
         ["ban"] = new("Yasakladı", "bg-red-100 text-red-800", "fa-user-slash"),
         ["unban"] = new("Yasağı kaldırdı", "bg-green-100 text-green-800", "fa-user-check"),
+        // Faz 12.7: yönetici bir kullanıcının sosyal hesap bağlantısını kaldırdı.
+        // ⚠️ Kullanıcının KENDİ kaldırması ize düşmez — o tablo yönetici defteridir.
+        ["unlink_identity"] = new("Bağlantıyı kaldırdı", "bg-gray-200 text-gray-700", "fa-link-slash"),
         // Faz 12.10: arşivleme de bir moderasyon kararı — kaydı public listeden düşürür.
         ["archive"] = new("Arşivledi", "bg-gray-200 text-gray-700", "fa-box-archive"),
 
@@ -359,7 +362,10 @@ public static class PanelDisplay
     private static readonly Dictionary<string, PanelBadge> LoginChannelBadges = new(StringComparer.OrdinalIgnoreCase)
     {
         ["panel"] = new("Panel", "bg-purple-100 text-purple-800", "fa-desktop"),
-        ["mobile_otp"] = new("Mobil (OTP)", "bg-teal-100 text-teal-800", "fa-mobile-screen")
+        ["mobile_otp"] = new("Mobil (OTP)", "bg-teal-100 text-teal-800", "fa-mobile-screen"),
+        // Faz 12.7: sosyal giriş ayrı bir kanal — "bu hesaba hangi yoldan girildi?" sorusunun
+        // cevabı OTP ile karışmamalı.
+        ["social"] = new("Sosyal giriş", "bg-blue-100 text-blue-800", "fa-right-to-bracket")
     };
 
     private static readonly Dictionary<string, PanelBadge> LoginFailureReasons = new(StringComparer.OrdinalIgnoreCase)
@@ -374,7 +380,21 @@ public static class PanelDisplay
         ["role_denied"] = new("Yetkisiz rol", "bg-amber-100 text-amber-800", "fa-user-lock"),
         // Faz 12.2: hız sınırı denemeyi controller'a hiç ulaştırmadan reddetti.
         // Bu satırlar "kısma çalıştı" demek — yokluğu ise tablonun yalan söylemesi demekti.
-        ["rate_limited"] = new("Hız sınırı", "bg-orange-100 text-orange-800", "fa-gauge-high")
+        ["rate_limited"] = new("Hız sınırı", "bg-orange-100 text-orange-800", "fa-gauge-high"),
+        // Faz 12.7: sosyal giriş jetonu doğrulanamadı. 🔑 Bu satırların BİRİKMESİ asıl sinyal:
+        // yanlış `aud`'lu jeton denemesi = başka bir uygulamanın jetonuyla giriş girişimi.
+        ["bad_social_token"] = new("Geçersiz sosyal jeton", "bg-red-100 text-red-800", "fa-id-badge")
+    };
+
+    /// <summary>
+    /// Faz 12.7 — sosyal sağlayıcı rozetleri. ⚠️ Ham <c>google</c>/<c>apple</c> ekrana
+    /// basılmaz (Değişmez Kural #6): marka adları İngilizce ama <b>ham veri değil</b>,
+    /// ve bilinmeyen bir değer sessizce geçmez.
+    /// </summary>
+    private static readonly Dictionary<string, PanelBadge> SocialProviderBadges = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["google"] = new("Google", "bg-red-100 text-red-800", "fa-google"),
+        ["apple"] = new("Apple", "bg-gray-200 text-gray-800", "fa-apple")
     };
 
     private static readonly Dictionary<string, PanelBadge> SuspicionRuleBadges = new(StringComparer.OrdinalIgnoreCase)
@@ -510,6 +530,11 @@ public static class PanelDisplay
 
     /// <summary>Şüphe kuralını Türkçe rozete çevirir.</summary>
     public static PanelBadge SuspicionRule(string? raw) => Lookup(SuspicionRuleBadges, raw, "kural");
+
+    /// <summary>Faz 12.7 — sosyal sağlayıcıyı rozete çevirir. Bilinmeyen değer <b>ham geçmez</b>.</summary>
+    public static PanelBadge SocialProvider(string? raw) => Lookup(SocialProviderBadges, raw, "sağlayıcı");
+
+    public static IReadOnlyCollection<string> KnownSocialProviders => SocialProviderBadges.Keys;
 
     public static IReadOnlyCollection<string> KnownLoginChannels => LoginChannelBadges.Keys;
     public static IReadOnlyCollection<string> KnownLoginFailureReasons => LoginFailureReasons.Keys;

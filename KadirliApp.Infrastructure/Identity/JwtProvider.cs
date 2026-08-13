@@ -18,6 +18,9 @@ public sealed class JwtProvider : IJwtProvider
     private const string RefreshTokenType = "refresh";
     private const string RegistrationTokenType = "registration";
 
+    /// <summary>Faz 12.7 — sosyal kayıt taşıyıcısı. Telefonlu kayıt jetonundan AYRI bir tür.</summary>
+    private const string SocialRegistrationTokenType = "social_registration";
+
     private readonly IConfiguration _configuration;
 
     public JwtProvider(IConfiguration configuration)
@@ -75,6 +78,53 @@ public sealed class JwtProvider : IJwtProvider
             return null;
 
         return v.Principal.FindFirstValue("phone");
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// 🔴 Ömrü telefonlu kayıt jetonuyla <b>aynı ayardan</b> okunur (<c>Jwt:TempTokenMinutes</c>):
+    /// kullanıcı sosyal girişten sonra OTP akışını da tamamlamak zorunda, yani iki jeton
+    /// <b>aynı oturumda</b> yaşıyor. Ayrı bir ayar olsaydı biri diğerinden önce ölür ve
+    /// kullanıcı kaydın <i>son</i> adımında "geçersiz jeton" görüp baştan başlardı.
+    /// </remarks>
+    public string GenerateSocialTempToken(SocialIdentityPayload identity)
+    {
+        var minutes = _configuration.GetValue("Jwt:TempTokenMinutes", 30);
+        var claims = new List<Claim>
+        {
+            new("social_provider", identity.Provider),
+            new("social_sub", identity.ProviderUserId),
+            new("social_email_verified", identity.EmailVerified ? "true" : "false"),
+            new("token_type", SocialRegistrationTokenType)
+        };
+
+        // Boş claim yazmıyoruz: "yok" ile "boş metin" arasındaki farkı jetonda da koruyoruz.
+        if (!string.IsNullOrWhiteSpace(identity.Email))
+            claims.Add(new Claim("social_email", identity.Email));
+        if (!string.IsNullOrWhiteSpace(identity.DisplayName))
+            claims.Add(new Claim("social_name", identity.DisplayName));
+
+        return BuildToken(claims, RefreshSecret, TimeSpan.FromMinutes(minutes));
+    }
+
+    /// <inheritdoc />
+    public SocialIdentityPayload? ValidateSocialTempToken(string socialToken)
+    {
+        var validated = Validate(socialToken, RefreshSecret);
+        if (validated is not { } v || v.Principal.FindFirstValue("token_type") != SocialRegistrationTokenType)
+            return null;
+
+        var provider = v.Principal.FindFirstValue("social_provider");
+        var sub = v.Principal.FindFirstValue("social_sub");
+        if (string.IsNullOrWhiteSpace(provider) || string.IsNullOrWhiteSpace(sub))
+            return null;
+
+        return new SocialIdentityPayload(
+            provider,
+            sub,
+            v.Principal.FindFirstValue("social_email"),
+            v.Principal.FindFirstValue("social_email_verified") == "true",
+            v.Principal.FindFirstValue("social_name"));
     }
 
     public RefreshTokenPayload? ValidateRefreshToken(string refreshToken)

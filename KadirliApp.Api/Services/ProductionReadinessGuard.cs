@@ -147,6 +147,29 @@ public static class ProductionReadinessGuard
                 "hız sınırı YANLIŞ çalışır. Doğrudan servis ediyorsanız sorun yok.");
         }
 
+        // 9) Faz 12.7 — sosyal giriş "açık" işaretlenmiş ama hiçbir client id yok.
+        // 🔴 Sessiz başarısızlık: mobilde "Google ile giriş" butonu ÇİZİLİR, kullanıcı basar,
+        // uç "bu giriş yöntemi şu anda kullanılamıyor" der ve bu, kullanıcının bakış açısından
+        // ayırt edilemez bir arıza olur. Ayrıca bayrak açıkken client id boş bırakmak,
+        // "doğrulama yapılamıyor" durumunun ta kendisidir — sosyal girişin bir numaralı
+        // zafiyeti (`aud`) tam da burada başlar (§7 madde 68).
+        if (cfg.GetValue("Auth:Social:Enabled", false))
+        {
+            var configured = new[] { "Auth:Social:Google:ClientIds", "Auth:Social:Apple:ClientIds" }
+                .Where(key => cfg.GetSection(key).GetChildren().Any(c => !string.IsNullOrWhiteSpace(c.Value))
+                              || !string.IsNullOrWhiteSpace(cfg.GetSection(key).Value))
+                .ToList();
+
+            if (configured.Count == 0)
+            {
+                blockers.Add(
+                    "Auth:Social:Enabled=true ama Auth:Social:Google:ClientIds ve " +
+                    "Auth:Social:Apple:ClientIds BOŞ → hiçbir sağlayıcı doğrulanamaz. " +
+                    "Mobilde sosyal giriş butonu çizilir, basan herkes 'kullanılamıyor' hatası " +
+                    "alır. Client id'leri ortam değişkeniyle verin ya da bayrağı kapatın.");
+            }
+        }
+
         if (blockers.Count > 0)
         {
             var message = "Production yapılandırması yayına uygun değil — " +

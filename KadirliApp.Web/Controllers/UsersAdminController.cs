@@ -11,6 +11,7 @@ using MediatR;
 using KadirliApp.Application.Common.Exceptions;
 using KadirliApp.Application.Features.Users.Commands.CreateUser;
 using KadirliApp.Application.Features.Users.Commands.SetUserBan;
+using KadirliApp.Application.Features.Users.Commands.RemoveUserIdentity;
 using KadirliApp.Application.Features.Users.Commands.UpdateUser;
 using KadirliApp.Application.Features.Users.DTOs;
 using KadirliApp.Application.Features.Users.Queries.GetUsers;
@@ -98,8 +99,24 @@ public class UsersAdminController : Controller
         ViewBag.Id = id;
         ViewBag.Neighborhoods = await _uow.Repository<Neighborhood>().Query().OrderBy(n => n.Name).ToListAsync();
         ViewBag.LoginAttempts = await RecentLoginAttemptsAsync(id, user.Phone);
+        ViewBag.Identities = await LinkedIdentitiesAsync(id);
         return View(dto);
     }
+
+    /// <summary>
+    /// Faz 12.7 — hesaba bağlı sosyal hesaplar.
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <b>Giriş denemeleri kutusunun aksine bu kutu moderatöre de AÇIK</b> ve fark
+    /// bilinçli: burada gösterilen şey bir güvenlik kaydı değil, <b>hesabın kendi alanı</b>
+    /// (kullanıcı zaten kendi profilinde görüyor). Kişisel veri sızıntısı riski de yok —
+    /// <c>provider_user_id</c> ekrana <b>hiç çıkmıyor</b>.
+    /// </remarks>
+    private async Task<IReadOnlyList<UserIdentity>> LinkedIdentitiesAsync(Guid userId)
+        => await _uow.Repository<UserIdentity>().Query()
+            .Where(x => x.UserId == userId)
+            .OrderBy(x => x.Provider)
+            .ToListAsync();
 
     /// <summary>
     /// Faz 12.2 — hesabın son giriş denemeleri (yalnız admin'e).
@@ -154,6 +171,40 @@ public class UsersAdminController : Controller
         ViewBag.Id = id;
         ViewBag.Neighborhoods = await _uow.Repository<Neighborhood>().Query().OrderBy(n => n.Name).ToListAsync();
         return View(dto);
+    }
+
+    /// <summary>
+    /// Faz 12.7 — yönetici bir kullanıcının sosyal hesap bağlantısını kaldırır.
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <b>Aksiyon adı bir karardır (§7 madde 19).</b> <c>Remove…</c> öneki
+    /// <c>PanelPermissionFilter.ActionFor</c>'da <c>delete</c> iznine düşüyor ve bu bilinçli:
+    /// bir giriş yöntemini kaldırmak <b>güvenlik etkili</b> bir işlem, "profil düzenleme"
+    /// (<c>update</c>) değil. Ad <c>Unlink…</c> olsaydı hiçbir önekle eşleşmez, POST olduğu
+    /// için sessizce <c>update</c>'e düşerdi — madde 19'un tam olarak altı kez tekrarlamış
+    /// tuzağı (ve <c>Un…</c> biçimi listedeki en sinsi hâli).
+    /// </remarks>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveIdentity(Guid id, string provider)
+    {
+        try
+        {
+            var removed = await _sender.Send(new RemoveUserIdentityCommand(id, provider));
+            TempData[removed ? "Success" : "Error"] = removed
+                ? "Sosyal hesap bağlantısı kaldırıldı."
+                : "Bu sağlayıcıya ait bir bağlantı bulunamadı.";
+        }
+        catch (NotFoundException)
+        {
+            TempData["Error"] = "Kullanıcı bulunamadı.";
+        }
+        catch (AppException ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Edit), new { id });
     }
 
     // Faz 10.9(h): inline IsBanned yazımı SetUserBanCommand'e taşındı — BanReason/BannedAt/BannedBy artık dolu (Faz 9.4 kuralı)

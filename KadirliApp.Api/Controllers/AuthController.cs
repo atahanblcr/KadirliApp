@@ -4,6 +4,7 @@ using KadirliApp.Application.Features.Auth.Commands.Login;
 using KadirliApp.Application.Features.Auth.Commands.Logout;
 using KadirliApp.Application.Features.Auth.Commands.RefreshToken;
 using KadirliApp.Application.Features.Auth.Commands.Register;
+using KadirliApp.Application.Features.Auth.Commands.SocialLogin;
 using KadirliApp.Application.Features.Auth.Commands.VerifyOtp;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -45,6 +46,31 @@ public class AuthController : ControllerBase
         // yeni kullanıcı → tempToken (kayıt POST /v1/auth/register ile tamamlanır).
         return Ok(result.IsNewUser
             ? new { IsNewUser = true, TempToken = result.TempToken }
+            : (object)new
+            {
+                IsNewUser = false,
+                AccessToken = result.AccessToken,
+                RefreshToken = result.RefreshToken,
+                ExpiresIn = result.ExpiresIn
+            });
+    }
+
+    /// <summary>
+    /// Faz 12.7 — sosyal giriş (Google / Apple). Sonucun şekli <c>verify-otp</c> ile
+    /// <b>birebir aynı</b>: ya oturum, ya kayıt taşıyıcısı.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <c>IsNewUser=true</c> dalı <b>telefon taşımaz</b>: istemci normal OTP akışını
+    /// tamamlar ve <c>register</c>'a <b>iki jetonu birden</b> verir. Sosyal giriş OTP'yi
+    /// atlamaz (§7 madde 70).
+    /// </remarks>
+    [HttpPost("social")]
+    public async Task<IActionResult> Social([FromBody] SocialLoginCommand command)
+    {
+        var result = await _mediator.Send(command);
+
+        return Ok(result.IsNewUser
+            ? new { IsNewUser = true, SocialToken = result.SocialToken, Prefill = result.Prefill }
             : (object)new
             {
                 IsNewUser = false,

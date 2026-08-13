@@ -39,6 +39,8 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IPermissionService, PermissionService>();
 
+        AddSocialLogin(services, cfg);
+
         // Faz 12.1 — hata günlüğü yazıcısı. Tek örnek iki rolü birden üstlenir: istek
         // yolundaki IErrorLogSink (kuyruğa bırakır) ve arka plandaki BackgroundService
         // (kuyruğu boşaltır). ⚠️ Üçü de AYNI örneği çözmeli — ayrı örnekler olsaydı
@@ -137,6 +139,82 @@ public static class DependencyInjection
     /// ⚠️ <c>NewsSyncOptions</c> burada bağlanıyor çünkü Application <c>IConfiguration</c>
     /// göremez (katman kuralı §1) — ama ayarın <b>anlamı</b> Application'da yaşıyor.
     /// </remarks>
+    /// <summary>
+    /// Faz 12.7 — sosyal giriş (Google/Apple) doğrulayıcısı.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🔴 <b>Yapılandırmadan YALNIZ client id listesi okunur.</b> Issuer ve JWKS adresi
+    /// koda gömülü (<see cref="Identity.Social.SocialProviderSettings"/>): ayar hâline
+    /// getirilselerdi yanlış bir <c>appsettings</c> satırı doğrulamayı saldırganın seçtiği
+    /// bir anahtar sunucusuna yönlendirebilirdi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Liste boşsa sağlayıcı <b>kaydedilmez</b> = kapalıdır. Servis yine de kayıtlı olur;
+    /// uç "bu giriş yöntemi kullanılamıyor" der. <c>ProductionReadinessGuard</c> ise
+    /// Production'da <b>açık ama yapılandırılmamış</b> bir sosyal girişi engeller.
+    /// </para>
+    /// </remarks>
+    private static void AddSocialLogin(IServiceCollection services, IConfiguration cfg)
+    {
+        services.AddHttpClient(Identity.Social.CachingJsonWebKeySetProvider.HttpClientName, http =>
+        {
+            // Kısa: anahtar sunucusu yavaşsa girişin kendisi beklememeli. Zaman aşımı
+            // "anahtar yok" demektir ve jeton reddedilir (fail-closed) — ama kullanıcı
+            // 30 saniye bekleyip öyle reddedilmemeli.
+            http.Timeout = TimeSpan.FromSeconds(cfg.GetValue("Auth:Social:JwksTimeoutSeconds", 10));
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("KadirliApp-Auth/1.0");
+        });
+
+        services.AddSingleton<Identity.Social.IJsonWebKeySetProvider,
+            Identity.Social.CachingJsonWebKeySetProvider>();
+
+        // 🐛 Ayarlar burada DEĞİL, ÇÖZÜLME ANINDA okunuyor — ve bu bir üslup tercihi değil,
+        // bir hata düzeltmesi: `AddInfrastructure` `builder.Build()`'den ÖNCE koşuyor, yani
+        // kayıt anında okunan bir değeri `ConfigureAppConfiguration` ile ezmek MÜMKÜN DEĞİL
+        // (ARCHITECTURE.md §8 "bilinen test tuzakları" — hız sınırının aynı sınıfı).
+        // İlk yazımda eager okundu ve entegrasyon süiti "sağlayıcı kapalı" diye 400 döndü:
+        // yani kod doğruydu, ama kendi testinden ERİŞİLEMEZDİ. Bayrakla kapalı yolun
+        // test edilemez hâli, hiç test edilmemiş yoldan farksızdır (10.11'in dersi).
+        services.AddSingleton<IEnumerable<Identity.Social.SocialProviderSettings>>(sp =>
+        {
+            var configuration = sp.GetRequiredService<IConfiguration>();
+            var google = ReadClientIds(configuration, "Auth:Social:Google:ClientIds");
+            var apple = ReadClientIds(configuration, "Auth:Social:Apple:ClientIds");
+
+            var providers = new List<Identity.Social.SocialProviderSettings>();
+            if (google.Count > 0) providers.Add(Identity.Social.SocialProviderSettings.ForGoogle(google));
+            if (apple.Count > 0) providers.Add(Identity.Social.SocialProviderSettings.ForApple(apple));
+            return providers;
+        });
+
+        services.AddScoped<Application.Common.Interfaces.ISocialTokenVerifier,
+            Identity.Social.JwksSocialTokenVerifier>();
+    }
+
+    /// <summary>
+    /// Client id listesini okur. İki biçimi de kabul eder: dizi
+    /// (<c>Auth:Social:Google:ClientIds:0</c>) ve <b>virgülle ayrılmış tek satır</b> —
+    /// ikincisi ortam değişkeniyle vermeyi mümkün kılıyor ve sırlar bu projede
+    /// <c>appsettings</c>'e yazılmıyor.
+    /// </summary>
+    private static IReadOnlyList<string> ReadClientIds(IConfiguration cfg, string key)
+    {
+        var section = cfg.GetSection(key);
+
+        var asArray = section.GetChildren()
+            .Select(x => x.Value?.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .ToList();
+
+        if (asArray.Count > 0) return asArray;
+
+        return (section.Value ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+    }
+
     private static void AddNewsSource(IServiceCollection services, IConfiguration cfg)
     {
         services.AddHttpClient(News.WordPressNewsSourceClient.HttpClientName, http =>

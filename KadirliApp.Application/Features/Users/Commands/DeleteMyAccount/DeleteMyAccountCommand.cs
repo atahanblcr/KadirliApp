@@ -70,6 +70,17 @@ public class DeleteMyAccountCommandHandler : IRequestHandler<DeleteMyAccountComm
             .Where(x => x.UserId == request.UserId)
             .ExecuteDeleteAsync(cancellationToken);
 
+        // 🔴 Faz 12.7 — sosyal kimlikler de TAMAMEN silinir. İki ayrı sebep, ikisi de sessiz:
+        //  (a) `provider_user_id` + `email` KİŞİSEL VERİDİR ve bu uç anonimleştirme sözü
+        //      veriyor; kalsalardı silinmiş hesabın Google adresi tabloda durmaya devam ederdi.
+        //  (b) `(provider, provider_user_id)` BENZERSİZ: satır kalsaydı o kişi aynı Google
+        //      hesabıyla **bir daha asla** kayıt olamazdı — telefonunu yeniden kayda açan
+        //      (yukarıdaki anonimleştirme) bir silme akışının tam tersi, ve hata mesajı
+        //      "bu hesap başka bir kullanıcıya bağlı" olurdu: doğru ama anlaşılmaz.
+        await _uow.Repository<UserIdentity>().Query()
+            .Where(x => x.UserId == request.UserId)
+            .ExecuteDeleteAsync(cancellationToken);
+
         // Anonimleştirme: "del" + id'nin ilk 12 hex'i = 15 karakter (kolon sınırı), pratikte benzersiz.
         user.Phone = $"del{user.Id:N}"[..15];
         user.Username = null;

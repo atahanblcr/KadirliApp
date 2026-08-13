@@ -98,6 +98,13 @@ public class EndpointAuthorizationSweepTests : IClassFixture<CustomWebApplicatio
             "POST /v1/auth/login",                      // oturum açma akışı
             "POST /v1/auth/refresh",
             "POST /v1/auth/register",
+            // Faz 12.7: sosyal giriş. Anonim olması akışın tanımı gereği ZORUNLU — oturum
+            // açmak için oturum istenemez (login/verify-otp ile aynı gerekçe).
+            // ⚠️ Anonim olması "korumasız" demek DEĞİL: uç `auth` hız sınırına tabi ve
+            // gövdedeki jetonun imzası/`iss`/**`aud`**/süresi sunucuda doğrulanıyor
+            // (§7 madde 68). Bağlama/çözme uçları (`/v1/users/me/identities`) ise
+            // [Authorize] — bağlamanın tek meşru yolu oturum sahibinin kendisidir (madde 69).
+            "POST /v1/auth/social",
             "POST /v1/auth/verify-otp",
             "POST /v1/complaints",                      // 10.7: hesapsız şikayet bildirimi
             // Faz 12.1: mobil hata/çökme bildirimi. Anonim olması BİLİNÇLİ — çökme çoğu

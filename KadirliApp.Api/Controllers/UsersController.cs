@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using KadirliApp.Application.Features.Ads.Queries;
 using KadirliApp.Application.Features.Users.Queries.GetMyProfile;
 using KadirliApp.Application.Features.Users.Commands.DeleteMyAccount;
+using KadirliApp.Application.Features.Users.Commands.LinkSocialIdentity;
+using KadirliApp.Application.Features.Users.Commands.UnlinkSocialIdentity;
 using KadirliApp.Application.Features.Users.Commands.UpdateMyProfile;
 using KadirliApp.Application.Features.Users.Commands.UpdateNotificationPreferences;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -69,6 +71,32 @@ public class UsersController : ApiControllerBase
     }
 
     public record DeleteMyAccountDto(string? RefreshToken);
+
+    /// <summary>
+    /// Faz 12.7 — hesaba sosyal hesap bağlar. <b>Bağlamanın tek meşru yolu budur</b>:
+    /// kullanıcı burada hem KadirliApp hesabına (JWT) hem sosyal hesaba (imzalı jeton)
+    /// erişimini kanıtlar. E-posta eşleşmesiyle otomatik bağlama <b>yoktur</b> (§7 madde 69).
+    /// </summary>
+    [HttpPost("me/identities")]
+    public async Task<IActionResult> LinkIdentity([FromBody] LinkIdentityDto dto)
+    {
+        var response = await Sender.Send(
+            new LinkSocialIdentityCommand(RequiredUserId, dto.Provider, dto.IdToken));
+        return Success(response);
+    }
+
+    public record LinkIdentityDto(string Provider, string IdToken);
+
+    /// <summary>
+    /// Faz 12.7 — sosyal hesap bağlantısını çözer. <b>Son bağlantı da çözülebilir</b>:
+    /// telefon çıpa olduğu için kullanıcı hesabından kilitlenmez.
+    /// </summary>
+    [HttpDelete("me/identities/{provider}")]
+    public async Task<IActionResult> UnlinkIdentity(string provider)
+    {
+        var removed = await Sender.Send(new UnlinkSocialIdentityCommand(RequiredUserId, provider));
+        return Success(new { Removed = removed });
+    }
 
     private Guid RequiredUserId =>
         CurrentUserId ?? throw new UnauthorizedException("Token'da user_id claim'i yok.");

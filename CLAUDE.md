@@ -136,11 +136,32 @@ materyalizasyonu varsayılan başlatıcıyı çalıştırmıyor** (anahtarsız J
 canlıda 13/13) → geri doldurma migration'ı **zorunluydu**; test silinmedi, ölçüm belgeye
 çevrildi.
 
-**1114 backend + 824 mobil test, 67 görünmez sözleşme.**
+**12.7 bitti — sosyal giriş: backend.** `POST /v1/auth/social` (Google + Apple),
+`user_identities` tablosu, bağla/çöz uçları ve panelde "Bağlı hesaplar".
+🔑 **Telefon çıpa olarak kaldı:** sosyal kayıt jetonu **telefon taşımaz**, kayıt yine
+OTP'den geçer ve `register` **iki jetonu birden** ister — tek jetona indirgenseydi Google
+hesabı olan herkes OTP'siz hesap açar ve moderasyonun dayandığı varsayım **sessizce**
+çökerdi. 🔴 **Plandan bilinçli sapma:** `GoogleJsonWebSignature.ValidateAsync` **statik ve
+gerçek Google anahtarlarına bağlı** olduğu için fazın bir numaralı kuralını (`aud`)
+testle kilitleyemezdik → iki sağlayıcı için **tek** `JwksSocialTokenVerifier` yazıldı
+(ikisi de OIDC/RS256; fark yalnız `iss`/`aud`/JWKS = **veri**, kod değil). `aud` kilidi
+**iki yönlü**: aynı jeton `aud` listesine eklenince **kabul ediliyor** — yoksa "hiçbir
+jetonu kabul etme" gerçeklemesi de yeşil kalırdı. 🔴 **E-posta eşleşmesiyle otomatik
+bağlama YOK** (`User.Email` panelden elle giriliyor ve doğrulanmıyor). 🔴 Hesap silinince
+kimlik satırları **fiziksel** silinir (kişisel veri + benzersizlik: kalsaydı o kişi aynı
+Google hesabıyla **bir daha asla** kayıt olamazdı). 🐛 Bulunan gerçek hata: yapılandırma
+**DI kaydında** okunuyordu → kod doğruydu ama **kendi testinden erişilemiyordu**.
 
-**⏭️ Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) ·
-**12.16 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher **yazılmaz**,
-var olan tek sahip genişletilir).
+**1180 backend + 824 mobil test, 70 görünmez sözleşme.**
+
+**⏭️ Sırada:** **12.16 KVKK rıza yönetimi** (planlandı, kod yok — **en yüksek öncelik**;
+metin panelden düzenlenebilir olduğu için rıza **sürüme** bağlanır, "onaylandı" bayrağına
+değil. 🔴 Uygulama henüz mağazada olmadığı için bugün bedeli **sıfır**, sonra §5 kırıcı
+değişikliği olur) · 12.8 sosyal giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı
+bugün yazılabilir**) · **12.18 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir
+dispatcher **yazılmaz**, var olan tek sahip genişletilir).
+⚠️ **12.7'nin bozma turu KOŞULAMADI** (ortamın güvenlik sınıflandırıcısı engelledi) —
+bir sonraki oturumun ilk işi.
 ⚠️ `?featured=false` ve aramanın **en az 2 karakter** kuralı kontrata girdi (`API_CONTRACT.md`).
 ⚠️ Yeni bir `Un…` aksiyonu yazarsan (ya da `SendNotification` gibi hiçbir önekle eşleşmeyen
 bir moderasyon aksiyonu) önekini `PanelPermissionFilter.ActionFor`'a **elle ekle**:
@@ -220,7 +241,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 63 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 70 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
@@ -242,7 +263,10 @@ davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `P
 yansıma**), **58–60** → `Integration/Panel/PanelNewsTests.cs` + `Unit/Application/News/`
 (`NewsSearchTests` · `NewsStatesTests`), **61–62 istemci tarafı** →
 `mobile/test/features/news/` (`news_body_test.dart` · `news_screen_test.dart` ·
-`news_detail_screen_test.dart` · `news_card_test.dart`).
+`news_detail_screen_test.dart` · `news_card_test.dart`),
+**68–70** → `Unit/Infrastructure/SocialTokenVerifierTests.cs` +
+`Unit/Infrastructure/JwtProviderSocialTokenTests.cs` +
+`Unit/Application/Auth/SocialProvidersTests.cs` + `Integration/Auth/SocialLoginTests.cs`.
 
 ## Değişmez kurallar
 

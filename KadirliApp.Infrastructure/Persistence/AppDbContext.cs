@@ -68,6 +68,7 @@ public class AppDbContext : DbContext
     public DbSet<TaxiDriver> TaxiDrivers => Set<TaxiDriver>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserNeighborhood> UserNeighborhoods => Set<UserNeighborhood>();
+    public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

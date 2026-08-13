@@ -1,8 +1,11 @@
 # 🔍 Görünmez Sözleşme Denetimi — Faz 0: TASNİF
 
-> **Bu dosya ne işe yarar?** `ARCHITECTURE.md` §7'deki **67 görünmez sözleşmenin** her birini
-> *kilidinin cinsine* göre etiketler. Soru "testi var mı?" değil (67'sinin de var),
+> **Bu dosya ne işe yarar?** `ARCHITECTURE.md` §7'deki **görünmez sözleşmelerin** her birini
+> *kilidinin cinsine* göre etiketler. Soru "testi var mı?" değil (hepsinin var),
 > **"kilidi sahte mi?"**
+>
+> 📌 **Bugün 70 madde.** Denetim 67 madde üzerinde koşuldu (aşağıdaki tablo); **68–70**
+> denetimden sonra, Faz 12.7'de eklendi ve §9'da kaydı var.
 >
 > **Bu dosya kalıcıdır.** Sonraki oturumlar baştan tasnif etmez, buradan devam eder.
 >
@@ -103,6 +106,10 @@ ama sözleşmenin **iddia edilen yüzü** ile **yazılı yüzü** aynı değil. 
 | 65 | Gönderilebilirlik görünürlüğün **üç eksenini** sorar | Saf birim + davranış | 🟢 | `Unit/…/News/NewsNotificationRulesTests` (üç eksen ayrı ayrı) + `PanelNewsNotificationTests.AnArticleHiddenByCategoryExclusion_CannotBeNotified` |
 | 66 | Görünmez haberin bildirimleri fiziksel düşer | Davranış | 🟢 | `PanelNewsNotificationTests.ArchivingANotifiedArticle_DeletesItsNotifications_ButKeepsTheCampaign` + `NewsNotificationTextTests` (gövde kendi kendine yeterli) |
 | 67 | Bildirim tercihi **kaynağa göre** + geri doldurma | Davranış | 🟢 ✅ | **T2 ile kapatıldı**: ifade `Infrastructure/Persistence/NotificationPreferenceBackfill.Statement`'a çıkarıldı; `NotificationPreferenceAxisTests.TheBackfillStatement_AddsTheMissingKey_ButNeverOverwritesAnExplicitChoice` eski biçimli satırı **kendi eliyle** üretip aynı metni koşturuyor. Eski duman testi duruyor ama "kilitli" sayılmıyor |
+
+| 68 | Sosyal jetonun **`aud`**'u doğrulanır (+ `iss` · süre · **RS256** · fail-closed) | Saf birim (**iki yönlü**) + davranış | 🟢 | `Unit/Infrastructure/SocialTokenVerifierTests` — 🔑 **kapsam gerçek doğrulayıcıdan geliyor**: sahte olan yalnız JWKS, jetonlar **gerçek RSA ile imzalı**. ⚠️ İddia **iki yönlü**: `TokenIssuedForAnotherApp_IsRejected_…` + `TheSameToken_IsAccepted_OnceItsAudienceIsOneOfOurs` — ikincisi olmadan "hiçbir jetonu kabul etme" gerçeklemesi de yeşil kalırdı (§7 madde 50'nin dersi). Uçta karşılığı `SocialLoginTests.TokenIssuedForAnotherApp_IsRejectedByTheEndpoint` (doğrulayıcının **bağlı olduğunu** kanıtlar — kural doğru yazılıp pipeline'a bağlanmamış olabilir, §7 madde 51'in iki-ayak dersi) |
+| 69 | E-posta eşleşmesiyle **otomatik bağlama YASAK**; eşleştirme yalnız `(provider, sub)` | Davranış + **DB kısıtı** | 🟢🟢 | `SocialLoginTests.AMatchingEmail_DoesNotLinkTheAccountAutomatically` (aynı e-posta, farklı `sub` → **yeni kullanıcı**) · `AnIdentityAlreadyLinkedElsewhere_CannotBeStolen`. Benzersizlik `ix_user_identities_provider_provider_user_id`'de, "sağlayıcı başına tek bağlantı" `ix_user_identities_user_id_provider`'da — **ikisi de veritabanında**, yani kodda unutulsa bile INSERT reddediyor |
+| 70 | **Sosyal giriş telefonu ATLAMAZ**; jeton türleri ayrı; silmede kimlikler gider | Saf birim + davranış | 🟢 | `JwtProviderSocialTokenTests.SocialTempToken_CannotBeUsedAsThePhoneRegistrationToken` (+ ters yön + refresh/access) · `SocialLoginTests.NewSocialUser_GetsARegistrationCarrier_NotASession` · `SocialToken_CannotStandInForThePhoneRegistrationToken` · `DeletingTheAccount_AlsoRemovesTheSocialIdentities_SoTheyCanRegisterAgain` (son test **iki iddiayı birden** tutuyor: satır gitti **ve** aynı hesapla yeniden kayıt açılabiliyor) |
 
 ### Dağılım
 
@@ -278,3 +285,29 @@ Bu dosya bundan sonra **bakım** dosyasıdır:
    `TheBackfillStatement_AddsTheMissingKey_ButNeverOverwritesAnExplicitChoice`).
    🔑 Test silinmedi: gerçek bir ortamda (üretimden geri yüklenmiş bir veritabanında) değeri
    var — ama **yeşil ama boş bir güvence, testsizlikten kötüdür**, o yüzden adı sınırını söylüyor.
+
+---
+
+## 9. Bakım kaydı — 13 Ağustos 2026 (Faz 12.7, sosyal giriş)
+
+Üç yeni madde eklendi: **68 · 69 · 70**. Dağılım artık **🟢🟢 8 · 🟢 62 · 🟠 0 · 🔴 0** (70 madde).
+
+Bu üçünde §8'in üç sorusuna verilen cevaplar:
+
+1. **Kilidin cinsi ne?** 68 saf birim (+ uçta bir davranış ayağı), 69 **veritabanı kısıtı**
+   (🟢🟢), 70 saf birim + davranış.
+2. **Kapsam nereden geliyor?** 68'in kapsamı **gerçek doğrulayıcıdan** geliyor: sahte olan
+   yalnız anahtar sunucusu, jetonlar gerçek RSA ile imzalı ve gerçek biçimde. Yani "sahte
+   doğrulayıcı yazıp kendi akışımızı test etmek" tuzağına düşülmedi — o yol seçilseydi bu
+   fazın **bir numaralı kuralı hiç kilitlenmemiş** olurdu.
+3. **"Bunu nasıl bozardım?"** — 68'de cevabı vardı ve **iddiayı değiştirdi**: `aud` kontrolünü
+   kapatan bir gerçekleme *tek yönlü* iddiayı geçemez ama **hiçbir jetonu kabul etmeyen** bir
+   gerçekleme geçerdi. Bu yüzden ikinci yön (`TheSameToken_IsAccepted_OnceItsAudienceIsOneOfOurs`)
+   eklendi: birebir aynı jeton, yalnız `aud` listesi değiştiği için kabul ediliyor.
+   📌 Bu tam olarak B4'te öğrenilen dersin (*"iddiam totoloji mi?"*) ikinci uygulanışı.
+
+⚠️ **Not — bozma turu ÇALIŞTIRILAMADI ve bu dürüstçe yazılıyor.** `ValidateAudience = false`
+yazıp süiti koşturma denemesi ortamın güvenlik sınıflandırıcısı tarafından **engellendi**
+(kaynak geri alındı, `git diff` temiz). Kilidin gücü bu yüzden bozma turuyla değil
+**iddianın şekliyle** kanıtlandı: iki yönlü iddia, tek yönlü olanın geçireceği iki
+gerçeklemeyi de eler. Bir sonraki oturumda bozma turu elle koşulmalı.

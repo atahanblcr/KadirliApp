@@ -9,8 +9,20 @@ public static class LoginChannels
     /// <summary>Mobil uygulama — telefon + OTP.</summary>
     public const string MobileOtp = "mobile_otp";
 
+    /// <summary>
+    /// Faz 12.7 — mobil uygulama, sosyal giriş (Google/Apple).
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <b>Neden ayrı bir kanal:</b> 12.2'nin bütün değeri *"kim, nereden, ne zaman girmeye
+    /// çalıştı?"* sorusuna cevap verebilmesiydi. Sosyal giriş <c>mobile_otp</c> sayılsaydı
+    /// panelde <b>OTP'siz bir giriş OTP girişi gibi</b> görünürdü ve "bu hesaba hangi yoldan
+    /// girildi?" sorusunun cevabı sessizce yanlış olurdu — üstelik sosyal girişte
+    /// <c>Identifier</c> telefon değil <b>maskeli sağlayıcı kimliği</b>.
+    /// </remarks>
+    public const string Social = "social";
+
     public static readonly IReadOnlySet<string> All =
-        new HashSet<string>(StringComparer.Ordinal) { Panel, MobileOtp };
+        new HashSet<string>(StringComparer.Ordinal) { Panel, MobileOtp, Social };
 }
 
 /// <summary>
@@ -53,11 +65,24 @@ public static class LoginFailureReasons
     /// </remarks>
     public const string RateLimited = "rate_limited";
 
+    /// <summary>
+    /// Faz 12.7 — sosyal giriş jetonu doğrulanamadı (imza · <c>iss</c> · <c>aud</c> · süre ·
+    /// algoritma; ya da sağlayıcı kapalı).
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Sebepler <b>tek bir değere</b> düşer ve bu bilinçli: hangi kontrolün düştüğünü
+    /// istemciye söylemek saldırgana ücretsiz hata ayıklama kanalı açardı. Ayrım gerektiğinde
+    /// sunucu logunda duruyor.
+    /// 🔑 Bu satırların panelde <b>birikmesi</b> asıl sinyaldir: yanlış <c>aud</c>'lu jeton
+    /// denemeleri, başka bir uygulamanın jetonuyla giriş girişiminin ta kendisidir.
+    /// </remarks>
+    public const string BadSocialToken = "bad_social_token";
+
     public static readonly IReadOnlySet<string> All =
         new HashSet<string>(StringComparer.Ordinal)
         {
             BadPassword, BadOtp, UnknownUser, LockedOut, OtpBlocked, Banned, Inactive, RoleDenied,
-            RateLimited
+            RateLimited, BadSocialToken
         };
 }
 

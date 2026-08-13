@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using KadirliApp.Domain.Entities;
 using KadirliApp.Domain.Enums;
 
@@ -21,10 +23,26 @@ public class MyProfileDto
     public DateTime? NeighborhoodLastChangedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 
-    public static MyProfileDto FromUser(User user, string? neighborhoodName)
+    /// <summary>
+    /// Faz 12.7 — bağlı sosyal hesaplar. Boş liste = yalnız telefon + OTP.
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <b>Ayrı bir uç açılmadı, alan buraya eklendi</b> (additive — §5). Mobilin
+    /// "Bağlı hesaplar" ekranı (12.8) profili zaten çekiyor; ayrı bir <c>GET</c> ikinci bir
+    /// yuvarlak yol ve <b>ikinci bir görünürlük kuralı</b> demek olurdu. Mağazadaki eski
+    /// sürümler alanı tanımaz ve yok sayar.
+    /// </remarks>
+    public List<LinkedIdentityDto> LinkedIdentities { get; set; } = new();
+
+    public static MyProfileDto FromUser(
+        User user, string? neighborhoodName, IEnumerable<UserIdentity>? identities = null)
     {
         return new MyProfileDto
         {
+            LinkedIdentities = (identities ?? Array.Empty<UserIdentity>())
+                .OrderBy(x => x.Provider, StringComparer.Ordinal)
+                .Select(LinkedIdentityDto.FromEntity)
+                .ToList(),
             Id = user.Id,
             Phone = user.Phone,
             Email = user.Email,

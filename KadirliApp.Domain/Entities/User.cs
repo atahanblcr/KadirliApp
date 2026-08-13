@@ -50,6 +50,9 @@ public class User : BaseEntity, ISoftDeletable
     public Neighborhood? PrimaryNeighborhood { get; set; }
     public ICollection<UserNeighborhood> Neighborhoods { get; set; } = new List<UserNeighborhood>();
     public ICollection<AdminPermission> AdminPermissions { get; set; } = new List<AdminPermission>();
+
+    /// <summary>Faz 12.7 — bağlı sosyal hesaplar (Google/Apple). Boş liste = yalnız telefon+OTP.</summary>
+    public ICollection<UserIdentity> Identities { get; set; } = new List<UserIdentity>();
 }
 
 public class NotificationPreferences

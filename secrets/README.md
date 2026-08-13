@@ -142,6 +142,34 @@ tarafından **engellenir**: uyarılar üretilip kimseye gitmesindense uygulama h
 
 ---
 
+## Sosyal giriş — OAuth client id'leri (Faz 12.7)
+
+Sosyal giriş **yapılandırma gelene kadar KAPALIDIR** ve bu bilinçli: client id listesi boşsa
+sağlayıcı hiç kaydedilmez, uç `SOCIAL_PROVIDER_DISABLED` der. *"Yapılandırma yoksa geçir"*
+davranışı, sosyal girişin bir numaralı zafiyetinin (`aud` doğrulanmaması) en geniş hâli olurdu.
+
+| Anahtar | Ne yazılır | Nereden alınır |
+|---|---|---|
+| `Auth:Social:Google:ClientIds` | **Virgülle ayrılmış** OAuth 2.0 client id listesi | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs |
+| `Auth:Social:Apple:ClientIds` | **Bundle id** (ör. `app.kadirli`) — ⚠️ Google'daki gibi bir "client id" değil | Apple Developer → Identifiers → App ID (**Sign in with Apple** capability'si açık olmalı) |
+| `Auth:Social:Enabled` | `true` — yalnız **açık niyet bayrağı** | Bayrak açık ama client id boşsa `ProductionReadinessGuard` **uygulamayı açmaz** |
+
+🔴 **Google'da client id SAYICA ÇOKTUR ve hepsi yazılmalı:** Android · iOS · (varsa) Web
+ayrı client id alır. Yalnız biri yazılırsa diğer platformun kullanıcıları jeton gönderir,
+`aud` tutmaz ve **"sosyal giriş doğrulanamadı"** hatası alırlar — hata mesajı sorunun
+*yapılandırma* olduğunu söylemez. Panelde **Giriş Denemeleri → "Geçersiz sosyal jeton"**
+satırlarının birikmesi bu durumun tek görünür işaretidir.
+
+⚠️ **Bunlar sır DEĞİL** (client id'ler istemcide zaten görünür) ama yine de `appsettings.json`'a
+yazılmaz: depo herkese açık ve buraya yazılan her satır, yarın *"bunun yanına secret'ı da
+koyayım"* refleksinin davetiyesidir. Ortam değişkeniyle verin:
+`Auth__Social__Google__ClientIds=111-....apps.googleusercontent.com,222-....apps.googleusercontent.com`
+
+📌 **Apple ayağı Apple Developer aboneliğine bağlıdır** (13 Ağu 2026 itibarıyla onaylanmadı).
+Backend kodu **yazılı ve testli**, sağlayıcı yalnız yapılandırmayla kapalı duruyor.
+
+---
+
 ## Bu klasörde OLMAYAN ama gereken diğer gizli dosyalar
 
 | Dosya | Yeri | Ne için | Nasıl |

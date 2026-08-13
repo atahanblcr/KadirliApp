@@ -135,6 +135,17 @@
 @* Faz 12.2 — son giriş denemeleri. Kutu YALNIZ admin'e basılır: controller moderatöre
    boş liste döndürüyor ve burada da rol denetleniyor. İki kapı bilinçli — biri veriyi
    hiç çekmiyor, diğeri hiç çizmiyor. *@
+@* Faz 12.7 — "Bağlı hesaplar". ⚠️ Rol kapısı YOK ve bu bilinçli: kutu bir güvenlik kaydı
+   değil hesabın kendi alanını gösteriyor (kullanıcı zaten kendi profilinde görüyor) ve
+   `provider_user_id` ekrana hiç çıkmıyor. Kaldırma aksiyonu ise `users.delete` iznine tabi. *@
+<div class="mt-6">
+    <partial name="_LinkedIdentities"
+             model="@(new LinkedIdentitiesViewModel {
+                          UserId = (Guid)ViewBag.Id,
+                          Identities = ViewBag.Identities as IReadOnlyList<KadirliApp.Domain.Entities.UserIdentity>
+                                       ?? Array.Empty<KadirliApp.Domain.Entities.UserIdentity>() })" />
+</div>
+
 @if (User.IsInRole("admin") || User.IsInRole("super_admin"))
 {
     <div class="mt-6">
