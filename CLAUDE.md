@@ -156,10 +156,12 @@ literali yazma — `{` yer tutucu sanılıyor.
 varlığın bir metoduna taşımaktır (§7 madde 53 — açarsan test kırılır, bilerek). Ayrıca daha önce
 kullanılmamış bir Tailwind sınıfı yazdıysan `npm run build` çalıştır — yoksa buton
 **beyaz üstüne beyaz** çizilir (12.10 canlı bulgusu).
-📋 **İki açık test-altyapısı maddesi (T1/T2) ve bir planlanmış denetim** var:
-`Progress.md` → *"Test altyapısı — 12.15b'nin bıraktığı iki açık madde"* ve
-*"GÖRÜNMEZ SÖZLEŞME DENETİMİ"*. Denetimin özeti: 67 maddenin hepsinin testi var, sorun
-**iddiası zayıf testler** — bu projede beş fazda beş kez patladı.
+📋 **İki açık test-altyapısı maddesi (T1/T2) var** (`Progress.md` → *"Test altyapısı —
+12.15b'nin bıraktığı iki açık madde"*). **Görünmez sözleşme denetiminin Faz 0'ı (tasnif)
+koşuldu:** çıktı `Memory_Bank/Contract_Audit.md` — 67 maddenin her birinin **kilit cinsi ·
+risk · kilidi taşıyan dosya**. 67'sinin de testi var; sorun **iddiası zayıf testler** (beş
+fazda beş kez patladı) ve Faz 0 **yedi somut delik** buldu (B1–B7; en ağırı madde 16 — push
+`data` anahtarları). ⏭️ Sırada T1/T2 → Faz A (yalnız 16 maddelik kırılgan alt küme) → Faz B.
 Plan: `Memory_Bank/Progress.md` → "FAZ 12".
 
 > 🔑 **Panel süper admin parolası** `secrets/panel-admin.json`'dadır (git'e girmez; biçim ve
@@ -198,6 +200,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | **"Neyin nerede? Nasıl modül eklerim/değiştiririm/kaldırırım?"** | **`ARCHITECTURE.md`** ← harita, önce buraya bak |
 | "Mobil istemci sunucuyla nasıl konuşuyor?" | `Memory_Bank/API_CONTRACT.md` |
 | "Bu karar neden böyle verilmiş?" | `Memory_Bank/Progress.md` (faz faz) · `Memory_Bank/Active_Context.md` (son durum) |
+| **"Bu görünmez sözleşme gerçekten kilitli mi, kilidi nerede?"** | **`Memory_Bank/Contract_Audit.md`** (67 madde × kilit cinsi/risk/dosya) |
 | "Bu .NET kalıbı ne demek?" | `DOTNET_MASTERCLASS.md` |
 | "Mobil tasarım sistemi / UX kuralları?" | `Memory_Bank/MOBILE_UX_PLAN.md` |
 | "Uçların makine-okur şeması?" | `docs/openapi.json` |

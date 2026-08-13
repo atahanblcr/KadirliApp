@@ -4751,8 +4751,10 @@ kurulum kırıldı ✅ (ayrımın kanıtı) · geri doldurma boşaltıldı ❌ (
 
 ### 🔍 PLANLANDI (13 Ağustos 2026) — GÖRÜNMEZ SÖZLEŞME DENETİMİ
 
-> **Durum: yalnız plan.** Bu oturumda uygulanmadı; kullanıcı kararıyla reçete olarak
-> bırakıldı. Bir sonraki oturum buradan başlayabilir.
+> **Durum: FAZ 0 KOŞULDU (13 Ağustos 2026, ikinci oturum).** Tasnif tamamlandı, çıktısı
+> **`Memory_Bank/Contract_Audit.md`** (67 satırlık kalıcı tablo + bulgular). Faz A ve Faz B
+> henüz koşulmadı. Aşağıdaki reçete metni **olduğu gibi duruyor** — Faz 0'ın sonucu bir
+> sonraki başlıkta.
 
 #### Neden: doğru soru "testi var mı?" değil
 
@@ -4832,6 +4834,44 @@ erişemeyeceği yere taşıyabilir miyim?"* — derleyici (`init` → CS8852), v
 ⚠️ **Yapılmayacak:** 67 maddede kör bozma turu. Maliyeti birkaç oturum, bilgi getirisi ise
 tasnifin işaret ettiği alt kümeden fazla değil — 🟢 etiketli maddelerin (derleyici/DB kısıtı)
 bozulması zaten **derlenmiyor** ya da **veritabanı reddediyor**.
+
+### ✅ FAZ 0 SONUCU (13 Ağustos 2026) — tasnif koşuldu
+
+**Çıktı: `Memory_Bank/Contract_Audit.md`** — 67 satırlık kalıcı tablo (*madde · kilit cinsi ·
+risk · kilidi taşıyan dosya*). Yöntem: her maddenin kilidini taşıyan dosya **açılıp okundu**;
+test adı yeterli sayılmadı, **iddianın şekli** incelendi. Test koşturulmadı (Faz 0'ın tanımı).
+
+**Dağılım:** 🟢🟢 6 (derleyici/DB kısıtı) · 🟢 45 (davranış/saf birim) · 🟠 9 · 🔴 7.
+**Faz A'nın alt kümesi 16 madde**; kalan 51'de kör bozma turu yapılmayacak.
+
+**Ön hipotezlerin sonucu:** 51 ✅ doğrulandı (tarama yalnız `Views/**`) · 52 ✅ doğrulandı
+(modül kümesi türetiliyor ama **dosya adı deseni hâlâ elle**: `Update*.cs`) · 50 ❌ çürüdü
+(iddia iki yönlü, golden bağımlılığı yok) · 30 iddia şekli ✅ sağlam ama **kapsamı** yalnız
+Announcements · 6 🟠 kapsam eksik · 67 ✅ (T2, biliniyordu) · `ArchitectureDocTests` ailesi ✅
+(atıfların gerçekliğini denetliyor, maddenin doğruluğunu değil).
+
+🔑 **Denetimin ilk gerçek kazancı — hata sınıfının ALTINCI biçimi:** *sözleşme bir modülün
+adını taşıyor, kilit başka bir modülde duruyor.* Plandaki şüphelilerden **bağımsız yedi delik**
+bulundu ve hiçbiri bozma turu gerektirmedi (varlıkları kod okunarak kanıtlandı):
+
+- **B1 · madde 16** — push `data` sözlüğünün anahtarları. Test yalnız `notificationId`'nin
+  **varlığını** soruyor; `type`/`relatedId`/`relatedType` hiçbir yerde iddia edilmiyor.
+  Anahtar yeniden adlandırılsa **deep-link ölür**, iki süit de yeşil kalır (mobil kendi elle
+  yazdığı sözlükle test ediyor — yani madde 18 ile madde 16 arasında **bağ yok**).
+- **B2 · madde 26** — `?status=pending` public uçta etkisiz olmalı. Kural **vefat** modülünde
+  ölçülü, **ilan** modülünde değil; oysa 10.5'te iletişim telefonlarıyla sızan **ilandı**.
+- **B3 · madde 15** — kategori filtresinin **tam eşleşme** olduğunu hiçbir test ölçmüyor.
+- **B4 · madde 17** — `unreadCount`'un **filtreden bağımsız** olduğu iddia edilmiyor.
+- **B5 · madde 21** — `DbSeeder.Slugify → SlugHelper` **delegasyonu** test edilmiyor; ikinci
+  bir gerçekleme geri gelse 10.9–11.15b'nin `İ` hatası sessizce dirilir.
+- **B6 · madde 19** — izin öneki eşlemesi `[InlineData]` ile **elle** tutuluyor, gerçek aksiyon
+  kümesinden türetilmiyor. Tuzak dört kez tekrarladı ve her seferinde çözüm *listeye elle
+  eklemek* oldu — yani koruma değil **ritüel**.
+- **B7 · madde 6** — sözleşme üç gün alanı sayıyor, test ikisini ölçüyor (`funeralDate` yok).
+
+📌 Ders: `ARCHITECTURE.md` §7'nin *"1–22 `InvisibleContractsTests.cs`"* satırı **yanlış** —
+o dosyada 12 test var, 13–22 başka dosyalarda yaşıyor. Doküman testi bunu söylemiyor çünkü
+**atıfların gerçekliğini** denetliyor, maddenin doğruluğunu değil.
 
 ### 🧹 Test altyapısı — 12.15b'nin bıraktığı iki açık madde
 

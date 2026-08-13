@@ -79,14 +79,23 @@
 > kullanıcıları **ilgisiz** bir testi kırdı (süper admin listenin ilk sayfasından düştü).
 > **Backend 1099 → 1106, mobil 822. Görünmez sözleşme 66 → 67.**
 >
-> 📋 **PLANLANDI (uygulanmadı): görünmez sözleşme denetimi.** 67 maddenin **67'sinin de**
-> testi var; bu projede beş fazda beş kez patlayan şey **iddiası zayıf test** (12.11 tarama
-> kapsamı · 12.6 golden toleransı · 12.13 yanlış nesneye bakan test · 12.14 taşma testi ·
-> 12.15b migration). Reçete `Progress.md` → *"GÖRÜNMEZ SÖZLEŞME DENETİMİ"*: **Faz 0** kilit
-> cinsine göre tasnif (kod okumak yeterli) → **Faz A** yalnız kırılgan alt kümede bozma turu
-> → **Faz B** delikleri *taramanın erişemeyeceği yere taşıyarak* kapat.
-> ⚠️ **Ön koşulu T1/T2** (aşağıdaki açık maddeler): biriken test kullanıcıları bozma turunun
-> sonuçlarını zehirler.
+> 📋 **Görünmez sözleşme denetimi — FAZ 0 KOŞULDU (13 Ağustos 2026, ikinci oturum).**
+> 67 maddenin **67'sinin de** testi var; bu projede beş fazda beş kez patlayan şey **iddiası
+> zayıf test** (12.11 tarama kapsamı · 12.6 golden toleransı · 12.13 yanlış nesneye bakan test
+> · 12.14 taşma testi · 12.15b migration). Tasnif tamamlandı, çıktısı **kalıcı**:
+> **`Memory_Bank/Contract_Audit.md`** (67 satır: *madde · kilit cinsi · risk · dosya*).
+> **Dağılım:** 🟢🟢 6 · 🟢 45 · 🟠 9 · 🔴 7 → **Faz A'nın alt kümesi 16 madde**, kalan 51'de
+> kör bozma turu yok. Ön hipotezlerden **51 ve 52 doğrulandı** (52: modül kümesi türetiliyor
+> ama taranan **dosya adı deseni hâlâ elle** — 12.11'in dersi aynı testte ayakta), **50
+> çürüdü** (iddia iki yönlü, golden bağımlılığı yok).
+> 🔑 **Faz 0 plandan bağımsız YEDİ delik buldu (B1–B7)** ve hata sınıfının **altıncı biçimini**
+> adlandırdı: *sözleşme bir modülün adını taşıyor, kilit başka bir modülde duruyor.* En ağırı
+> **B1 (madde 16)**: push `data` anahtarlarından yalnız `notificationId`'nin **varlığı**
+> iddia ediliyor — `relatedType` yeniden adlandırılsa **deep-link ölür ve iki süit de yeşil
+> kalır**. **B2 (madde 26)**: kural vefatta ölçülü, **ilanda değil** — oysa 10.5'te telefonla
+> sızan ilandı. Hiçbiri bozma turu gerektirmiyor (varlıkları kod okunarak kanıtlandı).
+> ⏭️ Sırada **T1/T2** (ön koşul) → **Faz A** (16 madde) → **Faz B** (delikleri *taramanın
+> erişemeyeceği yere taşıyarak* kapat).
 >
 > ⏭️ **Sırada:** 12.7/12.8 sosyal giriş (Faz 12'nin açık kalan tek maddesi) · **12.16 adayı**
 > kategori bazlı bildirim aboneliği (12.15'in elle gönderimi canlıda doğrulandıktan sonra;

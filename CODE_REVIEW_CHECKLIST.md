@@ -171,6 +171,7 @@
 |---|---|---|
 | `API_CONTRACT.md` yeni/değişen uç ve DTO alanlarını yansıtıyor mu? | Flutter tarafının tek referansı; `docs/openapi.json` da yenilenmeli. | ARCHITECTURE.md §4 adım 10 |
 | Yeni bir "görünmez sözleşme" (koda bakarak anlaşılmayan, bozulunca sessiz hasar veren bağımlılık) doğdu mu? | Doğduysa `ARCHITECTURE.md` §7 tablosuna satır + `InvisibleContractsTests`'e karşılık gelen test eklenmeli. | ARCHITECTURE.md §7 |
+| 🔍 **YENİ (Faz 0 denetimi)** Yeni sözleşmenin kilidini `Memory_Bank/Contract_Audit.md`'ye **cinsiyle** yazdın mı? | *"Testi var"* ≠ *"kilitli"*. Tabloya madde numarası, **kilit cinsi** (derleyici/DB kısıtı 🟢🟢 · davranış 🟢 · istemci/elle kapsam 🟠 · kaynak taraması/golden/kuruluma bağlı 🔴) ve **iddianın sözleşmenin hangi yüzünü** tuttuğu yazılır. 🔑 Faz 0'ın bulduğu altıncı hata biçimi tam burada doğuyor: *sözleşme bir modülün adını taşıyor, kilit başka bir modülde duruyor* (madde 26 vefatta ölçülü, **ilanda değil**) ya da *sözleşme dört anahtar sayıyor, test birinin varlığına bakıyor* (madde 16). Kilidin **kapsamını yaz**, adını değil. | ARCHITECTURE.md §7, `Memory_Bank/Contract_Audit.md` |
 | `Memory_Bank/Progress.md`'ye oturum özeti düşüldü mü (kararlar + gerçek hatalar + doğrulama)? | Proje bu formatı kronolojik hafıza olarak kullanıyor; büyük değişikliklerde atlanmamalı. | ARCHITECTURE.md giriş tablosu |
 
 ---

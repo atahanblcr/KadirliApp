@@ -389,7 +389,10 @@ tam süiti koşmadan commit etme.
 ## 7. 🔑 GÖRÜNMEZ SÖZLEŞMELER
 
 Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıklar (**67 madde**). Hepsi
-**testle kilitli** — 1–22 `KadirliApp.Tests/Integration/Contracts/InvisibleContractsTests.cs`,
+**testle kilitli** — 1–22 `KadirliApp.Tests/Integration/Contracts/InvisibleContractsTests.cs`
+(⚠️ **bu satır yaklaşıktır**: o dosyada 12 test var, 13–22'nin kilitleri başka dosyalarda —
+maddenin gerçekten hangi dosyada kilitli olduğu **`Memory_Bank/Contract_Audit.md`**'de satır
+satır yazılı),
 **23–26 (Faz 11.15c)** `Integration/Panel/PanelBusinessRuleTests.cs`, **27 (Faz 11.17)**
 `Integration/Panel/PanelPowerOutageFilterTests.cs`, **28 (Faz 11.17)**
 `Integration/Panel/PanelTrashTests.cs`, **29 (Faz 11.18)**
@@ -448,6 +451,14 @@ mümkün ve o durumda kaynak taraması yeşil kalır, panel korumasız çalış�
 belirti olmaz. Çalışma anındaki üçüncü ayak `Unit/Web/PanelAssetGuardTests.cs`.
 Biri kırmızıya dönerse ya sözleşme
 bilinçli değişmiştir (o zaman burayı ve mobil istemciyi aynı commit'te güncelle) ya da kazadır.
+
+🔍 **"Testi var" ≠ "kilitli".** 13 Ağustos 2026'da bu tablonun **kilit denetimi** koşuldu
+(Faz 0 — tasnif): her maddenin kilidini taşıyan dosya açıldı ve **iddianın şekli** incelendi.
+Sonuç `Memory_Bank/Contract_Audit.md`: 67 satırlık kalıcı tablo (*madde · kilit cinsi · risk ·
+dosya*), risk dağılımı 🟢🟢 6 · 🟢 45 · 🟠 9 · 🔴 7 ve **yedi somut delik** (B1–B7) — en ağırı
+**madde 16**: push `data` anahtarlarından yalnız `notificationId`'nin *varlığı* iddia ediliyor.
+Yeni bir sözleşme yazarken oraya da bir satır ekle: madde numarası, kilidin **cinsi** ve
+neden o cinsin yeterli olduğu.
 
 | # | Sözleşme | Bozulursa ne olur |
 |---|---|---|
