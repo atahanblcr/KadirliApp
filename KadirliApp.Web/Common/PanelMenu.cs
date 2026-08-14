@@ -53,6 +53,11 @@ public static class PanelMenu
         new("GuideAdmin",         "fa-map-marked-alt",  "Şehir Rehberi",        "guide"),
         new("ComplaintsAdmin",    "fa-flag",            "Şikayetler",           "complaints"),
         new("LookupsAdmin",       "fa-tags",            "Tanımlar",             "lookups"),
+        // Faz 12.16 — hukuki belgeler (KVKK). Matrise GİRİYOR (Module dolu): metni yazmak ve
+        // düzeltmek bir içerik işidir, `announcements`/`news` ile aynı sınıf. ⚠️ Kritik olan
+        // YAYINLAMA ve o ayrı bir izne bağlı (`Publish` → `approve`, §7 madde 19).
+        // ⚠️ Rıza defteri AYRI ve matris DIŞI: o ekran IP/tarayıcı taşıyor.
+        new("LegalAdmin",         "fa-file-contract",   "Hukuki Metinler",      "legal"),
         // Personel yönetimi bilinçli olarak matrisin DIŞINDA: izin veren rolü, izinleri
         // kendine yazabilecek biri yönetmemeli.
         //
@@ -90,7 +95,11 @@ public static class PanelMenu
         // etkileyen bir alım koşusu başlatıyor. Matriste olsaydı aksiyon adı (`Create`)
         // `create` iznine düşer ve "haberler: ekleme" yetkisi verilmiş bir moderatör
         // kaynaktan toplu çekim tetikleyebilirdi. Ayrıca pano imleç/hata ayrıntısı taşıyor.
-        new("NewsSyncAdmin",      "fa-rotate",          "Haber Senkronu",       null)
+        new("NewsSyncAdmin",      "fa-rotate",          "Haber Senkronu",       null),
+        // Faz 12.16 — rıza defteri. Module NULL, gerekçe `LoginAttemptsAdmin`'inkiyle birebir:
+        // satırlar IP adresi ve tarayıcı imzası taşıyor. Ayrıca defter yalnız okunur —
+        // düzeltilebilen bir kanıt kanıt değildir.
+        new("ConsentLedgerAdmin", "fa-file-signature",  "Rıza Defteri",         null)
     };
 
     /// <summary>
@@ -107,7 +116,7 @@ public static class PanelMenu
         new HashSet<string>(StringComparer.Ordinal)
         {
             "StaffAdmin", "AuditLogsAdmin", "TrashAdmin", "ErrorLogsAdmin", "LoginAttemptsAdmin",
-            "PushCampaignsAdmin", "NewsSyncAdmin"
+            "PushCampaignsAdmin", "NewsSyncAdmin", "ConsentLedgerAdmin"
         };
 
     /// <summary>

@@ -80,10 +80,25 @@ public class AuthController : ControllerBase
             });
     }
 
+    /// <summary>
+    /// Kayıt tamamlama. Faz 12.16'dan beri gövdede <c>consents</c> taşıyabilir.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 Rıza kaydının bağlamı (<b>IP · tarayıcı</b>) <b>SUNUCUDA</b> doldurulur ve gövdeden
+    /// geleni <b>ezer</b> (§7 madde 33'ün <c>ErrorLog.Source</c> kararının aynısı): istemci
+    /// bunları söyleyebilseydi, "kim nereden onayladı" sütunu kanıt değil <b>istemcinin
+    /// iddiası</b> olurdu — üstelik rıza defteri tam da o soruyu cevaplamak için var.
+    /// </remarks>
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterCommand command)
     {
-        return Ok(await _mediator.Send(command));
+        var enriched = command with
+        {
+            IpAddress = HttpContext.Connection.RemoteIpAddress,
+            UserAgent = Request.Headers.UserAgent.ToString()
+        };
+
+        return Ok(await _mediator.Send(enriched));
     }
 
     [HttpPost("refresh")]

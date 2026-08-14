@@ -90,7 +90,16 @@ public sealed class PanelPermissionFilter : IAsyncAuthorizationFilter
         // kuralı). ⚠️ `Feature` **tek anahtardır** (`Feature(id, isFeatured)` — aç/kapa aynı
         // aksiyon), bu yüzden `Unarchive`/`Unverify` gibi ikinci bir `Un…` satırı GEREKMEZ;
         // ama ileride ayrı bir `Unfeature` yazılırsa o da **elle** eklenmelidir.
-        if (StartsWithAny(actionName, "Approve", "Reject", "Verify", "Unverify", "Ban", "Unban", "UpdateStatus", "Resolve", "Archive", "Unarchive", "SendNotification", "Feature"))
+        // 🔴 Faz 12.16'da "Publish" ELLE eklendi — §7 madde 19'un YEDİNCİ tekrarı
+        // (BulkApprove 11.18 · Archive 12.10 · Unarchive 12.13 · SendNotification 12.15 ·
+        // ResetOverrides + Feature Faz 0 · Publish 12.16). Ad hiçbir önekle eşleşmiyor ve
+        // POST olduğu için sessizce "update"e düşerdi. Sonuç, listedeki en ağırlarından
+        // biri olurdu: **yalnız başlık düzeltme yetkisi olan bir moderatör, şehrin tamamının
+        // onayladığı hukuki metni değiştirebilirdi** — üstelik "yayınla" tek yönlüdür,
+        // yayınlanan metin geri alınamaz (yalnız yenisiyle değiştirilir).
+        // ⚠️ Hukuki metin ekranı (LegalAdmin) izin matrisinin İÇİNDE, yani moderatöre açık —
+        // tuzak burada teorik değil.
+        if (StartsWithAny(actionName, "Approve", "Reject", "Verify", "Unverify", "Ban", "Unban", "UpdateStatus", "Resolve", "Archive", "Unarchive", "SendNotification", "Feature", "Publish"))
             return "approve";
 
         if (Contains(actionName, "Delete") || Contains(actionName, "Remove")) return "delete";

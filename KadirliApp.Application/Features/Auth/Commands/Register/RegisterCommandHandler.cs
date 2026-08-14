@@ -1,5 +1,6 @@
 using KadirliApp.Application.Common.Exceptions;
 using KadirliApp.Application.Common.Interfaces;
+using KadirliApp.Application.Features.Legal;
 using KadirliApp.Domain.Entities;
 using KadirliApp.Domain.Enums;
 using MediatR;
@@ -11,11 +12,13 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Au
 {
     private readonly IJwtProvider _jwtProvider;
     private readonly IUnitOfWork _uow;
+    private readonly LegalSettings _legal;
 
-    public RegisterCommandHandler(IJwtProvider jwtProvider, IUnitOfWork uow)
+    public RegisterCommandHandler(IJwtProvider jwtProvider, IUnitOfWork uow, LegalSettings legal)
     {
         _jwtProvider = jwtProvider;
         _uow = uow;
+        _legal = legal;
     }
 
     public async Task<AuthTokens> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -82,6 +85,27 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Au
         // bırakır ve kullanıcı bir daha o düğmeyle giremezdi.
         if (socialIdentity is not null)
             await SocialIdentityLinker.AttachToNewUserAsync(_uow, user, socialIdentity, cancellationToken);
+
+        // 🔴 Faz 12.16 — KVKK rızaları kullanıcı ile AYNI SaveChanges'te yazılır (§7 madde 73).
+        // Ayrı yazılsalardı araya düşen bir hata RIZASIZ BİR HESAP bırakırdı: uygulama
+        // çalışır, uçlar 200 döner ve o hesabın verisini işlemenin dayanağı hiçbir yerde
+        // olmaz. Sosyal kimlikle aynı desen ve aynı gerekçe (12.7).
+        var consentResult = await LegalConsentWriter.AttachToNewUserAsync(
+            _uow,
+            user,
+            request.Consents,
+            new ConsentContext(ConsentSources.Registration, request.IpAddress, request.UserAgent),
+            _legal.RequireConsentAtRegistration,
+            DateTime.UtcNow,
+            cancellationToken);
+
+        // 🔑 Reddetmek YETMEZ, SEBEBİNİ SÖYLEMEK gerekir: "kayıt olamıyorum" diyen bir
+        // kullanıcının ekranında hangi kutunun eksik olduğu yazmalı. Sessizce kaydetmek ise
+        // bu bloğun kapatmaya çalıştığı hasarın ta kendisi olurdu.
+        if (!consentResult.IsValid)
+            throw new AppException(
+                $"Kaydı tamamlamak için \"{consentResult.MissingDocumentTitle}\" onayı zorunludur.",
+                "MISSING_CONSENT");
 
         await _uow.SaveChangesAsync(cancellationToken);
 

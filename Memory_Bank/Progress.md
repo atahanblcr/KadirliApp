@@ -20,8 +20,7 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | Madde | Nerede | Durum / blokaj |
 |---|---|---|
 | **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
-| **12.16 — KVKK: belge yönetimi + rıza kaydı** | `### 12.16` | 🔴 **Planı yazılı ve 8 kararı ONAYLANDI (14 Ağu); kod yok. En yüksek öncelik.** Bugün bedeli **sıfır**; mağazaya çıktıktan sonra §5 kırıcı-değişiklik olur. ⚠️ Onayın kısıtı: *yapıyı/mimariyi bozmadan* — 18 adımlı reçete + ikinci sahip yasağı |
-| **12.17 — KVKK: mobil** | `### 12.17` | 12.16'ya bağlı |
+| **12.17 — KVKK: mobil** | `### 12.17` | 🟢 **Backend hazır (14 Ağu).** Uçlar canlı, `consents` additive, kapı açık. Mobil tarafta kod yok |
 
 ### B. Karar bekleyenler (kod değil, tercih)
 
@@ -5298,7 +5297,7 @@ yazdığını ezer"*) üçüncü biçimi: **bir kayıt, kendisini anlamlı kıla
 
 | # | Alt-faz | Katman | Şema | Tahmini test |
 |---|---|---|---|---|
-| **12.16** | **KVKK: belge yönetimi + rıza kaydı** | backend + panel | ✔ | ~35 backend |
+| **12.16** | **KVKK: belge yönetimi + rıza kaydı** ✅ | backend + panel | ✔ | ~35 backend → **gerçekleşen: 62** |
 | **12.17** | **KVKK: mobil** (kayıt akışında rıza · metin ekranı · ayarlardan görüntüleme) | mobil | — | ~20 mobil |
 
 ⚠️ **Numaralandırma değişti:** *kategori bazlı bildirim aboneliği* 12.16 adayıydı,
@@ -5307,7 +5306,7 @@ daha önemli"* — ve yukarıdaki zamanlama gerçeği (mağazaya çıkmadan yap�
 
 ---
 
-### 12.16 — KVKK: belge yönetimi + rıza kaydı — [ ]
+### 12.16 — KVKK: belge yönetimi + rıza kaydı — [x] ✅ TAMAMLANDI (14 Ağustos 2026)
 
 #### Alan modeli
 
@@ -5383,6 +5382,110 @@ söylüyor** · rıza satırı **kullanıcıyla aynı işlemde** yazılıyor (bo
 kaldırılınca kayıt da geri alınıyor mu?) · `?type=` ucu **anonim** çalışıyor ·
 `Publish` aksiyonu **`approve`** iznine düşüyor (yalnız `update` yetkisi olan moderatör
 reddediliyor) · hesap silindiğinde rıza satırı **duruyor**.
+
+
+#### ✅ Ne teslim edildi (14 Ağustos 2026)
+
+**Backend 1182 → 1244 (+62), mobil 824 (değişmedi — 12.16 mobile dokunmadı).
+Görünmez sözleşme 70 → 74.**
+
+- **Üç tablo:** `legal_documents` (belgenin *kimliği*) · `legal_document_versions`
+  (*metnin kendisi*) · `user_consents` (kimin hangi **sürüme** rıza verdiği).
+- **İki anonim uç:** `GET /v1/legal/documents(?registrationOnly=)` ve `.../{type}`.
+- **`register` gövdesinde additive `consents`** + `GET/POST /v1/users/me/consents`.
+- **Panel:** *Hukuki Metinler* (matriste, `legal`) — belge ayarları · sürüm geçmişi ·
+  taslak aç/düzenle · önizle · **yayınla**; ve *Rıza Defteri* (**yalnız admin**).
+- **18 adımlı reçete** eksiksiz izlendi; tek bilinçli sapma aşağıda (admin API controller'ı).
+
+#### ⚙️ Alınan kararlar
+
+| # | Karar | Gerekçe |
+|---|---|---|
+| 1 | **`DbSeeder` belgelerin yalnız KABUĞUNU açar, metnini SEED ETMEZ** | Seed edilmiş bir "örnek KVKK metni" er ya da geç yayına çıkar ve vatandaş, hiçbir hukukçunun okumadığı bir metne rıza vermiş olur. 12.5'in "tahmini koordinat yazma" kuralının hukuki metin hâli: **yanlış doldurmak boş bırakmaktan kötüdür.** Sonuç: taze kurulumda zorunlu belge yok → kayıt akışı **birebir eskisi gibi** çalışıyor |
+| 2 | **Yayında sürümü olmayan belge ZORUNLU OLAMAZ** (`LegalConsentRules`) | Planda yoktu, denetimde bulundu. Sayılmasaydı `IsMandatory` işaretli ama metni yayınlanmamış bir belge **kaydı tamamen kilitlerdi**: istemci gösterecek metin bulamaz, sunucu onaysız kaydı reddeder, uygulama **hiç yeni kullanıcı alamaz**. Belirti "kayıt olmuyor", sebep hiçbir ekranda yazmaz — 12.15'in *"görünmezliğin KAÇ ekseni var?"* dersinin tekrarı. Panel bu tutarsızlığı **uyarı olarak** gösteriyor, kural onu **yutmuyor** |
+| 3 | **Yayında olmayan sürüme rıza YAZILMAZ** (kullanıcı formu doldururken yeni sürüm yayınlandıysa kayıt reddedilir) | Alternatifi — eski sürümün onayını kabul etmek — yürürlükten kalkmış bir metne dayanan kayıt üretirdi. Yayınlama nadir, sessizce yanlış kanıt **geri alınamaz** |
+| 4 | **Public uçlar ÖNBELLEKLENMİYOR** (projede benzer sözlük uçları önbellekli) | §7 madde 22'nin hasarı burada en kötü biçimini alırdı: yönetici yeni sürümü yayınlar, vatandaş 15 dk **yürürlükten kalkmış metni** okur ve **ona** rıza verir. Uç kayıt akışında **bir kez** çağrılıyor; kazanç ihmal edilebilir. 📌 Grup açıp her mutasyona invalidator yazmak da bir sonraki komutta unutulabilirdi — kural testi *"her grubun invalidator'ı var mı"*ya bakar, *"her mutasyon invalidate ediyor mu"*ya değil |
+| 5 | **`Publish` öneki `ActionFor`'a ELLE eklendi → `approve`** | §7 madde 19'un **YEDİNCİ** tekrarı. Eklenmeseydi POST olduğu için sessizce `update`'e düşerdi: *yalnız başlık düzeltme yetkisi olan moderatör, şehrin tamamının onayladığı hukuki metni değiştirebilirdi* — üstelik yayınlama **tek yönlü** |
+| 6 | **Rıza defteri AYRI controller ve matris DIŞI** | `AdminOnlyControllers` deseni: satırlar **IP ve tarayıcı imzası** taşıyor (`LoginAttemptsAdmin` ile birebir aynı gerekçe). Defterde **silme/düzeltme aksiyonu yok** — düzeltilebilen bir kanıt kanıt değildir |
+| 7 | **Admin API controller'ı (`/v1/admin/legal`) YAZILMADI** — reçetenin 7. adımından bilinçli sapma | Modül **panel-only**. Aynı karar 12.12–12.13'te Haberler, 12.1'de Hata Kayıtları, 12.2'de Giriş Denemeleri ve 12.2b'de Bildirim Gönderimleri için verilmişti: hiçbir istemcinin çağırmadığı bir uç kümesi, bakımı yapılmayan **ikinci bir yüzeydir** |
+| 8 | **Zorunluluk kapısı `Legal:RequireConsentAtRegistration`, varsayılan `true`** | Uygulama mağazada değil → bugün bedeli sıfır. ⚠️ Değer **çözülme anında** okunuyor, DI kaydında değil — 12.7'nin bulduğu gerçek hatanın tekrarı olmasın diye |
+
+#### 🐛 BOZMA TURU KOŞULDU — VE **GERÇEK BİR HATA BULDU**
+
+Altı kilit tek tek bozuldu:
+
+| Bozma | Sonuç |
+|---|---|
+| Doğrulama `SaveChanges`'ten **sonraya** alındı (madde 73) | 🔴 kırmızı |
+| Rıza **belgeye** bağlandı (madde 71, kısmi) | 🟢 **yeşil kaldı** — bkz. aşağıdaki not |
+| Sunucu sürümü **kendi** seçti (madde 71, tam) | 🔴 **5 test** kırmızı |
+| `TryRevise` yayınlanmış sürümü de yazdı (madde 72) | 🔴 **4 test** kırmızı |
+| Hesap silme rızaları da sildi (madde 74) | 🔴 kırmızı |
+| `Publish` öneki kaldırıldı (madde 19) | 🔴 kırmızı |
+
+🔬 **İkinci bozmanın yeşil kalması bir delik DEĞİL, bir ölçüm:** `Validate`'i belgeye
+çevirmek davranışı değiştirmiyor, çünkü kabul edilen küme zaten **yalnız yayındaki
+sürümleri** içeriyor — yani iki gerçeklem semantik olarak aynı. Kilidin **taşıyıcısı
+`Validate` değil `LiveVersionsAsync`**; bu, 12.7'nin *"iki bağımsız sebep koruyorsa hangisini
+tuttuğunu ölç"* dersinin uygulanması ve `Contract_Audit.md`'ye o hâliyle yazıldı.
+
+🔴 **VE BOZMA TURU PLANDA OLMAYAN GERÇEK BİR HATA BULDU (fazın en değerli anı).**
+`Publish` komutu "eskiyi yürürlükten kaldır + yeniyi yayınla"yı **tek `SaveChanges`**'te
+yapıyordu ve testler üst üste **üç kez yeşil** koştu. Bozma turunda beklenmedik bir davranış
+görülünce ölçüldü: aynı senaryonun **8 koşusundan 5'i**
+`23505: duplicate key value violates unique constraint
+"ix_legal_document_versions_one_live_per_document"` ile düşüyordu.
+
+- **Sebep:** kısmi unique indeks Postgres'te **deyim başına** denetlenir ve **ertelenemez**
+  (`DEFERRABLE` yalnız *kısıtlarda* var; kısmi unique indeks kısıt olamaz çünkü UNIQUE
+  constraint `WHERE` kabul etmez). EF ise aynı tablonun UPDATE'lerini **birincil anahtar
+  sırasına** göre gönderiyor ve anahtarlar `gen_random_uuid()` — yani sıra **rastgele**.
+  Yeni sürüm önce yazıldığında iki satır bir an için indeksin koşulunu sağlıyor.
+- **Neden bu kadar sinsi:** hata **her seferinde değil**, yayınlanan sürümün GUID'i
+  eskisinden küçük geldiğinde çıkıyor. *"Bende çalışıyor"* diyen geliştirici **haklı**.
+- **Çözüm:** iki `SaveChanges`, **tek işlemde**. Bunun için `IUnitOfWork`'e
+  `ExecuteInTransactionAsync` eklendi. 🐛 Yan bulgu: var olan `BeginTransactionAsync`
+  **bugüne kadar hiç çağrılmamış** ve çağrıldığı an patlıyor —
+  `EnableRetryOnFailure` elle açılan işlemleri reddediyor. Yani arayüzde **çalışmayan bir
+  kapı** duruyordu; artık uyarısı yazılı ve doğru kapı yanında.
+- **Kilit:** `LegalPublishTests` geçişi **10 kez** tekrarlıyor (tek turluk bir test bu hatayı
+  **%37 olasılıkla kaçırırdı** — ve tam olarak öyle de olmuştu).
+  🔑 **Ders: rastgeleliğe bağlı bir hata, tek koşuluk bir testle kilitlenemez.**
+
+#### 🐛 Projenin kendi korumaları iki hata daha yakaladı
+
+- **`data-confirm` `<button>`'a yazılmıştı** → `PanelConfirmDialogTests` kırmızı. `panel.js`'in
+  dinleyicisi **submit olayında formun** özniteliğine bakıyor; butonda duran bir `data-confirm`
+  onay penceresini **sessizce hiç açmaz** → geri alınamaz bir aksiyon (yayınlama) tek tıkla,
+  uyarısız koşardı. Öznitelik forma taşındı.
+- **Bir Razor YORUMUNDA geçen açı parantezli betik etiketi** → `PanelExternalOriginTests`
+  kırmızı (görünümün ham metnini tarıyor). Koruma gevşetilmedi, **yorum** düzeltildi.
+- ➕ Ayrıca iç içe `<form>` yazılmıştı (yayınla butonu düzenleme formunun içinde): tarayıcı
+  içtekini sessizce atar — buton çizilir, tıklanır, hiçbir şey olmaz. `form=` bağıyla çözüldü.
+
+#### 📌 Bitti kriteri — madde madde
+
+- ✅ Panelden yeni bir KVKK sürümü yayınlanıyor (`LegalPublishTests`, 10 tur)
+- ✅ Yayınlanmış sürüm **düzenlenemiyor**: derleyici (`CS8852`) + komut reddi + panelde form
+  **hiç çizilmiyor** (`PanelLegalTests`)
+- ✅ Zorunlu rıza olmadan `register` **reddediliyor ve sebebini söylüyor** (`MISSING_CONSENT`
+  + belge adı)
+- ✅ Rıza satırı **kullanıcıyla aynı işlemde** yazılıyor — bozma turu koşuldu, kırmızı
+- ✅ `{type}` ucu **anonim** çalışıyor; tanınmayan tür **404** (varsayılana düşmüyor)
+- ✅ `Publish` aksiyonu **`approve`** iznine düşüyor (yalnız `update` yetkisi olan moderatör
+  reddediliyor — iddia **duruma değil kaydın kendisine** bakıyor)
+- ✅ Hesap silindiğinde rıza satırı **duruyor**, kullanıcı **anonimleşiyor** (iki yönlü iddia)
+- ✅ Onayın üç ek kısıtı: 18 adımlı reçete (tek bilinçli sapma **yazılı**) · **ikinci sahip
+  yok** (rıza geri alma → mevcut `DELETE /v1/users/me`, izin → `PanelMenu`'den türeyen
+  anahtar, iz → `IAuditableCommand`) · `consents` **additive** + **yapılandırma kapısı**
+
+#### ⏭️ 12.16'dan çıkan açık maddeler
+
+- **12.17 (mobil)** — backend hazır, uçlar canlı. ⚠️ 12.17 yazılana kadar zorunlu bir belge
+  **yayınlanmamalı**: yayınlandığı an emülatördeki kayıt akışı `MISSING_CONSENT` alır
+  (kapı `Legal:RequireConsentAtRegistration=false` ile geçici olarak kapatılabilir).
+- **Metin yazımı bir İNSAN işi** — panelde belgeler kabuk hâlinde duruyor, metinleri
+  yönetici/hukukçu yazacak. Kod bunu bekliyor, tahmin etmiyor.
 
 ---
 

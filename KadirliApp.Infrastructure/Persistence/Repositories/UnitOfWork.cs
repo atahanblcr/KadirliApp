@@ -53,4 +53,23 @@ public class UnitOfWork : IUnitOfWork
     {
         return _db.Database.BeginTransactionAsync();
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// 🔑 Yeniden deneme stratejisi (<c>EnableRetryOnFailure</c>) elle açılan işlemleri
+    /// reddediyor; tek meşru yol stratejinin <b>kendi</b> yürütücüsünden geçmek. Blok
+    /// bir bağlantı hatasında <b>bütünüyle</b> yeniden koşar — bu yüzden içindeki iş
+    /// tekrarlanabilir olmalı (12.16'da: iki UPDATE, ikisi de idempotent geçişler).
+    /// </remarks>
+    public async Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken ct = default)
+    {
+        var strategy = _db.Database.CreateExecutionStrategy();
+
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(ct);
+            await work();
+            await transaction.CommitAsync(ct);
+        });
+    }
 }

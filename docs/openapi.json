@@ -4062,6 +4062,50 @@
                 }
             }
         },
+        "/v1/legal/documents": {
+            "get": {
+                "tags": [
+                    "Legal"
+                ],
+                "parameters": [
+                    {
+                        "name": "registrationOnly",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/v1/legal/documents/{type}": {
+            "get": {
+                "tags": [
+                    "Legal"
+                ],
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/v1/admin/lookups/neighborhoods": {
             "get": {
                 "tags": [
@@ -6884,6 +6928,47 @@
                 }
             }
         },
+        "/v1/users/me/consents": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveConsentsDto"
+                            }
+                        },
+                        "text/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveConsentsDto"
+                            }
+                        },
+                        "application/*+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveConsentsDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/v1/admin/users": {
             "get": {
                 "tags": [
@@ -7265,6 +7350,43 @@
                 },
                 "additionalProperties": false
             },
+            "AddressFamily": {
+                "enum": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16,
+                    17,
+                    18,
+                    19,
+                    21,
+                    22,
+                    23,
+                    24,
+                    25,
+                    26,
+                    28,
+                    29,
+                    65536,
+                    65537,
+                    -1
+                ],
+                "type": "integer",
+                "format": "int32"
+            },
             "BanBody": {
                 "type": "object",
                 "properties": {
@@ -7383,6 +7505,19 @@
                         "type": "integer",
                         "format": "int32",
                         "readOnly": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "ConsentDecisionDto": {
+                "type": "object",
+                "properties": {
+                    "versionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "granted": {
+                        "type": "boolean"
                     }
                 },
                 "additionalProperties": false
@@ -9271,6 +9406,48 @@
                 },
                 "additionalProperties": false
             },
+            "IPAddress": {
+                "type": "object",
+                "properties": {
+                    "addressFamily": {
+                        "$ref": "#/components/schemas/AddressFamily"
+                    },
+                    "scopeId": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "isIPv6Multicast": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "isIPv6LinkLocal": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "isIPv6SiteLocal": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "isIPv6Teredo": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "isIPv6UniqueLocal": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "isIPv4MappedToIPv6": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "address": {
+                        "type": "integer",
+                        "format": "int64",
+                        "deprecated": true
+                    }
+                },
+                "additionalProperties": false
+            },
             "IntercityRouteResponseDto": {
                 "type": "object",
                 "properties": {
@@ -9832,6 +10009,20 @@
                     "socialToken": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "consents": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ConsentDecisionDto"
+                        },
+                        "nullable": true
+                    },
+                    "ipAddress": {
+                        "$ref": "#/components/schemas/IPAddress"
+                    },
+                    "userAgent": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "additionalProperties": false
@@ -9947,6 +10138,22 @@
                     "newPassword": {
                         "type": "string",
                         "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "SaveConsentsDto": {
+                "type": "object",
+                "properties": {
+                    "consents": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ConsentDecisionDto"
+                        },
+                        "nullable": true
+                    },
+                    "isReconsent": {
+                        "type": "boolean"
                     }
                 },
                 "additionalProperties": false
@@ -11632,7 +11839,7 @@
         "securitySchemes": {
             "Bearer": {
                 "type": "http",
-                "description": "JWT access token — sadece token'ı yapıştırın ('Bearer' öneki otomatik).",
+                "description": "JWT access token \u2014 sadece token'\u0131 yap\u0131\u015ft\u0131r\u0131n ('Bearer' \u00f6neki otomatik).",
                 "scheme": "bearer",
                 "bearerFormat": "JWT"
             }
@@ -11701,6 +11908,9 @@
         },
         {
             "name": "KadirliApp.Api"
+        },
+        {
+            "name": "Legal"
         },
         {
             "name": "LookupsAdmin"

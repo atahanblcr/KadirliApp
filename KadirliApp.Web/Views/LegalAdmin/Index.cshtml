@@ -1,0 +1,178 @@
+@using KadirliApp.Web.Common
+@model List<KadirliApp.Application.Features.Legal.Dtos.LegalDocumentAdminDto>
+@{
+    ViewData["Title"] = "Hukuki Metinler";
+}
+
+<div class="mb-6">
+    <h2 class="text-2xl font-semibold text-gray-800">Hukuki Metinler</h2>
+    <p class="mt-1 text-sm text-gray-500">
+        KVKK aydınlatma metni, açık rıza metni ve kullanım koşulları burada yönetilir.
+        <strong>Yayınlanmış bir metin değiştirilemez</strong> — kullanıcıların onayı o metne
+        verildi. Değişiklik için <strong>yeni bir sürüm</strong> açılır; eski sürüm ve ona
+        verilmiş rızalar olduğu gibi durur.
+    </p>
+</div>
+
+@* 🔴 Yayında sürümü olmayan zorunlu belge, kayıt ekranında SORULMAZ (sorulsaydı istemci
+   gösterecek metin bulamaz ve uygulama hiç yeni kullanıcı alamazdı). Bu durum sessiz
+   kalmamalı — yönetici "zorunlu yaptım" sanıp hiçbir şey olmadığını görmemeli. *@
+@{
+    var mandatoryWithoutText = Model.Where(d => d.IsMandatory && d.IsActive && d.LiveVersionNumber is null).ToList();
+    var mandatoryHidden = Model.Where(d => d.IsMandatory && d.IsActive && !d.ShowAtRegistration).ToList();
+}
+
+@if (mandatoryWithoutText.Any())
+{
+    <div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <i class="fas fa-triangle-exclamation mr-1"></i>
+        <strong>Zorunlu ama metni yayınlanmamış belge var:</strong>
+        @string.Join(", ", mandatoryWithoutText.Select(d => d.Title)).
+        Bu belgeler kayıt ekranında <strong>hiç sorulmuyor</strong>. Zorunlu hâle gelmeleri için
+        bir sürüm yazıp <strong>yayınlamanız</strong> gerekir.
+    </div>
+}
+
+@if (mandatoryHidden.Any())
+{
+    <div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+        <i class="fas fa-circle-exclamation mr-1"></i>
+        <strong>Tutarsız ayar:</strong>
+        @string.Join(", ", mandatoryHidden.Select(d => d.Title))
+        zorunlu işaretli ama <strong>kayıt ekranında gösterilmiyor</strong>. Kullanıcı,
+        ekranında hiç görmediği bir kutuyu işaretleyemeyeceği için <strong>kayıt olamaz</strong>.
+        Ya "Kayıtta göster"i açın ya da zorunluluğu kaldırın.
+    </div>
+}
+
+<div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                <tr>
+                    <th class="px-6 py-3">Belge</th>
+                    <th class="px-6 py-3">Durum</th>
+                    <th class="px-6 py-3">Yayındaki sürüm</th>
+                    <th class="px-6 py-3">Onaylayan</th>
+                    <th class="px-6 py-3 text-right">İşlem</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+            @foreach (var doc in Model)
+            {
+                <tr class="@(doc.IsActive ? "" : "bg-gray-50 text-gray-400")">
+                    <td class="px-6 py-4">
+                        <div class="font-medium text-gray-800">@doc.Title</div>
+                        <div class="mt-0.5 text-xs text-gray-500">@doc.Type</div>
+                        <div class="mt-1 flex flex-wrap gap-1">
+                            @if (doc.IsMandatory)
+                            {
+                                <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">Zorunlu</span>
+                            }
+                            else
+                            {
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">İsteğe bağlı</span>
+                            }
+                            @if (doc.ShowAtRegistration)
+                            {
+                                <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">Kayıtta gösterilir</span>
+                            }
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        @if (!doc.IsActive)
+                        {
+                            <span class="inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">Pasif</span>
+                        }
+                        else if (doc.LiveVersionNumber is null)
+                        {
+                            <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Metin yayınlanmamış</span>
+                        }
+                        else
+                        {
+                            <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Yayında</span>
+                        }
+                        @if (doc.HasDraft)
+                        {
+                            <span class="ml-1 inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">Taslak var</span>
+                        }
+                    </td>
+                    <td class="px-6 py-4 text-gray-700">
+                        @if (doc.LiveVersionNumber is { } v)
+                        {
+                            <div class="font-medium">v@(v)</div>
+                            <div class="text-xs text-gray-500">@(doc.LivePublishedAt?.AddHours(3).ToString("dd.MM.yyyy HH:mm"))</div>
+                        }
+                        else
+                        {
+                            <span class="text-gray-400">—</span>
+                        }
+                        <div class="mt-0.5 text-xs text-gray-400">@doc.VersionCount sürüm</div>
+                    </td>
+                    @* 🔑 Sayı GERÇEK rıza sorgusundan gelir, ayrı bir sayaç kolonundan değil. *@
+                    <td class="px-6 py-4 text-gray-700">@doc.LiveGrantedCount kişi</td>
+                    <td class="px-6 py-4 text-right">
+                        <a asp-action="Versions" asp-route-id="@doc.Id"
+                           class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700">
+                            <i class="fas fa-clock-rotate-left mr-1"></i> Sürümler
+                        </a>
+                    </td>
+                </tr>
+                <tr class="bg-gray-50/50">
+                    <td colspan="5" class="px-6 py-3">
+                        <details>
+                            <summary class="cursor-pointer text-xs font-medium text-gray-600">Belge ayarları</summary>
+                            <form asp-action="Edit" method="post" class="mt-3 flex flex-wrap items-end gap-3">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="Id" value="@doc.Id" />
+
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600">Başlık</label>
+                                    <input name="Title" value="@doc.Title" required
+                                           class="mt-1 w-64 rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600">Sıra</label>
+                                    <input name="SortOrder" type="number" value="@doc.SortOrder"
+                                           class="mt-1 w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+                                </div>
+
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="IsMandatory" value="true" @(doc.IsMandatory ? "checked" : "")
+                                           class="rounded border-gray-300" />
+                                    <input type="hidden" name="IsMandatory" value="false" />
+                                    Zorunlu
+                                </label>
+
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="ShowAtRegistration" value="true" @(doc.ShowAtRegistration ? "checked" : "")
+                                           class="rounded border-gray-300" />
+                                    <input type="hidden" name="ShowAtRegistration" value="false" />
+                                    Kayıtta göster
+                                </label>
+
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="IsActive" value="true" @(doc.IsActive ? "checked" : "")
+                                           class="rounded border-gray-300" />
+                                    <input type="hidden" name="IsActive" value="false" />
+                                    Aktif
+                                </label>
+
+                                <button type="submit"
+                                        class="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800">
+                                    Kaydet
+                                </button>
+                            </form>
+                            <p class="mt-2 text-xs text-gray-400">
+                                Metin buradan değişmez — metni değiştirmek için "Sürümler" ekranından
+                                <strong>yeni sürüm</strong> açın.
+                            </p>
+                        </details>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

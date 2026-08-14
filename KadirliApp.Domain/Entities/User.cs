@@ -53,6 +53,13 @@ public class User : BaseEntity, ISoftDeletable
 
     /// <summary>Faz 12.7 — bağlı sosyal hesaplar (Google/Apple). Boş liste = yalnız telefon+OTP.</summary>
     public ICollection<UserIdentity> Identities { get; set; } = new List<UserIdentity>();
+
+    /// <summary>
+    /// Faz 12.16 — verilmiş/verilmemiş KVKK rızaları. ⚠️ Hesap silinince <b>KALIR</b>
+    /// (§7 madde 74) — <see cref="Identities"/>'in bilinçli tersi: rıza kaydı kişisel veri
+    /// değil <b>işlemenin hukuki dayanağının kanıtıdır</b>.
+    /// </summary>
+    public ICollection<UserConsent> Consents { get; set; } = new List<UserConsent>();
 }
 
 public class NotificationPreferences

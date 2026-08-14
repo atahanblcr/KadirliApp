@@ -1,5 +1,82 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 14 Ağustos 2026 — **FAZ 12.16 TAMAMLANDI: KVKK belge yönetimi + rıza kaydı.**
+> Backend 1182 → **1244** (+62), mobil 824 (değişmedi — 12.16 mobile dokunmadı).
+> Görünmez sözleşme **70 → 74**.
+>
+> 🔑 **TESLİM EDİLEN:** üç tablo (`legal_documents` · `legal_document_versions` ·
+> `user_consents`) · iki **anonim** uç (`/v1/legal/documents`, `.../{type}`) ·
+> `register` gövdesinde **additive** `consents` · `GET/POST /v1/users/me/consents` ·
+> panelde **Hukuki Metinler** (matriste) ve **Rıza Defteri** (yalnız admin).
+>
+> 🔑 **Modelin merkezinde SÜRÜM var, "onaylandı" bayrağı değil.** Metin panelden
+> değiştirilebildiği için rıza, metnin **hangi hâline** verildiğini bilmek zorunda.
+>
+> 🔴 **KARAR 1 — metin SEED EDİLMİYOR, yalnız belgenin kabuğu açılıyor.** Seed edilmiş bir
+> "örnek KVKK metni" er ya da geç yayına çıkar ve vatandaş, hiçbir hukukçunun okumadığı bir
+> metne rıza vermiş olur (12.5'in "tahmini koordinat yazma" kuralının hukuki hâli). Sonucu
+> ayrıca güzel: taze kurulumda zorunlu belge **yok**, yani kayıt akışı **birebir eskisi gibi**
+> çalışıyor ve `consents` gerçekten additive kalıyor.
+>
+> 🔴 **KARAR 2 — planda olmayan bir eksen bulundu: YAYINDA SÜRÜMÜ OLMAYAN BELGE ZORUNLU
+> OLAMAZ.** Sayılmasaydı `IsMandatory` işaretli ama metni yayınlanmamış bir belge **kaydı
+> tamamen kilitlerdi**: istemci gösterecek metin bulamaz, sunucu onaysız kaydı reddeder ve
+> uygulama **hiç yeni kullanıcı alamaz** hâle gelirdi. Belirti *"kayıt olmuyor"*, sebep
+> hiçbir ekranda yazmaz — 12.15'in *"görünmezliğin KAÇ ekseni var?"* dersinin tekrarı.
+> Panel tutarsızlığı **uyarı olarak gösteriyor**, kural onu **yutmuyor**.
+>
+> 🔴 **KARAR 3 — public uçlar ÖNBELLEKLENMİYOR** (bilinçli sapma): önbellek burada
+> §7 madde 22'nin hasarını en kötü biçimde üretirdi — vatandaş 15 dk **yürürlükten kalkmış
+> metni** okur ve **ona** rıza verir. Uç kayıt akışında bir kez çağrılıyor.
+>
+> 🔴 **`Publish` öneki ELLE eklendi → `approve`** (§7 madde 19'un **YEDİNCİ** tekrarı).
+> Eklenmeseydi: *yalnız başlık düzeltme yetkisi olan moderatör, şehrin tamamının onayladığı
+> hukuki metni değiştirebilirdi.*
+>
+> 🐛 **BOZMA TURU KOŞULDU VE PLANDA OLMAYAN GERÇEK BİR HATA BULDU — fazın en değerli anı.**
+> `Publish` komutu "eskiyi yürürlükten kaldır + yeniyi yayınla"yı **tek `SaveChanges`**'te
+> yapıyordu ve testler üst üste **üç kez yeşil** koştu. Ölçüldüğünde: **8 koşudan 5'i**
+> `23505` ile düşüyordu (`ix_legal_document_versions_one_live_per_document`).
+> Sebep — kısmi unique indeks Postgres'te **deyim başına** denetlenir ve **ertelenemez**
+> (`DEFERRABLE` yalnız kısıtlarda; kısmi unique indeks kısıt olamaz), EF ise aynı tablonun
+> UPDATE'lerini **birincil anahtar sırasına** göre gönderir ve anahtarlar
+> `gen_random_uuid()` — sıra **rastgele**. Yani hata, yayınlanan sürümün GUID'i eskisinden
+> küçük geldiğinde çıkıyordu: *"bende çalışıyor"* diyen geliştirici **haklı**.
+> ✅ Çözüm: iki `SaveChanges`, **tek işlemde** → `IUnitOfWork.ExecuteInTransactionAsync`.
+> 🐛 Yan bulgu: var olan `BeginTransactionAsync` **hiç çağrılmamış** ve çağrıldığı an
+> patlıyor (`EnableRetryOnFailure` elle açılan işlemleri reddediyor) — arayüzde
+> **çalışmayan bir kapı** duruyordu.
+> 🔑 **Ders: rastgeleliğe bağlı bir hata, tek koşuluk bir testle kilitlenemez.**
+> `LegalPublishTests` geçişi **10 kez** tekrarlıyor (tek tur bu hatayı **%37** kaçırırdı).
+>
+> 🐛 **Projenin kendi korumaları iki hata daha yakaladı** (ikisi de benim kodumda):
+> `data-confirm` **butona** yazılmıştı → `panel.js` dinleyicisi **formun** özniteliğine
+> baktığı için onay penceresi **sessizce hiç açılmayacaktı** (geri alınamaz bir aksiyon,
+> uyarısız); ve bir **Razor yorumunda** geçen açı parantezli betik etiketi
+> `PanelExternalOriginTests`'i kırdı — koruma gevşetilmedi, **yorum** düzeltildi.
+> ➕ Ayrıca iç içe `<form>` yazılmıştı: tarayıcı içtekini sessizce atar (buton çizilir,
+> tıklanır, hiçbir şey olmaz) → `form=` bağıyla çözüldü.
+>
+> 🔬 **Bir bozma bilinçli olarak YEŞİL kaldı ve bu bir delik değil, bir ölçüm:** rızayı
+> *belgeye* bağlamak davranışı değiştirmiyor, çünkü kabul edilen küme zaten yalnız yayındaki
+> sürümleri içeriyor. Kilidin **taşıyıcısı `Validate` değil `LiveVersionsAsync`** — 12.7'nin
+> *"iki bağımsız sebep koruyorsa hangisini tuttuğunu ölç"* dersi, `Contract_Audit.md`'ye
+> o hâliyle yazıldı.
+>
+> ⚠️ **Reçeteden tek bilinçli sapma:** admin API controller'ı (`/v1/admin/legal`) **yazılmadı**
+> — modül panel-only (12.12/12.1/12.2/12.2b'de verilmiş aynı karar: hiçbir istemcinin
+> çağırmadığı uç kümesi, bakımı yapılmayan ikinci bir yüzeydir).
+>
+> ⏭️ **Sırada 12.17 (KVKK mobil).** ⚠️ **12.17 yazılana kadar zorunlu bir belge
+> YAYINLANMAMALI**: yayınlandığı an mobil kayıt akışı `MISSING_CONSENT` alır — geçici çıkış
+> `Legal:RequireConsentAtRegistration=false`. 📌 Metin yazımı bir **insan** işi; belgeler
+> panelde kabuk hâlinde bekliyor.
+
+---
+
+## Önceki oturum — FAZ 12.7
+
+> Son güncelleme: 13 Ağustos 2026 — **FAZ 12.7 TAMAMLANDI
 > Son güncelleme: 13 Ağustos 2026 — **FAZ 12.7 TAMAMLANDI: Sosyal giriş (backend).**
 > Backend 1114 → **1182** (+68), mobil 824 (değişmedi — 12.7 mobile dokunmadı).
 > Görünmez sözleşme **67 → 70**.

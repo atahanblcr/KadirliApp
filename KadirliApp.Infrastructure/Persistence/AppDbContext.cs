@@ -46,6 +46,11 @@ public class AppDbContext : DbContext
     public DbSet<IntracityStop> IntracityStops => Set<IntracityStop>();
     public DbSet<TransportDeparturePoint> TransportDeparturePoints => Set<TransportDeparturePoint>();
     public DbSet<Mosque> Mosques => Set<Mosque>();
+    // Faz 12.16 — KVKK. Metin `legal_document_versions`'ta yaşar, rıza kaydı BELGEYE değil
+    // SÜRÜME bağlanır (§7 madde 71); yayınlanmış sürüm değiştirilemez (§7 madde 72).
+    public DbSet<LegalDocument> LegalDocuments => Set<LegalDocument>();
+    public DbSet<LegalDocumentVersion> LegalDocumentVersions => Set<LegalDocumentVersion>();
+    public DbSet<UserConsent> UserConsents => Set<UserConsent>();
     public DbSet<Neighborhood> Neighborhoods => Set<Neighborhood>();
     // Faz 12.12 — projedeki ilk DIŞ KAYNAK entegrasyonu (FCM/SMS dışında): haberler
     // WordPress'ten alınıp buraya iner. Mobil kaynağa asla bağlanmaz.

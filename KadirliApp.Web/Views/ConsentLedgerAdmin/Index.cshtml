@@ -1,0 +1,134 @@
+@using KadirliApp.Web.Common
+@using KadirliApp.Web.Models
+@model KadirliApp.Application.Common.Models.PagedResult<KadirliApp.Application.Features.Legal.Dtos.ConsentLedgerRowDto>
+@{
+    ViewData["Title"] = "Rıza Defteri";
+
+    string? type = ViewBag.Type;
+    bool? granted = ViewBag.Granted;
+    var userId = ViewBag.UserId as Guid?;
+    var hasFilter = type != null || granted != null || userId != null;
+}
+
+<div class="mb-6">
+    <h2 class="text-2xl font-semibold text-gray-800">Rıza Defteri</h2>
+    <p class="mt-1 text-sm text-gray-500">
+        Kim · hangi metnin <strong>hangi sürümüne</strong> · ne zaman · nereden rıza verdi.
+        Bir denetimde sorulan soru "rıza aldınız mı?" değil <strong>"kanıtlayın"</strong>dır;
+        bu ekran o kanıtın okunabilir hâli. Defter <strong>yalnız okunur</strong> —
+        düzeltilebilen bir kanıt kanıt değildir.
+    </p>
+</div>
+
+<form method="get" class="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div>
+        <label class="block text-xs font-medium text-gray-600">Belge türü</label>
+        <select name="type" class="mt-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm">
+            <option value="">Tümü</option>
+            @foreach (var t in KadirliApp.Domain.Enums.LegalDocumentTypes.All)
+            {
+                <option value="@t" selected="@(type == t)">@t</option>
+            }
+        </select>
+    </div>
+
+    <div>
+        <label class="block text-xs font-medium text-gray-600">Karar</label>
+        <select name="granted" class="mt-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm">
+            <option value="">Tümü</option>
+            <option value="true" selected="@(granted == true)">Onayladı</option>
+            <option value="false" selected="@(granted == false)">Reddetti / geri aldı</option>
+        </select>
+    </div>
+
+    @if (userId is not null)
+    {
+        <input type="hidden" name="userId" value="@userId" />
+    }
+
+    <button type="submit" class="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
+        Süz
+    </button>
+
+    @if (hasFilter)
+    {
+        <a asp-action="Index" class="text-sm text-gray-500 hover:underline">Filtreyi temizle</a>
+    }
+</form>
+
+<div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                <tr>
+                    <th class="px-6 py-3">Kullanıcı</th>
+                    <th class="px-6 py-3">Belge</th>
+                    <th class="px-6 py-3">Karar</th>
+                    <th class="px-6 py-3">Ne zaman</th>
+                    <th class="px-6 py-3">Nereden</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+            @if (!Model.Items.Any())
+            {
+                <tr>
+                    <td colspan="5" class="px-6 py-10 text-center text-sm text-gray-400">
+                        @(hasFilter ? "Bu filtreye uyan rıza kaydı yok." : "Henüz hiç rıza kaydı yok.")
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var row in Model.Items)
+                {
+                    <tr>
+                        <td class="px-6 py-4">
+                            @* Hesap silinmiş olabilir: kullanıcı satırı anonimleşir ama rıza
+                               KALIR (§7 madde 74) — o yüzden ad boş olabilir ve bu normal. *@
+                            <div class="font-medium text-gray-800">@(row.Username ?? "(silinmiş hesap)")</div>
+                            <div class="text-xs text-gray-500">@row.Phone</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-gray-800">@row.DocumentTitle</div>
+                            <div class="text-xs text-gray-500">v@(row.VersionNumber) · @row.DocumentType</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            @if (row.Granted)
+                            {
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Onayladı</span>
+                            }
+                            else if (row.RevokedAt is not null)
+                            {
+                                <span class="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">Geri aldı</span>
+                            }
+                            else
+                            {
+                                @* "Reddetti" ile "geri aldı" AYRI gösterilir: ikisi de granted=false
+                                   ama biri hiç onaylamadı, diğeri onaylayıp vazgeçti. *@
+                                <span class="inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">Reddetti</span>
+                            }
+                        </td>
+                        <td class="px-6 py-4 text-gray-700">
+                            @row.DecidedAt.AddHours(3).ToString("dd.MM.yyyy HH:mm")
+                            @if (row.RevokedAt is { } revoked)
+                            {
+                                <div class="text-xs text-orange-700">@revoked.AddHours(3).ToString("dd.MM.yyyy HH:mm")'de geri alındı</div>
+                            }
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-gray-700">@PanelDisplay.ConsentSource(row.Source).Label</div>
+                            <div class="text-xs text-gray-500">@(row.IpAddress ?? "—")</div>
+                            @if (!string.IsNullOrEmpty(row.UserAgent))
+                            {
+                                <div class="mt-0.5 max-w-xs truncate text-xs text-gray-400" title="@row.UserAgent">@row.UserAgent</div>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_Pagination", PaginationViewModel.From(Model, "rıza kaydı"))
+</div>

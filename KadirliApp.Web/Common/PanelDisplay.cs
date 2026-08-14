@@ -329,6 +329,16 @@ public static class PanelDisplay
         // seferlik gönderim; bu, bir habere bağlı ve **geri alınamaz** olan gönderim.
         // Denetim izinde ikisi karışsaydı "kim şehre haber duyurdu?" sorusu cevapsız kalırdı.
         ["send-notification"] = new("Haber bildirimi gönderdi", "bg-sky-100 text-sky-800", "fa-paper-plane"),
+
+        // Hukuki metinler (Faz 12.16). 🔑 Üçü AYRI satır çünkü üçü ayrı ağırlıkta:
+        // taslak açmak geri alınabilir, ayar değiştirmek geri alınabilir, **yayınlamak
+        // geri alınamaz** — o andan sonra vatandaş o metne rıza vermeye başlar. Denetim
+        // izinde tek etiket altında toplansaydı "bu metni kim yayına aldı?" sorusunun
+        // cevabı gürültüye karışırdı.
+        ["create_legal_version"] = new("Hukuki metin taslağı açtı", "bg-slate-100 text-slate-800", "fa-file-lines"),
+        ["update_legal_version"] = new("Hukuki metin taslağını düzenledi", "bg-blue-100 text-blue-800", "fa-pen-to-square"),
+        ["publish_legal_version"] = new("Hukuki metni YAYINLADI", "bg-red-100 text-red-800", "fa-file-contract"),
+        ["update_legal_document"] = new("Hukuki belge ayarlarını değiştirdi", "bg-blue-100 text-blue-800", "fa-sliders"),
     };
 
     // ── Hata kayıtları (Faz 12.1) ───────────────────────────────────────────────
@@ -560,6 +570,26 @@ public static class PanelDisplay
             : new PanelBadge($"Bilinmeyen {what} ({raw})", "bg-red-50 text-red-700", "fa-triangle-exclamation");
     }
 
+    // ── Rıza kaynağı (Faz 12.16) ────────────────────────────────────────────────
+    //
+    // `user_consents.source` DB'de İngilizce sabit (registration/settings/reconsent) —
+    // ekrana ham basılamaz (Değişmez Kural #6). Rıza defteri "nasıl alındı?" sorusunu
+    // cevaplıyor ve o cevabın Türkçe olması gerekiyor.
+
+    private static readonly Dictionary<string, PanelBadge> ConsentSources = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [Domain.Enums.ConsentSources.Registration] = new("Kayıt sırasında", "bg-blue-100 text-blue-800", "fa-user-plus"),
+        [Domain.Enums.ConsentSources.Settings] = new("Ayarlardan", "bg-gray-100 text-gray-700", "fa-sliders"),
+        [Domain.Enums.ConsentSources.Reconsent] = new("Yeniden onay", "bg-amber-100 text-amber-800", "fa-rotate")
+    };
+
+    /// <summary>
+    /// Rızanın alındığı ekranı Türkçe rozete çevirir. Bilinmeyen değer <b>ham geçmez</b>.
+    /// </summary>
+    public static PanelBadge ConsentSource(string? raw) => Lookup(ConsentSources, raw, "kaynak");
+
+    public static IReadOnlyCollection<string> KnownConsentSources => ConsentSources.Keys;
+
     /// <summary>
     /// Denetim izi eylemini Türkçe rozete çevirir. Bilinmeyen eylem <b>ham geçmez</b> —
     /// durum rozetiyle aynı karar: sorun gizlenmez ama İngilizce de sızmaz.
@@ -609,6 +639,9 @@ public static class PanelDisplay
         "User" => "Kullanıcı",
         "ErrorLog" => "Hata kaydı",
         "PushCampaign" => "Bildirim gönderimi",
+        // Faz 12.16 — ikisi ayrı: belge "kimlik" (başlık/zorunluluk), sürüm "metnin kendisi".
+        "LegalDocument" => "Hukuki belge",
+        "LegalDocumentVersion" => "Hukuki metin sürümü",
         "IntercityRoute" => "Şehirlerarası hat",
         "IntercitySchedule" => "Kalkış saati",
         "IntracityRoute" => "Şehir içi hat",

@@ -1,6 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using KadirliApp.Application.Common.Exceptions;
+using KadirliApp.Application.Features.Legal.Commands;
+using KadirliApp.Application.Features.Legal.Dtos;
+using KadirliApp.Application.Features.Legal.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using KadirliApp.Application.Features.Ads.Queries;
@@ -97,6 +101,46 @@ public class UsersController : ApiControllerBase
         var removed = await Sender.Send(new UnlinkSocialIdentityCommand(RequiredUserId, provider));
         return Success(new { Removed = removed });
     }
+
+    /// <summary>
+    /// Faz 12.16 — "neyi onayladım, ne zaman, hangi sürümü?"
+    /// </summary>
+    /// <remarks>
+    /// Liste yayında olan <b>her</b> belgeyi içerir — hiç karar verilmemişleri de
+    /// (<c>consentedVersionId = null</c>): yalnız rıza satırı olanlar dönseydi kullanıcı,
+    /// hiç sorulmamış bir izni (ör. ticari ileti) ne görebilir ne de verebilirdi.
+    /// </remarks>
+    [HttpGet("me/consents")]
+    public async Task<IActionResult> Consents()
+    {
+        var consents = await Sender.Send(new GetMyConsentsQuery(RequiredUserId));
+        return Success(consents);
+    }
+
+    /// <summary>
+    /// Faz 12.16 — isteğe bağlı rızayı ver/geri al; yeniden onay akışını tamamla.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>Zorunlu rıza buradan geri ALINAMAZ</b> — karşılığı var olan
+    /// <c>DELETE /v1/users/me</c>'dir (10.8); bu blokta ikinci bir yol açılmadı.
+    /// 🔴 Kanıtın bağlamı (IP · tarayıcı · kaynak) <b>sunucuda</b> doldurulur.
+    /// </remarks>
+    [HttpPost("me/consents")]
+    public async Task<IActionResult> SaveConsents([FromBody] SaveConsentsDto dto)
+    {
+        var response = await Sender.Send(new SaveMyConsentsCommand
+        {
+            UserId = RequiredUserId,
+            Consents = dto.Consents ?? new List<ConsentDecisionDto>(),
+            IsReconsent = dto.IsReconsent,
+            IpAddress = HttpContext.Connection.RemoteIpAddress,
+            UserAgent = Request.Headers.UserAgent.ToString()
+        });
+
+        return Success(response);
+    }
+
+    public record SaveConsentsDto(List<ConsentDecisionDto>? Consents, bool IsReconsent = false);
 
     private Guid RequiredUserId =>
         CurrentUserId ?? throw new UnauthorizedException("Token'da user_id claim'i yok.");

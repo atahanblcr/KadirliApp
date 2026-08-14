@@ -41,6 +41,16 @@ public static class DependencyInjection
 
         AddSocialLogin(services, cfg);
 
+        // Faz 12.16 — KVKK zorunluluk kapısı. ⚠️ Değer ÇÖZÜLME ANINDA okunuyor, DI kaydında
+        // değil: 12.7'de bulunan gerçek hata buydu (ARCHITECTURE.md §8) — kayıt anında
+        // okunan bir değer `ConfigureAppConfiguration` ile ezilemez, yani bayrakla açılıp
+        // kapanan yol KENDİ TESTİNDEN ERİŞİLEMEZ olurdu.
+        services.AddSingleton(sp => new Application.Features.Legal.LegalSettings
+        {
+            RequireConsentAtRegistration = sp.GetRequiredService<IConfiguration>()
+                .GetValue($"{Application.Features.Legal.LegalSettings.SectionName}:RequireConsentAtRegistration", true)
+        });
+
         // Faz 12.1 — hata günlüğü yazıcısı. Tek örnek iki rolü birden üstlenir: istek
         // yolundaki IErrorLogSink (kuyruğa bırakır) ve arka plandaki BackgroundService
         // (kuyruğu boşaltır). ⚠️ Üçü de AYNI örneği çözmeli — ayrı örnekler olsaydı

@@ -152,12 +152,33 @@ kimlik satırları **fiziksel** silinir (kişisel veri + benzersizlik: kalsaydı
 Google hesabıyla **bir daha asla** kayıt olamazdı). 🐛 Bulunan gerçek hata: yapılandırma
 **DI kaydında** okunuyordu → kod doğruydu ama **kendi testinden erişilemiyordu**.
 
-**1182 backend + 824 mobil test, 70 görünmez sözleşme.**
+**✅ 12.16 bitti — KVKK belge yönetimi + rıza kaydı.** Üç tablo (`legal_documents` ·
+`legal_document_versions` · `user_consents`), iki **anonim** uç (`/v1/legal/documents`,
+`.../{type}`), `register` gövdesinde **additive** `consents`, `GET/POST /v1/users/me/consents`,
+panelde **Hukuki Metinler** (matriste) + **Rıza Defteri** (yalnız admin).
+🔑 Modelin merkezinde **sürüm** var, "onaylandı" bayrağı değil: yayınlanmış metin
+**değiştirilemez** (`init` → **CS8852** + varlığın kapısı + panelde form hiç çizilmez),
+değişiklik **yeni sürümdür** ve aynı anda **en fazla bir yayında sürüm** olabilir (kısmi
+unique indeks). 🔴 **Metin SEED EDİLMEZ** — yalnız belgenin kabuğu açılır; seed edilmiş bir
+"örnek KVKK metni" er ya da geç yayına çıkar. Sonucu: taze kurulumda zorunlu belge yok, yani
+kayıt akışı **birebir eskisi gibi**. 🔴 **Yayında sürümü olmayan belge ZORUNLU OLAMAZ**
+(planda yoktu): olsaydı uygulama **hiç yeni kullanıcı alamazdı** ve sebep hiçbir ekranda
+yazmazdı. 🔴 Hesap silinince rıza **KALIR** (12.7'nin `user_identities` kararının bilinçli
+tersi: kimlik *kişisel veri*, rıza *kanıt*). ➕ `IUnitOfWork.ExecuteInTransactionAsync`
+eklendi (aşağıdaki hataya bakın).
+🐛 **Bozma turu PLANDA OLMAYAN GERÇEK BİR HATA buldu:** "eskiyi yürürlükten kaldır + yeniyi
+yayınla" tek `SaveChanges`'teydi ve testler **üç kez yeşil** koştu; ölçüldüğünde **8 koşudan
+5'i** `23505` ile düşüyordu. Kısmi unique indeks **deyim başına** denetlenir, EF ise
+UPDATE'leri **birincil anahtar sırasına** (yani `gen_random_uuid()` → **rastgele**) gönderir.
+🔑 **Ders: rastgeleliğe bağlı bir hata, tek koşuluk bir testle kilitlenemez** (`LegalPublishTests`
+10 tur koşar).
 
-**⏭️ Sırada:** **12.16 KVKK rıza yönetimi** (planlandı, kod yok — **en yüksek öncelik**;
-metin panelden düzenlenebilir olduğu için rıza **sürüme** bağlanır, "onaylandı" bayrağına
-değil. 🔴 Uygulama henüz mağazada olmadığı için bugün bedeli **sıfır**, sonra §5 kırıcı
-değişikliği olur) · 12.8 sosyal giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı
+**1244 backend + 824 mobil test, 74 görünmez sözleşme.**
+
+**⏭️ Sırada:** **12.17 KVKK mobil** (backend hazır, uçlar canlı; ⚠️ **12.17 yazılana kadar
+zorunlu bir belge YAYINLANMAMALI** — yayınlandığı an mobil kayıt `MISSING_CONSENT` alır,
+geçici çıkış `Legal:RequireConsentAtRegistration=false`. 📌 Metinleri yazmak bir **insan**
+işi; belgeler panelde kabuk hâlinde bekliyor) · 12.8 sosyal giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı
 bugün yazılabilir**) · **12.18 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir
 dispatcher **yazılmaz**, var olan tek sahip genişletilir).
 🐛 **12.7'nin bozma turu koşuldu ve BİR DELİK BULDU:** madde 70'in testi doğru davranışı
@@ -165,13 +186,15 @@ dispatcher **yazılmaz**, var olan tek sahip genişletilir).
 `token_type` kontrolü silinse de `null` dönüyor). İki bağımsız sebep koruyordu ama biri
 **tesadüfi**. İddia elle üretilen bir jetonla (sosyal türde **ama telefon taşıyan**) gerçek
 değişmeze çevrildi. 🔑 **Ders: iki bağımsız sebep koruyorsa, testin HANGİSİNİ tuttuğunu ölç.**
-✅ **12.16'nın (KVKK) 8 kararı onaylandı** — kısıt: *yapıyı/mimariyi bozmadan* (18 adımlı
-reçete + **ikinci sahip yasağı** + `consents` alanı additive). Kod sonraki oturumda.
+🐛 **12.16'nın bozma turu koşuldu ve GERÇEK BİR HATA BULDU** (yukarıda). Ayrıca projenin
+kendi korumaları iki hatamı yakaladı: `data-confirm` **butona** yazılmıştı (dinleyici
+**formun** özniteliğine bakıyor → onay penceresi sessizce hiç açılmazdı) ve bir **Razor
+yorumunda** geçen açı parantezli betik etiketi CSP taramasını kırdı.
 ⚠️ `?featured=false` ve aramanın **en az 2 karakter** kuralı kontrata girdi (`API_CONTRACT.md`).
 ⚠️ Yeni bir `Un…` aksiyonu yazarsan (ya da `SendNotification` gibi hiçbir önekle eşleşmeyen
 bir moderasyon aksiyonu) önekini `PanelPermissionFilter.ActionFor`'a **elle ekle**:
 `Archive` öneki `Unarchive`'ı yakalamaz ve aksiyon sessizce `update` iznine düşer
-(bu tuzak 4 kez tekrarladı: 11.18 · 12.10 · 12.13 · 12.15).
+(bu tuzak 7 kez tekrarladı: 11.18 · 12.10 · 12.13 · 12.15 · Faz 0'da iki kez · **12.16 `Publish`**).
 ⚠️ Aynı kolon kümesine **ikinci bir EF indeksi** eklerken adlı aşırı yükleme + `HasDatabaseName`
 kullan; yoksa EF öncekini **sessizce ezer** ve migration onu `DROP` eder (12.15 bulgusu).
 ⚠️ JSON kolonda (`OwnsOne(...).ToJson()`) saklanan bir nesneye alan eklerken **varsayılan
@@ -246,7 +269,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 70 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 74 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
@@ -269,6 +292,9 @@ yansıma**), **58–60** → `Integration/Panel/PanelNewsTests.cs` + `Unit/Appli
 (`NewsSearchTests` · `NewsStatesTests`), **61–62 istemci tarafı** →
 `mobile/test/features/news/` (`news_body_test.dart` · `news_screen_test.dart` ·
 `news_detail_screen_test.dart` · `news_card_test.dart`),
+**71–74** → `Unit/Application/Legal/` + `Integration/Legal/`
+(`LegalConsentTests` · `LegalPublishTests`) + `Integration/Panel/PanelLegalTests.cs` +
+`Integration/Architecture/LegalImmutabilityStructureTests.cs` (**yansıma** — kaynak taraması değil),
 **68–70** → `Unit/Infrastructure/SocialTokenVerifierTests.cs` +
 `Unit/Infrastructure/JwtProviderSocialTokenTests.cs` +
 `Unit/Application/Auth/SocialProvidersTests.cs` + `Integration/Auth/SocialLoginTests.cs`.

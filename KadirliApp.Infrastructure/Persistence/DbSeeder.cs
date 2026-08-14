@@ -220,6 +220,66 @@ public static class DbSeeder
 
         // Faz 12.5: kalkış noktası sözlüğü (satır bazında idempotent — aşağıdaki nota bak).
         await EnsureDeparturePointsAsync(db);
+
+        // Faz 12.16: KVKK belge KABUKLARI (metin YOK — bkz. metodun notu).
+        await EnsureLegalDocumentsAsync(db);
+    }
+
+    /// <summary>
+    /// Faz 12.16 — hukuki belgelerin <b>kabukları</b>, tür bazında idempotent.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🔴 <b>METİN BİLİNÇLİ OLARAK SEED EDİLMİYOR</b> — yalnız belgenin kimliği (tür, başlık,
+    /// zorunluluk, sıra) açılıyor, <c>legal_document_versions</c>'a <b>tek satır bile</b>
+    /// yazılmıyor. Sebep: seed edilmiş bir "örnek KVKK metni" er ya da geç <b>yayına çıkar</b>
+    /// ve o an vatandaş, hiçbir hukukçunun okumadığı bir metne rıza vermiş olur. Kayıt
+    /// ekranının bir belgeyi sorabilmesi için <b>yayında bir sürümü</b> olmak zorunda, yani
+    /// bu seed tek başına hiçbir şeyi zorunlu kılmaz: metni yönetici panelden yazar ve
+    /// yayınlar. 🔑 Bu, projenin "tahmini koordinat yazma" kuralının (12.5 kalkış noktaları)
+    /// hukuki metin hâli — <b>yanlış doldurmak boş bırakmaktan kötüdür.</b>
+    /// </para>
+    /// <para>
+    /// ⚠️ Var olan satır <b>ezilmez</b>: başlığı ya da <c>IsMandatory</c>'yi panelden
+    /// değiştiren yönetici, bir sonraki açılışta kararını geri alınmış bulmamalı.
+    /// </para>
+    /// </remarks>
+    private static async Task EnsureLegalDocumentsAsync(AppDbContext db)
+    {
+        // (Tür, Başlık, Zorunlu mu, Kayıt ekranında görünsün mü, Sıra).
+        // 🔴 Zorunlu ↔ isteğe bağlı AYRI BELGELERDİR (KVKK'nın en sık ihlal edilen kuralı):
+        // "hizmet için gerekli işleme" ile "ticari elektronik ileti"yi tek kutuda toplamak
+        // rızayı GEÇERSİZ kılar. Sıra da anlamlı: önce aydınlatma, sonra rıza.
+        var seed = new (string Type, string Title, bool Mandatory, bool AtRegistration, int Order)[]
+        {
+            (LegalDocumentTypes.Kvkk, "KVKK Aydınlatma Metni", true, true, 0),
+            (LegalDocumentTypes.ExplicitConsent, "Açık Rıza Metni", true, true, 1),
+            (LegalDocumentTypes.TermsOfUse, "Kullanım Koşulları", true, true, 2),
+            (LegalDocumentTypes.PrivacyPolicy, "Gizlilik Politikası", false, false, 3),
+            (LegalDocumentTypes.CommercialMessage, "Ticari Elektronik İleti İzni", false, true, 4)
+        };
+
+        var known = new HashSet<string>(
+            await db.LegalDocuments.Select(d => d.Type).ToListAsync(), StringComparer.Ordinal);
+        var added = false;
+
+        foreach (var (type, title, mandatory, atRegistration, order) in seed)
+        {
+            if (!known.Add(type)) continue;
+
+            db.LegalDocuments.Add(new LegalDocument
+            {
+                Type = type,
+                Title = title,
+                IsMandatory = mandatory,
+                ShowAtRegistration = atRegistration,
+                SortOrder = order,
+                IsActive = true
+            });
+            added = true;
+        }
+
+        if (added) await db.SaveChangesAsync();
     }
 
     /// <summary>

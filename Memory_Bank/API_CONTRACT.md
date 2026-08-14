@@ -431,6 +431,46 @@ sourceUrl · publishedAt · modifiedAt · readingMinutes · isFeatured · catego
   bir **anlık görüntüsü** saklanır, böylece kaynakta yayından kalkan haberde bile başlık ve
   "Kaynakta oku" elde kalır (§7 madde 62).
 
+### Hukuki metinler / KVKK rızası (Faz 12.16)
+
+> 🔑 **Modelin merkezinde SÜRÜM var, "onaylandı" bayrağı değil.** Metin panelden
+> değiştirilebildiği için rıza kaydı, metnin **hangi hâline** verildiğini bilmek zorunda;
+> aksi hâlde elimizde *"5.000 kişi onayladı"* diyen bir kayıt kalır ve **o metin artık
+> ortada olmaz**.
+
+- `GET /v1/legal/documents` — **anonim**. Yayında olan belgeler, **metinleriyle birlikte**
+  (ikinci bir istek gerekmesin diye). `?registrationOnly=true` → yalnız kayıt ekranında
+  sorulacaklar (varsayılan `false`: ayarlar ekranı hepsini okuyabilmeli).
+  - Alanlar: `id` · `type` · `title` · **`versionId`** · `versionNumber` · `summary` ·
+    `body` (HTML) · `isMandatory` · `showAtRegistration` · `sortOrder` · `effectiveFrom` ·
+    `requiresReconsent`.
+  - 🔴 **`versionId` rızanın bağlanacağı kimliktir** (§7 madde 71) — istemci onu geri gönderir.
+  - ⚠️ **Yayında sürümü olmayan belge listede HİÇ görünmez** (taslak da, pasif de).
+  - ⚠️ Uç **önbelleklenmiyor** (bilinçli): önbellek burada "yürürlükten kalkmış metne rıza"
+    üretirdi.
+- `GET /v1/legal/documents/{type}` — **anonim**, tek belge. `type` değerleri **kontrattır**:
+  `kvkk_aydinlatma` · `acik_riza` · `kullanim_kosullari` · `gizlilik_politikasi` ·
+  `ticari_ileti`. ⚠️ Tanınmayan tür **varsayılana düşmez**, **404** olur.
+- `POST /v1/auth/register` — gövdeye **additive** `consents: [{versionId, granted}]` eklendi.
+  - 🔴 Zorunlu belgelerin **hepsi** `granted=true` gelmeden kayıt **tamamlanmaz**:
+    **400 `MISSING_CONSENT`** ve mesaj **hangi belgenin** eksik olduğunu **söyler**.
+  - ⚠️ `granted=false` da **kaydedilir** — *"sormadık"* ile *"sorduk, hayır dedi"* farklıdır.
+  - ⚠️ Yayında **olmayan** bir `versionId` gönderilirse o karar **yok sayılır** (ve zorunluysa
+    kayıt reddedilir): kullanıcı formu doldururken yeni sürüm yayınlandıysa ekranı tazelemeli.
+  - ⚠️ Zorunluluğun kendisi bir **yapılandırma kapısına** bağlı (`Legal:RequireConsentAtRegistration`,
+    varsayılan `true`) — ama kapı açıkken bile *yayında sürümü olan zorunlu bir belge* yoksa
+    davranış **birebir eskisi gibidir** (taze kurulumda metin seed edilmez).
+  - 🔴 Kayıt bağlamı (**IP · tarayıcı**) **sunucuda** doldurulur; gövdeden geleni **ezer**.
+- `GET /v1/users/me/consents` — yayında olan **her** belge + kullanıcının kararı.
+  Alanlar: `type` · `title` · `isMandatory` · `currentVersionId` · `currentVersionNumber` ·
+  `consentedVersionId` (hiç karar vermemişse **`null`**) · `consentedVersionNumber` ·
+  `granted` · `decidedAt` · `revokedAt` · **`needsReconsent`** (sunucuda türetilir).
+  - ⚠️ Hiç sorulmamış izinler de listede **durur** — yoksa kullanıcı onları verecek bir yol bulamaz.
+- `POST /v1/users/me/consents` — `{consents: [{versionId, granted}], isReconsent?: bool}`.
+  - 🔴 **Zorunlu rıza buradan geri ALINAMAZ**: `MANDATORY_CONSENT` döner ve mesaj karşılığın
+    **hesap silme** (`DELETE /v1/users/me`) olduğunu söyler.
+  - ⚠️ Kaynak (`registration`/`settings`/`reconsent`) **sunucuda** sabitlenir.
+
 ### Şikayet / Dosya / Lookup
 - `POST /v1/complaints` — **anonim gönderim açık**; oturum varsa sunucu `user_id` claim'ini kendisi bağlar (istemci kullanıcı kimliği yollamaz). Yanıt: oluşan kaydın **Guid**'i. Gövde: `{subject, message, type?, relatedModule?, relatedId?}`.
   - ⚠️ **Sunucuda doğrulayıcı YOK** → zorunlu alan denetimi istemcide.

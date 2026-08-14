@@ -338,3 +338,17 @@ golden toleransı · 12.13 yanlış nesneye bakan test · 12.14 taşma testi · 
 **12.7 tesadüfi koruma**) — ve **ilk kez bozma turu tarafından yakalandı**, denetim turunda
 değil. 🔑 Ders: *iki bağımsız sebep koruyorsa, testin HANGİSİNİ tuttuğunu ölç;* aksi hâlde
 tesadüfi olan kaybolduğunda kilit de kaybolur ve kimse fark etmez.
+
+| 71 | **Rıza, kullanıcının GÖRDÜĞÜ sürüme yazılır**; yayında olmayan sürüme yazılmaz | Davranış (gerçek Postgres) | 🟢 | `LegalConsentTests.Register_RejectsAConsentGivenToASupersededVersion` — kabul edilen kümenin tek sahibi `LegalConsentWriter.LiveVersionsAsync`. 🔬 **Bozma turunda ölçüldü:** doğrulamayı *belgeye* çevirmek testi kırmadı, çünkü asıl yükü **live süzgeci** taşıyor; sürümü sunucunun kendisinin seçtiği gerçek yanlış gerçeklem yazılınca **5 test kırmızı**. Yani kilit gerçek, ama **taşıyıcısı `Validate` değil `LiveVersionsAsync`** — kapsamı daraltan bir değişiklik oraya dokunacaktır |
+| 72 | **Yayınlanmış sürüm değiştirilemez**; değişiklik = yeni sürüm; en fazla bir yayında sürüm | **Derleyici** + davranış + **DB kısıtı** | 🟢🟢 | Üç ayak: alanlar `init` → `CS8852` (ölçen şey derlemenin kendisi) · `LegalImmutabilityStructureTests` **yansımayla** o güvencenin sökülmesini kilitler (kapsam **tipten**; elle tutulan yalnız muafiyetler) · `LegalDocumentVersionTests` + `PanelLegalTests.APublishedVersion_CannotBeEditedFromThePanel_AndTheTextIsUntouched` (iddia dönüş değerine **değil metnin kendisine** bakar) · kısmi unique indeks `ix_legal_document_versions_one_live_per_document` · `LegalPublishTests` geçişi **10 kez** tekrarlar |
+| 73 | **Rıza satırı kullanıcıyla AYNI işlemde yazılır**; reddedilen kayıt iz bırakmaz | Davranış (gerçek Postgres) | 🟢 | `LegalConsentTests.ARejectedRegistration_LeavesNoUserBehind_SoThePhoneStaysRegisterable` — iddia **ikinci denemenin başarısı**, "satır var mı" değil: hasarın kendisini ölçüyor. Bozma turu (SaveChanges'i doğrulamadan önceye almak) → **kırmızı** |
+| 74 | **Hesap silinince rıza kaydı KALIR** (12.7'nin tersi) | Davranış + **DB kısıtı** | 🟢🟢 | `LegalConsentTests.DeletingTheAccount_KeepsTheConsentRecord_ButAnonymisesTheUser` — **iki yönlü**: rızanın durduğu *ve* kullanıcının anonimleştiği ölçülür (yoksa "hiçbir şey silmeyen" bir gerçeklem de yeşil kalırdı). FK'lar `Restrict`. Bozma turu (silme eklemek) → **kırmızı** |
+
+📌 **12.16'nın kalıcı dersi — *rastgeleliğe bağlı bir hata, tek koşuluk bir testle
+kilitlenemez.*** Madde 72'nin "en fazla bir yayında sürüm" ayağı ilk yazımda **gerçekten
+kırıktı**: yürürlükten kaldırma ile yayınlama tek `SaveChanges`'teydi ve kısmi unique indeks
+**deyim başına** denetlendiği için ihlal ediliyordu. Test üç kez üst üste **yeşil** koştu;
+ölçüldüğünde **8 koşudan 5'i** düşüyordu. Sebep EF'in UPDATE'leri **birincil anahtar
+sırasına** göre göndermesi ve anahtarların `gen_random_uuid()` olması — yani hata, GUID
+sıralamasının şansına bağlıydı. 🔑 Kilit yazarken sorulacak yeni soru: *bu hata her koşuda mı
+çıkar, yoksa bir olasılıkla mı?* Olasılıksa **tekrar** şart (`LegalPublishTests`: 10 tur).
