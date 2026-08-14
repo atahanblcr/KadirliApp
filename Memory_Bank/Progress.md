@@ -21,6 +21,7 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 |---|---|---|
 | **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
 | **12.17 — KVKK: mobil** | `### 12.17` | 🟢 **Backend hazır (14 Ağu).** Uçlar canlı, `consents` additive, kapı açık. Mobil tarafta kod yok |
+| **12.19 — dış analiz denetiminin bulduğu üç delik** | `### 🗺️ PLAN — Faz 12.19` | 🔴 **12.19a acil**: `/Dashboard/Seed` Production'da açık, **GET** (antiforgery kapsamaz) ve boş tablolara sahte veri basıyor. 🟠 12.19b: `User.cs:97-100` yorumu **ölçümün tersini** söylüyor + var olmayan teste atıf. 🟡 12.19c: dört **ölü** durum enum'u + 253 ham durum literali |
 
 ### B. Karar bekleyenler (kod değil, tercih)
 
@@ -5536,3 +5537,202 @@ Bunlar *"yapılmadı"* değil, **"bu blokta yapılmayacağı kararlaştırıldı
 - **Açık maddeler panosu** güncellendi: 12.7 satırı **silindi** (panonun kuralı gereği
   kapanan satır işaretlenmez, silinir), 12.16/12.17 (KVKK) ve 12.7'nin **koşulamayan bozma
   turu** eklendi, *kategori bazlı bildirim aboneliği* 12.18'e kaydırıldı.
+
+---
+
+### 📥 14 Ağustos 2026 — ÜÇÜNCÜ dış analiz denetimi (kod okuyan analiz)
+
+> **Bu analiz öncekilerden farklı: gerçekten kod okumuş.** 9 ve 10 Ağustos'taki iki Gemini
+> turu README/doküman aktarımıydı; bu tur entity, controller, handler, middleware ve DI
+> kayıtlarına bakmış ve **iki gerçek delik** bulmuş. Ama her maddesi doğru değil ve
+> **doğru bulduklarının bir kısmını yanlış sebeple** açıklıyor.
+>
+> Yöntem: her madde kodda **ölçüldü** (grep + satır sayımı + test kaynağı taraması), ezberden
+> değil. Aşağıdaki sayıların hepsi 14 Ağu 2026 ölçümüdür.
+
+#### 🔴 GERÇEK BULGU 1 — `/Dashboard/Seed`: analiz doğru yeri buldu, yanlış sebebi yazdı
+
+Analiz bunu bir **katman ihlali** ("Web controller `AppDbContext` enjekte ediyor") olarak
+raporladı. Katman kısmı en önemsiz tarafı — `Web → Infrastructure` referansı mimaride
+**yasal** (§1), yani derleyici zaten şikâyet etmiyor. Ölçüldüğünde asıl mesele üç ayrı
+şey çıktı ve üçü de **güvenlik/veri** tarafında:
+
+| # | Bulgu | Kanıt |
+|---|---|---|
+| a | **Ortam kapısı YOK** — `IsDevelopment()` kontrolü hiç yazılmamış | `DashboardController.cs`'te `IWebHostEnvironment` **hiç enjekte edilmemiş** |
+| b | **`[HttpGet]`** — yani `AutoValidateAntiforgeryToken` bunu **kapsamaz** (yalnız POST/PUT/DELETE'i doğrular) | `Program.cs:45` + `DashboardController.cs:110-112` |
+| c | Butonu düz `<a href="/Dashboard/Seed">` | `Views/Dashboard/Index.cshtml:22` |
+
+🔑 **Bileşik hasar:** Production'da **boş kalan her tabloya sahte veri basılabilir** —
+`MockDataSeeder` `+905321110001` gibi uydurma telefonlar, sahte ilanlar, sahte vefat
+ilanları yazıyor (310 satır, 20 tablo). Ve GET olduğu için bir yöneticinin ziyaret ettiği
+kötü niyetli bir sayfadaki tek bir `<img src="…/Dashboard/Seed">` **onun oturumuyla** bunu
+tetikler; yönetici hiçbir şey tıklamamış olur.
+
+🟢 **Hafifletici (ölçüldü, abartmamak için):** `MockDataSeeder` **tablo bazında idempotent**
+— 20 bloğun hepsi `if (!await db.X.AnyAsync())` ile korunuyor. Yani üzerinde gerçek veri
+olan bir tabloya **dokunmaz**. Gerçek risk: production'da **henüz boş olan** modüller
+(bugün Mekanlar, Rehber, Taksi gibi yeni açılmış bir modül boşsa oraya sahte kayıt iner).
+Yani "veritabanını mahveder" değil, **"canlıda sahte içerik yayınlar"**.
+
+📌 Bu maddenin en can sıkıcı yanı: `CODE_REVIEW_CHECKLIST` §4'te **kardeş kural zaten var**
+(*"Varsayılan admin şifresi / hassas bilgi `IsDevelopment()` koşulu olmadan ekrana basılıyor
+mu?"* — 11.15c'de giriş sayfası için yazılmış) ve `ProductionReadinessGuard` da var; ikisi de
+bu aksiyonu **kapsamıyor**. Kapsam deliği — Faz A'nın dersinin (*"kapsam dizinden mi, tipten
+mi, elden mi?"*) yedinci tekrarı.
+
+#### 🔴 GERÇEK BULGU 2 — `User.cs`'te ÇÜRÜMÜŞ bir yorum (analiz doğru dosyayı gösterdi, sebebi ıskaladı)
+
+Analiz §8'de şunu yazdı: *"`User.cs`'teki `NotificationPreferences.News` property'sinin
+yorumu 20 satır. Bu kadar uzun yorum bakım yükü."* — **Doğru dosya, doğru satır, yanlış
+teşhis.** O yorumun sorunu uzunluğu değil: **yalan söylüyor.**
+
+`KadirliApp.Domain/Entities/User.cs:97-100` bugün şunu diyor:
+
+> *"🔬 Anahtarsız JSON'un gerçekten `true` materyalize olduğu **ölçüldü**
+> (`NotificationPreferenceTests.MissingJsonKey_DefaultsToOptedIn`)"*
+
+İki ayrı biçimde yanlış:
+
+1. **Atıf yaptığı test YOK.** `NotificationPreferenceTests` diye bir sınıf yok; gerçek sınıf
+   `NotificationPreferenceAxisTests` ve metot adı `MissingJsonKey_DefaultsToOptedIn` **değil**.
+2. **İddia ölçümün TERSİ.** Gerçek test `MissingJsonKey_MaterialisesAsFalse`
+   (`NotificationPreferenceAxisTests.cs:171`) ve iddiası:
+   `preferences.News.Should().BeFalse("EF'in JSON materyalizasyonu varsayılan başlatıcıyı
+   ÇALIŞTIRMIYOR — geri doldurmanın var olma sebebi bu")`.
+
+🔑 **Neden tehlikeli:** `20260812213106_BackfillNewsNotificationPreference` migration'ının
+**bütün varlık sebebi** bu ölçümün `false` çıkmasıdır. Bugünkü yorumu okuyan biri
+*"zaten `true` materyalize oluyormuş, bu migration gereksiz"* sonucuna varır ve onu siler —
+o an **13/13 kullanıcı** haber bildiriminden sessizce düşer. Testin kendi `<remarks>`'ı tam
+bu senaryodan korkuyor (*"Biri yarın migration'ı 'gereksiz' diye kaldırırsa…"*) ama varlığın
+yorumu **onun tam tersini** söylüyor.
+
+🔑 Bu, `ARCHITECTURE.md` §4 adım 8'deki `permissions`/`role_permissions` vakasının **birebir
+ikizi**: atıfları geçerli görünüyor, dilbilgisi sağlam ve **yanlış**. Doküman testi *sarkan
+işaretçi* garantisi verir, **doğruluk** garantisi değil.
+
+➕ **İkinci (zararsız) bayat yorum:** `CreateAdCommandHandler.cs:25` —
+*"Ads/Validators altındaki FluentValidation sınıfları pipeline'a hiç kayıtlı değil"*.
+O klasör **artık yok** (`find … -name "*Validator*.cs"` → 0 dosya).
+
+#### 🟠 DOĞRU, ama analizin bulduğundan DAHA KESKİN — ölü durum enum'ları
+
+Analiz *"Status alanları string, enum kullanılmalı"* dedi. Ölçüm daha kötü bir şey gösterdi:
+**enum'lar zaten yazılmış ve dördü de ölü.**
+
+| Enum | Kendi dosyası dışında kullanım |
+|---|---|
+| `AdStatus` | **0** (yalnız `PanelDisplay.cs:16`'da bir **yorumda** `<c>AdStatus</c>` olarak geçiyor) |
+| `CampaignStatus` | **0** |
+| `DeathStatus` | **0** |
+| `EventStatus` | **0** |
+
+Ham string sayımı (üretim kodu): `"pending"` **150** · `"approved"` **48** · `"rejected"` **21**
+· `"active"` **21** · `"expired"` **8** · `"archived"` **5**.
+
+🔴 **Ama analizin önerdiği çözüm (enum'a çevir) YANLIŞ ve bu projede kırıcı:** durum değeri
+DB'de `varchar` ve **DTO'da string olarak mobile çıkıyor** → §5 gereği tipini değiştirmek
+kontrat kırar. Doğru çözüm projede **zaten var**:
+`Application/Features/PushCampaigns/PushCampaignStatus.cs` → `PushCampaignStatuses` adında
+`const string` sınıfı. Yani proje doğru deseni **bir modülde bulmuş, dört moderasyonlu
+modüle uygulamamış**. 12.11 tek sahipliği derleyiciye devretti (`init` → `CS8852`) ama
+korumayı **değerin kendisine** taşımadı: `ad.Approve("apprved")` bugün **derlenir**.
+
+#### 🟡 KISMEN DOĞRU — çerçevelemesi yanlış olanlar
+
+- **"Web katmanı disiplinsiz, API disiplinli."** Ölçüm: 30 panel controller'ının **12'si**
+  `IUnitOfWork`/`IRepository` alıyor. Ama **11'i salt-okunur** (form açılırken
+  `ViewBag.Neighborhoods` gibi dropdown doldurma). Yazan **tek** yer `AccountController`
+  (2 `SaveChanges`, ikisi de `PanelLockoutPolicy` sayacı) ve orası **bilinçli**: kimlik
+  doğrulama akışı, henüz bir kullanıcı bağlamı yokken koşuyor. 🔑 Asıl risk katman değil,
+  **MediatR'ı atlayan yazmanın `AuditBehavior` + `CacheInvalidationBehavior`'ı atlaması**;
+  bugün o risk gerçekleşmiyor.
+- **"Dönüş tipi tutarsız, çift zarf riski."** Tutarsızlık **gerçek** (173 handler'ın **23'ü**
+  kendi `ApiResponse<T>`'sini dönüyor) ama **çift sarma olmuyor**:
+  `ApiResponseWrapperFilter.IsAlreadyWrapped` bunu 10.13'ten beri yakalıyor ve kodun kendisi
+  buna *"eski desen"* diyor. Bilinen, kontrollü bir borç — hata değil.
+- **"`User.cs` çok şişman, SRP ihlali."** Dosya **103 satır**, 26 property. Satır olarak
+  şişman değil; sorumluluk olarak dağınık olduğu doğru. Ama bölmenin bedeli ölçülmeli:
+  `User.Phone` **42 dosyanın** kimlik çıpası (§7 madde 70). Faz 13 adayı, acil değil.
+
+#### ❌ YANLIŞ ya da UYDURMA
+
+- **"Muhtemelen FluentValidation kullanılıyor… iki kaynaklı doğrulama riski."**
+  `AbstractValidator` → **0 sınıf**. `ValidationBehavior` → **yok**, pipeline'da yalnız
+  `Caching`/`CacheInvalidation`/`Audit` var. FluentValidation paketi **yalnız
+  `ValidationException` tipi** için duruyor (18 `throw`). Yani **ikinci kaynak yok**;
+  tek kaynak var ve o da elle. 🔑 Analiz burada yanlış bir *rahatlama* üretiyor:
+  gerçek durum "iki kaynak çakışabilir" değil, **"95 komut, 0 validator"**.
+- **"Test coverage bilinmiyor, `UnitTest1.cs` ismi umut vermiyor."** `UnitTest1.cs`
+  **yok** (`find` → 0). Gerçek: **109 test dosyası, 891 `[Fact]`/`[Theory]`**.
+  Bu cümle uydurma ve analizin en zayıf anı.
+- **"Yorumlar koddan fazla satır kaplıyor."** Ölçüldü:
+  **93.159 kod / 9.652 yorum → %9,4**. Bu düşük-normal bir oran. ⚠️ *Ama* yorum
+  **yoğunlaşmış**: 12 dosya %52–73 arasında (`PushCampaign.cs` %72,6 · `Ad.cs` %58,1 ·
+  `NewsArticle.cs` %52,5) — ve bunlar tam olarak **görünmez sözleşme taşıyan** dosyalar,
+  yani kaza değil tasarım.
+- **"Comment rot riski"** — risk **gerçek** (yukarıda iki örneği bulundu) ama analizin
+  ölçütü yanlış. Sarkan işaretçi taraması yapıldı: yorumlardaki **396** tip atfının
+  **0'ı kırık**; 6 test atfının **1'i** kırık. Yani bu projede yorum çürümesi *"olmayan
+  şeye atıf"* biçiminde **neredeyse yok**; çürüme **"geçerli atıf + yanlış iddia"**
+  biçiminde geliyor ve onu hiçbir doküman testi yakalayamaz.
+
+#### 🔁 ÜÇÜNCÜ KEZ GELEN, ZATEN GEREKÇELİ REDDEDİLMİŞ MADDELER
+
+- **`Repository.Query()` → `IQueryable` sızıntısı.** 9 Ağu'da denetlendi, 10 Ağu'da tekrar
+  geldi, 13 Ağu'da **canlı zarar arandı ve bulunamadı** (12 `SoftRemove` çağrısının hepsi
+  izlenen nesnede). Karar değişmedi. Açık maddeler panosu D bölümünde duruyor.
+- **Anemik domain / Domain Events.** Üçüncü tekrar. 12.11'de **hedefli** olarak çözüldü
+  (canlı hasar üretmiş tek değişmez). Genel dönüşüm Faz 13 adayı.
+
+---
+
+### 🗺️ PLAN — Faz 12.19: "denetimin bulduğu üç delik" *(bir sonraki oturum)*
+
+> Üçü de **additive**, üçü de tek oturumluk. Sıra **hasar büyüklüğüne** göre, çabaya göre değil.
+
+**12.19a — `/Dashboard/Seed`'i kapat** *(en yüksek öncelik: canlıda sahte içerik + CSRF)*
+1. Aksiyonu `[HttpPost]`'a çevir, view'daki `<a href>`'i `data-confirm` taşıyan bir `<form>`
+   yap. ⚠️ `data-confirm` **formun** üzerinde olmalı, butonun değil (12.16 hatası).
+2. `IWebHostEnvironment` enjekte et; `!env.IsDevelopment()` ise aksiyon **404** dönsün ve
+   buton **hiç çizilmesin** (§11: menü gizlemek yetmez, yolun kendisi koşullu olmalı —
+   `/gelistirici/ag` dersi).
+3. `AppDbContext` bağımlılığını controller'dan düşür: `SeedMockDataCommand` (Application)
+   yaz, `MockDataSeeder`'ı oradan çağır. Böylece **audit izi de** düşer (bugün hiç düşmüyor).
+4. **Testler:** `PanelSeedActionTests` → (a) Production'da 404, (b) GET reddediliyor,
+   (c) moderatör 403, (d) dolu tabloya dokunmuyor.
+5. 🔑 **Kapsamı türet, elle liste yazma:** `ProductionReadinessGuardTests`'e *"panelde
+   Production'da açık kalan, veritabanına toplu yazan aksiyon var mı?"* sorusunu **yansımayla**
+   sor — yoksa yarın yazılacak ikinci bir seed aksiyonu aynı deliği açar.
+
+**12.19b — `User.cs`'in çürümüş yorumunu düzelt ve sınıfı KAPAT**
+1. `User.cs:97-100`'ü gerçekle değiştir: anahtarsız JSON **`false`** materyalize olur,
+   `BackfillNewsNotificationPreference` bu yüzden **zorunludur**, kilit
+   `NotificationPreferenceAxisTests.MissingJsonKey_MaterialisesAsFalse`.
+2. `CreateAdCommandHandler.cs:25`'teki ölü `Ads/Validators` atfını sil.
+3. 🔑 **Asıl iş bu:** yorumdaki **test/metot atıflarını** doğrulayan bir doküman testi yaz
+   (`CommentReferenceTests`) — bu oturumda yazdığım tarama zaten çalışıyor ve **1 kırık atıf**
+   buldu. Kapsam **dizinden** türetilsin (`**/*.cs`), elle liste tutulmasın.
+   ⚠️ Bu test *sarkan işaretçiyi* yakalar, **yanlış iddiayı yakalayamaz** — dosyanın kendisi
+   bunu dürüstçe yazsın (madde 67'nin `VacuousOnAFreshDatabase` dürüstlüğü deseni).
+
+**12.19c — Durum değerlerini sabite bağla** *(§5'i kırmadan)*
+1. `AdStatuses` · `DeathStatuses` · `EventStatuses` · `CampaignStatuses` → `const string`
+   sınıfları (`PushCampaignStatuses` deseninin birebir kopyası, **enum değil**: DB `varchar`
+   ve değer DTO'da mobile çıkıyor → tip değişimi §5 gereği kırıcı).
+2. Ölü dört enum'u **sil** (`AdStatus`/`CampaignStatus`/`DeathStatus`/`EventStatus`) —
+   0 kullanım, ölçüldü. ⚠️ `PanelDisplay.cs:16`'daki yorum atfı da güncellensin.
+3. Varlıkların geçiş metotlarını sabitlere bağla (`Ad.Approve` içindeki `"approved"` →
+   `AdStatuses.Approved`). ⚠️ Kolon değeri **birebir aynı kalmalı** — bu bir yeniden
+   adlandırma değil, **tek sahip** çalışması.
+4. **Test:** `ModerationSingleOwnerTests`'e bir ayak daha — moderasyonlu varlıkların geçiş
+   metotlarında **ham durum literali** kalmadığı, kapsam **tipten** türetilerek denetlensin.
+5. 📌 **Kapsam bilinçli olarak dar:** `"active"`/`"scheduled"` (duyuru) ve haber durumları
+   bu turda **dışarıda** — duyuruda moderasyon yok, haber durumu zaten türetiliyor
+   (§7 madde 58).
+
+**Kapsam DIŞI (bilinçli):** `User` entity'sinin bölünmesi · `IQueryable` sızıntısı ·
+genel anemik-domain dönüşümü · handler dönüş tipi tekilleştirmesi. Dördü de **gerçek** ama
+dördü de *"çalışan bir şeyi güzelleştirmek"*; üçü zaten gerekçeli olarak Faz 13'e bırakıldı,
+dördüncüsü (`ApiResponse` ikiliği) **hata üretmiyor** (`IsAlreadyWrapped` kapıyor).
