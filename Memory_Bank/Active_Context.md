@@ -1,5 +1,75 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 15 Ağustos 2026 — **FAZ 12.17 TAMAMLANDI: KVKK mobil. KVKK bloğu (12.16–12.17) KAPANDI.**
+> Backend 1244 → **1251** (+7), mobil 824 → **865** (+41). Görünmez sözleşme **74 → 77**.
+>
+> 🔑 **TESLİM EDİLEN:** yeni mobil modül `features/legal/` — dört ekran (`/yasal` ·
+> `/yasal/:type` · `/yasal-surum/:id` · `/yasal-onay`) · kayıt akışında **ön işaretsiz** rıza
+> adımı · ayarlarda *"Onayınız: v2 · 15 Ağustos 2026"* + isteğe bağlı izni verme/geri alma ·
+> sekme kabuğunu saran **yeniden onay kapısı**.
+>
+> 🔴 **KARAR 1 — metin gösterilemiyorken KAYIT AÇILMAZ** (§7 madde 76). Bu, projedeki
+> varsayılan yönün (§5 *"şüphede kalınca göster"*, §7 madde 49) **bilinçli tersi** ve tersliği
+> yazılmak zorundaydı: diğer bütün ekranlarda "veri gelmediyse yine de göster" doğru yön,
+> burada aynı davranış **hiç okunmamış bir metne verilmiş onay** üretir — o da hiç alınmamış
+> rızayla aynı kapıya çıkar. ⚠️ `AsyncLoading` dalı da kapalı.
+>
+> 🔴 **KARAR 2 — kararın tek sahibi `ConsentSelection`** (saf sınıf, `initial` **boş** kümeyle
+> başlar). Ön işaretli kutu KVKK'da rıza sayılmaz ve kural **tek karakterle** bozulabiliyor;
+> bozulduğunda uygulama çalışır, log temizdir, kayıt **hızlanır** — yalnız toplanan bütün
+> rızalar **geçersiz** olur. Kilit bu yüzden hem saf hem davranış ayaklı.
+>
+> 🔴 **KARAR 3 — hukuki metin ekranları YÖNLENDİRME İSTİSNASI** (`AppRoutes.isLegalReading`):
+> *"kayıt yarım kaldıysa tek çıkış kayıt ekranıdır"* kuralı bu ekranları da kapatıyordu →
+> "oku" bağlantısı kullanıcıyı geri fırlatır ve geriye **okumadan onaylamaktan başka seçenek
+> kalmazdı**; yani KVKK bloğunun tamamı boşa giderdi.
+>
+> ➕ **PLAN DIŞI EK — `GET /v1/legal/versions/{id}`** (§7 madde 77). 12.16 rızayı sürüme
+> bağladı ve `consentedVersionId`'yi **söylüyordu** — ama o kimlikten **metne** giden bir yol
+> **yoktu**: yeni sürüm yayınlandığı an vatandaş kabul ettiği metni bir daha **hiç
+> göremiyordu**. Kanıt bizdeydi, **sahibinde** değildi. 🔴 Taslak **404**; yürürlükten kalkmış
+> sürüm **döner** (`isLive:false`); belgenin `IsActive`'ine **bakılmaz** (kanıt tek bir panel
+> anahtarıyla kaybolamaz).
+>
+> ➕ **PLAN DIŞI EK — `core/widgets/rich_html_body.dart`:** HTML gövde çiziminin ortak
+> çekirdeği. `NewsBody` **sahipliğini korur**, çizimi ona delege eder — ikinci bir kopya iki
+> dosyayı zamanla ayrıştırırdı (birinde `onLinkTap` bağlı, diğerinde değil) ve hiçbiri hata
+> vermezdi.
+>
+> 🐛 **CANLI DOĞRULAMA GERÇEK BİR HATA BULDU — ve hata 12.16'daydı: panelden yeni sürüm açmak
+> HİÇ ÇALIŞMIYORDU.** `<input type="date">` MVC'de `Kind=Unspecified` üretiyor, Npgsql
+> `timestamptz`'e yalnız UTC yazıyor → "Taslak oluştur" **500**. Yani 12.16'nın bir numaralı
+> kuralının (*"metni değiştirmenin tek yolu yeni sürümdür"*) **tek yolu kapalıydı** ve hiçbir
+> test bunu söylemiyordu — çünkü 12.16'nın bütün testleri `DateTime.UtcNow` (yani `Kind=Utc`)
+> veriyordu. ✅ Çözüm `LegalDates.FromPanel` (tek sahip; saat **kaydırılmaz, etiketlenir**).
+> 🔑 **Ders: bir alanı test ederken, o alana GERÇEKTE ne geldiğini ölç.**
+>
+> 🐛 **Widget testi ilk koşuşunda gerçek bir taşma buldu** (`ConsentCheckTile`, 65 px) —
+> projenin yedi kez tekrarlamış `RenderFlex overflow` sınıfının sekizincisi. Golden 360 dp +
+> 1.4 ölçekte kilitledi.
+>
+> 🐛 **Bozma turu: 9 kilit, 9 kırmızı.**
+>
+> ✅ **CANLI DOĞRULANDI (Android emülatörü + panel, uçtan uca):** panelden metin yayınlandı →
+> kayıt ekranında ön işaretsiz kutular + kapalı buton + sebep → metin biçimli çizildi →
+> kayıt tamamlandı ve `granted=false` **de** kaydedildi (`source` ve IP sunucuda) → ayarlarda
+> onaylanan sürüm göründü → izin verildi (`source=settings`) → **v2 (yeniden onay istiyor)**
+> yayınlandı → açılışta yeniden onay ekranı geldi, kapatılamadı ama çıkışı vardı →
+> onaylandı (`source=reconsent`, **v1 kaydı silinmedi**) → **v3 (yeniden onay istemiyor)**
+> yayınlandı → ekran **açılmadı** ve *"Onayladığınız metni oku (v2)"* butonu belirdi → o metin
+> *"artık yürürlükte değil"* uyarısıyla açıldı.
+>
+> ⏭️ **Sırada:** 12.8 sosyal giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı bugün
+> yazılabilir**) · **12.19** (dış analiz denetiminin üç deliği; 12.19a acil) · 12.18 adayı
+> kategori bazlı bildirim aboneliği.
+> 📌 **Açık kalan tek KVKK maddesi kod işi değil:** hukuki metinlerin **gerçek içeriği** bir
+> **insan/hukukçu** tarafından yazılmalı. Bugün yerelde yayında olanlar **test metnidir**;
+> kod metni seed etmiyor ve etmeyecek (12.16 kararı 1).
+
+---
+
+## Önceki oturum — FAZ 12.16
+
 > Son güncelleme: 14 Ağustos 2026 — **FAZ 12.16 TAMAMLANDI: KVKK belge yönetimi + rıza kaydı.**
 > Backend 1182 → **1244** (+62), mobil 824 (değişmedi — 12.16 mobile dokunmadı).
 > Görünmez sözleşme **70 → 74**.

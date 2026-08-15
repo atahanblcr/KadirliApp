@@ -53,4 +53,29 @@ public class LegalController : ApiControllerBase
             ? NotFound(new { code = "NOT_FOUND", message = "Belge bulunamadı." })
             : Success(document);
     }
+
+    /// <summary>
+    /// Faz 12.17 (plan dışı ek) — <b>belirli bir sürümün</b> metni: "ben neyi onaylamıştım?"
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🔑 12.16 rızayı sürüme bağladı ve <c>GET /v1/users/me/consents</c> onayladığınız
+    /// <c>consentedVersionId</c>'yi söylüyordu — ama o kimlikten <b>metne</b> giden bir yol
+    /// yoktu: yeni sürüm yayınlandığı an vatandaş <b>neyi kabul ettiğini bir daha
+    /// göremiyordu</b>.
+    /// </para>
+    /// <para>
+    /// 🔴 <b>Taslak 404</b>'tür; yürürlükten kalkmış sürüm <b>döner</b> (<c>isLive:false</c> ile) —
+    /// ucun bütün amacı zaten eski metni okuyabilmek.
+    /// </para>
+    /// </remarks>
+    [HttpGet("versions/{versionId:guid}")]
+    public async Task<IActionResult> Version(Guid versionId)
+    {
+        var version = await Sender.Send(new GetLegalVersionByIdQuery(versionId));
+
+        return version is null
+            ? NotFound(new { code = "NOT_FOUND", message = "Metin bulunamadı." })
+            : Success(version);
+    }
 }

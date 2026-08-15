@@ -18,6 +18,10 @@ abstract final class ApiErrorMessages {
     ApiErrorCodes.usernameChangeLimit: 'Kullanıcı adınızı 30 günde bir değiştirebilirsiniz.',
     ApiErrorCodes.neighborhoodChangeLimit: 'Mahallenizi 30 günde bir değiştirebilirsiniz.',
     ApiErrorCodes.selfDeleteForbidden: 'Bu hesap uygulamadan silinemez.',
+    ApiErrorCodes.missingConsent:
+        'Kaydı tamamlamak için zorunlu onayları işaretlemeniz gerekiyor.',
+    ApiErrorCodes.mandatoryConsent:
+        'Bu onay zorunludur; geri almak için hesabınızı silmeniz gerekir.',
     ApiErrorCodes.duplicate: 'Bu kayıt zaten mevcut.',
     ApiErrorCodes.unauthorized: 'Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.',
     ApiErrorCodes.forbidden: 'Bu işlem için yetkiniz yok.',

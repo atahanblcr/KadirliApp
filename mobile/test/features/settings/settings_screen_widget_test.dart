@@ -99,17 +99,21 @@ void main() {
     expect(find.textContaining('Sürüm'), findsOneWidget);
   });
 
-  testWidgets('gizlilik politikası bağlantısı MİSAFİRE DE görünür', (tester) async {
+  testWidgets('yasal metinler bağlantısı MİSAFİRE DE görünür', (tester) async {
     // Mağaza zorunluluğu (Faz 11.16): politikaya uygulamanın içinden
     // erişilebilmeli. ⚠️ Bilinçli olarak **misafir** oturumla test ediliyor:
     // bağlantı yanlışlıkla "Hesap işlemleri" gibi oturum gerektiren bir bloğa
     // konursa giriş yapmamış kullanıcı politikayı hiç göremez — ki mağazanın
     // istediği tam olarak o kullanıcının da görebilmesi.
+    //
+    // 🔑 12.17: hedef artık uygulama **içi** ekran (`/yasal`). Etiket
+    // değiştiği için bu testin kırılması **doğruydu** — kilit bağlantının
+    // varlığını değil, *misafirin ona ulaşabildiğini* tutuyor.
     await openSettings(tester, signedIn: false);
 
-    await tester.scrollUntilVisible(find.text('Gizlilik Politikası'), 200);
+    await tester.scrollUntilVisible(find.text('Yasal metinler'), 200);
     await tester.pumpAndSettle();
 
-    expect(find.text('Gizlilik Politikası'), findsOneWidget);
+    expect(find.text('Yasal metinler'), findsOneWidget);
   });
 }

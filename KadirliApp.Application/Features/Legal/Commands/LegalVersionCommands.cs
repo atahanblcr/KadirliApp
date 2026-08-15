@@ -75,7 +75,11 @@ public class CreateLegalVersionCommandHandler : IRequestHandler<CreateLegalVersi
             Body = request.Body,
             Summary = request.Summary,
             RequiresReconsent = request.RequiresReconsent,
-            EffectiveFrom = request.EffectiveFrom ?? DateTime.UtcNow
+            // 🐛 `SpecifyKind` şart ve bu satır CANLI DOĞRULAMADA doğdu: panelin
+            // `<input type="date">` alanı `Kind=Unspecified` bir `DateTime` üretiyor,
+            // Npgsql ise `timestamptz` kolonuna yalnız UTC yazıyor → yeni sürüm açmak
+            // **hiç çalışmıyordu** (500). Tek sahip `LegalDates`.
+            EffectiveFrom = LegalDates.FromPanel(request.EffectiveFrom, DateTime.UtcNow)
         };
 
         await versions.AddAsync(version, ct);
@@ -128,8 +132,10 @@ public class UpdateLegalVersionCommandHandler : IRequestHandler<UpdateLegalVersi
         if (version is null)
             return ApiResponse<bool>.FailureResponse("NOT_FOUND", "Sürüm bulunamadı.");
 
+        // 🐛 Aynı tuzak burada da vardı (bkz. `LegalDates`): taslağı düzenlerken formdan
+        // gelen tarih `Kind=Unspecified` olduğu için kayıt 500 veriyordu.
         if (!version.TryRevise(request.Body, request.Summary, request.RequiresReconsent,
-                request.EffectiveFrom ?? version.EffectiveFrom))
+                LegalDates.FromPanel(request.EffectiveFrom, version.EffectiveFrom)))
             return ApiResponse<bool>.FailureResponse(
                 "CONFLICT",
                 "Yayınlanmış bir metin değiştirilemez — kullanıcıların onayı bu metne verildi. " +

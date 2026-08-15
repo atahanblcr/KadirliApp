@@ -226,11 +226,15 @@ class _AboutCard extends ConsumerWidget {
           AppSpacing.gapSm,
           // Mağaza zorunluluğu (Faz 11.16): gizlilik politikasına uygulamanın
           // İÇİNDEN de erişilebilmeli — yalnız mağaza sayfasında olması yetmez.
+          //
+          // 🔑 12.17: hedef artık **uygulama içi** ekran. Web bağlantısı
+          // silinmedi, ekranın **boş** dalına taşındı: hiçbir metin
+          // yayınlanmamışken bu butonu kaldırmak mağaza şartını kırardı.
           AppButton.ghost(
-            label: 'Gizlilik Politikası',
+            label: 'Yasal metinler',
             icon: Icons.privacy_tip_outlined,
             expand: true,
-            onPressed: () => AppLinks.web(Env.privacyPolicyUrl),
+            onPressed: () => context.push(AppRoutes.legal),
           ),
         ],
       ),

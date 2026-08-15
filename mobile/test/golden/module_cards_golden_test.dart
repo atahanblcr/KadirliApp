@@ -15,6 +15,8 @@ import 'package:kadirli_app/features/complaints/data/models/complaint.dart';
 import 'package:kadirli_app/features/complaints/presentation/widgets/complaint_card.dart';
 import 'package:kadirli_app/features/events/data/models/event.dart';
 import 'package:kadirli_app/features/events/presentation/widgets/event_card.dart';
+import 'package:kadirli_app/features/legal/data/models/legal_document.dart';
+import 'package:kadirli_app/features/legal/presentation/widgets/consent_check_tile.dart';
 import 'package:kadirli_app/features/news/data/models/news_article.dart';
 import 'package:kadirli_app/features/news/data/models/news_category.dart';
 import 'package:kadirli_app/features/news/presentation/widgets/news_body.dart';
@@ -500,6 +502,67 @@ void main() {
                 '<li>İnce işler sürüyor</li></ul>'
                 '<blockquote>Kısa sürede gençlerin kullanımına '
                 'sunulacak.</blockquote>',
+          ),
+        ),
+      ],
+    );
+  });
+
+  testWidgets('ConsentCheckTile — uzun belge adı, zorunlu/isteğe bağlı', (
+    tester,
+  ) async {
+    // 🐛 **Bu senaryo bir gerçek hatadan doğdu:** satırın "… — oku" bağlantısı
+    // esnek değildi ve 400 dp genişlikte **65 piksel taşıyordu** (12.17'nin
+    // widget testi ilk koşuşunda yakaladı). Golden onu 360 dp **ve** 1.4 yazı
+    // ölçeğinde — yani projenin yedi kez tekrarlamış taşma sınıfının tam
+    // koşullarında — kilitliyor.
+    //
+    // ⚠️ Belge adı bilerek uzun: kısa bir örnek hiçbir düzen hatası göstermez.
+    LegalDocument document({
+      required String title,
+      required bool mandatory,
+      String? summary,
+    }) => LegalDocument(
+      id: 'doc-1',
+      type: 'acik_riza',
+      title: title,
+      versionId: 'version-1',
+      versionNumber: 3,
+      summary: summary,
+      isMandatory: mandatory,
+    );
+
+    await expectGoldenSheet(
+      tester,
+      name: 'consent_check_tile',
+      height: 1100,
+      scenarios: [
+        GoldenScenario(
+          'Zorunlu — uzun başlık + özet',
+          ConsentCheckTile(
+            document: document(
+              title: 'Kişisel Verilerin Korunması Kanunu Aydınlatma Metni',
+              mandatory: true,
+              summary:
+                  'Kişisel verilerimin uygulama hizmetleri kapsamında '
+                  'işlenmesini kabul ediyorum.',
+            ),
+            granted: false,
+            onChanged: (_) {},
+            onRead: () {},
+          ),
+        ),
+        GoldenScenario(
+          'İsteğe bağlı — işaretli',
+          ConsentCheckTile(
+            document: document(
+              title: 'Ticari Elektronik İleti İzni',
+              mandatory: false,
+              summary: 'Kampanya ve duyuru bildirimleri almak istiyorum.',
+            ),
+            granted: true,
+            onChanged: (_) {},
+            onRead: () {},
           ),
         ),
       ],

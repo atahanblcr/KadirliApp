@@ -282,6 +282,77 @@ public class PanelLegalTests : IAsyncLifetime
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // 2b) Formdan gelen TARİH — 12.17 canlı doğrulamasının bulduğu gerçek hata
+    // ────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 🐛 <b>12.16'nın en önemli kuralının tek yolu KAPALIYDI ve hiçbir test görmedi.</b>
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Panelin <c>&lt;input type="date"&gt;</c> alanı MVC'de <c>Kind=Unspecified</c> bir
+    /// <c>DateTime</c> üretiyor; Npgsql ise <c>timestamptz</c> kolonuna yalnız UTC yazıyor.
+    /// Sonuç: <b>"Taslak oluştur" 500 veriyordu</b> — yani 12.16'nın *"yayınlanmış metin
+    /// değiştirilemez, değiştirmenin tek yolu yeni sürümdür"* kuralının **tek yolu**
+    /// çalışmıyordu. Belirti yalnız canlı panelde görülüyordu.
+    /// </para>
+    /// <para>
+    /// 🔑 <b>Testler neden görmedi:</b> 12.16'nın bütün testleri <c>DateTime.UtcNow</c>
+    /// veriyordu (<c>Kind=Utc</c>) — kural doğru ölçülüyordu ama <b>panelin gerçekte
+    /// ürettiği değerle değil</b>. Bu test tam da o değeri kuruyor: forma bir tarih dizesi
+    /// yazıyor ve zincirin ucunda kaydın **gerçekten oluştuğunu** ölçüyor.
+    /// 🔑 Ders: <i>bir alanı test ederken, o alana GERÇEKTE ne geldiğini ölç.</i>
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task CreateVersion_AcceptsADateComingFromTheForm_NotOnlyAUtcStampFromCode()
+    {
+        await SetPermissionsAsync(new AdminPermission
+        {
+            UserId = _moderatorId, Module = "legal",
+            CanRead = true, CanCreate = true, CanUpdate = true, CanApprove = true
+        });
+
+        var client = await ModeratorClientAsync();
+
+        // Önce açık taslağı kapatmalıyız: komut aynı belgede ikinci taslağa izin vermiyor.
+        await client.PostFormAsync("/LegalAdmin/Publish",
+            new Dictionary<string, string>
+            {
+                ["id"] = _draftVersionId.ToString(),
+                ["documentId"] = _documentId.ToString()
+            }, "/LegalAdmin");
+
+        // ⚠️ Kritik ayrıntı: tarih **form alanı olarak** gidiyor (`yyyy-MM-dd`), yani
+        // model bağlayıcı `Kind=Unspecified` üretecek — hatanın doğduğu tam koşul.
+        await client.PostFormAsync("/LegalAdmin/CreateVersion",
+            new Dictionary<string, string>
+            {
+                ["DocumentId"] = _documentId.ToString(),
+                ["Body"] = "<p>formdan gelen tarihle açılan taslak</p>",
+                ["Summary"] = "form tarihi",
+                ["EffectiveFrom"] = "2026-09-01",
+                ["RequiresReconsent"] = "false"
+            }, "/LegalAdmin");
+
+        await _factory.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<AppDbContext>();
+            var created = await db.Set<LegalDocumentVersion>()
+                .Where(v => v.DocumentId == _documentId && v.Summary == "form tarihi")
+                .SingleOrDefaultAsync();
+
+            created.Should().NotBeNull(
+                "panelin tarih alanı `Kind=Unspecified` üretiyor; UTC'ye etiketlenmezse " +
+                "Npgsql yazmayı reddediyor ve yeni sürüm açmanın TEK yolu kapanıyor");
+
+            // ⚠️ Gün **kaydırılmamalı**: yönetici "1 Eylül" yazdığında kastettiği o takvim
+            // günüdür (§7 madde 6'nın "TR günü, 00:00 UTC" tuzağı).
+            created!.EffectiveFrom.Date.Should().Be(new DateTime(2026, 9, 1));
+        });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // 3) Denetim izi ve Türkçe
     // ────────────────────────────────────────────────────────────────────────
 

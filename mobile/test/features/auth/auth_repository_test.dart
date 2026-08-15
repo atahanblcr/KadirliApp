@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kadirli_app/core/network/network.dart';
 import 'package:kadirli_app/features/auth/data/auth_repository.dart';
+import 'package:kadirli_app/features/legal/data/legal_repository.dart';
 
 import '../../core/network/fake_http_adapter.dart';
 import '../../helpers/pump_app.dart';
@@ -144,6 +145,13 @@ void main() {
       username: 'atahan',
       primaryNeighborhoodId: 'e5b0a7f0-0000-0000-0000-000000000001',
       age: 30,
+      // Faz 12.17 — KVKK kararları. ⚠️ `granted: false` de gönderilir:
+      // "sormadık" ile "sorduk, hayır dedi" KVKK'da farklı şeylerdir ve
+      // yalnız `true` yollansaydı bu fark hiçbir yerde durmazdı.
+      consents: const [
+        ConsentDecision(versionId: 'v1-0000-0000-0000-000000000001', granted: true),
+        ConsentDecision(versionId: 'v2-0000-0000-0000-000000000002', granted: false),
+      ],
     );
 
     expect(tokens.accessToken, 'ACCESS');
@@ -152,7 +160,39 @@ void main() {
       'username': 'atahan',
       'primaryNeighborhoodId': 'e5b0a7f0-0000-0000-0000-000000000001',
       'age': 30,
+      'consents': [
+        {'versionId': 'v1-0000-0000-0000-000000000001', 'granted': true},
+        {'versionId': 'v2-0000-0000-0000-000000000002', 'granted': false},
+      ],
     });
+  });
+
+  test('rıza verilmediyse consents BOŞ DİZİ gider (alan hiç düşmez)', () async {
+    // 🔑 Alan **additive** (§5): taze kurulumda yayında zorunlu belge yok ve
+    // kayıt akışı birebir 12.17 öncesi gibi çalışmalı. Alanın gövdeden tamamen
+    // düşmesi de çalışırdı ama boş dizi göndermek niyeti **açık** kılıyor:
+    // "sorduk, hiçbir belge yoktu" ile "hiç sormadık" sunucuda aynı yola gider,
+    // bizde ayrışmasın diye tek biçim var.
+    final adapter = routedAdapter({
+      '/v1/auth/register': (_) async => jsonResponse(
+        successEnvelope({
+          'accessToken': 'ACCESS',
+          'refreshToken': 'REFRESH',
+          'expiresIn': 86400,
+        }),
+      ),
+    });
+
+    await repositoryWith(adapter).register(
+      tempToken: 'TEMP',
+      username: 'atahan',
+      primaryNeighborhoodId: 'e5b0a7f0-0000-0000-0000-000000000001',
+    );
+
+    expect(
+      (adapter.lastOf('/v1/auth/register')!.data as Map)['consents'],
+      isEmpty,
+    );
   });
 
   test('logout refresh token gövdede gider ve Bearer eklenir', () async {

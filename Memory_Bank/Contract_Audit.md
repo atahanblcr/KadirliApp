@@ -352,3 +352,22 @@ kırıktı**: yürürlükten kaldırma ile yayınlama tek `SaveChanges`'teydi ve
 sırasına** göre göndermesi ve anahtarların `gen_random_uuid()` olması — yani hata, GUID
 sıralamasının şansına bağlıydı. 🔑 Kilit yazarken sorulacak yeni soru: *bu hata her koşuda mı
 çıkar, yoksa bir olasılıkla mı?* Olasılıksa **tekrar** şart (`LegalPublishTests`: 10 tur).
+
+---
+
+## Faz 12.17 — KVKK mobil (madde 75–77)
+
+| # | Sözleşme | Kilit cinsi | Risk | Kilidi taşıyan dosya + **iddianın şekli** |
+|---|---|---|---|---|
+| 75 | **Rıza kutusu ÖN İŞARETLİ OLAMAZ**; kararın tek sahibi `ConsentSelection` | **Saf birim + davranış** (istemci) | 🟢 | `mobile/test/features/legal/consent_selection_test.dart` (saf: `initial` boş küme **ve** o boşluğun butonu kapattığı — ikinci yön şart, yoksa "kutular boş ama kayıt yine tamamlanır" bir gerçeklem de yeşil kalırdı) + `register_consent_test.dart` (**davranış**: `Checkbox.value == false` *ve* `AppButton.onPressed == null` *ve* sebebin ekranda yazdığı) + `reconsent_test.dart` (eski onayın yeni sürüme **taşınmadığı**). ⚠️ Yalnız saf test yetmezdi: ekran kendi başlangıç değerini üretmeye başlasa saf test yeşil kalırdı. 🔬 Bozma turu: `initial` her kutuyu işaretledi → **üç dosya birden kırmızı** |
+| 76 | **Hukuki metin gösterilemiyorsa kayıt AÇILMAZ** (§5'in bilinçli tersi) | **Davranış** (istemci) | 🟢 | `register_consent_test.dart`: `metinler alınamazsa kayıt AÇILMAZ ve sebebini söyler` — iddia **üç ayaklı**: hata şeridi görünür · buton `onPressed == null` · `POST /v1/auth/register` **hiç çağrılmaz** (son ayak kritik: "buton kapalı" görünüp isteğin yine gitmesi mümkün). ⚠️ Test `apiRetry`'ın iki tekrarını **bekler** ve o sırada da butonun kapalı kaldığını ölçer → `AsyncLoading` dalı da kapsanır. İkinci kilit `reconsent_test.dart`'ın `kayıt akışı yarım kalmışken hukuki metin AÇILABİLİR` testi: `AppRoutes.isLegalReading` istisnası kalkarsa "oku" bağlantısı kullanıcıyı kayıt ekranına fırlatır ve **okumadan onaylamaktan başka yol kalmaz**. 🔬 Bozma turu: iki ayrı bozma → **iki ayrı kırmızı** |
+| 77 | **Rıza kaydının işaret ettiği metin, SAHİBİ tarafından okunabilir** (`GET /v1/legal/versions/{id}`) | **Davranış** (gerçek Postgres) | 🟢 | `Integration/Legal/LegalVersionEndpointTests.cs` — **iki yönlü** (§7 madde 68'in dersi): `ADraftVersion_IsNotFound…` tek başına *hiçbir sürümü döndürmeyen* bir gerçeklemede de yeşil kalırdı, bu yüzden `ASupersededVersion_IsStillReadable…` ve `ALiveVersion_SaysItIsLive…` birlikte duruyor (ikincisi `isLive`'ın **sabit false** dönmediğini kilitler — yoksa ekran yürürlükteki metnin üstüne de "artık geçerli değil" basardı). Ayrıca `ADeactivatedDocumentsVersion_IsStillReadable…`: kanıt, yöneticinin bir panel anahtarıyla kaybolamaz. 🔬 Bozma turu: taslak kontrolü kaldırıldı → **kırmızı** |
+
+📌 **12.17'nin kalıcı dersi — *kuralın "tek karakterle bozulabilir" olması, kilidin cinsini belirler.***
+Madde 75 bir `const {}` ile bozulabiliyor ve bozulduğunda **hiçbir şey hata vermiyor**: uygulama
+çalışır, kayıt hızlanır, log temizdir — yalnız toplanan bütün rızalar hukuken **geçersiz** olur.
+Böyle bir kuralda saf test *gerekli ama yeterli değil*: kuralın sahibi değişmeden **çağıranın**
+onu atlaması mümkün, o yüzden davranış ayağı da şart. 🔑 Kilit yazarken sorulacak soru:
+*bu kural bozulduğunda ortaya çıkan şey bir hata mı, yoksa sessizce geçersiz bir kayıt mı?*
+
+📌 **Risk dağılımı bugün: 🟢🟢 6 · 🟢 71 · 🟠 0 · 🔴 0** (77 madde).

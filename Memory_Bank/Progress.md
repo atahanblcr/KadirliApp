@@ -6,7 +6,7 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 
 ## 🚦 AÇIK MADDELER PANOSU — *tek bakışta ne kaldı*
 
-> **Son doğrulama: 13 Ağustos 2026** (kutulara değil **koda/şemaya** bakılarak).
+> **Son doğrulama: 15 Ağustos 2026** (kutulara değil **koda/şemaya** bakılarak).
 > Bu pano **yalnız AÇIK maddeleri** listeler; bir madde kapandığında satırı **silinir**
 > (işaretlenmez). Gerekçe: bu dosya 5000+ satır ve durum bilgisi beş ayrı yere dağılmıştı —
 > 13 Ağu denetiminde **22 kutunun 21'i** bayat, iki başlık da yanlış çıktı. Büyüyen bir liste
@@ -20,8 +20,8 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | Madde | Nerede | Durum / blokaj |
 |---|---|---|
 | **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
-| **12.17 — KVKK: mobil** | `### 12.17` | 🟢 **Backend hazır (14 Ağu).** Uçlar canlı, `consents` additive, kapı açık. Mobil tarafta kod yok |
 | **12.19 — dış analiz denetiminin bulduğu üç delik** | `### 🗺️ PLAN — Faz 12.19` | 🔴 **12.19a acil**: `/Dashboard/Seed` Production'da açık, **GET** (antiforgery kapsamaz) ve boş tablolara sahte veri basıyor. 🟠 12.19b: `User.cs:97-100` yorumu **ölçümün tersini** söylüyor + var olmayan teste atıf. 🟡 12.19c: dört **ölü** durum enum'u + 253 ham durum literali |
+| 📌 **Hukuki metinlerin GERÇEK içeriği** | 12.16/12.17 notları | 🔴 **Kod işi değil, İNSAN işi** ve yayından önce zorunlu. Zincirin tamamı çalışıyor (12.17 canlı doğrulandı) ama bugün yayında olan metinler **test metnidir** — yerel veritabanında, benim yazdığım örnekler. Gerçek KVKK aydınlatma + açık rıza metnini **hukukçu** yazmalı; kod onu bekliyor, tahmin etmiyor (12.16 kararı: metin **seed edilmez**) |
 
 ### B. Karar bekleyenler (kod değil, tercih)
 
@@ -51,8 +51,8 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | **Madde 67'nin duman testi** | `Memory_Bank/Contract_Audit.md` | Bu ortamda **vakum** ve artık **adı bunu söylüyor** (`SmokeCheck_…_VacuousOnAFreshDatabase`); gerçek kilit yanındaki testte |
 
 📌 **Bunların dışında açık madde yoktur.** Görünmez sözleşme denetimi (Faz 0 · B1–B7 · T1/T2 ·
-Faz A) **bitti**; bugün **70 maddenin** tamamı 🟢/🟢🟢 — tablo `Memory_Bank/Contract_Audit.md`
-(68–70 denetimden sonra, Faz 12.7'de eklendi).
+Faz A) **bitti**; bugün **77 maddenin** tamamı 🟢/🟢🟢 — tablo `Memory_Bank/Contract_Audit.md`
+(68–70 denetimden sonra Faz 12.7'de, 71–74 Faz 12.16'da, **75–77 Faz 12.17'de** eklendi).
 
 ---
 
@@ -5490,7 +5490,7 @@ görülünce ölçüldü: aynı senaryonun **8 koşusundan 5'i**
 
 ---
 
-### 12.17 — KVKK: mobil — [ ]
+### 12.17 — KVKK: mobil — [x] ✅ TAMAMLANDI (15 Ağustos 2026)
 
 - **Kayıt ekranına rıza adımı** (`/kayit`): zorunlu belgeler için **ön işaretsiz** onay
   kutuları + belge adına dokununca **tam metin** ekranı (`/yasal/:type`).
@@ -5510,6 +5510,117 @@ görülünce ölçüldü: aynı senaryonun **8 koşusundan 5'i**
 **Bitti kriteri:** emülatörde kayıt, rıza verilmeden **tamamlanamıyor** · metin panelden
 değiştirilip yayınlanınca **uygulamada yeni metin görünüyor** (uçtan uca zincir) ·
 ayarlardan onaylanan sürüm görünüyor · isteğe bağlı rıza geri alınabiliyor.
+
+#### ✅ Ne teslim edildi (15 Ağustos 2026)
+
+**Backend 1244 → 1251 (+7), mobil 824 → 865 (+41). Görünmez sözleşme 74 → 77.**
+
+- **Yeni mobil modül `features/legal/`** (13. modülün yanına 14. klasör; backend modülü
+  29 numaralı satırın mobil sütununu doldurdu): dört ekran — `/yasal` (Ayarlar › Yasal
+  metinler) · `/yasal/:type` (metnin tam hâli) · `/yasal-surum/:id` (**onayladığınız** metin) ·
+  `/yasal-onay` (yeniden onay).
+- **Kayıt akışında rıza adımı:** ön işaretsiz kutular, her satırda "… — oku" bağlantısı ve
+  sürüm rozeti, kapalı butonun **sebebini yazması**.
+- **Ayarlarda:** *"Onayınız: v2 · 15 Ağustos 2026"*, isteğe bağlı izni **verme/geri alma**,
+  zorunlu izinde karşılığın (hesap silme) **yazılması**.
+- **Yeniden onay kapısı** sekme kabuğunu sarıyor; zorunlu belgede kapatılamaz ama **çıkışı
+  var** (hesap silme).
+- ➕ **Plan dışı backend eki:** `GET /v1/legal/versions/{id}` (aşağıda).
+- ➕ **Plan dışı ortak bileşen:** `core/widgets/rich_html_body.dart` — HTML gövde çiziminin
+  ortak çekirdeği; `NewsBody` sahipliğini koruyup çizimi ona delege ediyor.
+
+#### ⚙️ Alınan kararlar
+
+| # | Karar | Gerekçe |
+|---|---|---|
+| 1 | 🔴 **Metin gösterilemiyorken KAYIT AÇILMAZ** (§7 madde 76) | Projedeki varsayılan yönün (§5 *"şüphede kalınca göster"*) **bilinçli tersi**: metni gösteremiyorken rıza almak **rıza almamaktır** ve alınan onay hiç alınmamışla aynı kapıya çıkar. ⚠️ `AsyncLoading` dalı da kapalı — yalnız hata dalı kapatılsaydı hızlı davranan kullanıcı metinler inerken kaydı tamamlardı |
+| 2 | 🔴 **Kararın tek sahibi `ConsentSelection`** (saf sınıf) | Üç ekran (kayıt · yeniden onay · ayarlar) aynı kuraldan geçiyor. Ayrı yazılsalardı projenin en sık hasar sınıfı doğardı (§7 madde 23/38/65): bir ekran kutuyu zorunlu sayar, diğeri saymaz ve kullanıcı **hangi ekrandan geldiğine göre** farklı kural görür |
+| 3 | 🔴 **Hukuki metin ekranları yönlendirme istisnası** (`AppRoutes.isLegalReading`) | *"Kayıt yarım kaldıysa tek çıkış kayıt ekranıdır"* kuralı bu ekranları da kapatıyordu → "oku" bağlantısı kullanıcıyı geri fırlatır ve geriye **okumadan onaylamaktan başka seçenek kalmazdı**; yani bloğun tamamı boşa giderdi |
+| 4 | **Yeniden onay kapısı kabukta, `redirect`'te DEĞİL** | `GoRouter.redirect` eşzamanlı; rıza durumu bir ağ isteğinin sonucu. Redirect'e taşımak ya açılışta `await` beklemek (uygulamayı kilitler) ya da veriyi router'da önbelleğe almak (**ikinci sahip**) demekti. ⚠️ İşaret **kullanıcı başına** tutuluyor: tek `bool` olsaydı ikinci hesabın bekleyen onayı **sessizce hiç sorulmazdı** |
+| 5 | **Kapatılamayan ekranın ÇIKIŞI var** | Zorunlu belgede geri tuşu kapalı ama "Hesabı sil" duruyor — 12.7'nin *"son sosyal bağlantı da çözülebilmeli"* gerekçesiyle aynı: kapatılamayan ve çıkışı olmayan ekran kullanıcıyı hesabından **kilitler** |
+| 6 | **İyimser güncelleme YOK** (bildirim anahtarlarının bilinçli tersi) | Orada bedel bir bildirimin gelmemesiydi; burada ekranda "onaylandı" yazıp sunucuda yazılmamış bir rıza **var olmayan bir kanıttır** — ve kullanıcı onayladığını sanır |
+| 7 | ➕ **`GET /v1/legal/versions/{id}` yazıldı** (plan dışı) | 12.16 rızayı sürüme bağladı ve `consentedVersionId`'yi söylüyordu — ama o kimlikten **metne** giden yol **yoktu**: yeni sürüm yayınlandığı an vatandaş kabul ettiği metni bir daha **hiç göremiyordu**. Kanıt bizdeydi, **sahibinde** değildi. 🔴 Taslak **404**, yürürlükten kalkmış sürüm **döner**, belgenin `IsActive`'ine **bakılmaz** (kanıt tek bir panel anahtarıyla kaybolamaz) |
+| 8 | ➕ **`RichHtmlBody` ortak çekirdeğe çıkarıldı** | Hukuki metin de HTML çiziyor ve bir feature başka feature'ın `presentation`'ına bakamaz. İkinci bir kopya yazılsaydı iki dosya **ayrı ayrı doğru** başlar, zamanla ayrışırdı (birinde `onLinkTap` bağlı, diğerinde değil) — ve hiçbiri hata vermezdi. **Sahiplik değişmedi:** `NewsBody` hâlâ haber gövdesinin sahibi, `RichHtmlBody` yalnız *nasıl çizildiğini* biliyor |
+
+#### 🐛 BOZMA TURU KOŞULDU — **9 kilit, 9 kırmızı**
+
+| Bozma | Sonuç |
+|---|---|
+| `ConsentSelection.initial` **her kutuyu işaretledi** (madde 75) | 🔴 **üç dosya birden** |
+| Belgeler alınamazken kayıt **açık** kaldı (madde 76) | 🔴 kırmızı |
+| Reddedilen karar sunucuya **gönderilmedi** | 🔴 iki dosya |
+| Yönlendirmedeki hukuki metin **istisnası kaldırıldı** (madde 76) | 🔴 kırmızı |
+| Yeniden onay kapısı **hiç çalışmadı** | 🔴 **altı test** |
+| Zorunlu rızada "geri al" butonu **çizildi** | 🔴 kırmızı |
+| `isReconsent` her zaman `false` gitti | 🔴 kırmızı |
+| Zorunlu belgede ekran **kapatılabilir** yapıldı | 🔴 kırmızı |
+| Backend: **taslak sürüm de döndü** (madde 77) | 🔴 kırmızı |
+
+#### 🐛 CANLI DOĞRULAMA **GERÇEK BİR HATA BULDU** — ve hata 12.16'daydı
+
+🔴 **Panelden yeni sürüm açmak HİÇ ÇALIŞMIYORDU.** Emülatör testinden önce panelde bir KVKK
+metni yayınlamak gerekiyordu; "Taslak oluştur" **500** verdi:
+`ArgumentException: Cannot write DateTime with Kind=Unspecified to PostgreSQL type
+'timestamp with time zone'`.
+
+- **Sebep:** panelin `<input type="date">` alanı MVC'de `Kind=Unspecified` bir `DateTime`
+  üretiyor; Npgsql `timestamptz` kolonuna yalnız **UTC** yazıyor. Projede bu dönüşümün deseni
+  zaten vardı (`PowerOutage`, `Announcement`, `DeathNotice` komutları `DateTime.SpecifyKind`
+  çağırıyor) — **12.16 onu atlamıştı.**
+- **Neden bu kadar ağır:** 12.16'nın bir numaralı kuralı *"yayınlanmış metin değiştirilemez,
+  değiştirmenin **tek yolu** yeni sürümdür"*. O tek yol kapalıydı; yani modül **canlıda
+  kullanılamaz** hâldeydi ve hiçbir test bunu söylemiyordu.
+- 🔑 **Testler neden görmedi:** 12.16'nın bütün testleri `DateTime.UtcNow` veriyordu
+  (`Kind=Utc`). Kural doğru ölçülüyordu ama **panelin gerçekte ürettiği değerle değil** —
+  12.7'nin *"iki bağımsız sebep koruyorsa hangisini tuttuğunu ölç"* dersinin kardeşi.
+  🔑 **Yeni ders: bir alanı test ederken, o alana GERÇEKTE ne geldiğini ölç.**
+- **Çözüm:** `LegalDates.FromPanel` (tek sahip — `Create` ve `Update` iki çağıran; ayrı
+  yazılsalardı biri düzeltilip diğeri unutulduğunda **taslağı düzenlemek** yine 500 verirdi).
+  ⚠️ Saat **kaydırılmaz, yalnız etiketlenir**: yönetici "15.08.2026" yazdığında kastettiği o
+  takvim günüdür (§7 madde 6'nın dört kez tekrarlamış tuzağı).
+- **Kilit:** `PanelLegalTests.CreateVersion_AcceptsADateComingFromTheForm_NotOnlyAUtcStampFromCode`
+  — tarihi **form alanı olarak** gönderiyor. Bozma turu koşuldu → **kırmızı**.
+
+#### 🐛 Projenin kendi korumaları bir hata daha yakaladı
+
+- **`ConsentCheckTile`'da gerçek bir taşma vardı** ve **widget testi ilk koşuşunda** buldu:
+  `RenderFlex overflowed by 65 pixels` (400 dp genişlikte). İçteki `Flexible` yalnız kendi
+  satırında iş görüyordu; `InkWell` esnek olmadığı için dıştaki satır onun doğal genişliğini
+  istiyordu. Bu, projenin **yedi kez** tekrarlamış taşma sınıfının sekizincisiydi.
+  → `Expanded` eklendi ve golden sayfası (`consent_check_tile_{light,dark}.png`) 360 dp **ve**
+  1.4 yazı ölçeğinde kilitledi.
+- **`ArchitectureDocTests` kırmızıya döndü** çünkü `lib/features/legal/` modül tablosunda
+  yoktu — doküman bilerek çürüyemiyor (§4 adım 18).
+
+#### 📌 Bitti kriteri — madde madde (**hepsi CANLI doğrulandı**, Android emülatörü + panel)
+
+- ✅ Panelden metin yazıldı ve **yayınlandı** → `GET /v1/legal/documents` iki belge döndü
+- ✅ Kayıt ekranında kutular **ön işaretsiz** geldi, "Kaydı Tamamla" **kapalıydı** ve
+  *"Devam etmek için "Açık Rıza Metni" onayı gerekli."* yazıyordu
+- ✅ "… — oku" bağlantısı kayıt akışının **içinden** açıldı (yönlendirme istisnası çalıştı) ve
+  panelde yazılan HTML **biçimli** çizildi (başlık · liste · kalın · alıntı · bağlantı)
+- ✅ Kutu işaretlenince buton **açıldı**; kayıt tamamlandı ve veritabanında **iki satır** oluştu:
+  `acik_riza → granted=true`, `ticari_ileti → granted=false` — *"sorduk, hayır dedi"* gerçekten
+  kaydedildi; `source=registration` ve `ip_address` **sunucuda** dolduruldu
+- ✅ Ayarlar › Yasal metinler: *"Onayınız: v1 · 15 Ağustos 2026"*, zorunlu belgede "geri al"
+  butonu **hiç çizilmedi** ve karşılığı (hesap silme) yazıldı
+- ✅ İsteğe bağlı izin **verildi** → `source` sunucuda **`settings`** oldu; sonra "İzni geri al"
+  butonu çıktı
+- ✅ Panelden **v2 yayınlandı** (`RequiresReconsent` işaretli) → uygulama açılışında
+  **yeniden onay ekranı geldi**, kutu **ön işaretsizdi**, geri tuşu **yoktu**, "Hesabı sil"
+  çıkışı **vardı** → onaylandı ve satır `source=reconsent` olarak yazıldı.
+  🔑 **v1 kaydı silinmedi** — kanıt duruyor
+- ✅ Panelden **v3 yayınlandı** (`RequiresReconsent` **işaretsiz**) → yeniden onay ekranı
+  **açılmadı** (kullanıcı gereksiz rahatsız edilmedi) ve ayarlarda
+  **"Onayladığınız metni oku (v2)"** butonu belirdi
+- ✅ O butondan **v2 metni açıldı** ve ekran *"Bu metin artık yürürlükte değil — 15 Ağustos 2026
+  tarihinde yerini yeni bir sürüme bıraktı. Onayladığınız metin bu."* dedi
+
+#### ⏭️ 12.17'den çıkan açık madde
+
+- 📌 **Hukuki metinlerin GERÇEK içeriği hâlâ yazılmadı** — ve bu bilinçli: kod metni
+  **seed etmiyor** (12.16 kararı 1). Bugün yerelde yayında olan metinler **test metnidir**.
+  Yayından önce hukukçunun yazdığı metin panele girilmeli; zincirin geri kalanı hazır.
 
 ---
 

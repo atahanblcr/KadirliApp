@@ -136,12 +136,19 @@ ApiClient testApiClient(
 /// Başka bir konuya odaklanan testler (auth akışı, tema) bu varsayılanları
 /// serper — böylece Ana Sayfa 404 gürültüsü üretmez:
 /// `routedAdapter({...homeStubs(), '/v1/…': …})`
+///
+/// 🔑 **12.17:** kayıt ekranı ve sekme kabuğu artık KVKK uçlarına da bakıyor
+/// (`/v1/legal/documents`, `/v1/users/me/consents`). Varsayılanları **boş
+/// liste**: bu, taze bir kurulumun gerçek hâli (12.16 kararı — metin seed
+/// edilmez) ve o hâlde kayıt akışı **birebir 12.17 öncesi gibi** çalışır.
+/// Rıza akışını ölçen testler bunları `legalStubs()` ile serper.
 Map<String, Future<ResponseBody> Function(RequestOptions options)> homeStubs({
   List<Map<String, dynamic>> onDuty = const [],
   List<Map<String, dynamic>> outages = const [],
   List<Map<String, dynamic>> announcements = const [],
   int unreadCount = 0,
 }) => {
+  ...legalStubs(),
   '/v1/pharmacies/on-duty': (_) async => jsonResponse(successEnvelope(onDuty)),
   '/v1/power-outages': (_) async => jsonResponse(successEnvelope(outages)),
   '/v1/announcements': (_) async => jsonResponse(
@@ -163,6 +170,47 @@ Map<String, Future<ResponseBody> Function(RequestOptions options)> homeStubs({
       'totalPages': 0,
     }),
   ),
+};
+
+/// KVKK / hukuki metin uçları (12.17).
+///
+/// Varsayılan **boş**: taze kurulumda hiçbir belge yayınlanmamıştır ve kayıt
+/// akışı 12.17 öncesiyle aynı davranır. Rıza akışını ölçen testler
+/// [documents] / [consents] vererek gerçek senaryoyu kurar.
+Map<String, Future<ResponseBody> Function(RequestOptions options)> legalStubs({
+  List<Map<String, dynamic>> documents = const [],
+  List<Map<String, dynamic>> consents = const [],
+}) => {
+  '/v1/legal/documents': (_) async => jsonResponse(successEnvelope(documents)),
+  '/v1/users/me/consents': (_) async => jsonResponse(successEnvelope(consents)),
+};
+
+/// Tek bir hukuki belge gövdesi (`LegalDocumentDto`) — testlerin ortak kalıbı.
+Map<String, dynamic> legalDocumentBody({
+  String id = '11111111-1111-1111-1111-111111111111',
+  String type = 'acik_riza',
+  String title = 'Açık Rıza Metni',
+  String versionId = 'aaaaaaaa-1111-1111-1111-111111111111',
+  int versionNumber = 1,
+  String? summary = 'Kişisel verilerimin işlenmesini kabul ediyorum.',
+  String body = '<p>Rıza metninin tam hâli.</p>',
+  bool isMandatory = true,
+  bool showAtRegistration = true,
+  int sortOrder = 0,
+  bool requiresReconsent = false,
+}) => {
+  'id': id,
+  'type': type,
+  'title': title,
+  'versionId': versionId,
+  'versionNumber': versionNumber,
+  'summary': summary,
+  'body': body,
+  'isMandatory': isMandatory,
+  'showAtRegistration': showAtRegistration,
+  'sortOrder': sortOrder,
+  'effectiveFrom': '2026-08-01T00:00:00Z',
+  'requiresReconsent': requiresReconsent,
 };
 
 /// Sahte yanıt üreticisi: yol → gövde eşlemesi.

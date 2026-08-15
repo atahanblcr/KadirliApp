@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/network/network.dart';
 import '../../../core/theme/theme_controller.dart' show sharedPreferencesProvider;
+import '../../legal/data/legal_repository.dart' show ConsentDecision;
 import '../../notifications/data/fcm_token_service.dart';
 import '../data/auth_repository.dart';
 import '../data/models/auth_tokens.dart';
@@ -143,6 +144,7 @@ class AuthController extends Notifier<AuthState> {
     required String username,
     required String neighborhoodId,
     int? age,
+    List<ConsentDecision> consents = const [],
   }) async {
     final current = state;
     if (current is! AuthRegistering) {
@@ -154,6 +156,7 @@ class AuthController extends Notifier<AuthState> {
       username: username,
       primaryNeighborhoodId: neighborhoodId,
       age: age,
+      consents: consents,
     );
     await _startSession(tokens);
   }

@@ -11,6 +11,16 @@ abstract final class ApiErrorCodes {
   static const usernameChangeLimit = 'USERNAME_CHANGE_LIMIT';
   static const neighborhoodChangeLimit = 'NEIGHBORHOOD_CHANGE_LIMIT';
   static const selfDeleteForbidden = 'SELF_DELETE_FORBIDDEN';
+
+  /// Faz 12.17 — kayıt akışında zorunlu bir KVKK onayı eksik.
+  ///
+  /// ⚠️ Sunucunun mesajı **hangi belgenin** eksik olduğunu söyler ve
+  /// `ApiErrorMessages.resolve` sunucu mesajını tercih eder; buradaki karşılık
+  /// yalnız mesaj boş geldiğinde devreye girer.
+  static const missingConsent = 'MISSING_CONSENT';
+
+  /// Faz 12.17 — zorunlu bir rıza ayarlardan geri alınmaya çalışıldı.
+  static const mandatoryConsent = 'MANDATORY_CONSENT';
   static const duplicate = 'DUPLICATE';
   static const unauthorized = 'UNAUTHORIZED';
   static const forbidden = 'FORBIDDEN';

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/network.dart';
+import '../../legal/data/legal_repository.dart' show ConsentDecision;
 import 'models/auth_tokens.dart';
 import 'models/current_user.dart';
 import 'models/otp_challenge.dart';
@@ -35,11 +36,23 @@ class AuthRepository {
   }
 
   /// Kaydı tamamlar (yeni kullanıcı). `age` boş bırakılabilir.
+  ///
+  /// [consents] — Faz 12.17: kullanıcının **gördüğü sürümlere** verdiği KVKK
+  /// kararları. Alan sunucuda **additive** (12.16): boş gönderildiğinde
+  /// davranış, yayında zorunlu bir belge olmadığı sürece birebir eskisi gibi.
+  ///
+  /// 🔴 Zorunlu bir belge varsa ve onayı gelmezse sunucu **400
+  /// `MISSING_CONSENT`** döner ve **hangi belgenin** eksik olduğunu söyler —
+  /// istemci o mesajı kullanıcıya olduğu gibi gösterir.
+  ///
+  /// ⚠️ Rıza kaydının bağlamı (IP · tarayıcı) **sunucuda** doldurulur;
+  /// gövdeden gönderilen bir değer ezilir. İstemci onu hiç göndermez.
   Future<AuthTokens> register({
     required String tempToken,
     required String username,
     required String primaryNeighborhoodId,
     int? age,
+    List<ConsentDecision> consents = const [],
   }) async {
     final data = await _api.post(
       '/v1/auth/register',
@@ -48,6 +61,7 @@ class AuthRepository {
         'username': username,
         'primaryNeighborhoodId': primaryNeighborhoodId,
         'age': age,
+        'consents': consents.map((decision) => decision.toJson()).toList(),
       },
     );
     if (data is! Map) throw ApiException.unexpectedResponse(cause: data);

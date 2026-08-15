@@ -30,6 +30,10 @@ import '../../features/dev/presentation/network_probe_screen.dart';
 import '../../features/guide/presentation/guide_item_detail_screen.dart';
 import '../../features/guide/presentation/guide_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
+import '../../features/legal/presentation/legal_document_screen.dart';
+import '../../features/legal/presentation/legal_documents_screen.dart';
+import '../../features/legal/presentation/legal_version_screen.dart';
+import '../../features/legal/presentation/reconsent_screen.dart';
 import '../../features/news/presentation/news_detail_screen.dart';
 import '../../features/news/presentation/news_screen.dart';
 import '../../features/news/presentation/saved_news_screen.dart';
@@ -183,6 +187,33 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.accountDelete,
         name: 'accountDelete',
         builder: (context, state) => const AccountDeleteScreen(),
+      ),
+
+      // --- Hukuki metinler / KVKK (12.17) ---
+      // ⚠️ Üçü de **kardeş** rota: `/yasal/:type` iç içe yazılsaydı go_router
+      // üstteki liste ekranını da kurar ve kayıt akışındaki bir kullanıcı
+      // metni açtığında arkada gereksiz bir istek atardı (11.7 tuzağı).
+      GoRoute(
+        path: AppRoutes.legal,
+        name: 'legalDocuments',
+        builder: (context, state) => const LegalDocumentsScreen(),
+      ),
+      GoRoute(
+        path: '${AppRoutes.legal}/:type',
+        name: 'legalDocument',
+        builder: (context, state) =>
+            LegalDocumentScreen(type: state.pathParameters['type']!),
+      ),
+      GoRoute(
+        path: '${AppRoutes.legalVersionPrefix}/:id',
+        name: 'legalVersion',
+        builder: (context, state) =>
+            LegalVersionScreen(versionId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: AppRoutes.reconsent,
+        name: 'reconsent',
+        builder: (context, state) => const ReconsentScreen(),
       ),
 
       // --- İlan verme / düzenleme (11.9) ---
@@ -440,7 +471,13 @@ String? _redirect(Ref ref, String location) {
   if (auth.isUnknown) return location == AppRoutes.splash ? null : AppRoutes.splash;
 
   // Kayıt yarım kaldıysa (tempToken elde) tek çıkış yolu kayıt ekranıdır.
+  //
+  // 🔴 **Hukuki metin ekranları istisnadır (12.17).** Kural olmasaydı onay
+  // kutusunun yanındaki "oku" bağlantısı kullanıcıyı kayıt ekranına geri
+  // fırlatırdı ve geriye **okumadan onaylamaktan başka seçenek kalmazdı** —
+  // yani KVKK bloğunun tamamı boşa giderdi. Belge uçları zaten anonim.
   if (auth.isRegistering) {
+    if (AppRoutes.isLegalReading(location)) return null;
     return location == AppRoutes.register ? null : AppRoutes.register;
   }
 

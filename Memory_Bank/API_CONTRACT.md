@@ -451,6 +451,18 @@ sourceUrl · publishedAt · modifiedAt · readingMinutes · isFeatured · catego
 - `GET /v1/legal/documents/{type}` — **anonim**, tek belge. `type` değerleri **kontrattır**:
   `kvkk_aydinlatma` · `acik_riza` · `kullanim_kosullari` · `gizlilik_politikasi` ·
   `ticari_ileti`. ⚠️ Tanınmayan tür **varsayılana düşmez**, **404** olur.
+- `GET /v1/legal/versions/{versionId}` — **anonim** (Faz 12.17 eki): **belirli bir sürümün**
+  metni, yani *"ben neyi onaylamıştım?"*.
+  - Alanlar: `id` · `documentType` · `documentTitle` · `versionNumber` · `summary` ·
+    `body` (HTML) · `effectiveFrom` · `publishedAt` · **`isLive`** · `supersededAt`.
+  - 🔑 **Neden var:** rıza sürüme bağlı (§7 madde 71) ve `GET /v1/users/me/consents`
+    `consentedVersionId`'yi söylüyor — ama 12.17 öncesinde o kimlikten **metne** giden bir yol
+    **yoktu**: yeni sürüm yayınlandığı an vatandaş kabul ettiği metni bir daha göremiyordu.
+  - 🔴 **Taslak sürüm 404** (`publishedAt == null`); **yürürlükten kalkmış sürüm DÖNER**
+    (`isLive: false` + `supersededAt` dolu) — ucun bütün amacı zaten eski metni okuyabilmek.
+  - ⚠️ Belgenin `isActive`'ine **bakılmaz** (kardeş uçların tersi): kanıt, yöneticinin bir
+    panel anahtarıyla kaybolamamalı.
+  - ⚠️ `isLive` **veriyle gelir**; istemci onu `supersededAt`'ten türetmez (§7 madde 77).
 - `POST /v1/auth/register` — gövdeye **additive** `consents: [{versionId, granted}]` eklendi.
   - 🔴 Zorunlu belgelerin **hepsi** `granted=true` gelmeden kayıt **tamamlanmaz**:
     **400 `MISSING_CONSENT`** ve mesaj **hangi belgenin** eksik olduğunu **söyler**.

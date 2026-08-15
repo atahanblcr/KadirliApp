@@ -4106,6 +4106,29 @@
                 }
             }
         },
+        "/v1/legal/versions/{versionId}": {
+            "get": {
+                "tags": [
+                    "Legal"
+                ],
+                "parameters": [
+                    {
+                        "name": "versionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/v1/admin/lookups/neighborhoods": {
             "get": {
                 "tags": [
@@ -11839,7 +11862,7 @@
         "securitySchemes": {
             "Bearer": {
                 "type": "http",
-                "description": "JWT access token \u2014 sadece token'\u0131 yap\u0131\u015ft\u0131r\u0131n ('Bearer' \u00f6neki otomatik).",
+                "description": "JWT access token — sadece token'ı yapıştırın ('Bearer' öneki otomatik).",
                 "scheme": "bearer",
                 "bearerFormat": "JWT"
             }

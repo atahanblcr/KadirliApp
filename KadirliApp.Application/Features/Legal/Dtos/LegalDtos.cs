@@ -45,6 +45,51 @@ public class LegalDocumentDto
     public bool RequiresReconsent { get; set; }
 }
 
+/// <summary>
+/// Faz 12.17 (plan dışı ek) — <b>belirli bir sürümün</b> metni
+/// (<c>GET /v1/legal/versions/{id}</c>).
+/// </summary>
+/// <remarks>
+/// <para>
+/// 🔑 <b>Neden gerekti:</b> 12.16 rızayı sürüme bağladı ve <c>GET /v1/users/me/consents</c>
+/// kullanıcının onayladığı <c>consentedVersionId</c>'yi <b>söylüyor</b> — ama o kimliğe
+/// karşılık gelen <b>metni okuyacak bir uç yoktu</b>. Yani v2'yi onaylayan bir vatandaş, v3
+/// yayınlandığı an <i>neyi kabul ettiğini bir daha hiç göremiyordu</i>. Bu, bloğun kapatmak
+/// için yazıldığı hasarın (<i>"kayıt duruyor, metin ortada yok"</i>) vatandaş tarafındaki
+/// yüzüdür: kanıt <b>bizde</b> vardı, <b>sahibinde</b> yoktu.
+/// </para>
+/// <para>
+/// 🔴 <b>Yalnız YAYINLANMIŞ sürüm döner</b> (<c>PublishedAt != null</c>); taslak <b>404</b>'tür.
+/// Taslak dönseydi henüz yayınlanmamış bir metin, kimliğini tahmin eden herkese açılırdı —
+/// ve daha kötüsü, kullanıcı onu "yürürlükteki metin" sanabilirdi.
+/// </para>
+/// <para>
+/// ⚠️ Yürürlükten kalkmış sürüm <b>bilerek</b> dönüyor (<see cref="IsLive"/> <c>false</c> ile):
+/// bu ucun varlık sebebi zaten <b>eski</b> metni okuyabilmek. Ekran farkı söylemek zorunda —
+/// söylemezse kullanıcı yürürlükten kalkmış bir metni güncel sanar.
+/// </para>
+/// </remarks>
+public class LegalVersionDto
+{
+    /// <summary>Sürümün kimliği — rıza kaydının işaret ettiği değer.</summary>
+    public Guid Id { get; set; }
+
+    public string DocumentType { get; set; } = default!;
+    public string DocumentTitle { get; set; } = default!;
+
+    public int VersionNumber { get; set; }
+    public string? Summary { get; set; }
+    public string Body { get; set; } = default!;
+
+    public DateTime EffectiveFrom { get; set; }
+    public DateTime PublishedAt { get; set; }
+
+    /// <summary>⚠️ <c>false</c> ise metin <b>yürürlükten kalkmıştır</b> — ekran bunu söylemeli.</summary>
+    public bool IsLive { get; set; }
+
+    public DateTime? SupersededAt { get; set; }
+}
+
 /// <summary>Faz 12.16 — kullanıcının kendi rıza durumu (<c>GET /v1/users/me/consents</c>).</summary>
 public class MyConsentDto
 {

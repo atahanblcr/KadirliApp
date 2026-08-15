@@ -173,14 +173,43 @@ UPDATE'leri **birincil anahtar sırasına** (yani `gen_random_uuid()` → **rast
 🔑 **Ders: rastgeleliğe bağlı bir hata, tek koşuluk bir testle kilitlenemez** (`LegalPublishTests`
 10 tur koşar).
 
-**1244 backend + 824 mobil test, 74 görünmez sözleşme.**
+**✅ 12.17 bitti — KVKK mobil. KVKK bloğu (12.16–12.17) KAPANDI.** Yeni mobil modül
+`features/legal/`: dört ekran (`/yasal` · `/yasal/:type` · `/yasal-surum/:id` ·
+`/yasal-onay`), kayıt akışında **ön işaretsiz** rıza adımı, ayarlarda *"Onayınız: v2"* +
+isteğe bağlı izni verme/geri alma, sekme kabuğunu saran **yeniden onay kapısı**.
+🔴 **Metin gösterilemiyorken kayıt AÇILMAZ** — projedeki *"şüphede kalınca göster"*
+kuralının (§5, §7 madde 49) **bilinçli tersi** ve tersliği yazılmak zorundaydı: metni
+gösteremiyorken rıza almak **rıza almamaktır**. `AsyncLoading` dalı da kapalı.
+🔴 **Kararın tek sahibi `ConsentSelection`** (saf; `initial` **boş** kümeyle başlar). Ön
+işaretli kutu KVKK'da rıza sayılmaz ve kural **tek karakterle** bozulabiliyor — bozulduğunda
+hiçbir şey hata vermez, kayıt **hızlanır** bile, yalnız toplanan bütün rızalar **geçersiz**
+olur. Kilit hem saf hem davranış ayaklı.
+🔴 **Hukuki metin ekranları yönlendirme istisnası** (`AppRoutes.isLegalReading`): *"kayıt
+yarım kaldıysa tek çıkış kayıt ekranıdır"* kuralı onları da kapatıyordu → "oku" bağlantısı
+kullanıcıyı geri fırlatır ve geriye **okumadan onaylamaktan başka seçenek kalmazdı**.
+➕ **Plan dışı ek: `GET /v1/legal/versions/{id}`** — 12.16 rızayı sürüme bağladı ve
+`consentedVersionId`'yi söylüyordu ama o kimlikten **metne** giden yol **yoktu**: yeni sürüm
+yayınlandığı an vatandaş kabul ettiği metni bir daha göremiyordu. Kanıt bizdeydi, **sahibinde**
+değildi. Taslak **404**, yürürlükten kalkmış sürüm **döner**, belgenin `IsActive`'ine
+**bakılmaz**. ➕ `core/widgets/rich_html_body.dart` (HTML gövde çiziminin ortak çekirdeği;
+`NewsBody` sahipliğini korur, çizimi delege eder).
+🐛 **CANLI DOĞRULAMA GERÇEK BİR HATA BULDU ve hata 12.16'daydı: panelden yeni sürüm açmak
+HİÇ ÇALIŞMIYORDU** (`<input type="date">` → `Kind=Unspecified` → Npgsql `timestamptz`'i
+reddediyor → 500). Yani *"metni değiştirmenin tek yolu yeni sürümdür"* kuralının **tek yolu
+kapalıydı**; testler görmedi çünkü hepsi `DateTime.UtcNow` veriyordu. Tek sahip
+`LegalDates.FromPanel` (saat **kaydırılmaz, etiketlenir**). 🔑 **Ders: bir alanı test ederken,
+o alana GERÇEKTE ne geldiğini ölç.** 🐛 Widget testi ilk koşuşunda `ConsentCheckTile`'da
+**gerçek bir taşma** buldu (taşma sınıfının 8. tekrarı). Bozma turu: **9 kilit, 9 kırmızı**.
 
-**⏭️ Sırada:** **12.17 KVKK mobil** (backend hazır, uçlar canlı; ⚠️ **12.17 yazılana kadar
-zorunlu bir belge YAYINLANMAMALI** — yayınlandığı an mobil kayıt `MISSING_CONSENT` alır,
-geçici çıkış `Legal:RequireConsentAtRegistration=false`. 📌 Metinleri yazmak bir **insan**
-işi; belgeler panelde kabuk hâlinde bekliyor) · 12.8 sosyal giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı
-bugün yazılabilir**) · **12.18 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir
-dispatcher **yazılmaz**, var olan tek sahip genişletilir).
+**1251 backend + 865 mobil test, 77 görünmez sözleşme.**
+
+**⏭️ Sırada:** 12.8 sosyal giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı bugün
+yazılabilir**) · **12.19** (dış analiz denetiminin üç deliği — 12.19a `/Dashboard/Seed`
+**acil**) · **12.18 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher
+**yazılmaz**, var olan tek sahip genişletilir).
+📌 **KVKK'da açık kalan tek madde kod işi DEĞİL:** hukuki metinlerin **gerçek içeriği** bir
+**insan/hukukçu** tarafından yazılmalı — bugün yayında olanlar test metnidir ve kod metni
+**seed etmiyor** (bilinçli).
 🐛 **12.7'nin bozma turu koşuldu ve BİR DELİK BULDU:** madde 70'in testi doğru davranışı
 ölçüyordu ama **yanlış sebepten** geçiyordu (sosyal jetonun `phone` claim'i zaten yok →
 `token_type` kontrolü silinse de `null` dönüyor). İki bağımsız sebep koruyordu ama biri
@@ -269,7 +298,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 74 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 77 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
@@ -295,6 +324,10 @@ yansıma**), **58–60** → `Integration/Panel/PanelNewsTests.cs` + `Unit/Appli
 **71–74** → `Unit/Application/Legal/` + `Integration/Legal/`
 (`LegalConsentTests` · `LegalPublishTests`) + `Integration/Panel/PanelLegalTests.cs` +
 `Integration/Architecture/LegalImmutabilityStructureTests.cs` (**yansıma** — kaynak taraması değil),
+**75–76 istemci tarafı** → `mobile/test/features/legal/`
+(`consent_selection_test.dart` · `register_consent_test.dart` · `reconsent_test.dart` ·
+`legal_documents_screen_test.dart`), **77** → `Integration/Legal/LegalVersionEndpointTests.cs`
+(**iki yönlü**: taslak 404 *ve* yayınlanmış sürümün döndüğü),
 **68–70** → `Unit/Infrastructure/SocialTokenVerifierTests.cs` +
 `Unit/Infrastructure/JwtProviderSocialTokenTests.cs` +
 `Unit/Application/Auth/SocialProvidersTests.cs` + `Integration/Auth/SocialLoginTests.cs`.

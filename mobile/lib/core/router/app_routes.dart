@@ -28,6 +28,42 @@ abstract final class AppRoutes {
   /// Hesabı sil (`DELETE /v1/users/me`) — oturum zorunlu, mağaza şartı.
   static const accountDelete = '/ayarlar/hesabi-sil';
 
+  // --- Hukuki metinler / KVKK (12.17) ---
+
+  /// Yayında olan hukuki metinlerin listesi + kullanıcının rıza durumu.
+  static const legal = '/yasal';
+
+  /// Tek hukuki metin — `/yasal/<type>` (`kvkk_aydinlatma`, `acik_riza`…).
+  ///
+  /// ⚠️ [legal]'in **alt rotası değil, kardeşi** (11.7/11.9 dersi): go_router iç
+  /// içe rotada üst ekranı da kurar → kayıt akışındaki bir kullanıcı metni
+  /// okumak istediğinde arkada liste ekranı açılıp gereksiz istek atardı.
+  static String legalDocument(String type) => '$legal/$type';
+
+  /// **Onayladığınız sürümün** metni — `/yasal-surum/<versionId>` (12.17 eki).
+  ///
+  /// ⚠️ `/yasal/surum/:id` **yazılmadı**: `/yasal/:type` deseni `surum`
+  /// sözcüğünü de bir belge türü sanardı (12.14'ün `kaydedilenler` tuzağının
+  /// birebir aynısı).
+  static const legalVersionPrefix = '/yasal-surum';
+
+  static String legalVersion(String versionId) => '$legalVersionPrefix/$versionId';
+
+  /// Yeniden onay ekranı — yeni sürüm `requiresReconsent` işaretliyse.
+  static const reconsent = '/yasal-onay';
+
+  /// 🔑 **Kayıt akışı yarım kalmışken açılabilen tek ekran kümesi.**
+  ///
+  /// Yönlendirme kuralı "kayıt yarım kaldıysa tek çıkış kayıt ekranıdır" diyor
+  /// (bkz. `app_router._redirect`). Hukuki metin **istisna olmak zorunda**:
+  /// onay kutusunun yanındaki "Oku" bağlantısı kullanıcıyı kayıt ekranına geri
+  /// fırlatsaydı, **okumadan onaylamaktan başka seçenek kalmazdı** — yani bu
+  /// bloğun tamamı boşa giderdi.
+  static bool isLegalReading(String location) =>
+      location == legal ||
+      location.startsWith('$legal/') ||
+      location.startsWith('$legalVersionPrefix/');
+
   // --- İlanlar Bölüm 2 (11.9) ---
 
   /// İlan verme formu (`POST /v1/ads`) — oturum zorunlu.
@@ -181,6 +217,11 @@ abstract final class AppRoutes {
     myFavorites,
     // 11.11: vefat bildirimi (`POST /v1/deaths` `[A]`).
     deathReport,
+    // 12.17: yeniden onay ekranı (`POST /v1/users/me/consents` `[A]`).
+    // ⚠️ `legal` ve `legalVersionPrefix` bilerek **yok**: metinler anonim
+    // okunabilir olmak zorunda (kayıt akışı henüz oturum açmamış kullanıcıyla
+    // çalışıyor ve mağaza da uygulama içinden erişim istiyor).
+    reconsent,
   ];
 
   static bool requiresAuth(String location) =>

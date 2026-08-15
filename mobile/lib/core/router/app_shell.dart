@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/legal/presentation/widgets/reconsent_gate.dart';
 import '../../features/notifications/application/unread_count_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -38,7 +39,10 @@ class AppShell extends ConsumerWidget {
     final unread = ref.watch(unreadNotificationCountProvider).value ?? 0;
 
     return Scaffold(
-      body: navigationShell,
+      // 12.17: yeniden onay kapısı. Kabuğu sarıyor çünkü `GoRouter.redirect`
+      // eşzamanlı çalışıyor, rıza durumu ise bir ağ isteğinin sonucu —
+      // redirect'e taşımak ya açılışı kilitler ya da ikinci bir sahip üretir.
+      body: ReconsentGate(child: navigationShell),
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: theme.palette.border)),
