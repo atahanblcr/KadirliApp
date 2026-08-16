@@ -1,3 +1,5 @@
+using KadirliApp.Infrastructure.Notifications;
+
 namespace KadirliApp.Api.Services;
 
 /// <summary>
@@ -57,12 +59,20 @@ public static class ProductionReadinessGuard
         }
 
         // 2) SMS sağlayıcısı — dev sağlayıcı kodu yalnız log'a yazar.
-        var smsProvider = cfg["Sms:Provider"] ?? "Dev";
-        if (string.Equals(smsProvider, "Dev", StringComparison.OrdinalIgnoreCase))
+        //
+        // 🔴 Faz 12.21b: mesaj artık NE YAPILACAĞINI da söylüyor ve bunu tahmin etmiyor,
+        // gerçeklenmiş sağlayıcı listesinden TÜRETİYOR (`SmsProviders`). Sebebi ölçülmüş
+        // bir kilitlenme: bu kapı `Dev`'i reddediyor, `AddInfrastructure` ise `Dev` dışında
+        // hiçbir adı tanımıyor — yani API Production'da HİÇBİR değerle açılamıyordu.
+        // Eski mesaj bunu söylemediği için operatör "Netgsm" yazıp tamamen ilgisiz görünen
+        // ikinci bir hataya düşüyordu. Blokaj gerçek ve doğru; eksik olan DÜRÜSTLÜKTÜ.
+        var smsProvider = cfg["Sms:Provider"] ?? SmsProviders.Dev;
+        if (string.Equals(smsProvider, SmsProviders.Dev, StringComparison.OrdinalIgnoreCase))
         {
             blockers.Add(
-                "Sms:Provider=Dev → OTP kodu SMS ile gönderilmez, yalnız log'a yazılır. " +
-                "Uç yine 'OTP gönderildi' der; HİÇBİR kullanıcı giriş yapamaz.");
+                $"Sms:Provider={SmsProviders.Dev} → OTP kodu SMS ile gönderilmez, yalnız log'a yazılır. " +
+                "Uç yine 'OTP gönderildi' der; HİÇBİR kullanıcı giriş yapamaz. " +
+                SmsProviders.AvailabilitySentence());
         }
 
         // 3) Commit edilmiş JWT sırları — depo herkese açık.

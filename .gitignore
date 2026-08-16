@@ -58,3 +58,11 @@ mobile/ios/Runner/GoogleService-Info.plist
 mobile/android/key.properties
 *.jks
 *.keystore
+
+# Faz 12.21a — üretim yığınının ortam dosyası.
+# 🔴 Buradaki her satır bir SIRDIR (JWT anahtarı, DB parolası, Hangfire parolası, Seq API
+# key). Depo herkese açık ve 11.18'de bir parola tam olarak böyle sızdı. Şablon
+# `.env.prod.example` commit edilir, doldurulmuş hâli ASLA.
+.env
+.env.*
+!.env.prod.example

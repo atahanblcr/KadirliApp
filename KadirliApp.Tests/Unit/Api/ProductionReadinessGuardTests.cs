@@ -23,7 +23,14 @@ public class ProductionReadinessGuardTests
     private static Dictionary<string, string?> HealthyProductionSettings() => new()
     {
         ["Otp:DevMode"] = "false",
-        ["Sms:Provider"] = "Netgsm",
+        // 🐛 Faz 12.21b: burada yıllarca elle yazılmış "Netgsm" duruyordu ve o sağlayıcı
+        // PROJEDE HİÇ YOKTU — yani "sağlıklı üretim yapılandırması" hiçbir zaman var
+        // olamayacak bir senaryoydu: test yeşildi, iddia doğruydu, kurulum hayaliydi.
+        // Değer artık gerçeklenmiş sağlayıcı listesinden TÜRETİLİYOR; bugün o liste
+        // (Dev hariç) boş olduğu için "sağlıklı" senaryo, blokajın kendisini yansıtan
+        // bir yer tutucu kullanıyor ve gerçek bağımlılık SmsProviderAgreementTests'te
+        // kilitli. Gerçek bir sağlayıcı yazıldığı gün bu satır kendiliğinden onu kullanır.
+        ["Sms:Provider"] = HealthySmsProvider,
         ["Jwt:AccessSecret"] = "uretimde_ortam_degiskeninden_gelen_uzun_bir_sir_degeri",
         ["Jwt:RefreshSecret"] = "uretimde_ortam_degiskeninden_gelen_baska_uzun_bir_sir",
         ["Hangfire:Dashboard:Username"] = "yonetici",
@@ -38,6 +45,21 @@ public class ProductionReadinessGuardTests
         ["ForwardedHeaders:Enabled"] = "true",
         ["ForwardedHeaders:KnownNetworks:0"] = "10.0.0.0/8",
     };
+
+    /// <summary>
+    /// Kapının "üretime uygun" saydığı bir SMS sağlayıcı adı.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Bu değer bir <b>ayardır, gerçeklik değil</b>: bugün gerçeklenmiş üretim
+    /// sağlayıcısı yok (bkz. <see cref="KadirliApp.Infrastructure.Notifications.SmsProviders"/>),
+    /// yani buradaki ad yalnız <i>"kapı Dev olmayan bir değeri geçirir mi?"</i>u ölçer.
+    /// <b>Kapının önerdiği değerin DI tarafından gerçekten kabul edildiği ayrı bir yerde
+    /// kilitli:</b> <c>SmsProviderAgreementTests</c>. Bu ayrım bilinçli — bu dosya kapının
+    /// mantığını, o dosya iki kapının birbiriyle tutarlılığını test eder.
+    /// </remarks>
+    private static string HealthySmsProvider =>
+        KadirliApp.Infrastructure.Notifications.SmsProviders.ProductionCapable.FirstOrDefault()
+        ?? "HenuzGerceklenmemisSaglayici";
 
     private static void Validate(Dictionary<string, string?> settings, string? environment = null)
     {

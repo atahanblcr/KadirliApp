@@ -22,8 +22,8 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | Madde | Nerede | Durum / blokaj |
 |---|---|---|
 | **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
+| 🔴 **SMS SAĞLAYICISI — yayının TEK GERÇEK BLOKAJI** | `# ✅ 12.21 TESLİM` | 12.21'de **ölçüldü**: API `Production`'da **hiçbir `Sms:Provider` değeriyle açılmıyor** — `Dev` readiness kapısına takılıyor (haklı: SMS gitmezse kimse giremez), başka bir ad ise DI'da *"Bilinmeyen SMS sağlayıcısı"* veriyor, çünkü **gerçeklenmiş başka sağlayıcı yok**. 🔑 Blokaj **doğru**; 12.21'de kapatılan şey *sessizliğiydi* (kapının mesajı artık ne yapılacağını söylüyor, `SmsProviderAgreementTests` uyumu kilitliyor). Gereken: bir `ISmsService` gerçeklemesi (NetGSM vb.) + sağlayıcı anlaşması → `Infrastructure/Notifications/` + `SmsProviders` + `DependencyInjection.SmsImplementations`. 📌 **Panel bu blokajın dışında** — `Production`'da bugün de açılıyor (canlı doğrulandı) |
 | 📌 **Hukuki metinlerin GERÇEK içeriği** | 12.16/12.17 notları | 🔴 **Kod işi değil, İNSAN işi** ve yayından önce zorunlu. Zincirin tamamı çalışıyor (12.17 canlı doğrulandı) ama bugün yayında olan metinler **test metnidir** — yerel veritabanında, benim yazdığım örnekler. Gerçek KVKK aydınlatma + açık rıza metnini **hukukçu** yazmalı; kod onu bekliyor, tahmin etmiyor (12.16 kararı: metin **seed edilmez**) |
-| **🚢 12.21 — Yayın hattı (paketleme + teslim)** | `# 🚢 12.21` | 🟢 **APPLE GEREKTİRMİYOR — bugün başlanabilir.** Eksik olan `Dockerfile`·`.dockerignore`·`compose.prod`·CD adımı; çalışma zamanı **zaten hazır**. 🔴 İki ön uyarı: `uploads/` **kalıcı volume** olmazsa ilk yeniden dağıtımda 983 girişlik görsel gider (**belirtisiz**), ve çok replikalı `Migrate()` **yarışı** karar bekliyor. 🐛 `dotnet.yml` kendi yorumunda *"artık gereksiz"* dediği iki konteyner + migration adımını hâlâ koşuyor |
 | **⚡ 12.22 — Performans / ölçek** | `# ⚡ 12.22` | 🟢 **APPLE GEREKTİRMİYOR.** 🔑 *Önce ÖLÇ, sonra optimize et* — yapı sağlam (94 indeks · GIN · sayfalama tavanı · sorgu yolunda **0** N+1) ama **hiç ölçülmemiş**: yük testi yok, p95 verisi yok. Başarı ölçütü bir hız değil bir **cümle**: *"en sıcak beş ucun p95'i şudur."* Bugün o cümle yok |
 
 ### B. Karar bekleyenler (kod değil, tercih)
@@ -31,7 +31,7 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | Madde | Nerede | Ne gerekiyor |
 |---|---|---|
 | **12.18 adayı — kategori bazlı bildirim aboneliği** | *"açık kalan / ertelenen maddeler"* | *(12.16 adayıydı, KVKK öne alındığı için kaydı.)* Ön koşul: 12.15'in **elle gönderimi canlıda doğrulanmalı**. ⚠️ İkinci bir dispatcher yazılmaz |
-| 🆕 **Herkese açık gizlilik metni ADRESİ** | 12.20a notu · `# 🚢 12.21` | 12.20a `/Home/Privacy`'yi sildi (İngilizce, iskeleden kalma bir yer tutucuydu) ve panelde artık **hiç** gizlilik metni adresi yok. 🔴 **Play Console ve App Store Connect yayın için herkese açık bir URL İSTİYOR** ve bugün metin yalnız mobil uygulamanın içinde okunabiliyor. Altyapı **hazır**: `legal_documents` + yayında sürüm + anonim `GET /v1/legal/documents/{type}` (12.16). Eksik olan tek şey **karar**: metin nerede sunulacak (panelde anonim bir sayfa mı, ayrı bir statik site mi)? ⚠️ Panelde anonim sayfa açmak 12.20a'nın **az önce kapattığı** yüzeyi yeniden açmak demek — bilinçli verilmeli. 📌 Ön koşulu zaten açık: metnin **gerçek içeriği** (bir alt satır) |
+| 🆕 **Herkese açık gizlilik metni ADRESİ** | 12.20a notu · `# ✅ 12.21 TESLİM` | 12.20a `/Home/Privacy`'yi sildi (İngilizce, iskeleden kalma bir yer tutucuydu) ve panelde artık **hiç** gizlilik metni adresi yok. 🔴 **Play Console ve App Store Connect yayın için herkese açık bir URL İSTİYOR** ve bugün metin yalnız mobil uygulamanın içinde okunabiliyor. Altyapı **hazır**: `legal_documents` + yayında sürüm + anonim `GET /v1/legal/documents/{type}` (12.16). Eksik olan tek şey **karar**: metin nerede sunulacak (panelde anonim bir sayfa mı, ayrı bir statik site mi)? ⚠️ Panelde anonim sayfa açmak 12.20a'nın **az önce kapattığı** yüzeyi yeniden açmak demek — bilinçli verilmeli. 📌 Ön koşulu zaten açık: metnin **gerçek içeriği** (bir alt satır) |
 | **Haber gövde override'ı** | Haberler bloğu | İkinci sürümde **eklemeli** alan olarak (tam override değil) |
 | **Haber arşiv derinliği (bugün 50)** | Haberler bloğu | Tamamı ~273 istek + ~1.6 GB görsel. **Kod değişikliği gerekmiyor, karar gerekiyor** |
 | **Progress.md arşivleme** | *"Progress.md'nin şekli"* | Faz 12 kapanınca 11+12 → `Progress_Archive.md` |
@@ -42,7 +42,7 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 |---|---|---|
 | 🍎 **Apple ekosistemi** | 11.16 notları | Abonelik · sertifikalar · TestFlight · App Store Connect · **APNs `.p8`** · mağaza görselleri. **12.8'in tek blokajı** |
 | 🤖 **Play** | 11.16 notları | Yayın anahtarı (`keytool`) + Play Console → internal test |
-| **IaC / CD** | ➡️ **artık `# 🚢 12.21` başlığı var** | `Dockerfile` yok, `.tf`/`.bicep` yok, `dotnet.yml`'de **deploy adımı yok** (adı "CI/CD" ama içerik yalnız CI). 🟢 **16 Ağu'da reçeteye çevrildi ve TAMAMEN APPLE'SIZ** — çalışma zamanı zaten üretim-bilinçli (`/health/*` · `ProductionReadinessGuard` · `PanelAssetGuard` **var**), eksik olan yalnız **paketleme + teslim** |
+| **Dağıtım HEDEFİ (sunucu/alan adı)** | `# ✅ 12.21 TESLİM` | 🟢 **Hat kuruldu** (Dockerfile'lar · `.dockerignore` · `compose.prod` · `release.yml` → `ghcr.io`, etiket = commit SHA). ⚠️ Eksik olan **kod değil karar**: imajlar nereye gidecek? 12.21 bunu bilinçli olarak kapsam dışı bıraktı ve iş akışının adı da bunu söylüyor (*Release*, *Deploy* değil) |
 | **`uploads/` kalıcı volume** | `10.14/(3)` | Bugün risk **yok** (API compose'da değil). API konteynerleştiği gün doğar |
 | **Seq production kimlik doğrulaması** | `docker-compose.yml` | Yerelde bilinçli olarak kapalı; production'da `SEQ_FIRSTRUN_ADMINPASSWORD` + API key |
 
@@ -6469,7 +6469,10 @@ OTURUMSUZ                                  OTURUMLU (super_admin)
    doğru, ama boşluk **panoya yazıldı** (12.10'un *"bir yolu kapatırken o yolun tek
    taşıyıcısı olduğu işlevi de siliyor musun?"* dersinin doküman tarafı).
 
-# 🚢 12.21 — YAYIN HATTI (paketleme + teslim) *(16 Ağustos 2026'da planlandı, KOD YAZILMADI)*
+# ✅ 12.21 — YAYIN HATTI (paketleme + teslim) *(16 Ağustos 2026'da TAMAMLANDI)*
+
+> Teslim kaydı aşağıda **"12.21 TESLİM"** başlığında. Bu blok planın **orijinal metnidir**;
+> planın bir öncülü ölçümle çürüdüğü için karşılaştırılabilir kalması önemli.
 
 > 🍎 **APPLE'A BAĞLI HİÇBİR ADIM YOKTUR.** Apple Developer aboneliği hâlâ onaylanmadı;
 > bu başlık bilinçli olarak **tamamen Apple'sız** kuruldu — hiçbir adımı TestFlight,
@@ -6568,6 +6571,162 @@ ikincisi Apple'dan bağımsız ve **istenirse ayrıca yapılabilir**, ama bu ba�
 12.21 hattı **kurar**, nereye gideceği ayrı bir karardır.
 
 ---
+
+---
+
+# ✅ 12.21 TESLİM — *yayın hattı* (16 Ağustos 2026)
+
+> **Yeşil taban:** `dotnet test` **1290/1290** (1284 → **+6**) · `flutter analyze` **0** ·
+> `flutter test` **865/865** (mobil koda dokunulmadı). Migration **yok**, DTO değişikliği
+> **yok**. Görünmez sözleşme **81 → 82**.
+
+## 🔬 PLANIN ÖNCÜLÜ ÖLÇÜMLE ÇÜRÜDÜ
+
+Plan şöyle diyordu: *"Eksik olan `Dockerfile` değil — eksik olan TESLİM. Çalışma zamanı
+zaten üretim-bilinçli."* **Yarısı doğruydu.** API `Production`'da başlatılmak istendi ve
+**hiçbir `Sms:Provider` değeriyle açılmadığı** ölçüldü:
+
+```
+Sms__Provider=Dev     → ProductionReadinessGuard: "OTP kodu SMS ile gönderilmez …
+                        HİÇBİR kullanıcı giriş yapamaz"           (Program.cs:206)
+Sms__Provider=Netgsm  → AddInfrastructure: "Bilinmeyen SMS sağlayıcısı: 'Netgsm'"
+                        (DependencyInjection.cs:88 — builder.Build()'den ÖNCE)
+```
+
+İki kapı da **tek başına doğru**, birlikte **geçilemez**. Ve bu bir hata değil, projenin
+**tek gerçek yayın blokajıdır**: SMS gitmiyorsa hiç kimse kayıt olamaz/giremez, yani sistem
+zaten yayına hazır değildir. Yanlış olan tek şey **hiçbir yerde yazmıyor** olmasıydı.
+
+🐛 **Ve bunu hiçbir test söylemiyordu, çünkü testin kendisi de aynı hatayı yapıyordu:**
+`ProductionReadinessGuardTests.HealthyProductionSettings()` *"sağlıklı üretim
+yapılandırması"* olarak **`Sms:Provider = "Netgsm"`** veriyordu — projede öyle bir sağlayıcı
+**hiç yoktu**. Kapı yıllarca **hiçbir zaman var olamayacak** bir yapılandırmayla doğrulandı:
+test yeşildi, iddia doğruydu, **senaryo hayaliydi**.
+🔑 **Ders:** 12.17'nin *"bir alanı test ederken o alana GERÇEKTE ne geldiğini ölç"*
+kuralının kardeşi — ***bir yapılandırmayı test ederken o değerin gerçekten SEÇİLEBİLİR
+olduğunu ölç.***
+
+**Yapılan:** sağlayıcı listesi tek sahibe çekildi (`SmsProviders`, DI haritasından
+**türetiliyor**), readiness kapısının mesajı artık *"bugün seçebileceğin başka bir değer
+yok ve şunu yapman gerekiyor"* diyor, `SmsProviderAgreementTests` iki kapının uyumunu
+**iki yönlü** kilitliyor (üretime uygun sağlayıcı yokken kapı bunu **söylemek**, varken
+**adıyla saymak** ve o adın DI'de çözülebildiğini **kanıtlamak** zorunda).
+
+📌 **Panel bu blokajın dışında:** kimlik doğrulaması kullanıcı adı/parola olduğu için panel
+`Production`'da **bugün de açılıyor** — canlı doğrulandı.
+
+## 12.21a — Paketleme
+
+| Dosya | Not |
+|---|---|
+| `KadirliApp.Api/Dockerfile` · `KadirliApp.Web/Dockerfile` | Çok aşamalı, **non-root** (`app`, uid 1654 — doğrulandı), `EXPOSE 8080`, `HEALTHCHECK → /health/ready`. Boyut: **393 MB / 399 MB** |
+| `.dockerignore` | `secrets/` · `uploads/` · `mobile/` · `KadirliApp.Tests/` · `node_modules` dışlandı; **`wwwroot` bilerek dışlanmadı** |
+| `docker-compose.prod.yml` | api + web + postgres + redis + seq; `uploads` **paylaşılan adlandırılmış volume**, Postgres portu **kapalı**, Seq **kimlik doğrulamalı** |
+| `.env.prod.example` + `.gitignore` | 🔴 `.env` **`.gitignore`'da DEĞİLDİ** — 12.21a'da eklendi. Şablondaki her satır bir sır ve 11.18'de bir parola tam olarak böyle sızmıştı |
+
+🐛 **`aspnet:8.0` imajında `curl` YOK.** HEALTHCHECK'e yazılan komut çalıştırılamayınca
+Docker konteyneri **"unhealthy"** sayar — uygulama gayet iyi koşarken. Ölçülmeseydi ilk kez
+**dağıtım sırasında** görünürdü; bu yüzden CI'a *"üretim imajları derleniyor mu"* kapısı da
+eklendi.
+
+## 12.21b — Teslim
+
+- **CI temizliği** (11.14'ün bıraktığı borç): `services:` blokları, `dotnet-ef` global
+  kurulumu ve *"Apply Migrations for Test Database"* adımı **kaldırıldı** — Testcontainers
+  zaten kendi kabını kaldırıyordu. Dosyanın **kendi yorumu** bunu söylüyordu.
+- **`name:` alanı gerçeğe uydu:** *"NET CI/CD Pipeline"* → **`.NET CI`**. Teslim ayrı bir
+  dosyaya alındı: **`release.yml`** — `main`'e push'ta iki imajı `ghcr.io`'ya basar,
+  etiket **commit SHA** (`latest` **değil**: hangi sürümün canlıda olduğunu söyleyemez ve
+  geri alma yolunu kapatır).
+- 📌 **Kapsam bilinçli olarak dar:** hat **dağıtmaz**. Hangi sunucuya gideceği kod değil
+  **karardır** ve o karar verilmedi; adı da bunu söylüyor (*"Release"*, *"Deploy"* değil).
+
+### 🔴 KARAR — migration yarışı: **Postgres advisory lock** (§7 madde 82)
+
+Plan üç seçenek sayıyordu; seçilen **(c)** ve gerekçesi:
+
+| Seçenek | Neden değil |
+|---|---|
+| (a) tek seferlik `migrate` job'ı | Dağıtım hattına **sıralama borcu** yazar: job atlanırsa uygulamalar eski şemayla açılır ve arıza ancak o kolona dokunan ilk istekte görünür |
+| (b) yalnız Api koşsun | Panel önce açılırsa **göç edilmemiş** şemaya bakar; üstelik bu bir *başlatma sırası* bağımlılığıdır ve o sıranın korunduğunu hiçbir şey denetlemez |
+| **(c) advisory lock** ✅ | Kilit **veritabanında** — §7 madde 60'ın kararının aynısı (Redis bilinçli olarak fail-open, §7 madde 36). 🔑 **Üstelik kurtarması yapısı gereği var:** oturuma bağlı olduğu için süreç ölünce Postgres kilidi kendiliğinden bırakır → 12.13'ün `ReapStuckRuns` borcu burada **doğmuyor** |
+
+⚠️ Kapsam yalnız `Migrate()` **değil**, seed bloklarının tamamı: her blok *"tablo boş mu?"*
+diye sorup yazıyor, yani yalnız göçü sarmak sorunun **yarısını** çözerdi.
+⚠️ Kilit **kendi bağlantısında** alınıyor — `DbContext`'inkinde alınsaydı EF havuzdaki
+bağlantıyı komutlar arasında bırakabilir ve kilit **sessizce düşerdi**.
+
+## 12.21c — Doğrulama ve bozma turları
+
+**Canlı yığın** (`docker compose -f docker-compose.prod.yml up -d`), api+web **healthy**:
+
+```
+:8080/health/live 200   :8080/health/ready 200   :8080/v1/announcements 200
+:8090/health/ready 200  :8090/account/login 200
+oturumlu: /Dashboard/Index 200 · /Home/Index 404 · POST /Dashboard/Seed 404 (§7 madde 78)
+ortam rozeti: YOK (rozet CANLI OLMAYANI işaretler — Production'da doğru)
+Seed butonu: hiç çizilmiyor (Production)
+```
+
+📌 **Yan gözlem:** taze bir üretim dağıtımında panel, seed'lenmiş varsayılan parolayı
+**değiştirmeden hiçbir ekranı açmıyor** (11.18'in `MustChangePassword` akışı konteynerde de
+çalışıyor) — `secrets/` imaja girmediği için parola dosyası orada yok, yani davranış doğru.
+
+| # | Bozma | Sonuç |
+|---|---|---|
+| 1 | `.dockerignore`'a `wwwroot/` | 🔴 Konteyner **açılmadı**: *"WebRootPath boş → panelin statik varlıkları hiç servis edilemez"* |
+| 2 | Yalnız `wwwroot/css/panel.css` dışlandı (daha sinsi hâli) | 🔴 **Açılmadı** ve dosyayı **adıyla** söyledi: *"panel TAMAMEN STİLSİZ açılır (`npm run build:css` atlanmış)"* |
+| 3 | `uploads` volume'ü olmadan aynı imaj | 🔴 Dosya **KAYIP**; volume ile konteyner yeniden yaratıldığında **duruyor** (iki yönlü) |
+| 4 | `SchemaMigrationLock`'tan `pg_advisory_lock` çağrısı silindi | 🔴 `TwoStartupsAtOnce_DoNotOverlap` kırmızı |
+| 5 | Test fabrikalarında yükleme yönlendirmesi kapatıldı | 🔴 **11 dosya** depoya sızdı (aşağıya bakın) |
+
+🐛 **Bozma 5 ilk denemede YANLIŞ ŞEYİ ÖLÇTÜ** — yönlendirme yalnız bir fabrikada kapatıldı
+ve fark **0** çıktı. Sebep: `Environment.SetEnvironmentVariable` **süreç geneli**, yani
+diğer fabrika hâlâ yönlendiriyordu. İki bağımsız sebep vardı ve ölçüm yanlışını (§7 madde
+70'in dersi) bir kez daha tekrarladı; ikisi birden kapatılınca gerçek rakam göründü.
+
+## 🐛 PLAN DIŞI BULGU — `uploads/`'ın %92'si test çöpüydü
+
+Kullanıcının sorusu üzerine ölçüldü ve plan bunu görmemişti (plan yalnız *"983 giriş
+kaybolur"* diyordu):
+
+| Ölçüm | Sonuç |
+|---|---|
+| Diskteki dosya | **1208** |
+| `files` tablosundaki satır | **95** |
+| **Yetim** (diskte var, DB'de yok) | **1113** (4,3 MB) |
+| Kırık (DB'de var, diskte yok) | **0** |
+| Haber gövdelerinde metin olarak anılan | 29 — **hiçbiri yetim değil** |
+
+Ad kalıpları sebebi söylüyordu: `a.png`·`b.png`·`contract.png`·`ilanda.png` **101'er kez**,
+`govde-601.jpg`·`eski-701.jpg` **53'er kez** — yani entegrasyon testlerinin fixture'ları.
+**Kök neden:** test fabrikaları bağlantı dizesini eziyordu ama
+`FileStorage:UploadDirectory`'yi **ezmiyordu**; dosyalar depoya, satırları ise atılabilir
+Testcontainers veritabanına gidiyordu. Tek bir test sınıfı **11 dosya** bırakıyordu (ölçüldü).
+
+🔑 **12.21'de kritikleşti:** bu faz o klasörü **kalıcı bir üretim volume'üne** çeviriyor —
+temizlenmeseydi her koşunun çöpü vatandaşın gerçek görselleriyle aynı kalıcı depoya taşınırdı.
+**Düzeltme:** fabrikalar yükleme klasörünü geçici bir dizine yönlendiriyor (⚠️ **ortam
+değişkeniyle** — klasör `builder.Build()`'den *önce* okunuyor, §8'in bilinen tuzağı).
+Doğrulandı: tam süit **0** yeni dosya bırakıyor.
+🧹 1124 yetim **silinmedi, karantinaya alındı** (geri alınabilir); `uploads/` **20 MB → 15 MB**,
+DB'nin işaret ettiği 95 dosyanın **hepsi yerinde**.
+
+## 🔑 Bu alt-fazın kalıcı dersleri
+
+1. **Bir ayarı REDDEDEN kapı yazarken, kabul edeceği bir değerin var olduğunu ölç.**
+   İki kapı ayrı ayrı doğru olup birlikte **geçilemez** olabilir — ve bunun belirtisi,
+   birbirinden habersiz iki hata mesajıdır.
+2. **Bir yapılandırmayı test ederken o değerin gerçekten seçilebilir olduğunu ölç.**
+   `"Netgsm"` yıllarca "sağlıklı üretim"i temsil etti ve hiç var olmadı.
+3. **Açılışta koşan her iş, konteynerleşince eşzamanlı koşar.** Kilit veritabanında olmalı;
+   ve advisory kilit, kurtarmasını **yapısı gereği** getirdiği için burada doğru araçtır.
+4. **Testin dosya sistemine yazdığı yer de bir temizlik borcudur.** Veritabanı satırı
+   atılabilir bir kapta, dosya ise gerçek klasörde biriktiğinde oran **%92'ye** çıkabiliyor
+   ve bunu hiçbir şey söylemiyor.
+5. 🐛 **İki `compose` dosyası, proje adı verilmezse aynı volume'ü paylaşır.** Belirtisi bir
+   hata *olabilir* (bizde oldu); olmasaydı üretim yığını geliştirme verisinin üstüne
+   sessizce açılırdı.
 
 # ⚡ 12.22 — PERFORMANS / ÖLÇEK *(16 Ağustos 2026'da planlandı, KOD YAZILMADI)*
 

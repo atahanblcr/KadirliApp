@@ -4,9 +4,9 @@
 > *kilidinin cinsine* göre etiketler. Soru "testi var mı?" değil (hepsinin var),
 > **"kilidi sahte mi?"**
 >
-> 📌 **Bugün 81 madde.** Denetim 67 madde üzerinde koşuldu (aşağıdaki tablo); **68–70**
+> 📌 **Bugün 82 madde.** Denetim 67 madde üzerinde koşuldu (aşağıdaki tablo); **68–70**
 > denetimden sonra Faz 12.7'de, **71–74** Faz 12.16'da, **75–77** Faz 12.17'de,
-> **78–80** Faz 12.19'da ve **81** Faz 12.20a'da eklendi — hepsinin kaydı bu dosyanın
+> **78–80** Faz 12.19'da, **81** Faz 12.20a'da ve **82** Faz 12.21b'de eklendi — hepsinin kaydı bu dosyanın
 > sonundaki bölümlerde.
 >
 > **Bu dosya kalıcıdır.** Sonraki oturumlar baştan tasnif etmez, buradan devam eder.
@@ -424,5 +424,24 @@ taşımayan **yeni bir controller** açıldı. Fallback açıkken **302**, fallb
 
 ---
 
-📌 **Risk dağılımı bugün: 🟢🟢 6 · 🟢 74 · 🟠 1 · 🔴 0** (81 madde).
+## 🧱 Faz 12.21b — madde 82 (açılış göçünün advisory kilidi)
+
+| # | Sözleşme | Kilit cinsi | Kilidi taşıyan dosya | Risk |
+|---|---|---|---|---|
+| 82 | Açılıştaki göç + seed bir Postgres **advisory kilidinin** arkasında koşar; anahtar bütün host'larda **aynı**, kilit **kendi bağlantısında**, kapsam **seed dahil** | **DB kısıtı + davranış** (üç ayaklı, gerçek Postgres) | `Infrastructure/Persistence/SchemaMigrationLock.cs` (kapının kendisi) · `Integration/Panel/SchemaMigrationLockTests.cs` (kesişmeme · **bırakma** · **düşen işte de bırakma**) | 🟢🟢 |
+
+🔑 **Neden 🟢🟢:** kilidin kendisi bir uygulama kodu `if`'i değil, **veritabanının bir
+özelliği** — yani "kodu atlayarak" delinemez. Ayrıca kilidin **kurtarması yapısı gereği
+var**: advisory kilit oturuma bağlı olduğu için süreç ölünce Postgres onu kendiliğinden
+bırakır (12.13'ün `ReapStuckRuns` borcu burada doğmuyor).
+
+⚠️ **Kilidin yakalayamadığı tek şey ANAHTARIN AYRIŞMASI**: iki host farklı `AdvisoryKey`
+yazarsa kilit fiilen yoktur ve testler yine yeşil kalır (her ikisi de kendi anahtarında
+doğru davranır). Bugün anahtar tek bir `const`'ta ve iki host da aynı sınıfı çağırıyor;
+ayrı bir sabit yazılması **derleyiciyle** engellenmiyor. Bu sınır **bilinçli olarak
+yazılıyor** (madde 80'in dürüstlük deseni).
+
+---
+
+📌 **Risk dağılımı bugün: 🟢🟢 7 · 🟢 74 · 🟠 1 · 🔴 0** (82 madde).
 ⚠️ Tek 🟠 (madde 80) bir eksiklik değil, **bilinçli ve belgelenmiş bir sınır** (yukarıda).

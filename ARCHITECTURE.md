@@ -405,7 +405,7 @@ tam süiti koşmadan commit etme.
 
 ## 7. 🔑 GÖRÜNMEZ SÖZLEŞMELER
 
-Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıklar (**81 madde**). Hepsi
+Koda bakarak anlaşılmayan, bozulunca **sessizce** hasar veren bağımlılıklar (**82 madde**). Hepsi
 **testle kilitli** — 1–22 `KadirliApp.Tests/Integration/Contracts/InvisibleContractsTests.cs`
 (⚠️ **bu satır yaklaşıktır**: o dosyada 12 test var, 13–22'nin kilitleri başka dosyalarda —
 maddenin gerçekten hangi dosyada kilitli olduğu **`Memory_Bank/Contract_Audit.md`**'de satır
@@ -480,6 +480,11 @@ muafiyet artık **aksiyon** granülaritesinde) · `TheScaffoldingPages_AreGone` 
 ⚠️ `TheScaffoldingPages_AreGone` bilinçli olarak **oturumlu** istemciyle ölçer: fallback policy
 eşleşmeyen isteklere de uygulandığı için anonim yanıt *"aksiyon silindi"* ile *"aksiyon duruyor ama
 korumalı"*yı **ayırt edemez** — ikisi de 302'dir.
+**82 (Faz 12.21b)** `Integration/Panel/SchemaMigrationLockTests.cs` — **davranış, gerçek Postgres
+ve ÜÇ ayaklı**: iki eşzamanlı açılışın **kesişmediği** · kilidin **bırakıldığı** (yoksa birinci
+iddia, kilidi hiç bırakmayan bir gerçeklemede de yeşil kalırdı — §7 madde 68'in dersi) · **düşen**
+bir göçün de kilidi bıraktığı (12.13'ün *"kurtarma da yazılır"* dersi).
+⚠️ Sahte bir bağlantıyla yazılamaz: kilit bir `if` değil, **veritabanının bir özelliği**.
 ⚠️ **80 bilinçli olarak EKSİK bir kilittir ve bunu kendisi yazıyor**: sarkan işaretçiyi yakalar,
 *yanlış iddiayı* yakalayamaz (madde 67'nin `VacuousOnAFreshDatabase` dürüstlüğü deseni).
 ⚠️ **77'nin kilidi İKİ YÖNLÜ ve ikinci yön şart** (§7 madde 68'in dersi): *"taslak 404 döner"*
@@ -661,6 +666,7 @@ liste** ise şunu sor: *kapsam dizinden mi, tipten mi, elden mi geliyor?*
 | 79 | **Moderasyon durumunun DEĞERİ de tek sahiplidir**: dört moderasyonlu varlık ham literal (`"approved"`) değil `AdStatuses.Approved` gibi `const string` sabitleri yazar (`Domain/Enums/ModerationStatuses.cs`) | 12.11 *kimin* yazdığını derleyiciye bağlamıştı (`init` → CS8852) ama *ne* yazıldığını bağlamamıştı: `Ad.Approve` içinde `_status = "apprved"` yazmak 12.19c'ye kadar **derleniyordu**. Hasarı tamamen sessiz olurdu — kayıt yazılır, panel "Bilinmeyen durum" rozeti çizer, mobil listede ilan **hiç görünmez** (§3: public uç yalnız `approved` döner) ve hiçbir hata oluşmaz. 🔴 Çözüm `enum` **değil** `const string`: değer DB'de `varchar` ve **DTO'da metin olarak mobile çıkıyor**, tipini değiştirmek §5'i kırardı. Desen projede zaten vardı (`PushCampaignStatuses` 12.2b · `TransportVehicleTypes` 12.5); dört moderasyonlu modüle uygulanmamıştı ve karşılığında **dört ölü enum** duruyordu (kendi dosyaları dışında 0 kullanım, ölçüldü → silindiler) |
 | 80 | **Yorumdaki bir atıf (test adı · `Tip.Üye` · dosya yolu) gerçek bir şeye işaret etmek zorundadır** — `CommentReferenceTests` üçünü de tarar, kapsam **dizinden** türetilir | 14 Ağu 2026 denetimi `User.cs`'te var olmayan bir teste atıf yapan bir yorum buldu; testin ilk koşusu **ikinci bir gerçek çürük** buldu (`PanelAssetGuard.cs` → `EveryLocalAssetReference_Exists`, gerçek ad `…_ExistsOnDisk`). ⚠️ `<see cref>` **derleyici tarafından denetlenmiyor** — XML belge üretimi hiçbir projede açık değil, yani `<see cref="OlmayanTip"/>` uyarı bile üretmiyor. 🔑 Bu projede *"bu kural nerede kilitli?"* sorusunun cevabı neredeyse her zaman bir test adı ya da bir dosya yoludur; çürük atıf, okuyucuya kuralın kilitli **olduğunu** söyleyip aramaktan vazgeçirir — yani atıf olmamasından **kötüdür**. ⚠️⚠️ **Bu kilit sarkan işaretçiyi yakalar, YANLIŞ İDDİAYI yakalayamaz** (aynı `User.cs` yorumu hem kırık atıf hem ölçümün tersini söyleyen bir cümle taşıyordu; ikincisini hiçbir otomatik denetim göremez) |
 | 81 | **Panelde yetkilendirme FAIL-CLOSED'dır**: `Program.cs`'te bir `FallbackPolicy` (`RequireAuthenticatedUser`) kurulu ve öznitelik taşımayan bir aksiyon **anonim değil KAPALI** doğar. Gerçekten anonim olması gereken üç yer bunu **açıkça** söyler: giriş akışı (`AccountController.Login`/`Logout`), hata sayfaları (`HomeController.Error`/`StatusCode`) ve `/health/*` probe'ları. ⚠️ Panel muafiyetleri **aksiyon** granülaritesindedir (`PanelAuthenticationTests.AnonymousActions`), controller değil | 🔴 **16 Ağustos 2026 denetiminin B1 bulgusu tek bir cümleye dayanıyordu:** *"`FallbackPolicy` yok, yani öznitelik yoksa aksiyon anonimdir."* O varsayılan yüzünden `dotnet new mvc` iskelesinden kalan `/Home/Index` ve `/Home/Privacy` **kimliksiz 200** dönüyordu — panelin kabuğunu, varlık adreslerini, ortam rozetini ve *"Çıkış Yap"* bağlantılarını oturumsuz bir ziyaretçiye gösteriyorlardı; üstelik `/Home/Privacy` **tahmin edilebilir bir gizlilik metni adresi** ve orada *"Use this page to detail your site's privacy policy"* yazıyordu — projenin 12.16–12.17'de bütün bir KVKK bloğunu kapattığı hafta. 🔑 **Bunu söylemesi gereken yapısal test kapsamını assembly'den TÜRETİYORDU (doğru) ama MUAFİYETİ controller adı üzerindeydi**: gerekçe yalnız `Error`/`StatusCode`'u karşılarken muafiyet dört aksiyonu birden örtüyordu, yani o sınıfa yarın eklenecek bir aksiyon da **sessizce anonim doğacaktı.** Faz A'nın sorusuna (*"kapsam dizinden mi, tipten mi, elden mi?"*) bir soru daha eklendi: ***"muafiyet hangi granülaritede?"*** ⚠️ **Ölçülmüş bedeli var ve bilinçli:** fallback policy **hiçbir uca eşleşmeyen** isteklere de uygulanır → oturumsuz bir ziyaretçi var olmayan bir panel adresinde markalı 404 yerine **302 → giriş** alır. Kabul edildi: oturumsuz birine hangi panel adreslerinin var olduğunu söylememek daha doğru, ve markalı 404 **oturumlu** kullanıcıda (yani onu görmesi gereken kişide) korunuyor. ⚠️ Kilit **iki ayaklı olmak zorunda**: fallback *"unutulan aksiyon kapalı doğsun"* der, yapısal test *"açıkça açılan aksiyon gerekçeli olsun"* der — ikincisi olmadan tek satırlık bir `[AllowAnonymous]` fallback'i sessizce delerdi |
+| 82 | **Açılıştaki şema göçü ve başlangıç verisi bir POSTGRES ADVISORY KİLİDİNİN arkasında koşar** (`SchemaMigrationLock`; anahtar **bütün host'larda aynı** olmak zorunda) ve kilit **`DbContext`'in bağlantısında değil, KENDİ bağlantısında** alınır. Kapsam yalnız `Migrate()` değil **seed bloklarının tamamıdır** | Bugün risk yok — iki süreç elle sırayla başlıyor. 12.21 onları **konteynerleştirdiği** an iki replika aynı anda açılır ve iki eşzamanlı `Migrate()`'in belirtisi bir hata mesajı **değil, BOZUK BİR ŞEMADIR**: aynı migration iki kez uygulanmaya çalışılır, biri yarıda düşer ve `__EFMigrationsHistory` gerçek şemayla ayrışır. Seed tarafı da yarışır: her blok *"tablo boş mu?"* diye sorup yazıyor, yani iki süreç birden "boş" görüp aynı süper admini ekler — kilidi yalnız göçe sarmak sorunun **yarısını** çözüp diğer yarısını görünmez bırakırdı. 🔑 **Neden advisory lock, neden Redis değil:** §7 madde 60'ın kararının aynısı — Redis bu projede bilinçli olarak **fail-open** (§7 madde 36) ve tam yarış anında kilidi açar. 🔑 **Ve üçüncü bir üstünlüğü var:** 12.13'ün *"koruma ile KURTARMA birlikte yazılır"* dersi burada **yapısı gereği** karşılanıyor — advisory kilit **oturuma bağlıdır**, konteyner OOM ile ölürse bağlantı düşer ve Postgres kilidi kendiliğinden bırakır; haber senkronunun kısmi unique indeksinde gereken `ReapStuckRuns` adımı burada **gerekmiyor**. ⚠️ Kilidin `DbContext` bağlantısında alınması **sessiz bir delik** olurdu: advisory kilit *oturum* kapsamlıdır ve EF havuzdan aldığı bağlantıyı komutlar arasında bırakabilir → kilit düşer, koruma **var görünür, yok olur**. ⚠️ Anahtarın host'lar arasında ayrışması da sessizdir: farklı sayı = kilit yok ve bunu hiçbir şey söylemez. ⚠️ Bekleme **sonsuz değil** (`lock_timeout`): patolojik durumda açılış **gürültüyle** düşer ve orkestratör yeniden dener |
 
 🐛 **Madde 72'nin ikinci ayağı bir GERÇEK HATADAN doğdu (12.16 bozma turu).** "Eskiyi
 yürürlükten kaldır + yeniyi yayınla" ilk yazımda **tek `SaveChanges`'teydi** ve testler üst
@@ -730,6 +736,8 @@ kilitlenemez** — `LegalPublishTests` geçişi **10 kez** tekrarlıyor.
 | **Moderasyonun tek sahibi (davranış)** | `Integration/Panel/PanelModerationOwnershipTests.cs` | §7 madde **52**'nin *çalışma* ayağı, gerçek Postgres: Düzenle yolundan durum değiştirilemiyor mu, reddetme kaydı **ezmiyor** mu (madde 46), durum **aynı** ya da **hiç gönderilmediğinde** düzenleme geçiyor mu, #25'in taze penceresi ve bayat gerekçe temizliği **taşındıktan sonra da** çalışıyor mu, vefatın 12.10'da doğan Reddet/Arşivle komutları çalışıyor mu (`AutoArchiveAt`'e dokunulmadan). 🔑 Yapısal testten ayrı: kuralı doğru yazıp handler'a **bağlamayı unutmak** mümkün |
 | **Moderasyon geçişleri (saf)** | `Unit/Application/Moderation/` | Container'sız: dört modülün `Approve`/`Reject`(/`Archive`/`Resubmit`) geçişleri, guard'ın boş değeri **kabul** edip farklı değeri **reddetmesi**, red mesajının yöneticiye **ne yapacağını** söylemesi |
 | Checklist tutarlılığı | `Integration/Architecture/CodeReviewChecklistDocTests.cs` | `CODE_REVIEW_CHECKLIST.md`'nin **atıfları** ↔ gerçek test sınıfları/yardımcılar (maddelerin *doğruluğu* değil, işaret ettikleri yerlerin *varlığı*) |
+| **Şema göçü kilidi** | `Integration/Panel/SchemaMigrationLockTests.cs` | §7 madde **82**, gerçek Postgres: iki eşzamanlı açılış **kesişmiyor** mu, kilit **bırakılıyor** mu (ikinci açılış beklemiyor), **düşen** bir göç de kilidi bırakıyor mu |
+| **SMS sağlayıcı uyuşması** | `Unit/Infrastructure/SmsProviderAgreementTests.cs` | 🔴 12.21b: *readiness kapısının ÖNERDİĞİ değerin DI tarafından gerçekten kabul edildiği.* Ölçülmüş bir kilitlenmeden doğdu — kapı `Dev`'i reddediyor, DI `Dev` dışını tanımıyordu, yani API Production'da **hiçbir değerle açılamıyordu**; iki hata mesajı birbirinden habersizdi. İddia **iki yönlü**: üretime uygun sağlayıcı yokken kapı bunu **söylemek**, varken **adıyla saymak** zorunda |
 | **Panel kapısı (fail-closed)** | `Integration/Panel/PanelAuthenticationTests.cs` | §7 madde **81**: `FallbackPolicy` **çalışan uygulamanın servislerinden** okunarak var mı ve gerçekten `RequireAuthenticatedUser` mı, `[AllowAnonymous]` taşıyan aksiyonlar **gerekçeli muafiyet listesinde** mi (muafiyet **aksiyon** granülaritesinde), iskele sayfaları **super_admin'e bile 404** mı ve oturumsuza **200 değil** mi, hata sayfası + `/health/live` oturumsuz **açık** kalmış mı |
 | **Panel (Razor/MVC)** | `Integration/Panel/` | Gerçek panel + Postgres + Redis: oturum/yetki, her sayfanın render'ı, form yazımı + audit izi, moderatör izin matrisi |
 | **Panel görsel dili** | `Integration/Panel/PanelDisplayTests.cs` | Kodun ürettiği **her** durum/rolün Türkçe karşılığı var mı, para `¤` basıyor mu, izin matrisi ↔ menü ayrışması (container gerektirmez) |
@@ -888,6 +896,30 @@ cd mobile && flutter pub get && flutter run
 | `uploads/` | yerel klasör | kalıcı Docker volume |
 | `Cors:Origins` | serbest | yalnız gerçek origin'ler |
 | **Panel varlıkları (12.9)** | depodan gelir | `wwwroot/{css/panel.css,js/panel.js,lib/*}` dağıtıma **dâhil** olmalı — eksikse `PanelAssetGuard` uygulamayı **açmaz** |
+
+### Üretim yığını (Faz 12.21)
+
+```bash
+cp .env.prod.example .env                              # ← doldurun; .env git'e GİRMEZ
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
+```
+
+| Parça | Nerede |
+|---|---|
+| `KadirliApp.Api/Dockerfile` · `KadirliApp.Web/Dockerfile` | Çok aşamalı (`sdk` → `aspnet`), **non-root** (`app`, uid 1654), `EXPOSE 8080`, `HEALTHCHECK` → `/health/ready`. ⚠️ Bağlam **çözüm köküdür**, proje klasörü değil. ⚠️ `aspnet:8.0` içinde **`curl` yoktur** — kurulmazsa HEALTHCHECK hiç koşmaz ve konteyner, uygulama gayet iyi çalışırken **"unhealthy"** damgası yer (ölçüldü) |
+| `.dockerignore` | 🔴 `secrets/` ve `uploads/` **dışlanır** (imaja giren sır, imajı çeken herkeste olur; imaja gömülen görsel her dağıtımda eski hâline "geri alınır"). ⚠️ `wwwroot` **dışlanmaz** — panel varlıkları türetilmiş ama commit edilmiştir (12.9) ve imajda `npm` adımı yoktur |
+| `docker-compose.prod.yml` | api + web + postgres + redis + seq. 🔴 `uploads` **adlandırılmış volume** (iki host **aynı** volume'ü paylaşır) · Postgres portu **dışarı açılmaz** · Seq **kimlik doğrulamalı** (yereldeki `NOAUTHENTICATION` burada yok: Seq'e giden satırlar PII taşır, §7 madde 33'ün maskelemesi yalnız `error_logs` içindir) · 🐛 `name: kadirliapp-prod` **şart**: proje adı verilmezse compose onu **dizin adından** türetir ve `pgdata` volume'ü geliştirme yığınınınkiyle **aynı isme** düşer |
+| `.env.prod.example` | Sırların şablonu. Doldurulmuş `.env` **git'e girmez** |
+| `.github/workflows/dotnet.yml` | **CI** (adı artık yaptığı işi söylüyor). 12.21b'de gereksiz `services:` blokları, `dotnet-ef` kurulumu ve migration adımı **kaldırıldı** (Testcontainers zaten kendi kabını kaldırıyor); yerine **üretim imajlarının derlendiği** bir kapı eklendi |
+| `.github/workflows/release.yml` | **Teslim**: `main`'e push'ta iki imajı `ghcr.io`'ya basar. 🔴 Etiket **commit SHA**, `latest` **değil** — `latest` hangi sürümün canlıda olduğunu söyleyemez ve geri alma yolunu kapatır. ⚠️ Kapsam bilinçli olarak dar: **dağıtmaz**; hangi sunucuya gideceği kod değil **karardır** |
+
+🔴 **Bugün API `Production`'da AÇILAMAZ ve bu DOĞRUDUR.** Gerçeklenmiş tek SMS sağlayıcısı
+`Dev` ve `ProductionReadinessGuard` onu haklı olarak reddediyor (SMS gitmezse hiç kimse giriş
+yapamaz); başka bir ad yazmak ise `AddInfrastructure`'da *"Bilinmeyen SMS sağlayıcısı"*
+hatası verir. **Yayının tek gerçek blokajı budur** ve kapının mesajı artık bunu
+**söylüyor** (`SmsProviders.AvailabilitySentence`). Panel bu blokajın **dışındadır** —
+kimlik doğrulaması kullanıcı adı/parola olduğu için `Production`'da bugün de açılıyor.
 
 **Sırlar:** `secrets/` klasörü `.gitignore`'da; `secrets/README.md` (commit edilir) neyin
 nasıl edinileceğini ve sızarsa ne yapılacağını anlatır. Mobil tarafta

@@ -257,13 +257,36 @@ yazılır yazılmaz **iki kalıntı daha** düştü (`site.js` · `site.css` · 
 kapalıyken **200**). 🐛 `CommentReferenceTests` (madde 80) **kendi yazdığım testin yorumundaki**
 sarkan dosya yollarını yakaladı — yani madde 80 onu yazan kişiyi bir faz sonra yakaladı.
 
-**1284 backend + 865 mobil test, 81 görünmez sözleşme.**
+**✅ 12.21 bitti — YAYIN HATTI.** İki `Dockerfile` (çok aşamalı · **non-root** · `HEALTHCHECK`),
+`.dockerignore` (🔴 `secrets/` + `uploads/` dışlandı, **`wwwroot` bilerek dışlanmadı**),
+`docker-compose.prod.yml` (paylaşılan `uploads` volume'ü · Postgres portu kapalı · Seq
+**kimlik doğrulamalı** · 🐛 `name:` şart, yoksa geliştirme volume'ünü devralıyor),
+`.env.prod.example` (🔴 `.env` `.gitignore`'da **değildi**), CI temizliği + adı **`.NET CI`**
+ve ayrı bir **`release.yml`** (→ `ghcr.io`, etiket **commit SHA**, `latest` **değil**).
+🔴 **KARAR — migration yarışı: Postgres advisory lock** (§7 madde 82; Redis fail-open olduğu
+için değil — §7 madde 60'ın aynısı). Kapsam yalnız `Migrate()` değil **seed'in tamamı**;
+kilit **kendi bağlantısında** (EF havuzdakini bırakır → kilit sessizce düşerdi).
+🔬 **PLANIN ÖNCÜLÜ ÖLÇÜMLE ÇÜRÜDÜ:** API `Production`'da **hiçbir `Sms:Provider` değeriyle
+açılmıyor** — `Dev` readiness kapısına takılıyor, başka bir ad DI'da patlıyor (gerçeklenmiş
+başka sağlayıcı yok). Blokaj **doğru**, eksik olan **dürüstlüktü**; kapının mesajı artık ne
+yapılacağını söylüyor (`SmsProviders`) ve `SmsProviderAgreementTests` uyumu **iki yönlü**
+kilitliyor. 🐛 Bunu hiçbir test söylemiyordu çünkü test de aynı hatayı yapıyordu:
+*"sağlıklı üretim"* olarak **var olmayan** `"Netgsm"` veriliyordu.
+🐛 **`uploads/`'ın %92'si test çöpüydü** (1208 dosya ↔ 95 DB satırı): test fabrikaları
+`FileStorage:UploadDirectory`'yi ezmiyordu → düzeltildi (**ortam değişkeniyle**; klasör
+`builder.Build()`'den önce okunuyor), 1124 yetim karantinaya alındı.
+🐛 `aspnet:8.0`'da **`curl` yok** → HEALTHCHECK hiç koşmaz, konteyner boşuna "unhealthy".
+🧪 Bozma turu **5/5 kırmızı** (biri ikinci denemede: `SetEnvironmentVariable` süreç geneli).
 
-**⏭️ Sırada:** 🚢 **12.21 yayın hattı** (Apple gerektirmiyor; fail-closed panel + anonim
-`/health/*` onun zeminini kurdu) · ⚡ **12.22 performans/ölçek** (*önce ÖLÇ*) · 12.8 sosyal
+**1290 backend + 865 mobil test, 82 görünmez sözleşme.**
+
+**⏭️ Sırada:** ⚡ **12.22 performans/ölçek** (*önce ÖLÇ*) · 12.8 sosyal
 giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı bugün yazılabilir**) · **12.18 adayı**
 kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher **yazılmaz**, var olan tek sahip
 genişletilir).
+🔴 **YAYININ TEK GERÇEK BLOKAJI (12.21'de ölçüldü):** gerçeklenmiş SMS sağlayıcısı yok →
+API `Production`'da açılamıyor. Kod + sağlayıcı anlaşması gerekiyor; **panel bu blokajın
+dışında** (kullanıcı adı/parola ile `Production`'da açılıyor).
 🆕 **12.20'nin açtığı tek karar maddesi:** `/Home/Privacy` silindi ve panelde artık **hiç**
 gizlilik metni adresi yok — mağazalar yayında **herkese açık bir URL istiyor**, metin bugün
 yalnız mobil uygulamanın içinde okunabiliyor. Altyapı hazır (anonim
@@ -303,6 +326,11 @@ Gerçekten anonim olması gerekiyorsa `[AllowAnonymous]` **ve** `PanelAuthentica
 `AnonymousActions` listesine **gerekçeli** bir satır şart. ⚠️ `[Authorize]`'a **rol listesi**
 yazmak *"bu bir modül ekranıdır"* demektir → `[PanelPermission]` + menü satırı + matris anahtarı
 gerekir; modül değilse **rolsüz** `[Authorize]` yaz.
+⚠️ **Açılışta çalışan bir iş** (göç, seed, ısınma) yazarsan kilidi **veritabanına** koy
+(`SchemaMigrationLock` deseni) — konteynerleşince iki replika aynı anda açılır ve iki
+eşzamanlı `Migrate()`'in belirtisi hata değil **bozuk şemadır**.
+⚠️ **Bir ayarı REDDEDEN kapı** yazarken kabul edeceği bir değerin **gerçekten var olduğunu
+ölç** (12.21b): iki kapı ayrı ayrı doğru olup birlikte geçilemez olabilir.
 ⚠️ **`wwwroot`'a dosya eklerken** en az bir yerden başvurulmalı — `wwwroot/lib` altındaki her
 **dizin** ve `wwwroot/{css,js}` altındaki her **dosya** artık iki yönlü kilitli (12.20b).
 ⚠️ Moderasyon durumu yazarken ham literal (`"approved"`) **kullanma**, `AdStatuses.Approved`
@@ -346,7 +374,13 @@ dotnet run --project KadirliApp.Web           # admin paneli
 # Panel varlıkları (YALNIZ Tailwind sınıflarını / 3. taraf sürümünü değiştirdiyseniz):
 cd KadirliApp.Web && npm install && npm run build   # → wwwroot/css/panel.css + wwwroot/lib/*
 cd mobile && flutter pub get && flutter run   # mobil (Android emülatörü / iOS simülatörü)
+
+# Üretim yığını (Faz 12.21) — imajlar + bağımlılıklar birlikte:
+cp .env.prod.example .env                                  # doldurun; .env git'e GİRMEZ
+docker compose -f docker-compose.prod.yml up -d --build     # panel :8081, api :8080
 ```
+🔴 **API bugün `Production`'da AÇILMAZ** ve bu doğrudur: gerçeklenmiş SMS sağlayıcısı yok
+(bkz. yukarıdaki blokaj). Panel açılır.
 
 Mobil base URL: Android emülatörü `10.0.2.2:5005`, iOS simülatörü `localhost:5005`,
 gerçek cihaz `--dart-define=API_BASE_URL=http://<LAN-IP>:5005`.
@@ -370,7 +404,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Mobil istemci sunucuyla nasıl konuşuyor?" | `Memory_Bank/API_CONTRACT.md` |
 | "Bu karar neden böyle verilmiş?" | `Memory_Bank/Progress.md` (faz faz) · `Memory_Bank/Active_Context.md` (son durum) |
 | **"Ne kaldı, hangi faz açık?"** | **`Memory_Bank/Progress.md` → en üstteki 🚦 AÇIK MADDELER PANOSU** (yalnız açıklar; kapanan satır silinir) |
-| **"Bu görünmez sözleşme gerçekten kilitli mi, kilidi nerede?"** | **`Memory_Bank/Contract_Audit.md`** (81 madde × kilit cinsi/risk/dosya) |
+| **"Bu görünmez sözleşme gerçekten kilitli mi, kilidi nerede?"** | **`Memory_Bank/Contract_Audit.md`** (82 madde × kilit cinsi/risk/dosya) |
 | "Bu .NET kalıbı ne demek?" | `DOTNET_MASTERCLASS.md` |
 | "Mobil tasarım sistemi / UX kuralları?" | `Memory_Bank/MOBILE_UX_PLAN.md` |
 | "Uçların makine-okur şeması?" | `docs/openapi.json` |
@@ -378,7 +412,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 81 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 82 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,

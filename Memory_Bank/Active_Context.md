@@ -1,6 +1,80 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
-> ## ✅ SON OTURUM: FAZ 12.20 TAMAMLANDI (16 Ağustos 2026) — *"iskele kalıntıları + iki kilidin eksik yönü"*
+> ## ✅ SON OTURUM: FAZ 12.21 TAMAMLANDI (16 Ağustos 2026) — *yayın hattı*
+>
+> **Yeşil taban:** `dotnet test` **1290/1290** (1284 → **+6**) · `flutter analyze` **0** ·
+> `flutter test` **865/865**. Migration **yok**, DTO değişikliği **yok**, mobilde tek satır
+> değişiklik **yok**. Görünmez sözleşme **81 → 82**.
+>
+> 🔴 **PLANIN ÖNCÜLÜ ÖLÇÜMLE ÇÜRÜDÜ.** Plan *"çalışma zamanı zaten üretim-bilinçli, eksik
+> olan yalnız teslim"* diyordu. API `Production`'da başlatıldı ve **hiçbir `Sms:Provider`
+> değeriyle açılmadığı** görüldü: `Dev` → `ProductionReadinessGuard` durduruyor (haklı — SMS
+> gitmezse kimse giremez), başka bir ad → `AddInfrastructure` *"Bilinmeyen SMS sağlayıcısı"*
+> fırlatıyor (haklı — gerçeklenmiş başka sağlayıcı yok). İki kapı ayrı ayrı doğru, **birlikte
+> geçilemez**. Blokaj gerçek ve doğrudur; yanlış olan **hiçbir yerde yazmıyor** olmasıydı.
+> 🐛 **Ve bunu hiçbir test söylemiyordu, çünkü test de aynı hatayı yapıyordu:**
+> `ProductionReadinessGuardTests` *"sağlıklı üretim"* olarak **`Sms:Provider = "Netgsm"`**
+> veriyordu — o sağlayıcı projede **hiç yoktu**. Kapı yıllarca **var olamayacak** bir
+> yapılandırmayla doğrulandı. 🔑 **Ders: bir yapılandırmayı test ederken o değerin gerçekten
+> SEÇİLEBİLİR olduğunu ölç** (12.17'nin "alana gerçekte ne geliyor" dersinin kardeşi).
+> ✅ Kapatılan: `SmsProviders` (tek sahip, DI haritasından **türetiliyor**) · kapının mesajı
+> artık ne yapılacağını **söylüyor** · `SmsProviderAgreementTests` uyumu **iki yönlü** kilitliyor.
+> 📌 **Panel blokajın dışında** — `Production`'da bugün de açılıyor (canlı doğrulandı).
+>
+> 🔑 **TESLİM EDİLEN — 12.21a:** iki `Dockerfile` (çok aşamalı · **non-root** uid 1654 ·
+> `HEALTHCHECK → /health/ready` · 393/399 MB) · `.dockerignore` (🔴 `secrets/` ve `uploads/`
+> dışlandı, **`wwwroot` bilerek dışlanmadı**) · `docker-compose.prod.yml` (paylaşılan
+> `uploads` volume'ü · Postgres portu kapalı · Seq **kimlik doğrulamalı**) · `.env.prod.example`.
+> 🔴 **`.env` `.gitignore`'da DEĞİLDİ** — eklendi (11.18'de bir parola tam olarak böyle sızmıştı).
+> **12.21b:** CI'dan gereksiz `services:`+`dotnet-ef`+migration adımı **kaldırıldı** (dosyanın
+> kendi yorumu bunu söylüyordu), adı **`.NET CI`** oldu ve teslim ayrı bir dosyaya alındı
+> (`release.yml` → `ghcr.io`, etiket **commit SHA**, `latest` **değil**).
+>
+> 🔴 **KARAR — migration yarışı: POSTGRES ADVISORY LOCK** (§7 madde 82). Plandaki üç
+> seçenekten (c) seçildi: kilit **veritabanında** (§7 madde 60'ın kararının aynısı — Redis
+> bilinçli olarak fail-open). 🔑 **Üstelik kurtarması yapısı gereği var:** oturuma bağlı
+> olduğu için süreç ölünce Postgres kilidi kendiliğinden bırakır → 12.13'ün `ReapStuckRuns`
+> borcu burada **doğmuyor**. ⚠️ Kapsam yalnız `Migrate()` değil **seed'in tamamı** (her blok
+> "tablo boş mu?" diye sorup yazıyor) ve kilit **kendi bağlantısında** alınıyor (EF havuzdaki
+> bağlantıyı bırakabilir → kilit sessizce düşerdi).
+>
+> 🐛 **PLAN DIŞI BULGU — `uploads/`'ın %92'si test çöpüydü.** Diskte **1208** dosya, `files`
+> tablosunda **95** satır → **1113 yetim** (4,3 MB), kırık **0**. Ad kalıpları sebebi
+> söylüyordu (`a.png`·`contract.png` 101'er kez, `govde-601.jpg` 53 kez). **Kök neden:** test
+> fabrikaları bağlantı dizesini eziyor ama `FileStorage:UploadDirectory`'yi **ezmiyordu** —
+> dosyalar depoya, satırları atılabilir Testcontainers veritabanına gidiyordu (tek test sınıfı
+> **11 dosya**). 12.21'de kritik, çünkü o klasör artık **kalıcı bir üretim volume'ü**.
+> Düzeltildi (⚠️ **ortam değişkeniyle** — klasör `builder.Build()`'den önce okunuyor, §8 tuzağı);
+> tam süit artık **0** dosya bırakıyor. 🧹 1124 yetim **silinmedi, karantinaya alındı**;
+> `uploads/` 20 MB → **15 MB**, DB'nin işaret ettiği 95 dosyanın hepsi yerinde.
+>
+> 🧪 **Bozma turu: 5 bozma, 5 kırmızı — biri ikinci denemede.** `.dockerignore`'a `wwwroot`
+> (konteyner açılmadı) · yalnız `panel.css` (açılmadı, dosyayı **adıyla** söyledi) ·
+> `uploads` volume'süz (dosya kayıp, volume'lü hâli duruyor — iki yönlü) · advisory kilit
+> silindi (test kırmızı) · test yükleme yönlendirmesi kapatıldı (**11 dosya** sızdı).
+> 🐛 Sonuncusu ilk denemede **0** verdi: `SetEnvironmentVariable` **süreç geneli** ve diğer
+> fabrika hâlâ yönlendiriyordu — §7 madde 70'in *"iki bağımsız sebep"* dersinin tekrarı.
+>
+> ✅ **CANLI DOĞRULANDI (üretim yığını, api+web `healthy`):** `:8080/health/{live,ready}` ve
+> `/v1/announcements` **200** · `:8090/account/login` **200** · oturumlu `/Dashboard/Index`
+> **200**, `/Home/Index` **404**, `POST /Dashboard/Seed` **404** (§7 madde 78) · ortam rozeti
+> **yok** (rozet canlı-olmayanı işaretler) · Seed butonu **hiç çizilmiyor**.
+> 📌 Yan gözlem: taze bir üretim dağıtımı, seed'lenmiş varsayılan parola değişmeden **hiçbir
+> ekranı açmıyor** (11.18'in akışı konteynerde de çalışıyor; `secrets/` imaja girmiyor).
+>
+> 🐛 **`aspnet:8.0` imajında `curl` YOK** → HEALTHCHECK hiç koşmaz ve konteyner, uygulama iyi
+> çalışırken **"unhealthy"** damgası yer. Ölçülmeseydi ilk kez dağıtımda görünürdü; CI'a
+> *"üretim imajları derleniyor mu"* kapısı bu yüzden eklendi.
+> 🐛 **İki `compose` dosyası proje adı verilmezse aynı volume'ü paylaşır** — üretim yığını
+> geliştirme veritabanını devraldı ve düştü. `name: kadirliapp-prod` eklendi. 🔴 Asıl tehlike
+> hata değil, **hatanın çıkmadığı hâl**: parolalar tutsaydı sessizce üstüne açılırdı.
+>
+> ⏭️ **Sırada:** ⚡ **12.22 performans/ölçek** (*önce ÖLÇ*) · 12.8 sosyal giriş mobil
+> (🔴 Apple bekliyor) · 🔴 **SMS sağlayıcısı yayının tek gerçek blokajı** (kod + anlaşma).
+
+---
+
+> ## ✅ Önceki oturum: FAZ 12.20 TAMAMLANDI (16 Ağustos 2026) — *"iskele kalıntıları + iki kilidin eksik yönü"*
 >
 > **Yeşil taban:** `dotnet test` **1284/1284** (1276 → **+8**) · `flutter analyze` **0** ·
 > `flutter test` **865/865**. Migration **yok**, DTO değişikliği **yok**, **mobilde tek satır

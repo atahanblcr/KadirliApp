@@ -1,10 +1,17 @@
-name: .NET CI/CD Pipeline
+name: .NET CI
 
-# ⚠️ Not (11.14 denetimi): entegrasyon testleri **Testcontainers** kullanıyor, yani
-# Postgres/Redis'i kendileri ayağa kaldırıyor (bkz. CustomWebApplicationFactory).
-# Aşağıdaki `services:` blokları ve "Apply Migrations" adımı bu yüzden **artık
-# gereksiz** — çalışan bir hattı doğrulayamadan değiştirmemek için bilinçli olarak
-# bırakıldı. İlk yeşil koşudan sonra kaldırılabilir (koşu süresini kısaltır).
+# 🔑 Faz 12.21b — dosya adı artık YAPTIĞI İŞİ söylüyor.
+# Adı 12.21'e kadar "CI/CD Pipeline"dı ama içinde tek bir deploy adımı yoktu; bu,
+# §7 madde 37'nin ("panelin en sinsi yalan biçimi") CI karşılığıydı. Teslim ayrı bir
+# iş akışına alındı: `.github/workflows/release.yml` (imaj yayınlama).
+#
+# 🧹 Faz 12.21b temizliği (11.14 denetiminin BIRAKTIĞI borç kapatıldı): entegrasyon
+# testleri **Testcontainers** kullanıyor — Postgres/Redis'i kendileri ayağa kaldırıyor
+# (bkz. CustomWebApplicationFactory). Bu yüzden `services:` blokları, `dotnet-ef`
+# global kurulumu ve "Apply Migrations for Test Database" adımı **hiçbir işe
+# yaramıyordu**: her koşu iki gereksiz konteyner kaldırıp hiç kullanılmayan bir
+# veritabanına migration uyguluyordu. Dosyanın kendi yorumu bunu zaten söylüyordu
+# ("ilk yeşil koşudan sonra kaldırılabilir") — o koşu çoktan yeşile döndü.
 
 on:
   push:
@@ -15,31 +22,6 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: kadirliapp_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
     - uses: actions/checkout@v4
@@ -84,20 +66,25 @@ jobs:
     - name: Build
       run: dotnet build KadirliApp.sln -c Release --no-restore
 
-    - name: Setup ef tools
-      run: dotnet tool install --global dotnet-ef
-
-    - name: Apply Migrations for Test Database
-      env:
-        ConnectionStrings__Postgres: Host=localhost;Port=5432;Database=kadirliapp_test;Username=postgres;Password=postgres;Include Error Detail=true;Maximum Pool Size=100;Minimum Pool Size=10
-      run: dotnet ef database update -p KadirliApp.Infrastructure -s KadirliApp.Api
-
+    # ⚠️ Bağlantı dizesi ORTAM DEĞİŞKENİ olarak VERİLMEZ: Testcontainers her koşuda
+    # kendi Postgres/Redis'ini kaldırıp bağlantı dizesini kendisi enjekte ediyor.
+    # Elle bir dize vermek, testlerin gerçekte hangi veritabanına baktığını belirsiz
+    # yapardı — 12.21b'ye kadar tam olarak bu belirsizlik vardı.
     - name: Test
       env:
-        ConnectionStrings__Postgres: Host=localhost;Port=5432;Database=kadirliapp_test;Username=postgres;Password=postgres
-        ConnectionStrings__Redis: localhost:6379
         Otp__DevMode: true
       run: dotnet test KadirliApp.Tests -c Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+
+    # 🔴 Faz 12.21a — üretim imajları CI'da DERLENİR.
+    # Sebep: `Dockerfile` derlenmeden fark edilmeyen bir hata sınıfı var ve bu projede
+    # zaten bir örneği yaşandı — `aspnet:8.0` imajında `curl` YOK, yani HEALTHCHECK
+    # komutu çalışmıyor ve konteyner uygulama gayet iyi koşarken "unhealthy" damgası
+    # yiyor. Böyle bir hata ilk kez DAĞITIM sırasında görünürdü.
+    # ⚠️ İmaj yalnız derlenir, yayınlanmaz: yayınlama `release.yml`'in işi.
+    - name: Üretim imajları derleniyor mu
+      run: |
+        docker build -f KadirliApp.Api/Dockerfile -t kadirliapp-api:ci .
+        docker build -f KadirliApp.Web/Dockerfile -t kadirliapp-web:ci .
 
     - name: Upload coverage reports
       uses: actions/upload-artifact@v4

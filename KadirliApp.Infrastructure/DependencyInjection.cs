@@ -3,6 +3,7 @@ using KadirliApp.Application.Common.Interfaces;
 using KadirliApp.Infrastructure.Identity;
 using KadirliApp.Infrastructure.Persistence.Repositories;
 using KadirliApp.Infrastructure.Files;
+using KadirliApp.Infrastructure.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,17 @@ public static class DependencyInjection
     private static string PostgresConn(IServiceProvider sp) =>
         sp.GetRequiredService<IConfiguration>().GetConnectionString("Postgres")
             ?? throw new InvalidOperationException("ConnectionStrings:Postgres yapılandırılmamış");
+
+    /// <summary>
+    /// Faz 12.21b — <b>gerçeklenmiş SMS sağlayıcılarının tek haritası</b>
+    /// (ad → <c>ISmsService</c> gerçeklemesi). <see cref="Notifications.SmsProviders"/>
+    /// listesini buradan türetir; ikinci bir kopya tutulmaz.
+    /// </summary>
+    internal static readonly IReadOnlyDictionary<string, Type> SmsImplementations =
+        new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase)
+        {
+            [SmsProviders.Dev] = typeof(DevLogSmsService)
+        };
 
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration cfg)
     {
@@ -78,16 +90,20 @@ public static class DependencyInjection
         // Faz 9.2: SMS/Mail sağlayıcı seçimi config'ten. Henüz gerçek sağlayıcı anlaşması yok —
         // "Dev" adaptörleri log'a yazar. Sağlayıcı bağlanınca (ör. NetGSM/SMTP) yeni implementasyon
         // Notifications/ altına eklenir, buradaki switch'e kaydedilir ve appsettings'te Provider değiştirilir.
-        var smsProvider = cfg["Sms:Provider"] ?? "Dev";
-        switch (smsProvider.ToLowerInvariant())
+        // 🔑 Faz 12.21b — sağlayıcı haritası artık TEK SAHİPLİ ve `SmsProviders` onu
+        // buradan okuyor. Sebep ölçülmüş bir kilitlenme: readiness kapısı `Dev`'i
+        // reddediyor, bu switch ise `Dev` dışında hiçbir şeyi tanımıyordu — yani API
+        // Production'da HİÇBİR değerle açılamıyordu ve iki hata mesajı birbirinden
+        // habersizdi (bkz. Notifications/SmsProviders.cs).
+        var smsProvider = cfg["Sms:Provider"] ?? SmsProviders.Dev;
+        if (!SmsImplementations.TryGetValue(smsProvider, out var smsImplementation))
         {
-            case "dev":
-                services.AddSingleton<ISmsService, Notifications.DevLogSmsService>();
-                break;
-            default:
-                throw new InvalidOperationException(
-                    $"Bilinmeyen SMS sağlayıcısı: '{smsProvider}'. ISmsService implementasyonu ekleyip Infrastructure/DependencyInjection.cs'e kaydedin.");
+            throw new InvalidOperationException(
+                $"Bilinmeyen SMS sağlayıcısı: '{smsProvider}'. " +
+                $"Gerçeklenmiş sağlayıcılar: {string.Join(", ", SmsProviders.Implemented)}. " +
+                SmsProviders.AvailabilitySentence());
         }
+        services.AddSingleton(typeof(ISmsService), smsImplementation);
 
         var emailProvider = cfg["Email:Provider"] ?? "Dev";
         switch (emailProvider.ToLowerInvariant())

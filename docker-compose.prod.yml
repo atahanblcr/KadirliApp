@@ -1,0 +1,145 @@
+# Faz 12.21a — üretim yığını (api + panel + postgres + redis + seq).
+#
+# ⚠️ Bu dosya `docker-compose.yml`'in YERİNE geçer, onu tamamlamaz. Yerel dosya yalnız
+# BAĞIMLILIKLARI kaldırır (uygulamalar `dotnet run` ile host'ta koşar); burada uygulamalar
+# da yığının içinde.
+#
+#   cp .env.prod.example .env      # ← doldurun; .env git'e GİRMEZ
+#   docker compose -f docker-compose.prod.yml build
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# 🔴 SIRLAR DOSYAYLA DEĞİL ORTAM DEĞİŞKENİYLE geçilir. `secrets/` klasörü imaja hiç
+# girmiyor (`.dockerignore`) — bilinçli: imaja giren bir sır, imajı çeken herkeste olur.
+
+# 🐛 Faz 12.21c — PROJE ADI AÇIKÇA VERİLİYOR ve bu bir ölçümden doğdu.
+# Compose, proje adını varsayılan olarak DİZİN ADINDAN türetir; yani bu dosya ile
+# `docker-compose.yml` aynı adı paylaşıyordu ve `pgdata` volume'ü **ikisinde de
+# `kadirliapp_pgdata`** oluyordu. Sonuç canlı doğrulamada görüldü: üretim yığını,
+# geliştirme yığınının `postgres` kullanıcısıyla kurulmuş veritabanını devraldı ve
+# `password authentication failed` ile düştü — Postgres `initdb`'yi yalnız BOŞ bir
+# veri dizininde koşturduğu için yeni kullanıcı hiç oluşturulmadı.
+# 🔴 Asıl tehlike hata değil, hatanın ÇIKMADIĞI hâl: parolalar tesadüfen tutsaydı
+# "üretim" yığını geliştirme verisinin üzerine açılır ve bunu hiçbir şey söylemezdi.
+name: kadirliapp-prod
+
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # ⚠️ Port DIŞARI AÇILMIYOR. Yerel compose 5432'yi host'a veriyor (geliştirici psql
+    # ile bakabilsin); üretimde veritabanını internete açmanın hiçbir gerekçesi yok.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  seq:
+    image: datalust/seq:latest
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      # 🔴 Yerel compose'daki `SEQ_FIRSTRUN_NOAUTHENTICATION` BURADA YOK ve olmamalı.
+      # Seq'e giden her şey PII taşıyabilir: §7 madde 33'ün maskelemesi `error_logs`
+      # tablosu içindir, log satırlarının tamamı için değil. Kimlik doğrulamasız bir Seq,
+      # vatandaşın telefon numarasının herkese açık bir arayüzde aranabilmesi demektir.
+      SEQ_FIRSTRUN_ADMINPASSWORDHASH: ${SEQ_ADMIN_PASSWORD_HASH}
+    volumes:
+      - seqdata:/data
+    ports:
+      - "127.0.0.1:8081:80"   # ⚠️ yalnız loopback — arayüz internete açılmaz
+
+  api:
+    build:
+      context: .
+      dockerfile: KadirliApp.Api/Dockerfile
+    image: ${IMAGE_REGISTRY:-kadirliapp}/api:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    environment:
+      # ⚠️ Varsayılan Production ve öyle KALMALI. Değişken olmasının tek meşru sebebi
+      # aynı yığının bir ön-üretim (Staging) kurulumunda da kullanılabilmesi.
+      # 🔴 Staging'de ProductionReadinessGuard KOŞMAZ — yani bu değeri değiştirmek,
+      # yayın kapısını kapatmak demektir. Sessiz DEĞİL: panel 12.19'un ortam rozetini
+      # çiziyor ve rozet CANLI OLMAYANI işaretler, yani Staging koşan bir kurulum her
+      # ekranda kendini söyler.
+      ASPNETCORE_ENVIRONMENT: ${API_ENVIRONMENT:-Production}
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Maximum Pool Size=100;Minimum Pool Size=10
+      ConnectionStrings__Redis: redis:6379
+      Serilog__WriteTo__2__Args__serverUrl: http://seq:5341
+      Serilog__WriteTo__2__Args__apiKey: ${SEQ_API_KEY}
+
+      # ── ProductionReadinessGuard'ın açılışta ARADIKLARI ────────────────────
+      # Biri eksikse konteyner AÇILMAZ ve neyin neden yanlış olduğunu yazar (11.16).
+      Jwt__AccessSecret: ${JWT_ACCESS_SECRET}
+      Jwt__RefreshSecret: ${JWT_REFRESH_SECRET}
+      Otp__DevMode: "false"
+      Sms__Provider: ${SMS_PROVIDER}
+      Hangfire__Dashboard__Username: ${HANGFIRE_USER}
+      Hangfire__Dashboard__Password: ${HANGFIRE_PASSWORD}
+      Email__Provider: ${EMAIL_PROVIDER}
+      Security__AlertEmailEnabled: ${SECURITY_ALERT_EMAIL_ENABLED}
+      # ⚠️ FileStorage__BaseUrl BİLEREK YOK. Görünmez sözleşme #9 görsel URL'lerinin
+      # GÖRELİ dönmesini şart koşuyor; doldurulursa mobil "http://…http://…" üretir ve
+      # hiçbir görsel açılmaz. Guard dolu olmasını zaten engelliyor.
+      ForwardedHeaders__Enabled: "true"
+      ForwardedHeaders__KnownNetworks__0: ${TRUSTED_PROXY_NETWORK}
+    volumes:
+      # 🔴 EN KRİTİK SATIR. `uploads/` vatandaşın yüklediği görsellerin TEK kopyası
+      # (bugün 1192 giriş). Adlandırılmış volume olmazsa ilk yeniden dağıtımda hepsi
+      # gider ve uçlar 404 döndürmez — istemci açılmayan görseli ZARİFÇE GİZLER
+      # (§7 madde 61), yani kaybın HİÇBİR BELİRTİSİ olmaz. 12.21c'de bozma turuyla ölçüldü.
+      - uploads:/app/uploads
+    ports:
+      - "${API_PORT:-8080}:8080"
+
+  web:
+    build:
+      context: .
+      dockerfile: KadirliApp.Web/Dockerfile
+    image: ${IMAGE_REGISTRY:-kadirliapp}/web:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Maximum Pool Size=100;Minimum Pool Size=10
+      ConnectionStrings__Redis: redis:6379
+      Serilog__WriteTo__2__Args__serverUrl: http://seq:5341
+      Serilog__WriteTo__2__Args__apiKey: ${SEQ_API_KEY}
+      Jwt__AccessSecret: ${JWT_ACCESS_SECRET}
+      Jwt__RefreshSecret: ${JWT_REFRESH_SECRET}
+      ForwardedHeaders__Enabled: "true"
+      ForwardedHeaders__KnownNetworks__0: ${TRUSTED_PROXY_NETWORK}
+    volumes:
+      # ⚠️ Api ile AYNI volume: panel görsel önizlemelerini oradan okuyor. Ayrı verilirse
+      # panelde yüklenen görsel mobilde 404 olur ve tersi — iki taraf da hata vermez.
+      - uploads:/app/uploads
+    ports:
+      - "${WEB_PORT:-8081}:8080"
+
+volumes:
+  pgdata:
+  redisdata:
+  seqdata:
+  uploads:

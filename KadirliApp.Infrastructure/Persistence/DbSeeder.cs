@@ -36,13 +36,39 @@ public static class DbSeeder
     /// </remarks>
     public const string PanelPasswordConfigKey = "Panel:SuperAdmin:Password";
 
+    /// <summary>
+    /// Şemayı göç ettirir ve idempotent başlangıç verisini yazar.
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>Faz 12.21b — gövdenin tamamı bir advisory kilidin arkasında koşar</b>
+    /// (<see cref="SchemaMigrationLock"/>). Kilit yalnız <c>MigrateAsync</c>'i değil
+    /// <b>seed bloklarını da</b> kapsamak zorunda: her blok *"tablo boş mu?"* diye sorup
+    /// yazıyor, yani iki replika ikisi de "boş" görüp aynı süper admini/mahalleyi iki kez
+    /// eklemeye kalkardı. Kilidi yalnız göçe sarmak, sorunun <b>yarısını</b> çözüp
+    /// diğer yarısını görünmez bırakırdı.
+    /// </remarks>
     public static async Task SeedAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-        var cfg = scope.ServiceProvider.GetService<Microsoft.Extensions.Configuration.IConfiguration>();
-        var env = scope.ServiceProvider.GetService<Microsoft.Extensions.Hosting.IHostEnvironment>();
+        var logger = scope.ServiceProvider
+            .GetService<ILoggerFactory>()?.CreateLogger(nameof(DbSeeder));
+
+        var connectionString = db.Database.GetConnectionString()
+            ?? throw new InvalidOperationException(
+                "Postgres bağlantı dizesi çözülemedi — şema göçü kilidi kurulamaz.");
+
+        await SchemaMigrationLock.RunExclusivelyAsync(
+            connectionString,
+            () => SeedCoreAsync(scope.ServiceProvider, db),
+            logger);
+    }
+
+    private static async Task SeedCoreAsync(IServiceProvider sp, AppDbContext db)
+    {
+        var hasher = sp.GetRequiredService<IPasswordHasher>();
+        var cfg = sp.GetService<Microsoft.Extensions.Configuration.IConfiguration>();
+        var env = sp.GetService<Microsoft.Extensions.Hosting.IHostEnvironment>();
 
         await db.Database.MigrateAsync();
 
@@ -211,12 +237,12 @@ public static class DbSeeder
         // Faz 12.3: serbest metin mahalleleri sözlüğe bağla (idempotent, yalnız FK'sı boş
         // satırlara dokunur). Raporu panel "mahallesi eşleşmemiş kesinti" şeridinde gösterir.
         await PowerOutageNeighborhoodBackfill.RunAsync(
-            db, scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger(nameof(PowerOutageNeighborhoodBackfill)));
+            db, sp.GetService<ILoggerFactory>()?.CreateLogger(nameof(PowerOutageNeighborhoodBackfill)));
 
         // Faz 12.4: il/ilçe sözlüğü + etkinliklerin geri doldurulması.
         await EnsureDistrictsAsync(db);
         await EventDistrictBackfill.RunAsync(
-            db, scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger(nameof(EventDistrictBackfill)));
+            db, sp.GetService<ILoggerFactory>()?.CreateLogger(nameof(EventDistrictBackfill)));
 
         // Faz 12.5: kalkış noktası sözlüğü (satır bazında idempotent — aşağıdaki nota bak).
         await EnsureDeparturePointsAsync(db);

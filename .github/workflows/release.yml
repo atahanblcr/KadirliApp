@@ -1,0 +1,85 @@
+name: Release (imaj yayınlama)
+
+# Faz 12.21b — TESLİM. 12.21'e kadar bu dosya yoktu: `dotnet.yml`'in adı "CI/CD
+# Pipeline"dı ama içinde tek bir teslim adımı bulunmuyordu.
+#
+# 🔑 Bu iş akışının kapsamı bilinçli olarak DAR: imajları üretip `ghcr.io`'ya basar.
+# **Bir sunucuya dağıtmaz** — çünkü henüz bir sunucu/alan adı seçilmedi ve bu, kod
+# değil bir karardır (12.21'in kendi "kapsam dışı" notu). Hat kurulur, nereye gideceği
+# ayrı bir adımdır. Adı da bunu söylüyor: "Release", "Deploy" değil.
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    # 🔴 `ghcr.io`'ya yazma izni. Varsayılan GITHUB_TOKEN yalnız okuyabilir; bu blok
+    # olmadan push adımı 403 alır ve hata mesajı sebebi söylemez ("denied").
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: ghcr.io'ya giriş
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 🔴 ETİKET = COMMIT SHA, `latest` DEĞİL (12.21b kararı).
+      #
+      # `latest` iki şeyi birden kaybettirir: (a) *"şu an canlıda hangi sürüm var?"*
+      # sorusunun cevabı — imaj adı her sürümde aynıdır, yani soru cevaplanamaz;
+      # (b) **geri alma yolu** — bir önceki sürüme dönmek için o sürümün adresi gerekir
+      # ve `latest` onu üzerine yazmıştır. Bu, bu projenin "geri alınamaz işlem"
+      # duyarlılığının (§7 madde 37/64) dağıtım tarafındaki karşılığı.
+      #
+      # 📌 `main`'in ucunu göstermek için ayrıca hareketli bir `main` etiketi basılır —
+      # ama dağıtımda SHA kullanılır; `main` yalnız "en son ne yayınlandı" sorusu için.
+      - name: Api imajı
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: KadirliApp.Api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/api:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/api:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Panel imajı
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: KadirliApp.Web/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/web:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/web:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ⚠️ Yayınlanan şeyin ADRESİNİ yaz. Bu bir süs değil: dağıtımı yapan kişinin
+      # `.env`'e yazacağı IMAGE_TAG tam olarak burada görünen değerdir ve onu koşu
+      # günlüğünden kopyalayabilmeli — aksi hâlde SHA'yı elle bulmak zorunda kalır
+      # ve elle bulunan bir SHA yanlış olabilir.
+      - name: Yayınlanan imajlar
+        run: |
+          echo "### Yayınlanan imajlar" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "IMAGE_REGISTRY=${REGISTRY}/${{ github.repository }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "IMAGE_TAG=${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

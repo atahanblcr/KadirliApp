@@ -1,0 +1,55 @@
+# Faz 12.21a — imaj bağlamından dışlananlar.
+#
+# Bu dosya bir "optimizasyon" değil, en az iki yerde bir GÜVENLİK/DOĞRULUK kapısı:
+#
+# 🔴 secrets/     → imaja girerse sır, imajı çeken HERKESTE olur. Sırlar üretimde
+#                   ortam değişkeniyle geçilir (docker-compose.prod.yml).
+# 🔴 uploads/     → vatandaşın yüklediği görseller imaja gömülmemeli; onlar
+#                   ADLANDIRILMIŞ BİR VOLUME'de yaşar. İmaja girerse her dağıtım
+#                   dosyaları eski hâline "geri alır" ve bunu hiçbir şey söylemez.
+#
+# ⚠️ wwwroot BURADA YOK ve bu BİLİNÇLİ. Panelin css/js/lib varlıkları türetilmiş
+# ama COMMİT EDİLMİŞ dosyalardır (12.9) — imajda npm adımı yok, onlar bağlamdan
+# gelir. Buraya "wwwroot" yazan biri paneli stilsiz bırakır; iyi haber şu ki
+# PanelAssetGuard sayesinde konteyner AÇILMAZ (sessiz kalmaz) — 12.21c'de ölçüldü.
+
+# ── Derleme çıktıları (imajda yeniden üretilir) ──────────────────────────────
+**/bin/
+**/obj/
+**/out/
+**/TestResults/
+
+# ── Kapsam dışı projeler ─────────────────────────────────────────────────────
+mobile/
+KadirliApp.Tests/
+
+# ── Araç zinciri girdileri (imajda gerekmez; çıktılar wwwroot'ta zaten var) ──
+**/node_modules/
+KadirliApp.Web/Assets/
+KadirliApp.Web/tools/
+KadirliApp.Web/package.json
+KadirliApp.Web/package-lock.json
+KadirliApp.Web/tailwind.config.js
+
+# ── Sırlar ve kullanıcı verisi (yukarıdaki 🔴) ───────────────────────────────
+secrets/
+uploads/
+**/google-services.json
+**/GoogleService-Info.plist
+
+# ── Depo/araç gürültüsü ──────────────────────────────────────────────────────
+.git/
+.github/
+.gitignore
+.vs/
+.vscode/
+.idea/
+*.user
+docs/
+Memory_Bank/
+*.md
+docker-compose*.yml
+.dockerignore
+.env
+.env.*
+!.env.prod.example
