@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.FileProviders;
 using KadirliApp.Application;
@@ -60,6 +61,26 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 builder.Services.AddAuthorization(o => {
     o.AddPolicy("AdminPanel", p => p.RequireRole("admin","super_admin","moderator"));
+
+    // 🔴 Faz 12.20a — KAPININ YÖNÜ: öznitelik yoksa REDDET.
+    //
+    // 16 Ağustos denetiminin B1 bulgusu tek bir cümleye dayanıyordu: "FallbackPolicy YOK,
+    // yani öznitelik taşımayan aksiyon ANONİMDİR." O varsayılan yüzünden `HomeController`
+    // yıllarca kimliksiz açılabildi ve bunu söyleyen tek şey elle tutulan bir muafiyet
+    // listesiydi. Varsayılan artık ters: unutulan bir [Authorize] paneli açmaz, KAPATIR.
+    //
+    // 🔑 12.19'un "sessizce kapanan kapı fark edilir, sessizce açılan fark edilmez" kuralının
+    // panel karşılığı — ve korumayı bir TARAMADAN framework'e taşıyor (§7 madde 53'ün dersi:
+    // "korumayı taramanın erişemeyeceği yere taşıyabilir miyim?"). PanelAuthenticationTests
+    // ikinci hat olarak kalır: fallback "giriş iste" der, o test "sınıfta [Authorize] VAR mı,
+    // yani ROL kapısı da kuruldu mu" der — ikisi farklı sorulardır.
+    //
+    // ⚠️ Bedeli: gerçekten anonim olması gereken üç yer artık bunu AÇIKÇA söylemek zorunda —
+    // giriş akışı (AccountController.Login/Logout), hata sayfaları (HomeController) ve
+    // /health/* probe'ları (MapInfrastructureHealthEndpoints). Üçü de [AllowAnonymous].
+    o.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();

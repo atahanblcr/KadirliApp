@@ -23,9 +23,6 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 |---|---|---|
 | **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
 | 📌 **Hukuki metinlerin GERÇEK içeriği** | 12.16/12.17 notları | 🔴 **Kod işi değil, İNSAN işi** ve yayından önce zorunlu. Zincirin tamamı çalışıyor (12.17 canlı doğrulandı) ama bugün yayında olan metinler **test metnidir** — yerel veritabanında, benim yazdığım örnekler. Gerçek KVKK aydınlatma + açık rıza metnini **hukukçu** yazmalı; kod onu bekliyor, tahmin etmiyor (12.16 kararı: metin **seed edilmez**) |
-| **12.20a — `HomeController` iskele artığı** | `# 🔬 DENETİM OTURUMU` → B1 | 🟠 `/Home/Index` + `/Home/Privacy` **kimliksiz 200 dönüyor** ve İngilizce (kural #6 ihlali). Asıl bulgu testte: `PanelAuthenticationTests`'in muafiyeti **controller granülaritesinde** → `HomeController`'a yarın yazılacak aksiyon da sessizce anonim doğar. **6 adımlı reçete yazıldı** |
-| **12.20b — `lib/bootstrap` (7,2 MB, 0 referans)** | `# 🔬 DENETİM OTURUMU` → B2 | 🟡 `dotnet new mvc` kalıntısı; `lib/`'in %77'si, git'te takipli, anonim servis ediliyor. 🔑 Asıl iş silmek değil, **madde 51'in eksik ikinci yönünü** yazmak: *"diskteki her kütüphaneye referans var mı?"* |
-| **12.20c — doküman: mobil test dosyası 81 → 82** | `# 🔬 DENETİM OTURUMU` → B3 | ⚪ Tek satır (`ARCHITECTURE.md` §2). Bu sayı **bilinçli olarak kilitsiz**, elle güncelleniyor |
 | **🚢 12.21 — Yayın hattı (paketleme + teslim)** | `# 🚢 12.21` | 🟢 **APPLE GEREKTİRMİYOR — bugün başlanabilir.** Eksik olan `Dockerfile`·`.dockerignore`·`compose.prod`·CD adımı; çalışma zamanı **zaten hazır**. 🔴 İki ön uyarı: `uploads/` **kalıcı volume** olmazsa ilk yeniden dağıtımda 983 girişlik görsel gider (**belirtisiz**), ve çok replikalı `Migrate()` **yarışı** karar bekliyor. 🐛 `dotnet.yml` kendi yorumunda *"artık gereksiz"* dediği iki konteyner + migration adımını hâlâ koşuyor |
 | **⚡ 12.22 — Performans / ölçek** | `# ⚡ 12.22` | 🟢 **APPLE GEREKTİRMİYOR.** 🔑 *Önce ÖLÇ, sonra optimize et* — yapı sağlam (94 indeks · GIN · sayfalama tavanı · sorgu yolunda **0** N+1) ama **hiç ölçülmemiş**: yük testi yok, p95 verisi yok. Başarı ölçütü bir hız değil bir **cümle**: *"en sıcak beş ucun p95'i şudur."* Bugün o cümle yok |
 
@@ -34,6 +31,7 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | Madde | Nerede | Ne gerekiyor |
 |---|---|---|
 | **12.18 adayı — kategori bazlı bildirim aboneliği** | *"açık kalan / ertelenen maddeler"* | *(12.16 adayıydı, KVKK öne alındığı için kaydı.)* Ön koşul: 12.15'in **elle gönderimi canlıda doğrulanmalı**. ⚠️ İkinci bir dispatcher yazılmaz |
+| 🆕 **Herkese açık gizlilik metni ADRESİ** | 12.20a notu · `# 🚢 12.21` | 12.20a `/Home/Privacy`'yi sildi (İngilizce, iskeleden kalma bir yer tutucuydu) ve panelde artık **hiç** gizlilik metni adresi yok. 🔴 **Play Console ve App Store Connect yayın için herkese açık bir URL İSTİYOR** ve bugün metin yalnız mobil uygulamanın içinde okunabiliyor. Altyapı **hazır**: `legal_documents` + yayında sürüm + anonim `GET /v1/legal/documents/{type}` (12.16). Eksik olan tek şey **karar**: metin nerede sunulacak (panelde anonim bir sayfa mı, ayrı bir statik site mi)? ⚠️ Panelde anonim sayfa açmak 12.20a'nın **az önce kapattığı** yüzeyi yeniden açmak demek — bilinçli verilmeli. 📌 Ön koşulu zaten açık: metnin **gerçek içeriği** (bir alt satır) |
 | **Haber gövde override'ı** | Haberler bloğu | İkinci sürümde **eklemeli** alan olarak (tam override değil) |
 | **Haber arşiv derinliği (bugün 50)** | Haberler bloğu | Tamamı ~273 istek + ~1.6 GB görsel. **Kod değişikliği gerekmiyor, karar gerekiyor** |
 | **Progress.md arşivleme** | *"Progress.md'nin şekli"* | Faz 12 kapanınca 11+12 → `Progress_Archive.md` |
@@ -6285,7 +6283,10 @@ zaten kırmızı olurdu; yani bu sayı **bilinçli olarak kilitsiz** ve elle gü
 
 ---
 
-## 🎯 12.20 — "iskele kalıntıları + iki kilidin eksik yönü" *(planlandı, KOD YAZILMADI)*
+## ✅ 12.20 — "iskele kalıntıları + iki kilidin eksik yönü" *(16 Ağustos 2026'da TAMAMLANDI)*
+
+> Planın üç adımı da yazıldı; kayıt aşağıda **"12.20 TESLİM"** başlığında. Bu blok planın
+> **orijinal metnidir**, karşılaştırılabilsin diye duruyor.
 
 | Adım | İş | Etki |
 |---|---|---|
@@ -6317,6 +6318,156 @@ bakıyordur.
    fark **kapatılmış durumda** — ve bunu söyleyen şey kutu sayısı değil, **ölçüm**.
 
 ---
+
+---
+
+# ✅ 12.20 TESLİM — *"iskele kalıntıları + iki kilidin eksik yönü"* (16 Ağustos 2026)
+
+> **Yeşil taban:** `dotnet test` **1284/1284** (1276 → **+8**) · `flutter analyze` **0** ·
+> `flutter test` **865/865** (mobil koda dokunulmadı). Migration **yok**, DTO değişikliği
+> **yok**, mobil tek satır değişiklik **yok**. Görünmez sözleşme **80 → 81**.
+
+## 12.20a — `HomeController` (B1)
+
+**Yapılanlar (planın 6 adımı, sırayla):**
+
+1. `Views/Home/Index.cshtml` + `Views/Home/Privacy.cshtml` ve karşılık gelen iki aksiyon **silindi**.
+2. Silmeden **önce** `PanelExternalOriginTests`'in `Home/Index.cshtml`'e dosya yolu olarak
+   atıf yapan yorumu düzeltildi (§7 madde 80 — planın uyarısı doğruydu).
+3. `HomeController` `[Authorize]`, kalan iki aksiyon (`Error` · `StatusCode`) `[AllowAnonymous]`.
+4. `AnonymousControllers` muafiyeti **2 → 1**; ikinci muafiyet **aksiyon** granülaritesine
+   indi (`AnonymousActions`, her satır gerekçeli).
+
+**🐛 Planın öngörmediği: rol listesi bir YALANDI ve bir test bunu söyletti.**
+İlk yazımda panelin alışılmış deseni (`Roles = "admin,super_admin,moderator"`) refleksle
+kopyalandı ve `PanelModeratorPermissionTests` **anında kırmızıya döndü** — haklıydı: o rol
+listesi *"bu bir modül ekranıdır ve moderatöre açıktır"* demektir, o zaman da
+`[PanelPermission]` + menü satırı + matriste bir anahtar gerekir. Burası bir modül değil,
+panelin **hata yüzeyi**. Doğrusu **rolsüz `[Authorize]`**: *"geçerli bir panel oturumu"*.
+Panele zaten yalnız o üç rol girebildiği için kapsam aynı, ama **iddia dürüst** — izin
+matrisinde karşılığı olmayan bir yetki belirmiyor (11.15b'nin en büyük bulgusunun tekrarı
+önlendi).
+
+### ➕ PLAN DIŞI (12.20a'nın asıl kazancı): **panel artık FAIL-CLOSED**
+
+Planın 3. adımı `HomeController`'ı kapatıyordu; ama B1'in kök nedeni o sınıf **değildi**,
+denetimin kendi cümlesiydi: *"`Program.cs`'te `FallbackPolicy` **yok** — yani öznitelik
+yoksa aksiyon **anonimdir**."* O varsayılan durdukça aynı hata her yeni controller'da
+mümkün kalırdı ve onu tutan tek şey yine **elle tutulan bir muafiyet listesi** olurdu.
+
+`AddAuthorization`'a `FallbackPolicy = RequireAuthenticatedUser()` eklendi. Karşılığında
+gerçekten anonim olması gereken **üç yer** bunu artık **açıkça** söylüyor:
+`AccountController.Login` (GET+POST) · `AccountController.Logout` · `HomeController`'ın iki
+hata aksiyonu · `MapInfrastructureHealthEndpoints`'in üç probe'u.
+
+🔑 **Neden bu doğru yön:** koruma bir **taramadan framework davranışına** taşındı — §7
+madde 53'ün *"korumayı taramanın erişemeyeceği yere taşıyabilir miyim?"* sorusunun cevabı.
+Yapısal test **kalktı değil, ikinci hat oldu**: fallback *"unutulan aksiyon kapalı doğsun"*
+der, test *"açıkça açılan aksiyon gerekçeli olsun"* der.
+
+🔴 **Ölçülmüş bir bedeli var ve bilinçli kabul edildi.** Fallback policy **hiçbir uca
+eşleşmeyen** isteklere de uygulanıyor: oturumsuz bir ziyaretçi var olmayan bir panel
+adresinde artık markalı 404 yerine **302 → giriş** alıyor. Kabul edildi — oturumsuz birine
+hangi adreslerin var olduğunu söylememek daha doğru — ve markalı 404 **oturumlu**
+kullanıcıda (yani onu görmesi gereken kişide) canlı doğrulandı.
+
+⚠️ **`/health/*` unutulsaydı hasar sessiz olurdu:** orkestratörün probe'u 302 alır, konteyner
+"sağlıksız" damgası yer ve **sebep hiçbir logda görünmezdi**. (12.21 yayın hattı bunun
+üstüne kurulacak.)
+
+## 12.20b — `lib/bootstrap` ve madde 51'in ikinci yönü (B2)
+
+`wwwroot/lib/bootstrap/` (**7,2 MB · 45 dosya**) `git rm -r` ile düştü. `package.json` ve
+`tools/copy-vendor.mjs` denetlendi: bootstrap'i **üretmiyorlar** (yalnız leaflet ·
+fontawesome · inter), yani `npm run build` silineni geri getirmiyor.
+
+**Asıl iş kilit:** `EveryLocalAssetOnDisk_IsReferencedBySomething` —
+*"`wwwroot/lib` altındaki her **dizin** ve `wwwroot/{css,js}` altındaki her **dosya** en az
+bir yerden başvuru almalı."* Kapsam **dizinden türer**, elle liste yok.
+
+### ➕ PLAN DIŞI: ters kilit yazılır yazılmaz **iki kalıntı daha** düştü
+
+Denetimin 3. dersi (*"iskele kalıntıları aynı kökten gelir ve BİRLİKTE ölür"*) doğruydu —
+ama denetimin aradığı üçüncüsü hakkında verdiği hüküm **yanlıştı**: *"`site.js` kontrol
+edildi: yaşıyor ve kullanılıyor."* Ölçüldü, **kullanılmıyordu**:
+
+| Dosya | Ölçüm | İçerik |
+|---|---|---|
+| `wwwroot/js/site.js` | **0 referans** | yalnız `dotnet new mvc`'nin yorum satırı |
+| `wwwroot/css/site.css` | **0 referans** | ölü Bootstrap kuralları (`.btn:focus`, `.form-control:focus`) |
+| `Views/Shared/_Layout.cshtml.css` | **0 referans** | izole CSS; ancak `~/KadirliApp.Web.styles.css` bağlanmışsa yüklenir, **hiçbir görünüm bağlamıyor** — içerik yine saf Bootstrap (`.navbar-brand`, `.nav-pills`, `.btn-primary`) |
+
+🔑 **Bu, ters kilidin var olma sebebinin kanıtı:** üçü de yıllardır depodaydı, üçü de
+anonim servis ediliyordu ve **hiçbir test söylemiyordu**. Denetim `site.js`'e *bakmıştı*
+bile — insan gözü "referans var mı" sorusunu bir dizin taramasından **daha kötü**
+cevaplıyor.
+
+⚠️ **Kilidi yazarken bir tuzak vardı:** eşleşmede sondaki bölü işareti şart.
+`lib/jquery-validation` araması `lib/jquery-validation-unobtrusive`'i de yakalıyor — ölü bir
+dizin **canlı komşusunun referansına sığınarak** hayatta kalabilirdi.
+
+## 12.20c — doküman (B3)
+
+`ARCHITECTURE.md` §2: mobil test dosyası **81 → 82** (ölçüldü: 82 dosya, hepsinde en az bir
+`test(`/`testWidgets(`). Aynı bölümdeki `lib/*` satırı da gerçekle hizalandı — bugün **altı**
+kütüphane var ve `jquery-validation` + `jquery-validation-unobtrusive` doküman listesinde
+hiç yazmıyordu (kullanılıyorlar).
+
+## 🧪 Bozma turu — **4 bozma, 4 kırmızı** (biri ikinci denemede)
+
+| # | Bozma | Beklenen | Sonuç |
+|---|---|---|---|
+| 1 | `wwwroot/lib/` altına referanssız sahte dizin | ters kilit kırmızı | 🔴 ✔ |
+| 2 | `wwwroot/css/` altına referanssız sahte dosya | ters kilit kırmızı | 🔴 ✔ (mesaj dosyayı adıyla söyledi) |
+| 3 | `HomeController`'a `[AllowAnonymous]`'lu sahte 5. aksiyon | muafiyet testi kırmızı | 🔴 ✔ *(12.20a öncesinde bu **yeşil kalırdı** — bulgunun tam kendisi)* |
+| 4 | Öznitelik**siz** yeni bir controller | fallback kapatmalı | 🔴 ✔ **ama ikinci denemede** |
+
+🔬 **4 numaralı bozma ilk kurulumunda YANLIŞ ŞEYİ ÖLÇÜYORDU** — ve bunu yakalayan şey
+§7 madde 70'in dersiydi (*"iki bağımsız sebep koruyorsa testin **hangisini** tuttuğunu
+ölç"*). İlk deneme öznitelik**siz** bir aksiyonu `HomeController`'a ekledi; aksiyon
+kapalı çıktı ama **sınıftaki `[Authorize]` yüzünden**, fallback yüzünden değil. Ölçüm
+yeniden kuruldu: hiçbir öznitelik taşımayan **yeni bir controller** açıldı ve iki yönlü
+ölçüldü — fallback açıkken **302**, fallback satırı yorumlandığında **200**. Yani
+B1'in hâli birebir yeniden üretildi ve koruyanın gerçekten fallback olduğu kanıtlandı.
+
+## 🐛 Projenin kendi korumaları **iki hatamı** yakaladı (ikisi de ilk tam koşuda)
+
+1. `PanelModeratorPermissionTests` → rol listesi (yukarıda).
+2. `CommentReferenceTests` (madde 80) → **kendi yazdığım yeni testin yorumu** sildiğim iki
+   dosyaya (`site.js` · `site.css`) **dosya yolu olarak** atıf yapıyordu. Yani madde 80,
+   yazıldığı fazdan bir faz sonra, **onu yazan kişiyi** yakaladı. Yorum yolları kaldırılıp
+   olayı yol vermeden anlatacak biçimde yeniden yazıldı.
+
+## ✅ Canlı doğrulama (panel `:5203`, oturumsuz + oturumlu)
+
+```
+OTURUMSUZ                                  OTURUMLU (super_admin)
+302  /Home/Index      ← eskiden 200        404  /Home/Index      (markalı, Türkçe)
+302  /Home/Privacy    ← eskiden 200        404  /Home/Privacy
+200  /Home/Error      (markalı hata)       404  /BuBirSayfaDegil → "Hata 404 · Sayfa
+200  /account/login                             bulunamadı · İstenen adres: …"
+200  /health/live     ← fallback'ten muaf  200  /Dashboard/Index
+302  /lib/bootstrap/dist/css/bootstrap.min.css  ← eskiden 200, 162 720 bayt
+302  /js/site.js · /css/site.css                ← eskiden 200
+200  /css/panel.css · /lib/leaflet/leaflet.js   ← yaşayan varlıklar yerinde
+```
+
+## 🔑 Bu alt-fazın kalıcı dersleri
+
+1. **Bir yapısal testin kapsamı türetilmiş olabilir ama MUAFİYETİ kaba olabilir.**
+   Faz A'nın sorusuna (*"kapsam dizinden mi, tipten mi, elden mi?"*) kalıcı olarak bir
+   soru daha eklendi: ***"muafiyet hangi granülaritede?"***
+2. **Tek yönlü kilitler ölü kod biriktirir ve biriktirdiklerini hiçbir zaman söylemez.**
+   Bir *"X ⊆ Y"* kilidi yazarken **"Y ⊆ X gerekiyor mu?"** diye sor.
+3. **Bir denetimin "kontrol ettim, temiz" hükmü de bir iddiadır ve ölçülebilir.**
+   Denetim `site.js` için *"yaşıyor ve kullanılıyor"* demişti; bir `grep` yeterliydi.
+4. **Bir kapıyı kapatmanın en iyi yolu, varsayılanı ters çevirmektir.** Muafiyet listesini
+   daraltmak B1'i çözüyordu; `FallbackPolicy` **B1'in sınıfını** çözdü.
+5. 🔴 **Bir yeri temizlerken orada duran İŞLEVİ de siliyor olabilirsin.** `/Home/Privacy`
+   İngilizce bir yer tutucuydu ve gitmesi doğruydu — ama gittiğinde panelde **hiç**
+   gizlilik metni adresi kalmadı ve mağazalar yayında bunu **istiyor**. Silme kararı
+   doğru, ama boşluk **panoya yazıldı** (12.10'un *"bir yolu kapatırken o yolun tek
+   taşıyıcısı olduğu işlevi de siliyor musun?"* dersinin doküman tarafı).
 
 # 🚢 12.21 — YAYIN HATTI (paketleme + teslim) *(16 Ağustos 2026'da planlandı, KOD YAZILMADI)*
 

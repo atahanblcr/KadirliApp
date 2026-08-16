@@ -50,6 +50,10 @@ public class AccountController : Controller
             IsPanelUser: isPanelUser,
             LockedOutUntil: lockedOutUntil));
 
+    // 🔑 Faz 12.20a: panelin varsayılanı artık "reddet" (Program.cs → FallbackPolicy).
+    // Giriş akışının anonim olması akışın TANIMI gereği zorunlu — oturum açmak için oturum
+    // istenemez — ve bu artık açıkça yazılıyor, bir varsayılanın yan etkisi değil.
+    [AllowAnonymous]
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
     {
@@ -63,6 +67,7 @@ public class AccountController : Controller
         return View();
     }
 
+    [AllowAnonymous]
     [HttpPost]
     [EnableRateLimiting("panel-login")] // Faz 9.2: IP başına Brute-Force koruması
     public async Task<IActionResult> Login(string username, string password, string? returnUrl = null)
@@ -246,6 +251,9 @@ public class AccountController : Controller
         return RedirectToAction("Index", "Dashboard");
     }
 
+    // ⚠️ Çıkış da anonim: süresi dolmuş bir çerezle "Çıkış Yap"a basan yönetici, kapı
+    // kapalı olsaydı giriş ekranına atılır ve çerez ASLA temizlenmezdi (SignOut hiç koşmaz).
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> Logout()
     {

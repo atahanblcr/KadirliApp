@@ -15,18 +15,26 @@ public static class HealthEndpoints
 {
     public static IEndpointRouteBuilder MapInfrastructureHealthEndpoints(this IEndpointRouteBuilder app)
     {
+        // 🔑 Faz 12.20a — `.AllowAnonymous()` üçü için de ZORUNLU ve gerekçesi Web tarafında:
+        // panel artık fail-closed (Program.cs → FallbackPolicy "kimlik doğrulanmış olsun").
+        // Bu satır olmadan orkestratörün probe'ları 302 → /account/login alır; ne 200'dür
+        // ne de hata sayılır, yani konteyner "sağlıksız" damgası yer ve **sebep hiçbir logda
+        // görünmez**. Api tarafında fallback policy yok, orada bu çağrı etkisiz (no-op).
+
         // Liveness: process ayakta mı — bağımlılık kontrolü YAPMAZ (bağımlılık çöktü diye pod restart edilmesin)
-        app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+        app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false })
+            .AllowAnonymous();
 
         // Readiness: trafik alabilir mi — "ready" etiketli kritik bağımlılıklar (Postgres, Redis, Hangfire)
         app.MapHealthChecks("/health/ready", new HealthCheckOptions
         {
             Predicate = r => r.Tags.Contains("ready"),
             ResponseWriter = WriteJsonAsync
-        });
+        }).AllowAnonymous();
 
         // Detaylı rapor: tüm kontroller + süreleri (izleme panoları için)
-        app.MapHealthChecks("/health", new HealthCheckOptions { ResponseWriter = WriteJsonAsync });
+        app.MapHealthChecks("/health", new HealthCheckOptions { ResponseWriter = WriteJsonAsync })
+            .AllowAnonymous();
 
         return app;
     }

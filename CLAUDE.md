@@ -231,11 +231,44 @@ ve geri alınamaz işlerin yeri ama *"burası hangi kurulum?"*un cevabı hiçbir
 (`Foo{T,U}.OlmayanUye`) yeşil kaldı, çünkü desen `{…}`'ye uymuyor *ve* jenerik `Type.Name`
 arite soneki taşıyordu. 🔑 **Ders: kapsam doğru olabilir ama DESEN dar olabilir.**
 
-**1276 backend + 865 mobil test, 80 görünmez sözleşme.**
+**✅ 12.20 bitti — iskele kalıntıları + iki kilidin eksik yönü.** `dotnet new mvc`'den kalan
+`/Home/Index` ve `/Home/Privacy` silindi (ikisi de **kimliksiz 200** dönüyordu; ikincisi
+*tahmin edilebilir bir gizlilik metni adresinde* İngilizce bir yer tutucuydu) ve
+`wwwroot/lib/bootstrap` (**7,2 MB · 0 referans**) düştü.
+🔴 **Asıl kazanç plan dışı: panel artık FAIL-CLOSED.** Bulgunun kök nedeni o sınıf değil,
+`FallbackPolicy`'nin **yokluğuydu** — öznitelik yoksa aksiyon anonim doğuyordu. Kapı
+`Program.cs`'e kuruldu (`RequireAuthenticatedUser`), koruma bir **taramadan framework
+davranışına** taşındı; yapısal test **ikinci hat** oldu ve muafiyeti **controller değil
+AKSİYON** granülaritesinde. Anonim kalması gereken üç yer bunu artık açıkça söylüyor:
+giriş akışı · hata sayfaları · **`/health/*` probe'ları** (sonuncusu unutulsaydı orkestratör
+302 alır, konteyner "sağlıksız" damgası yer ve **sebep hiçbir logda görünmezdi**).
+🔴 Ölçülmüş bedeli kabul edildi: fallback **hiçbir uca eşleşmeyen** isteklere de uygulanıyor →
+oturumsuz ziyaretçi olmayan bir adreste markalı 404 yerine **302 → giriş** alıyor (markalı 404
+oturumluda korunuyor, canlı doğrulandı). 🐛 `[Authorize]`'a refleksle yazılan **rol listesi**
+bir yalandı ve `PanelModeratorPermissionTests` anında yakaladı: rol listesi *"bu bir modül
+ekranıdır"* demektir, burası panelin **hata yüzeyi** → rolsüz `[Authorize]`.
+➕ **Madde 51'in ikinci yönü yazıldı** (*"diskteki her varlığa başvuran var mı?"*) ve kilit
+yazılır yazılmaz **iki kalıntı daha** düştü (`site.js` · `site.css` · `_Layout.cshtml.css`) —
+üstelik denetimin *"`site.js` yaşıyor ve kullanılıyor"* hükmü **ölçümle çürüdü**.
+🔑 **Ders: tek yönlü kilitler ölü kod biriktirir ve biriktirdiklerini hiçbir zaman söylemez.**
+🧪 Bozma turu **4/4 kırmızı — biri ikinci denemede**: öznitelik**siz** aksiyon
+`HomeController`'a eklendiğinde kapalı çıkıyordu ama **sınıftaki `[Authorize]` yüzünden**;
+ölçüm öznitelik taşımayan **yeni bir controller** ile yeniden kuruldu (fallback açıkken 302,
+kapalıyken **200**). 🐛 `CommentReferenceTests` (madde 80) **kendi yazdığım testin yorumundaki**
+sarkan dosya yollarını yakaladı — yani madde 80 onu yazan kişiyi bir faz sonra yakaladı.
 
-**⏭️ Sırada:** 12.8 sosyal giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı bugün
-yazılabilir**) · **12.18 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher
-**yazılmaz**, var olan tek sahip genişletilir).
+**1284 backend + 865 mobil test, 81 görünmez sözleşme.**
+
+**⏭️ Sırada:** 🚢 **12.21 yayın hattı** (Apple gerektirmiyor; fail-closed panel + anonim
+`/health/*` onun zeminini kurdu) · ⚡ **12.22 performans/ölçek** (*önce ÖLÇ*) · 12.8 sosyal
+giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı bugün yazılabilir**) · **12.18 adayı**
+kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher **yazılmaz**, var olan tek sahip
+genişletilir).
+🆕 **12.20'nin açtığı tek karar maddesi:** `/Home/Privacy` silindi ve panelde artık **hiç**
+gizlilik metni adresi yok — mağazalar yayında **herkese açık bir URL istiyor**, metin bugün
+yalnız mobil uygulamanın içinde okunabiliyor. Altyapı hazır (anonim
+`GET /v1/legal/documents/{type}`), eksik olan **karar**: panelde anonim bir sayfa açmak
+12.20a'nın az önce kapattığı yüzeyi yeniden açmak demek.
 📌 **KVKK'da açık kalan tek madde kod işi DEĞİL:** hukuki metinlerin **gerçek içeriği** bir
 **insan/hukukçu** tarafından yazılmalı — bugün yayında olanlar test metnidir ve kod metni
 **seed etmiyor** (bilinçli).
@@ -264,6 +297,14 @@ kontrolünü **controller'a yazma**: komut `IDevelopmentOnlyCommand`'i uygulası
 `DevelopmentOnlyBehavior` tutsun (12.19a). Aksiyon ayrıca **`[HttpPost]`** olmak zorunda —
 `AutoValidateAntiforgeryToken` global filtresi yalnız POST/PUT/DELETE doğrular, yani bir
 `[HttpGet]` aksiyon CSRF korumasının **tamamen dışındadır**.
+⚠️ **Panelde yeni bir controller/aksiyon yazarken** artık varsayılan **REDDET**'tir
+(`FallbackPolicy`, 12.20a): `[Authorize]` yazmayı unutan aksiyon anonim değil **kapalı** doğar.
+Gerçekten anonim olması gerekiyorsa `[AllowAnonymous]` **ve** `PanelAuthenticationTests`'in
+`AnonymousActions` listesine **gerekçeli** bir satır şart. ⚠️ `[Authorize]`'a **rol listesi**
+yazmak *"bu bir modül ekranıdır"* demektir → `[PanelPermission]` + menü satırı + matris anahtarı
+gerekir; modül değilse **rolsüz** `[Authorize]` yaz.
+⚠️ **`wwwroot`'a dosya eklerken** en az bir yerden başvurulmalı — `wwwroot/lib` altındaki her
+**dizin** ve `wwwroot/{css,js}` altındaki her **dosya** artık iki yönlü kilitli (12.20b).
 ⚠️ Moderasyon durumu yazarken ham literal (`"approved"`) **kullanma**, `AdStatuses.Approved`
 gibi sabitleri kullan (§7 madde 79) — `ModerationSingleOwnerTests` yasak kelime dağarcığını
 `*Statuses` sınıflarından **yansımayla** türetiyor.
@@ -329,7 +370,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Mobil istemci sunucuyla nasıl konuşuyor?" | `Memory_Bank/API_CONTRACT.md` |
 | "Bu karar neden böyle verilmiş?" | `Memory_Bank/Progress.md` (faz faz) · `Memory_Bank/Active_Context.md` (son durum) |
 | **"Ne kaldı, hangi faz açık?"** | **`Memory_Bank/Progress.md` → en üstteki 🚦 AÇIK MADDELER PANOSU** (yalnız açıklar; kapanan satır silinir) |
-| **"Bu görünmez sözleşme gerçekten kilitli mi, kilidi nerede?"** | **`Memory_Bank/Contract_Audit.md`** (67 madde × kilit cinsi/risk/dosya) |
+| **"Bu görünmez sözleşme gerçekten kilitli mi, kilidi nerede?"** | **`Memory_Bank/Contract_Audit.md`** (81 madde × kilit cinsi/risk/dosya) |
 | "Bu .NET kalıbı ne demek?" | `DOTNET_MASTERCLASS.md` |
 | "Mobil tasarım sistemi / UX kuralları?" | `Memory_Bank/MOBILE_UX_PLAN.md` |
 | "Uçların makine-okur şeması?" | `docs/openapi.json` |
@@ -337,7 +378,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 77 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 81 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
@@ -375,7 +416,11 @@ ile — gerçeği paylaşılan panel veritabanına yazardı) +
 `ModerationSingleOwnerTests`'in 12.19c ayağı + `Integration/Architecture/CommentReferenceTests.cs`,
 **68–70** → `Unit/Infrastructure/SocialTokenVerifierTests.cs` +
 `Unit/Infrastructure/JwtProviderSocialTokenTests.cs` +
-`Unit/Application/Auth/SocialProvidersTests.cs` + `Integration/Auth/SocialLoginTests.cs`.
+`Unit/Application/Auth/SocialProvidersTests.cs` + `Integration/Auth/SocialLoginTests.cs`,
+**81** → `Integration/Panel/PanelAuthenticationTests.cs` (**üç ayaklı**: `FallbackPolicy`'nin
+varlığı **çalışan uygulamanın servislerinden** okunur · muafiyet **aksiyon** granülaritesinde ·
+iskele adresleri **oturumlu** istemciyle 404 doğrulanır — anonim yanıt "silindi" ile
+"korumalı"yı ayırt edemez, ikisi de 302'dir).
 
 ## Değişmez kurallar
 

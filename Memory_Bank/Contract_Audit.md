@@ -4,9 +4,10 @@
 > *kilidinin cinsine* göre etiketler. Soru "testi var mı?" değil (hepsinin var),
 > **"kilidi sahte mi?"**
 >
-> 📌 **Bugün 80 madde.** Denetim 67 madde üzerinde koşuldu (aşağıdaki tablo); **68–70**
-> denetimden sonra Faz 12.7'de, **71–74** Faz 12.16'da, **75–77** Faz 12.17'de ve
-> **78–80** Faz 12.19'da eklendi — hepsinin kaydı bu dosyanın sonundaki bölümlerde.
+> 📌 **Bugün 81 madde.** Denetim 67 madde üzerinde koşuldu (aşağıdaki tablo); **68–70**
+> denetimden sonra Faz 12.7'de, **71–74** Faz 12.16'da, **75–77** Faz 12.17'de,
+> **78–80** Faz 12.19'da ve **81** Faz 12.20a'da eklendi — hepsinin kaydı bu dosyanın
+> sonundaki bölümlerde.
 >
 > **Bu dosya kalıcıdır.** Sonraki oturumlar baştan tasnif etmez, buradan devam eder.
 >
@@ -402,5 +403,26 @@ kapsam doğruydu (bütün dosyalar taranıyordu), **desen** dardı.
 
 ---
 
-📌 **Risk dağılımı bugün: 🟢🟢 6 · 🟢 73 · 🟠 1 · 🔴 0** (80 madde).
+## 🧱 Faz 12.20a — madde 81 (fail-closed panel yetkilendirmesi)
+
+| # | Sözleşme | Kilit cinsi | Kilidi taşıyan dosya | Risk |
+|---|---|---|---|---|
+| 81 | Panelde öznitelik yoksa aksiyon **kapalı** doğar (`FallbackPolicy`); anonim olması gereken üç yer bunu açıkça söyler; muafiyet **aksiyon** granülaritesinde | **framework davranışı + davranış testi** (üç ayak) | `KadirliApp.Web/Program.cs` (kapının kendisi) · `Integration/Panel/PanelAuthenticationTests.cs` (`ThePanel_FailsClosed_…` · `NoAdminPanelController_OptsOutOfAuthorization` · `TheScaffoldingPages_AreGone` + ters yönü) | 🟢 |
+
+🔑 **Neden 🟢 ve neden 🟢🟢 değil:** kapının kendisi bir *tarama* değil **framework
+davranışı** — yani `[Authorize]` yazmayı unutan biri korumasız kalmaz. Ama derleyici
+güvencesi değil: `[AllowAnonymous]` yazan biri kapıyı tek satırda delebilir, onu tutan şey
+yine bir test (`NoAdminPanelController_OptsOutOfAuthorization`). O test artık **aksiyon**
+granülaritesinde ve bozma turunda kırmızıya döndü.
+
+🔬 **Kilidin hangi ayağının tuttuğu ÖLÇÜLDÜ** (§7 madde 70'in dersi: *"iki bağımsız sebep
+koruyorsa testin hangisini tuttuğunu ölç"*). İlk yazımda öznitelik**siz** bir aksiyon
+`HomeController`'a eklenip "kapalı mı?" diye ölçüldü — kapalıydı, ama **sınıftaki
+`[Authorize]` yüzünden**, fallback yüzünden değil. Ölçüm yeniden kuruldu: hiçbir öznitelik
+taşımayan **yeni bir controller** açıldı. Fallback açıkken **302**, fallback kapatıldığında
+**200** — yani koruyan gerçekten o.
+
+---
+
+📌 **Risk dağılımı bugün: 🟢🟢 6 · 🟢 74 · 🟠 1 · 🔴 0** (81 madde).
 ⚠️ Tek 🟠 (madde 80) bir eksiklik değil, **bilinçli ve belgelenmiş bir sınır** (yukarıda).

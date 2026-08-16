@@ -1,6 +1,80 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
-> ## 🔬 SON OTURUM: DENETİM (16 Ağustos 2026, 12.19'dan sonra) — **KOD DEĞİŞİKLİĞİ YOK**
+> ## ✅ SON OTURUM: FAZ 12.20 TAMAMLANDI (16 Ağustos 2026) — *"iskele kalıntıları + iki kilidin eksik yönü"*
+>
+> **Yeşil taban:** `dotnet test` **1284/1284** (1276 → **+8**) · `flutter analyze` **0** ·
+> `flutter test` **865/865**. Migration **yok**, DTO değişikliği **yok**, **mobilde tek satır
+> değişiklik yok**. Görünmez sözleşme **80 → 81**.
+>
+> 🔑 **TESLİM EDİLEN — 12.20a (B1):** `dotnet new mvc` iskelesinden kalan `/Home/Index` ve
+> `/Home/Privacy` silindi (ikisi de **kimliksiz 200** dönüyordu; ikincisi *tahmin edilebilir bir
+> gizlilik metni adresinde* İngilizce bir yer tutucuydu — KVKK bloğunun kapandığı hafta).
+> `HomeController` artık `[Authorize]`, kalan iki hata aksiyonu `[AllowAnonymous]`, ve
+> **muafiyet listesi controller granülaritesinden AKSİYON granülaritesine indi**.
+> **12.20b (B2):** `wwwroot/lib/bootstrap` (**7,2 MB · 45 dosya · 0 referans**) silindi ve
+> madde 51'in **ikinci yönü** yazıldı. **12.20c (B3):** doküman sayısı 81 → 82.
+>
+> 🔴 **KARAR 1 — PLAN DIŞI VE BU FAZIN ASIL KAZANCI: panel artık FAIL-CLOSED.**
+> Plan `HomeController`'ı kapatıyordu; ama B1'in kök nedeni o sınıf değil, denetimin kendi
+> cümlesiydi: *"`FallbackPolicy` yok — yani öznitelik yoksa aksiyon **anonimdir**."* O
+> varsayılan durdukça aynı hata her yeni controller'da mümkün kalır ve onu tutan tek şey yine
+> **elle tutulan bir muafiyet listesi** olurdu. `FallbackPolicy = RequireAuthenticatedUser()`
+> eklendi: koruma bir **taramadan framework davranışına** taşındı (§7 madde 53'ün dersi).
+> Yapısal test kalkmadı, **ikinci hat** oldu — fallback *"unutulan aksiyon kapalı doğsun"* der,
+> test *"açıkça açılan aksiyon gerekçeli olsun"* der.
+> ⚠️ **Ölçülmüş bedeli var ve kabul edildi:** fallback policy **hiçbir uca eşleşmeyen**
+> isteklere de uygulanıyor → oturumsuz ziyaretçi var olmayan bir adreste markalı 404 yerine
+> **302 → giriş** alıyor (oturumluda markalı 404 canlı doğrulandı).
+> ⚠️ **`/health/*` unutulsaydı hasar sessiz olurdu:** probe 302 alır, konteyner "sağlıksız"
+> damgası yer, **sebep hiçbir logda görünmez** (12.21'in üzerine kurulacağı zemin).
+>
+> 🔴 **KARAR 2 — `[Authorize]` ROL LİSTESİZ, ve bunu bir test söyletti.** İlk yazımda panelin
+> alışılmış deseni (`Roles = "admin,super_admin,moderator"`) refleksle kopyalandı;
+> `PanelModeratorPermissionTests` anında kırmızıya döndü ve **haklıydı**: o rol listesi
+> *"bu bir modül ekranıdır ve moderatöre açıktır"* demektir → `[PanelPermission]` + menü satırı
+> + matriste anahtar gerekir. Burası modül değil, panelin **hata yüzeyi**.
+>
+> ➕ **PLAN DIŞI 2 — ters kilit yazılır yazılmaz İKİ KALINTI DAHA düştü** ve denetimin bir
+> hükmü **çürüdü**. Denetim üçüncü kalıntı için *"`site.js` kontrol edildi: yaşıyor ve
+> kullanılıyor"* demişti; ölçüldü, **kullanılmıyordu**. Düşenler: `wwwroot/js/site.js`
+> (yalnız bir yorum satırı), `wwwroot/css/site.css` ve `Views/Shared/_Layout.cshtml.css`
+> (ikisi de ölü Bootstrap kuralları; ikincisi ancak `~/KadirliApp.Web.styles.css` bağlanmışsa
+> yüklenirdi, **hiçbir görünüm bağlamıyor**). Kilit `wwwroot/lib` altındaki her **dizini** ve
+> `wwwroot/{css,js}` altındaki her **dosyayı** kapsıyor; kapsam **dizinden türüyor**.
+>
+> 🧪 **Bozma turu: 4 bozma, 4 kırmızı — biri ikinci denemede.** 4 numaralı bozma ilk
+> kurulumunda **yanlış şeyi ölçüyordu**: öznitelik**siz** aksiyon `HomeController`'a eklendi ve
+> kapalı çıktı — ama **sınıftaki `[Authorize]` yüzünden**, fallback yüzünden değil (§7 madde
+> 70'in dersi: *"iki bağımsız sebep koruyorsa testin hangisini tuttuğunu ölç"*). Ölçüm yeniden
+> kuruldu: hiçbir öznitelik taşımayan **yeni bir controller** — fallback açıkken **302**,
+> kapatıldığında **200**. Yani B1'in hâli birebir yeniden üretildi.
+>
+> 🐛 **Projenin kendi korumaları iki hatamı yakaladı.** İkincisi: `CommentReferenceTests`
+> (madde 80), **kendi yazdığım yeni testin yorumunun** sildiğim iki dosyaya dosya yolu olarak
+> atıf yaptığını gördü — yani madde 80, yazıldığı fazdan bir faz sonra **onu yazan kişiyi**
+> yakaladı.
+>
+> ✅ **CANLI DOĞRULANDI (panel `:5203` + Android Pixel 9):** oturumsuz `/Home/Index` ·
+> `/Home/Privacy` **302** (eskiden 200), `/Home/Error` · `/account/login` · `/health/live`
+> **200**, `/lib/bootstrap/…` · `/js/site.js` · `/css/site.css` **302** (eskiden 200),
+> `/css/panel.css` · `/lib/leaflet/leaflet.js` **200**; oturumlu (super_admin) `/Home/Index`
+> **404** ve gövde markalı Türkçe (*"Hata 404 · Sayfa bulunamadı · İstenen adres: /Home/Index"*).
+> Emülatörde uygulama açıldı, misafir girişiyle üç uç **200** (`power-outages` ·
+> `pharmacies/on-duty` · `announcements`), 13 modül ızgarası yerinde.
+>
+> 🔴 **YENİ AÇILAN TEK MADDE (panoya yazıldı):** `/Home/Privacy` gitti ve panelde artık **hiç**
+> gizlilik metni adresi yok — mağazalar yayında **herkese açık bir URL istiyor** ve metin bugün
+> yalnız mobil uygulamanın içinde okunabiliyor. Altyapı hazır (12.16'nın anonim
+> `GET /v1/legal/documents/{type}`'ı); eksik olan **karar**, çünkü panelde anonim bir sayfa
+> açmak 12.20a'nın az önce kapattığı yüzeyi yeniden açmak demek.
+>
+> ⏭️ **Sırada:** 🚢 **12.21 yayın hattı** (Apple gerektirmiyor; fail-closed panel + anonim
+> `/health/*` artık onun zeminini kuruyor) · ⚡ 12.22 performans/ölçek · 12.8 sosyal giriş
+> mobil (🔴 Apple aboneliği bekliyor, Google ayağı yazılabilir).
+
+---
+
+> ## 🔬 Önceki oturum — DENETİM (16 Ağustos 2026, 12.19'dan sonra) — **KOD DEĞİŞİKLİĞİ YOK**
 >
 > Ortam uçtan uca ayağa kaldırıldı (Postgres/Redis/Seq · API `:5005` · panel `:5203` ·
 > **iOS simülatörü** · **Android Pixel 9 / API 37**) ve üç soru ölçüldü.

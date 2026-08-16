@@ -72,8 +72,8 @@ public class PanelExternalOriginTests
     /// </summary>
     /// <remarks>
     /// 🐛 <b>İlk yazımda bu ifade her <c>href</c>'i yakalıyordu ve test yanlış bir şeyi
-    /// kırmızıya çeviriyordu:</b> <c>Home/Index.cshtml</c>'deki
-    /// <c>&lt;a href="https://learn.microsoft.com/…"&gt;</c> bağlantısı. Ama bir
+    /// kırmızıya çeviriyordu:</b> o zamanki iskele sayfasında duran, dış bir belgeye
+    /// giden düz bir <c>&lt;a href="https://…"&gt;</c> bağlantısı. Ama bir
     /// <c>&lt;a&gt;</c> bağlantısı alt kaynak <b>değildir</b>: tıklanana kadar hiçbir
     /// şey indirilmez, ağ kesikken sayfa yine çalışır ve CSP de onu engellemez.
     /// Ayrımı kaybetmek testi gürültüye boğardı ve gürültülü bir yapısal test,
@@ -236,6 +236,96 @@ public class PanelExternalOriginTests
         missing.Should().BeEmpty(
             "görünümün başvurduğu her yerel varlık depoda olmalı — yoksa tarayıcı " +
             "404 alır, sayfa yine açılır ve eksiklik yalnız davranıştan anlaşılır");
+    }
+
+    // ── 2b) …ve TERSİ: diskteki her varlığa başvuru var ───────────────────────
+
+    /// <summary>
+    /// 🔴 <b>Faz 12.20b — madde 51'in bugüne kadar EKSİK olan ikinci yönü.</b>
+    /// Yukarıdaki test <i>"başvurulan varlık diskte var mı?"</i> diye soruyor;
+    /// bu test tersini soruyor: <i>"diskteki her varlığa başvuran var mı?"</i>
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🐛 <b>Bu test bir ölçümden doğdu.</b> 16 Ağustos denetimi
+    /// <c>wwwroot/lib/bootstrap</c>'i buldu: <b>7,2 MB, 45 dosya, SIFIR referans</b>,
+    /// git'te takipli ve statik dosya ara katmanı tarafından anonim servis ediliyordu.
+    /// Panel 12.9'da Tailwind'e geçmişti; Bootstrap o gün ölmüş ama silinmemişti ve
+    /// <b>tek yönlü kilit yüzünden hiçbir test bunu söyleyemiyordu.</b>
+    /// Aynı kökten <b>iki kalıntı daha</b> çıktı ve ikisi de bu testle bulundu: iskelenin
+    /// <c>site</c> adlı js ve css dosyaları — biri yalnız bir yorum satırı içeriyordu,
+    /// diğeri artık var olmayan Bootstrap sınıflarını stilliyordu. (⚠️ Dosya yolları
+    /// bilerek yazılmadı: silindiler ve §7 madde 80 gereği sarkan bir yol, yol olmamasından
+    /// kötüdür. <c>CommentReferenceTests</c> bu satırı ilk yazımında kırmızıya döndürdü.)
+    /// </para>
+    /// <para>
+    /// 🔑 <b>Kalıcı ders:</b> bir <i>"X ⊆ Y"</i> kilidi yazarken <b>"Y ⊆ X gerekiyor mu?"</b>
+    /// diye sor. Tek yönlü kilitler <b>ölü kod biriktirir</b> ve biriktirdiklerini
+    /// hiçbir zaman söylemezler.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Kapsam elle tutulmuyor, DİZİNDEN türetiliyor</b> (Faz A'nın dersi):
+    /// yarın <c>wwwroot/lib</c>'e eklenen bir kütüphane kendiliğinden kapsanır ve
+    /// ölen bir kütüphane sessizce kalamaz. Kütüphaneler <b>dizin</b> düzeyinde,
+    /// bizim yazdığımız <c>css</c>/<c>js</c> varlıkları <b>dosya</b> düzeyinde sayılır —
+    /// üçüncü taraf bir paketin içindeki 45 dosyanın tek tek referans alması beklenemez,
+    /// ama paketin kendisinin en az bir başvurusu olmalı.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void EveryLocalAssetOnDisk_IsReferencedBySomething()
+    {
+        var web = Path.Combine(RepositoryRoot(), "KadirliApp.Web");
+        var wwwroot = Path.Combine(web, "wwwroot");
+
+        // Başvuru arayacağımız metin havuzu: görünümler + panelin kendi css/js'i +
+        // C# tarafı (PanelAssetGuard.RequiredAssets varlık adlarını orada da sayıyor).
+        var haystack = new List<string>();
+        haystack.AddRange(ViewFiles().Select(File.ReadAllText));
+        haystack.AddRange(Directory
+            .GetFiles(Path.Combine(web, "Common"), "*.cs", SearchOption.AllDirectories)
+            .Select(File.ReadAllText));
+        haystack.Add(File.ReadAllText(Path.Combine(wwwroot, "css", "panel.css")));
+        haystack.Add(File.ReadAllText(Path.Combine(wwwroot, "js", "panel.js")));
+
+        bool IsMentioned(string needle) =>
+            haystack.Any(text => text.Contains(needle, StringComparison.OrdinalIgnoreCase));
+
+        var orphans = new List<string>();
+
+        // (a) Üçüncü taraf kütüphaneler — dizin düzeyinde.
+        // ⚠️ Sondaki '/' şart: onsuz "lib/jquery-validation" araması
+        // "lib/jquery-validation-unobtrusive"i de eşleştirir ve ölü bir kardeş
+        // dizin, canlı komşusunun referansına sığınarak hayatta kalırdı.
+        foreach (var dir in Directory.GetDirectories(Path.Combine(wwwroot, "lib")))
+        {
+            var name = Path.GetFileName(dir);
+            if (!IsMentioned($"lib/{name}/"))
+            {
+                var size = Directory.GetFiles(dir, "*.*", SearchOption.AllDirectories).Sum(f => new FileInfo(f).Length);
+                orphans.Add($"wwwroot/lib/{name}/ ({size / 1024} KB)");
+            }
+        }
+
+        // (b) Bizim yazdığımız varlıklar — dosya düzeyinde.
+        foreach (var folder in new[] { "css", "js" })
+        {
+            foreach (var file in Directory.GetFiles(Path.Combine(wwwroot, folder)))
+            {
+                var name = Path.GetFileName(file);
+                if (!IsMentioned($"{folder}/{name}"))
+                {
+                    orphans.Add($"wwwroot/{folder}/{name} ({new FileInfo(file).Length / 1024} KB)");
+                }
+            }
+        }
+
+        orphans.Should().BeEmpty(
+            "wwwroot'ta hiçbir yerden başvurulmayan varlık(lar) var: {0}. " +
+            "Bunlar depoya girer, klonlayan herkes indirir ve statik dosya ara katmanı " +
+            "onları ANONİM servis eder — ama hiçbir sayfa yüklemez. Silin; gerçekten " +
+            "gerekiyorsa başvuran görünümü yazın.",
+            string.Join(", ", orphans));
     }
 
     // ── 3) Satır içi olay işleyicisi kalmamalı ────────────────────────────────
