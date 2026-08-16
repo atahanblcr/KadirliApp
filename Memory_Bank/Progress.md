@@ -26,6 +26,8 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | **12.20a — `HomeController` iskele artığı** | `# 🔬 DENETİM OTURUMU` → B1 | 🟠 `/Home/Index` + `/Home/Privacy` **kimliksiz 200 dönüyor** ve İngilizce (kural #6 ihlali). Asıl bulgu testte: `PanelAuthenticationTests`'in muafiyeti **controller granülaritesinde** → `HomeController`'a yarın yazılacak aksiyon da sessizce anonim doğar. **6 adımlı reçete yazıldı** |
 | **12.20b — `lib/bootstrap` (7,2 MB, 0 referans)** | `# 🔬 DENETİM OTURUMU` → B2 | 🟡 `dotnet new mvc` kalıntısı; `lib/`'in %77'si, git'te takipli, anonim servis ediliyor. 🔑 Asıl iş silmek değil, **madde 51'in eksik ikinci yönünü** yazmak: *"diskteki her kütüphaneye referans var mı?"* |
 | **12.20c — doküman: mobil test dosyası 81 → 82** | `# 🔬 DENETİM OTURUMU` → B3 | ⚪ Tek satır (`ARCHITECTURE.md` §2). Bu sayı **bilinçli olarak kilitsiz**, elle güncelleniyor |
+| **🚢 12.21 — Yayın hattı (paketleme + teslim)** | `# 🚢 12.21` | 🟢 **APPLE GEREKTİRMİYOR — bugün başlanabilir.** Eksik olan `Dockerfile`·`.dockerignore`·`compose.prod`·CD adımı; çalışma zamanı **zaten hazır**. 🔴 İki ön uyarı: `uploads/` **kalıcı volume** olmazsa ilk yeniden dağıtımda 983 girişlik görsel gider (**belirtisiz**), ve çok replikalı `Migrate()` **yarışı** karar bekliyor. 🐛 `dotnet.yml` kendi yorumunda *"artık gereksiz"* dediği iki konteyner + migration adımını hâlâ koşuyor |
+| **⚡ 12.22 — Performans / ölçek** | `# ⚡ 12.22` | 🟢 **APPLE GEREKTİRMİYOR.** 🔑 *Önce ÖLÇ, sonra optimize et* — yapı sağlam (94 indeks · GIN · sayfalama tavanı · sorgu yolunda **0** N+1) ama **hiç ölçülmemiş**: yük testi yok, p95 verisi yok. Başarı ölçütü bir hız değil bir **cümle**: *"en sıcak beş ucun p95'i şudur."* Bugün o cümle yok |
 
 ### B. Karar bekleyenler (kod değil, tercih)
 
@@ -42,7 +44,7 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 |---|---|---|
 | 🍎 **Apple ekosistemi** | 11.16 notları | Abonelik · sertifikalar · TestFlight · App Store Connect · **APNs `.p8`** · mağaza görselleri. **12.8'in tek blokajı** |
 | 🤖 **Play** | 11.16 notları | Yayın anahtarı (`keytool`) + Play Console → internal test |
-| **IaC / CD** | dış analiz notları | `Dockerfile` yok, `.tf`/`.bicep` yok, `dotnet.yml`'de **deploy adımı yok** (adı "CI/CD" ama içerik yalnız CI) |
+| **IaC / CD** | ➡️ **artık `# 🚢 12.21` başlığı var** | `Dockerfile` yok, `.tf`/`.bicep` yok, `dotnet.yml`'de **deploy adımı yok** (adı "CI/CD" ama içerik yalnız CI). 🟢 **16 Ağu'da reçeteye çevrildi ve TAMAMEN APPLE'SIZ** — çalışma zamanı zaten üretim-bilinçli (`/health/*` · `ProductionReadinessGuard` · `PanelAssetGuard` **var**), eksik olan yalnız **paketleme + teslim** |
 | **`uploads/` kalıcı volume** | `10.14/(3)` | Bugün risk **yok** (API compose'da değil). API konteynerleştiği gün doğar |
 | **Seq production kimlik doğrulaması** | `docker-compose.yml` | Yerelde bilinçli olarak kapalı; production'da `SEQ_FIRSTRUN_ADMINPASSWORD` + API key |
 
@@ -6313,3 +6315,180 @@ bakıyordur.
    `site.js` — kontrol edildi: yaşıyor ve kullanılıyor.)
 4. 🟢 **Bozma turu 11/11 kırmızı verdi.** Bu projede *"testi var"* ile *"kilitli"* arasındaki
    fark **kapatılmış durumda** — ve bunu söyleyen şey kutu sayısı değil, **ölçüm**.
+
+---
+
+# 🚢 12.21 — YAYIN HATTI (paketleme + teslim) *(16 Ağustos 2026'da planlandı, KOD YAZILMADI)*
+
+> 🍎 **APPLE'A BAĞLI HİÇBİR ADIM YOKTUR.** Apple Developer aboneliği hâlâ onaylanmadı;
+> bu başlık bilinçli olarak **tamamen Apple'sız** kuruldu — hiçbir adımı TestFlight,
+> APNs `.p8`, sertifika ya da App Store Connect beklemiyor. Kapsam **backend + panel**.
+> (iOS yayını 12.8/11.16 notlarında beklemeye devam ediyor.)
+
+## 📊 Planlamadan ÖNCE ölçülen gerçekler (16 Ağu 2026)
+
+**Eksik olan `Dockerfile` değil — eksik olan TESLİM. Çalışma zamanı zaten üretim-bilinçli:**
+
+| Ne | Durum |
+|---|---|
+| `/health/live` · `/health/ready` · `/health` | ✅ **VAR** (`Infrastructure/Health/HealthEndpoints.cs`; `live` bilerek `Predicate = _ => false`, yani süreç ayakta mı der, bağımlılığa bakmaz) |
+| `ProductionReadinessGuard` | ✅ **VAR ve birim testli** — yayına hazır olmayan yapılandırmada açılışı durduruyor. ⚠️ Kendisi *"bayrakla kapalı kod yolu"* (yalnız Production'da koşar) ve testi tam bu yüzden yazılmış |
+| `PanelAssetGuard` | ✅ **VAR** — Production'da panel varlıkları eksikse **uygulama açılmıyor** (§7 madde 51) |
+| Sırların dosyadan okunması | ✅ `secrets/` deseni kurulu, git'e girmiyor |
+| **`Dockerfile`** (Api ya da Web) | ❌ **YOK** |
+| **`.dockerignore`** | ❌ **YOK** |
+| **`docker-compose.prod.yml`** | ❌ **YOK** (mevcut compose yalnız *bağımlılıkları* kaldırıyor: Postgres·Redis·Seq. API ve panel **içinde değil**) |
+| **IaC** (`.tf` / `.bicep` / k8s) | ❌ **YOK** *(⚠️ `find` ile çıkan üç `.tf`, `mobile/build/` altındaki **firebase-ios-sdk** kalıntısıdır — bizim değil)* |
+| **Deploy adımı** | ❌ **YOK** — `.github/workflows/dotnet.yml`'in adı **"NET CI/CD Pipeline"** ama içerik yalnız CI |
+
+🔑 **Bu tablo tek bir şey söylüyor: iş, uygulamayı üretime hazırlamak DEĞİL — zaten hazır.
+İş, onu bir yere GÖTÜRECEK hattı yazmak.** Bu, tahmin edilenden küçük bir faz.
+
+## ⚠️ Ölçümün bulduğu iki ek şey
+
+1. 🐛 **`dotnet.yml` kendi kendini yalanlıyor ve bunu KENDİSİ yazıyor.** Dosyanın başındaki
+   yorum (11.14 denetimi) diyor ki: entegrasyon testleri **Testcontainers** kullanıyor,
+   yani `services: postgres/redis` blokları **ve** *"Apply Migrations for Test Database"*
+   adımı **artık gereksiz** — *"çalışan bir hattı doğrulayamadan değiştirmemek için
+   bilinçli olarak bırakıldı, ilk yeşil koşudan sonra kaldırılabilir."* O koşu çoktan
+   yeşile döndü. Bugün her CI koşusu **iki gereksiz konteyner** kaldırıyor, **`dotnet-ef`
+   aracını global kuruyor** ve **hiç kullanılmayan bir veritabanına migration uyguluyor**.
+2. 🔴 **`uploads/` bugün risksiz ama hattın açılacağı gün riskli.** Dizinde **983 giriş**
+   var ve API bugün compose'da olmadığı için host dosya sisteminde yaşıyor. API
+   konteynerleştiği an bu **kalıcı bir volume** olmak zorunda; olmazsa ilk yeniden
+   dağıtımda vatandaşın yüklediği **bütün ilan/vefat/mekan görselleri gider** ve
+   uçlar 404 değil — istemci onları *zarifçe gizlediği* için **hiçbir belirti olmaz**
+   (§7 madde 61'in aynı hasar sınıfı).
+
+## 🗺️ Adımlar
+
+### 12.21a — Paketleme *(Docker)*
+
+1. **`KadirliApp.Api/Dockerfile`** — çok aşamalı (`sdk:8.0` build → `aspnet:8.0` runtime),
+   `dotnet publish -c Release`, **non-root kullanıcı**, `EXPOSE 8080`,
+   `HEALTHCHECK` → `/health/ready`.
+2. **`KadirliApp.Web/Dockerfile`** — aynı desen. ⚠️ **Panel varlıkları özel durum:**
+   `wwwroot/css/panel.css` ve `wwwroot/lib/*` **commit edilmiş türetilmiş dosyalar** (12.9).
+   İmajda `npm` adımı **gerekmiyor** — ama `.dockerignore` `node_modules`'ü dışlamalı,
+   `wwwroot`'u **dışlamamalı**. Yanlış yazılmış tek satırlık bir `.dockerignore`,
+   `PanelAssetGuard` sayesinde konteyneri **açılmaz** yapar (bu iyi haber: sessiz değil).
+3. **`.dockerignore`** — `bin/`, `obj/`, `node_modules/`, `mobile/`, `uploads/`, `secrets/`,
+   `.git/`. 🔴 `secrets/` **mutlaka** dışlanmalı: imaja girerse sır, imajı çeken herkeste olur.
+4. **`docker-compose.prod.yml`** — api + web + postgres + redis + seq. Zorunlular:
+   - `uploads/` için **adlandırılmış volume** (yukarıdaki 🔴),
+   - **Seq kimlik doğrulaması** (`SEQ_FIRSTRUN_ADMINPASSWORD` + API key) — yerelde bilinçli
+     kapalı, üretimde log'lar **PII taşıyor** (§7 madde 33'ün maskelemesi *hata kaydı* için,
+     Seq'e giden her şey için değil),
+   - sırlar **ortam değişkeniyle** (dosya değil) geçilmeli,
+   - `depends_on` + healthcheck koşulu.
+
+### 12.21b — Teslim *(CD)*
+
+5. **Önce temizlik:** `dotnet.yml`'den `services:` bloklarını, `dotnet-ef` kurulumunu ve
+   *"Apply Migrations for Test Database"* adımını **kaldır** (dosyanın kendi yorumu bunu
+   zaten söylüyor). Beklenen kazanç: koşu süresi ve iki konteynerlik gürültü.
+   ⚠️ Bunu **ayrı bir commit'te** yap ve CI'ın hâlâ yeşil koştuğunu gör — yoksa deploy
+   adımı eklenirken kırılan şeyin hangisi olduğu bilinmez.
+6. **İmaj yayınlama:** `main`'e push'ta iki imajı `ghcr.io`'ya bas, etiket = commit SHA
+   (**`latest` DEĞİL**: `latest` hangi sürümün canlıda olduğunu söyleyemez ve geri alma
+   yolunu kapatır).
+7. **Dosya adını gerçeğe uydur:** ya `name:` alanını **"NET CI"** yap, ya da deploy
+   adımını gerçekten ekle. 🔑 Bugünkü hâli *"panelin en sinsi yalan biçimi"*nin
+   (§7 madde 37) CI karşılığı: dosya adı yapmadığı bir işi yaptığını söylüyor.
+8. **Migration stratejisi — KARAR GEREKİYOR (kod değil, tercih):** bugün her iki uygulama
+   da açılışta `Migrate()` çağırıyor. Konteynerleşince **iki replika aynı anda** migration
+   koşabilir. Üç seçenek: (a) tek seferlik `migrate` job'ı, (b) yalnız Api koşsun,
+   (c) Postgres advisory lock. ⚠️ Bu bir *"sonra düşünürüz"* maddesi **değil**: yarış
+   ilk çok-replikalı dağıtımda doğar ve belirtisi **bozuk bir şema** olur.
+
+### 12.21c — Doğrulama *(bozma turu)*
+
+9. `docker compose -f docker-compose.prod.yml up` → panel açılıyor, `/health/ready` **200**,
+   `/Dashboard/Seed` **404** (Production, §7 madde 78), ortam rozeti **"CANLI değil"
+   yazmıyor** (12.19'un rozeti *canlı olmayanı* işaretler).
+10. **Bozma:** `.dockerignore`'a `wwwroot` ekle → konteyner **açılmamalı**
+    (`PanelAssetGuard`). Açılıyorsa guard imajda çalışmıyordur.
+11. **Bozma:** `uploads` volume'ünü kaldır, konteyneri yeniden başlat → var olan bir
+    görselin **kaybolduğunu gör**. Kaybolmuyorsa volume yanlış yere bağlanmıştır.
+
+📌 **Kapsam dışı (bilinçli):** 🍎 Apple'ın tamamı · 🤖 Play yayın anahtarı (`keytool`) —
+ikincisi Apple'dan bağımsız ve **istenirse ayrıca yapılabilir**, ama bu başlığın konusu
+*sunucu tarafı teslim*. Gerçek bir sunucu/alan adı seçimi de bu başlığın dışında:
+12.21 hattı **kurar**, nereye gideceği ayrı bir karardır.
+
+---
+
+# ⚡ 12.22 — PERFORMANS / ÖLÇEK *(16 Ağustos 2026'da planlandı, KOD YAZILMADI)*
+
+> 🔑 **Bu başlığın birinci kuralı: ÖNCE ÖLÇ, SONRA OPTİMİZE ET.** Proje bugün 80 görünmez
+> sözleşmenin her birini *ölçerek* kilitlemiş durumda — ama **performans hakkında tek bir
+> ölçüm yok**. Bu başlık optimizasyon değil, önce **ölçüm altyapısı** kuruyor. Ölçmeden
+> yazılan her optimizasyon, bu projenin diğer her yerde reddettiği şeydir: **kanıtsız karar**.
+
+## 📊 Bugünkü duruş — ölçüldü (16 Ağu 2026, statik)
+
+| Eksen | Ölçüm | Yorum |
+|---|---|---|
+| İndeksler | **94** `HasIndex` + **GIN/trigram** (12.13'te eklendi) | 🟢 Yapısal olarak sağlam |
+| Sayfalama tavanı | public **50**, admin **200** (`Pagination.Clamp`) | 🟢 Tavan var ve zorlanıyor |
+| **N+1 riski — sorgu yolunda** | `Features/**/Queries/` altında **0** şüpheli nokta | 🟢 Liste uçları temiz |
+| N+1 riski — yazma yolunda | 15 nokta (`Commands/` + `Services/`) | 🟡 **N sınırlı** (bir ilanın görselleri, bir personelin izinleri). `NewsSyncService`/`NewsImageMirror` bilerek öğe başına |
+| **Önbellek kapsamı** | **6 grup**, 85 sorgu handler'ının **10'u** | 🟡 Yalnız *sözlük tipi* veri (`Lookups`·`Guide`·`Pharmacies`·`AdsLookup`·`News`·`Dashboard`). **Sıcak liste uçları (ilan·etkinlik·duyuru) cache'li DEĞİL** — bu bilinçli (Faz 12 notu), ama **hiç ölçülmedi** |
+| **Yük testi / benchmark** | ❌ **HİÇBİRİ YOK** (`k6`·`jmx`·`BenchmarkDotNet` — üçü de aranıp bulunamadı) | 🔴 Bu başlığın var olma sebebi |
+| p95 / gecikme verisi | ❌ **YOK** — Seq log topluyor ama **istek süresi ölçülmüyor** | 🔴 |
+
+🔑 **Duruş şu: yapı doğru kurulmuş, ama HİÇ ÖLÇÜLMEMİŞ.** Bu yüzden performans puanı
+düşük — kötü olduğu için değil, **bilinmediği** için. Bugün *"yavaş mı?"* sorusunun
+cevabı **hiçbir yerde yok**, ve bir yanıt gecikirse bunu **kimse fark etmez**
+(§7'nin sessiz hasar sınıfının performans karşılığı).
+
+## 🗺️ Adımlar
+
+### 12.22a — Ölçüm altyapısı *(önce bu; optimizasyon YOK)*
+
+1. **İstek süresi log'a düşsün.** Serilog request logging (`UseSerilogRequestLogging`)
+   ya da bir `IPipelineBehavior<,>` ile **komut/sorgu başına süre**. 🔑 MediatR davranışı
+   olarak yazılırsa kapsam **tipten türer** — yarın eklenecek her handler kendiliğinden
+   ölçülür (12.19a'nın dersi, aynen geçerli). ⚠️ **Yavaş sorgu eşiği** olmalı
+   (ör. >500 ms → `Warning`); her isteği `Information`'a yazmak Seq'i çöplüğe çevirir
+   ve gerçek uyarı o çöplükte kaybolur (§7 madde 36'nın *"kendimize DoS"* dersi).
+2. **`k6` senaryosu** (`perf/` klasörü, ~80 satır) — en sıcak beş public uç:
+   `/v1/ads` · `/v1/news` · `/v1/announcements` · `/v1/power-outages` · `/v1/events`.
+   Şehir ölçeğine göre hedef: **50 eşzamanlı kullanıcı**, 2 dakika.
+3. **Taban çizgisini KAYDET.** Çıktı `Memory_Bank/`'e bir tabloya yazılsın:
+   *uç · p50 · p95 · hata oranı · sorgu sayısı*. 🔑 **Bu adım atlanamaz** — taban çizgisi
+   olmadan sonraki oturumun "iyileştirdim" iddiası ölçülemez, yani bu projenin
+   kabul etmediği türden bir iddia olur.
+
+### 12.22b — Yalnız ölçümün gösterdiğini düzelt
+
+4. **`/v1/power-outages` özel olarak ölçülmeli.** §7 madde 1 gereği **sayfalamıyor**,
+   düz dizi dönüyor ve mobil süren/planlı ayrımını **tam listeden** yapıyor. Bugün kayıt
+   sayısı küçük olduğu için sorun yok; **büyüdüğünde sessizce yavaşlar** ve sözleşme
+   sayfalamayı yasakladığı için çözüm sayfalama **olamaz** (eski sürümler kırılır).
+   Ölçüm bunu gösterirse çözüm ya cache ya da tarih penceresi olur — **ikisi de kontrat
+   kararı**, kod kararı değil.
+5. **Cache kapsamı ölçümle genişletilsin, refleksle değil.** Sıcak liste uçları bilerek
+   cache'siz; k6 p95'i kabul edilebilirse **öyle kalsın**. ⚠️ Genişletilecekse §7 madde 22
+   zorunlu: grup adı **yalnız `CacheGroups` sabiti** ve **her gruba invalidate eden bir
+   komut** — yoksa panelde güncellenen veri mobilde sessizce eski kalır (ne log, ne istisna).
+6. **Haber senkronunun maliyeti ayrı ölçülsün** — 15 dakikada bir koşuyor ve tek dış
+   bağımlılığımız. Ölçüt: koşu süresi + istek sayısı + `MirrorNewsBodyImagesJob`'ın
+   indirme hacmi. ⚠️ *"Arşiv derinliği 50 → tamamı"* kararı (panoda **B** bölümünde açık)
+   **~273 istek + ~1,6 GB görsel** demek; o kararın ön koşulu bu ölçümdür.
+
+### 12.22c — Doğrulama *(bozma turu)*
+
+7. **Bozma:** `Pagination.MaxLimit`'i 50 → 5000 yap, k6'yı tekrar koş. p95 **belirgin
+   biçimde bozulmalı**. Bozulmuyorsa senaryo yeterince zorlamıyordur — yani ölçüm
+   yalancıdır ve bir sonraki oturum ona güvenip yanlış karar verir.
+8. **Bozma:** bir GIN indeksini düşür, `?search=` senaryosunu koş → **fark görünmeli**.
+   Görünmüyorsa 12.13'te eklenen indeksler sorgunun gerçekten kullandığı indeksler
+   değildir (12.13'ün *"btree `LIKE '%x%'`'i karşılayamaz"* bulgusunun ikinci yönü).
+
+📌 **Bilinçli kapsam dışı:** dağıtık cache · okuma replikası · CDN. Bunların hiçbiri
+**şehir ölçeğinde** gerekçelendirilemez ve bu proje kanıtsız iyileştirmeyi zaten
+iki kez reddetti (anemik domain · `IQueryable` sızıntısı — ikisi de *ölçülüp* ertelendi).
+
+🔑 **12.22'nin başarı ölçütü bir hız değil, bir CÜMLEDİR:** oturum sonunda
+*"en sıcak beş ucun p95'i şudur"* diye **yazılı bir sayı** olmalı. Bugün o cümle yok.

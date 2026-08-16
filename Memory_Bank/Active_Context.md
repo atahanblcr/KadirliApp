@@ -30,6 +30,26 @@
 > kilidi **tek yönlü** (*"referans verilen varlık diskte var mı?"*), tersi hiç sorulmuyor.
 > **B3 ⚪** `ARCHITECTURE.md` mobil test dosyası **81 → 82**.
 >
+> 4️⃣ **İki yeni başlık daha açıldı — ikisi de APPLE GEREKTİRMİYOR, bugün başlanabilir.**
+> Gerekçe: puanlamada en düşük iki eksen bunlardı ve ikisi de *kod kalitesi* değil
+> **kanıt** eksikliğiydi.
+> **🚢 12.21 — Yayın hattı.** Ölçüm sürprizliydi: eksik olan `Dockerfile` **değil**,
+> eksik olan **teslim**. Çalışma zamanı zaten üretim-bilinçli — `/health/live`·`/ready`,
+> `ProductionReadinessGuard` (birim testli), `PanelAssetGuard` **hepsi var**. Yazılacak
+> olan: iki `Dockerfile` · `.dockerignore` · `compose.prod` · CD adımı.
+> 🔴 İki ön uyarı: (a) `uploads/` **kalıcı volume** olmazsa ilk yeniden dağıtımda 983
+> girişlik görsel gider ve istemci onları *zarifçe gizlediği* için **hiçbir belirti
+> olmaz** (madde 61'in aynı sınıfı); (b) iki uygulama da açılışta `Migrate()` çağırıyor →
+> çok replikada **yarış**, karar gerekiyor. 🐛 Ayrıca `dotnet.yml` **kendi yorumunda**
+> *"artık gereksiz"* dediği iki konteyneri + migration adımını hâlâ koşuyor, ve adı
+> "CI/CD" olduğu hâlde deploy adımı **yok** (madde 37'nin CI karşılığı).
+> **⚡ 12.22 — Performans/ölçek.** Duruş: **yapı doğru, ölçüm sıfır.** 94 `HasIndex` ·
+> GIN/trigram · sayfalama tavanı (public 50 / admin 200) · sorgu yolunda **0** N+1
+> (15 şüphelinin hepsi yazma yolunda ve N sınırlı) · cache **6 grup, 85 handler'ın 10'u**
+> (sıcak liste uçları bilerek cache'siz). Ama **yük testi yok, p95 verisi yok**.
+> 🔑 Bu yüzden puan düşük — kötü olduğu için değil, **bilinmediği** için. Başlığın birinci
+> kuralı *önce ölç*, başarı ölçütü bir hız değil bir **cümle**.
+>
 > ⚠️ **12.20'ye girerken:** `Views/Home/Index.cshtml` silinince
 > `PanelExternalOriginTests`'in ~75. satırındaki yorum **sarkan dosya yolu** olur ve
 > `CommentReferenceTests` (madde 80) **kırmızıya döner** — bu doğru davranıştır, önce yorum
