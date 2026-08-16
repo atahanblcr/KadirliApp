@@ -4,6 +4,17 @@ obj/
 out/
 [Dd]ebug/
 [Rr]elease/
+# 🐛 Faz 12.21c — yukarıdaki desen bir KAYNAK klasörünü de yutuyordu.
+# `[Rr]elease/` Visual Studio'nun derleme çıktısı için konmuştu ama `mobile/test/release/`
+# ile de eşleşiyor: Faz 11.16'nın **yayın yapılandırması testleri** (AndroidManifest izinleri,
+# Info.plist kullanım açıklamaları, dev rotalarının yayına sızmaması — 8 test) hiçbir zaman
+# commit edilmedi ve yalnız yazıldığı makinede yaşadı.
+# 🔴 Hasar iki katmanlı ve ikincisi sessizdi: (a) CI kırmızıydı çünkü
+# `CodeReviewChecklistDocTests` var olmayan bir dosyaya atıf buluyordu; (b) daha kötüsü,
+# depoyu klonlayan hiç kimsede o korumalar YOKTU — yani "mağazadan inen uygulamada ilk kez
+# görünen" hata sınıfının tek bekçisi tek bir diskte duruyordu.
+!mobile/test/release/
+!mobile/test/release/**
 *.user
 *.suo
 project.lock.json

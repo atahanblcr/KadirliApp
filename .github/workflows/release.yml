@@ -29,6 +29,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 🐛 Faz 12.21c — depo adı KÜÇÜK HARFE çevriliyor ve bu bir ölçümden doğdu.
+      # `github.repository` burada `atahanblcr/KadirliApp` — yani büyük harf içeriyor;
+      # Docker depo adları ise **küçük harf olmak zorunda**. İlk koşu tam olarak bununla
+      # düştü: `invalid tag "…/KadirliApp/api:…": repository name must be lowercase`.
+      # ⚠️ Yerelde hiç görünmez: `docker build -t kadirliapp-api` yazarken adı biz seçiyoruz.
+      - name: İmaj adını hazırla
+        run: echo "IMAGE_BASE=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
       - uses: docker/setup-buildx-action@v3
 
       - name: ghcr.io'ya giriş
@@ -55,8 +63,8 @@ jobs:
           file: KadirliApp.Api/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}/api:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository }}/api:main
+            ${{ env.REGISTRY }}/${{ env.IMAGE_BASE }}/api:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_BASE }}/api:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -67,8 +75,8 @@ jobs:
           file: KadirliApp.Web/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}/web:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository }}/web:main
+            ${{ env.REGISTRY }}/${{ env.IMAGE_BASE }}/web:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_BASE }}/web:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -80,6 +88,6 @@ jobs:
         run: |
           echo "### Yayınlanan imajlar" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "IMAGE_REGISTRY=${REGISTRY}/${{ github.repository }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "IMAGE_REGISTRY=${REGISTRY}/${IMAGE_BASE}" >> "$GITHUB_STEP_SUMMARY"
           echo "IMAGE_TAG=${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
