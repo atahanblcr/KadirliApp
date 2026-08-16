@@ -22,7 +22,9 @@ public class CreateAdCommandHandler : IRequestHandler<CreateAdCommand, Guid>
     public async Task<Guid> Handle(CreateAdCommand request, CancellationToken cancellationToken)
     {
         // Faz 10.5 validasyonu — 10.6'da UpdateMyAd ile paylaşılmak üzere AdSubmissionRules'a çıkarıldı.
-        // (Ads/Validators altındaki FluentValidation sınıfları pipeline'a hiç kayıtlı değil — bkz. Progress 10.5 notu.)
+        // (⚠️ 12.19b: burada "Ads/Validators altındaki FluentValidation sınıfları pipeline'a
+        //  kayıtlı değil" diyen bir satır vardı; o klasör ARTIK YOK ve projede tek bir
+        //  AbstractValidator kalmadı — doğrulama tümüyle elle, bu tek noktadan geçiyor.)
         AdSubmissionRules.ValidateContent(request.Title, request.Description, request.Price, request.ContactPhone, request.IsUserSubmission);
 
         var categoryValid = await _uow.Repository<AdCategory>().Query()

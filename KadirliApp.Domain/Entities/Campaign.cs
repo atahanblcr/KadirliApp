@@ -1,10 +1,11 @@
 using KadirliApp.Domain.Common;
+using KadirliApp.Domain.Enums;
 
 namespace KadirliApp.Domain.Entities;
 
 public class Campaign : BaseEntity, ISoftDeletable
 {
-    private string _status = "pending";
+    private string _status = CampaignStatuses.Pending;
     private Guid? _approvedBy;
     private DateTime? _approvedAt;
     private string? _rejectedReason;
@@ -58,7 +59,7 @@ public class Campaign : BaseEntity, ISoftDeletable
     /// </remarks>
     public void Approve(Guid adminId, DateTime now)
     {
-        _status = "approved";
+        _status = CampaignStatuses.Approved;
         _approvedBy = adminId;
         _approvedAt = now;
         _rejectedReason = null;
@@ -81,7 +82,7 @@ public class Campaign : BaseEntity, ISoftDeletable
     /// </remarks>
     public void Reject(string? reason)
     {
-        _status = "rejected";
+        _status = CampaignStatuses.Rejected;
         _rejectedReason = reason;
         _approvedBy = null;
         _approvedAt = null;

@@ -201,11 +201,40 @@ kapalıydı**; testler görmedi çünkü hepsi `DateTime.UtcNow` veriyordu. Tek 
 o alana GERÇEKTE ne geldiğini ölç.** 🐛 Widget testi ilk koşuşunda `ConsentCheckTile`'da
 **gerçek bir taşma** buldu (taşma sınıfının 8. tekrarı). Bozma turu: **9 kilit, 9 kırmızı**.
 
-**1251 backend + 865 mobil test, 77 görünmez sözleşme.**
+**✅ 12.19 bitti — üçüncü dış analiz denetiminin bulduğu üç delik.** (a) `/Dashboard/Seed`
+Production'da **açıktı**, `[HttpGet]` olduğu için `AutoValidateAntiforgeryToken` onu
+**kapsamıyordu** ve `AppDbContext`'i doğrudan alarak MediatR'ı atlıyordu (→ **denetim izi hiç
+düşmüyordu**). Üçünün bileşimi somut bir zafiyetti: yöneticinin gezdiği kötü niyetli bir
+sayfadaki tek bir `<img src="…/Dashboard/Seed">`, **onun oturumuyla** canlıda boş kalan her
+tabloya sahte içerik — sahte ilan, uydurma telefon, **sahte vefat ilanı** — yazdırırdı.
+🔴 **Kapı bilinçli olarak controller'da DEĞİL**: `IDevelopmentOnlyCommand` + boru hattının
+**en başındaki** `DevelopmentOnlyBehavior` (kapsam **tipten türer**, yarınki ikinci bakım
+aksiyonu kendiliğinden korunur; sıra da kuralın parçası — `AuditBehavior` izi handler
+*döndükten sonra* yazar). 🔴 **Kapının yönü "izin ver"**: `!IsProduction()` yazan bir kapı
+`Staging`/`Test` eklendiği gün **sessizce açılır**, `IsDevelopment()` sessizce *kapanır*.
+(b) `User.cs`'in yorumu **ölçümün tersini** söylüyordu ve **var olmayan bir teste** atıf
+yapıyordu — o ölçüm `BackfillNewsNotificationPreference` migration'ının **bütün varlık
+sebebi**. ➕ `CommentReferenceTests` (test adı · `<see cref>` · **dosya yolu**) yazıldı ve
+**ilk koşusunda ikinci bir gerçek çürük buldu**. 🔬 *"`<see cref>`'i derleyici denetler"*
+varsayımı **ölçümle çürüdü**: XML belge üretimi hiçbir projede açık değil, kırık cref
+**uyarı bile üretmiyor**. ⚠️ Bu kilit bilinçli olarak **eksik ve bunu kendisi yazıyor**
+(sarkan işaretçiyi yakalar, **yanlış iddiayı yakalayamaz** — denetimdeki tek 🟠).
+(c) Dört **ölü** durum enum'u silindi (0 kullanım, ölçüldü), geçişler
+`AdStatuses.Approved` gibi **`const string`** sabitlerine bağlandı — **enum değil**: değer
+DB'de `varchar` ve DTO'da mobile çıkıyor (§5). Kolon değeri **birebir aynı**, migration
+**yok**. ➕ **Plan dışı:** aksiyonun mesajı artık *ne olduğunu* söylüyor (eskiden dolu bir
+veritabanında da "başarıyla eklendi" diyordu) · panelde **ortam rozeti** (panel şehir ölçekli
+ve geri alınamaz işlerin yeri ama *"burası hangi kurulum?"*un cevabı hiçbir yerde yoktu;
+🔴 rozet **canlı olmayanı** işaretler — "CANLI" yazan bir rozet unutulduğunda canlıyı
+*güvenli* gösterirdi) · `MockDataSeeder`'a host'tan doğrudan erişimi yasaklayan yapısal test.
+🐛 Bozma turu **15 kilit, 15 kırmızı — biri ikinci denemede**: jenerik bir kırık cref
+(`Foo{T,U}.OlmayanUye`) yeşil kaldı, çünkü desen `{…}`'ye uymuyor *ve* jenerik `Type.Name`
+arite soneki taşıyordu. 🔑 **Ders: kapsam doğru olabilir ama DESEN dar olabilir.**
+
+**1276 backend + 865 mobil test, 80 görünmez sözleşme.**
 
 **⏭️ Sırada:** 12.8 sosyal giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı bugün
-yazılabilir**) · **12.19** (dış analiz denetiminin üç deliği — 12.19a `/Dashboard/Seed`
-**acil**) · **12.18 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher
+yazılabilir**) · **12.18 adayı** kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher
 **yazılmaz**, var olan tek sahip genişletilir).
 📌 **KVKK'da açık kalan tek madde kod işi DEĞİL:** hukuki metinlerin **gerçek içeriği** bir
 **insan/hukukçu** tarafından yazılmalı — bugün yayında olanlar test metnidir ve kod metni
@@ -230,6 +259,16 @@ kullan; yoksa EF öncekini **sessizce ezer** ve migration onu `DROP` eder (12.15
 başlatıcıya güvenme**: EF onu materyalizasyonda çalıştırmıyor, eksik anahtar `false` okunuyor
 → **geri doldurma migration'ı** şart (12.15b bulgusu). Ve `ExecuteSqlRaw` gövdesine JSON
 literali yazma — `{` yer tutucu sanılıyor.
+⚠️ **Veritabanına toplu yazan ya da yalnız geliştirmeye ait bir aksiyon** yazacaksan ortam
+kontrolünü **controller'a yazma**: komut `IDevelopmentOnlyCommand`'i uygulasın, kapıyı
+`DevelopmentOnlyBehavior` tutsun (12.19a). Aksiyon ayrıca **`[HttpPost]`** olmak zorunda —
+`AutoValidateAntiforgeryToken` global filtresi yalnız POST/PUT/DELETE doğrular, yani bir
+`[HttpGet]` aksiyon CSRF korumasının **tamamen dışındadır**.
+⚠️ Moderasyon durumu yazarken ham literal (`"approved"`) **kullanma**, `AdStatuses.Approved`
+gibi sabitleri kullan (§7 madde 79) — `ModerationSingleOwnerTests` yasak kelime dağarcığını
+`*Statuses` sınıflarından **yansımayla** türetiyor.
+⚠️ Yorumda bir **test adı**, **`Tip.Üye`** ya da **dosya yolu** anarsan gerçek olmak zorunda
+(§7 madde 80) — ⚠️ `<see cref>`'i **derleyici denetlemiyor** (XML belge üretimi kapalı).
 ⚠️ Moderasyon alanına yazarken `CS8852` alırsan **çözüm alanı `set`'e açmak değil**, geçişi
 varlığın bir metoduna taşımaktır (§7 madde 53 — açarsan test kırılır, bilerek). Ayrıca daha önce
 kullanılmamış bir Tailwind sınıfı yazdıysan `npm run build` çalıştır — yoksa buton
@@ -328,6 +367,12 @@ yansıma**), **58–60** → `Integration/Panel/PanelNewsTests.cs` + `Unit/Appli
 (`consent_selection_test.dart` · `register_consent_test.dart` · `reconsent_test.dart` ·
 `legal_documents_screen_test.dart`), **77** → `Integration/Legal/LegalVersionEndpointTests.cs`
 (**iki yönlü**: taslak 404 *ve* yayınlanmış sürümün döndüğü),
+**78–80** → `Unit/Application/Common/DevelopmentOnlyBehaviorTests.cs` (saf, **iki yönlü**) +
+`Integration/Architecture/DevelopmentOnlyCommandTests.cs` (**yansıma** — boru hattı kaydı *ve
+sırası*) + `Integration/Panel/PanelSeedActionTests.cs` (davranış; ⚠️ **sahte** `IMockDataSeeder`
+ile — gerçeği paylaşılan panel veritabanına yazardı) +
+`Integration/Dashboard/MockDataSeederTests.cs` (seeder'ın **kendi** veritabanı) +
+`ModerationSingleOwnerTests`'in 12.19c ayağı + `Integration/Architecture/CommentReferenceTests.cs`,
 **68–70** → `Unit/Infrastructure/SocialTokenVerifierTests.cs` +
 `Unit/Infrastructure/JwtProviderSocialTokenTests.cs` +
 `Unit/Application/Auth/SocialProvidersTests.cs` + `Integration/Auth/SocialLoginTests.cs`.

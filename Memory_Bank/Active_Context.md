@@ -1,5 +1,81 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> Son güncelleme: 16 Ağustos 2026 — **FAZ 12.19 TAMAMLANDI: üçüncü dış analiz denetiminin
+> bulduğu üç delik kapatıldı.** Backend 1251 → **1276** (+25), mobil **865** (12.19 mobile
+> dokunmadı). Görünmez sözleşme **77 → 80**. Migration **yok**, DTO değişikliği **yok**.
+>
+> 🔑 **TESLİM EDİLEN — 12.19a:** `/Dashboard/Seed` artık `[HttpPost]`, Production'da **404**,
+> butonu `data-confirm` taşıyan bir **form** ve iş `SeedMockDataCommand` üzerinden geçiyor
+> (yani **denetim izi düşüyor** — 12.19a'ya kadar hiç düşmüyordu).
+> **12.19b:** `User.cs`'in ölçümün tersini söyleyen yorumu düzeltildi + `CommentReferenceTests`.
+> **12.19c:** dört **ölü** durum enum'u silindi, geçişler `AdStatuses.Approved` gibi
+> `const string` sabitlerine bağlandı.
+>
+> 🔴 **KARAR 1 — ortam kapısı CONTROLLER'DA DEĞİL, BORU HATTINDA.** Plan
+> `if (!env.IsDevelopment())` diyordu; o `if` aynı hatayı **bir kez daha** mümkün kılar —
+> yarın yazılacak ikinci bir bakım aksiyonunda unutulabilir ve unutulduğunu hiçbir şey
+> söylemez. Kapı `DevelopmentOnlyBehavior` + `IDevelopmentOnlyCommand`'e taşındı: kapsam
+> **tipten türüyor**. Controller'daki 404 **ikinci hat** ve işi güvenlik değil dürüstlük.
+> ⚠️ Boru hattındaki **sırası da kuralın parçası**: `AuditBehavior` izi handler döndükten
+> *sonra* yazar, kapı ondan sonra dursaydı reddedilen komut çoktan koşmuş olurdu.
+>
+> 🔴 **KARAR 2 — kapının yönü "izin ver", "reddet" DEĞİL.** `IAppEnvironment` bilinçli olarak
+> `IsProduction` taşımıyor: `!IsProduction()` yazan bir kapı, `Staging`/`Test` gibi bugün var
+> olmayan bir ortam adı eklendiği gün **sessizce açılır**; `IsDevelopment()` sessizce
+> *kapanır*. Sessizce kapanan bir kapı fark edilir, sessizce açılan fark edilmez.
+>
+> 🔴 **KARAR 3 — 12.19c'de `enum` DEĞİL `const string`.** Denetimin *"enum kullanılmalı"*
+> önerisi doğru sorunu görmüş, **kırıcı çözümü** yazmıştı: değer DB'de `varchar` ve **DTO'da
+> metin olarak mobile çıkıyor** → tip değişimi §5'i kırar. Kolon değeri **birebir aynı**,
+> migration **yok**.
+>
+> ➕ **PLAN DIŞI EKLER (dördü de gerçek bir boşluğu kapattı):**
+> (1) **Mesaj artık yalan söylemiyor** — aksiyon *her* koşuda "başarıyla eklendi" diyordu,
+> hiçbir satır yazmadığı koşularda bile. (2) **Panelde ortam rozeti** — panel şehir ölçekli
+> ve geri alınamaz işlerin yeri (push · hukuki metin yayını) ama *"burası hangi kurulum?"*
+> sorusuna cevap veren hiçbir şey yoktu. 🔴 Rozetin yönü kuralın kendisi: "CANLI" yazan bir
+> rozet, unutulduğunda **canlıyı güvenli gösterirdi**. (3) `CommentReferenceTests`'in
+> **dosya yolu** ayağı — bu projede bir kuralın "tek sahibi" çoğunlukla bir dosya olarak
+> yazılıyor ve o yolların çoğu **mobil tarafta**, derleyicinin göremeyeceği yerde.
+> (4) `MockDataSeeder`'a host'tan doğrudan erişimi yasaklayan yapısal test.
+>
+> 🔬 **BİR VARSAYIM ÖLÇÜMLE ÇÜRÜDÜ:** `<see cref="…"/>` atıflarının derleyici tarafından
+> denetlendiği sanılıyordu. Ölçüldü: `cref` yalnız XML belge üretimi açıkken çözülür ve
+> **hiçbir projede açık değil** → `<see cref="OlmayanTip"/>` **uyarı bile üretmiyor**.
+>
+> 🐛 **TESTLER İKİ GERÇEK ÇÜRÜK BULDU (ikisi de ilk koşuda):** (1) `PanelAssetGuard.cs` →
+> `PanelExternalOriginTests.EveryLocalAssetReference_Exists` (gerçek ad `…_ExistsOnDisk`).
+> (2) Dashboard'ın boş durum metni **ekranda olmayabilen** bir butonu tarif ediyordu —
+> 12.19a'da Production'da somutlaştı ama tutarsızlık **11.15b'den beri** vardı (aynı cümle
+> moderatöre de gösteriliyordu).
+>
+> 🐛 **MEVCUT BİR TEST KIRILDI VE KIRILMASI DOĞRUYDU:** `Moderator_CannotSeedMockData`
+> GET → 302 bekliyordu, artık **405** geliyor (GET rol kapısına *hiç ulaşmıyor*). Beklenti
+> gevşetilmedi, iddia **gerçek kapıya taşındı**.
+>
+> 🐛 **Bozma turu: 15 kilit, 15 kırmızı — ama biri ikinci denemede.** İlk turda jenerik bir
+> kırık cref (`Foo{T,U}.OlmayanUye`) **yeşil kaldı**: testin deseni `{…}` bloğuna uymuyordu
+> *ve* jenerik tiplerin `Type.Name`'i arite soneki taşıdığı için sözlükte de bulunamıyordu.
+> Yani jenerik atıflar **hiç denetlenmiyordu**. 🔑 **Ders: kapsam doğru olabilir ama DESEN
+> dar olabilir** (Faz A'nın kapsam sorusunun üçüncü biçimi).
+>
+> ✅ **CANLI DOĞRULANDI (panel + Android emülatörü, uçtan uca):** ortam rozeti "Development"
+> çizildi → seed butonu form + `data-confirm` (eski `<a href>` yok) → `GET /Dashboard/Seed`
+> **405** → `POST` 302 ve *"Hiçbir tabloya dokunulmadı — … hepsi zaten dolu."* (dev DB dolu,
+> **mesaj doğruyu söyledi**) → `audit_logs`'a `system`/`seed` düştü ve panelde
+> **"Sistem" / "Örnek veri bastı"** göründü → emülatörde (Pixel 9, API 37) uygulama açıldı,
+> 6 uç 200 (`/v1/users/me/consents` dâhil).
+>
+> ⏭️ **Sırada:** 12.8 sosyal giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı bugün
+> yazılabilir**) · 12.18 adayı kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher
+> **yazılmaz**).
+> 📌 **Açık kalan tek KVKK maddesi hâlâ kod işi değil:** hukuki metinlerin **gerçek içeriği**
+> bir hukukçu tarafından yazılmalı.
+
+---
+
+## Önceki oturum — FAZ 12.17
+
 > Son güncelleme: 15 Ağustos 2026 — **FAZ 12.17 TAMAMLANDI: KVKK mobil. KVKK bloğu (12.16–12.17) KAPANDI.**
 > Backend 1244 → **1251** (+7), mobil 824 → **865** (+41). Görünmez sözleşme **74 → 77**.
 >

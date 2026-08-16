@@ -5,7 +5,7 @@ namespace KadirliApp.Domain.Entities;
 
 public class Event : BaseEntity, ISoftDeletable
 {
-    private string _status = "pending";
+    private string _status = EventStatuses.Pending;
 
     public string Title { get; set; } = default!;
     public string Description { get; set; } = default!;
@@ -87,8 +87,8 @@ public class Event : BaseEntity, ISoftDeletable
     // etkinlikte yazılacak kolon yok. Kolon eklendiği gün imza da eklenir.
 
     /// <summary>Etkinliği yayına alır.</summary>
-    public void Approve() => _status = "approved";
+    public void Approve() => _status = EventStatuses.Approved;
 
     /// <summary>Etkinliği reddeder.</summary>
-    public void Reject() => _status = "rejected";
+    public void Reject() => _status = EventStatuses.Rejected;
 }

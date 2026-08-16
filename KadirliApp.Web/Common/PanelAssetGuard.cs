@@ -43,7 +43,7 @@ public static class PanelAssetGuard
     /// Liste <b>elle tutuluyor</b> ve bu bilinçli: burada denetlenmesi gereken şey
     /// "hangi dosyalar var" değil, "panelin ÇALIŞMASI için hangileri şart".
     /// Bir görünüm yeni bir varlık kullanmaya başlarsa yapısal test
-    /// (<c>PanelExternalOriginTests.EveryLocalAssetReference_Exists</c>) bunu
+    /// (<c>PanelExternalOriginTests.EveryLocalAssetReference_ExistsOnDisk</c>) bunu
     /// bağımsız olarak yakalar — yani listenin çürümesi sessiz kalmaz.
     /// </remarks>
     public static readonly IReadOnlyList<(string Path, string Breaks)> RequiredAssets =

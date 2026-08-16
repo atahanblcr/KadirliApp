@@ -6,7 +6,7 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 
 ## 🚦 AÇIK MADDELER PANOSU — *tek bakışta ne kaldı*
 
-> **Son doğrulama: 15 Ağustos 2026** (kutulara değil **koda/şemaya** bakılarak).
+> **Son doğrulama: 16 Ağustos 2026** (kutulara değil **koda/şemaya** bakılarak).
 > Bu pano **yalnız AÇIK maddeleri** listeler; bir madde kapandığında satırı **silinir**
 > (işaretlenmez). Gerekçe: bu dosya 5000+ satır ve durum bilgisi beş ayrı yere dağılmıştı —
 > 13 Ağu denetiminde **22 kutunun 21'i** bayat, iki başlık da yanlış çıktı. Büyüyen bir liste
@@ -20,7 +20,6 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | Madde | Nerede | Durum / blokaj |
 |---|---|---|
 | **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
-| **12.19 — dış analiz denetiminin bulduğu üç delik** | `### 🗺️ PLAN — Faz 12.19` | 🔴 **12.19a acil**: `/Dashboard/Seed` Production'da açık, **GET** (antiforgery kapsamaz) ve boş tablolara sahte veri basıyor. 🟠 12.19b: `User.cs:97-100` yorumu **ölçümün tersini** söylüyor + var olmayan teste atıf. 🟡 12.19c: dört **ölü** durum enum'u + 253 ham durum literali |
 | 📌 **Hukuki metinlerin GERÇEK içeriği** | 12.16/12.17 notları | 🔴 **Kod işi değil, İNSAN işi** ve yayından önce zorunlu. Zincirin tamamı çalışıyor (12.17 canlı doğrulandı) ama bugün yayında olan metinler **test metnidir** — yerel veritabanında, benim yazdığım örnekler. Gerçek KVKK aydınlatma + açık rıza metnini **hukukçu** yazmalı; kod onu bekliyor, tahmin etmiyor (12.16 kararı: metin **seed edilmez**) |
 
 ### B. Karar bekleyenler (kod değil, tercih)
@@ -51,8 +50,12 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | **Madde 67'nin duman testi** | `Memory_Bank/Contract_Audit.md` | Bu ortamda **vakum** ve artık **adı bunu söylüyor** (`SmokeCheck_…_VacuousOnAFreshDatabase`); gerçek kilit yanındaki testte |
 
 📌 **Bunların dışında açık madde yoktur.** Görünmez sözleşme denetimi (Faz 0 · B1–B7 · T1/T2 ·
-Faz A) **bitti**; bugün **77 maddenin** tamamı 🟢/🟢🟢 — tablo `Memory_Bank/Contract_Audit.md`
-(68–70 denetimden sonra Faz 12.7'de, 71–74 Faz 12.16'da, **75–77 Faz 12.17'de** eklendi).
+Faz A) **bitti**; bugün **80 maddenin** 79'u 🟢/🟢🟢 — tablo `Memory_Bank/Contract_Audit.md`
+(68–70 denetimden sonra Faz 12.7'de, 71–74 Faz 12.16'da, 75–77 Faz 12.17'de,
+**78–80 Faz 12.19'da** eklendi).
+⚠️ **Tek 🟠 madde 80'dir ve bir eksiklik değil, bilinçli ve belgelenmiş bir SINIRDIR:**
+`CommentReferenceTests` yorumdaki *sarkan işaretçiyi* yakalar, **yanlış iddiayı yakalayamaz**.
+Kilit kendi belgesinde bunu yazıyor (madde 67'nin `VacuousOnAFreshDatabase` deseni).
 
 ---
 
@@ -5847,3 +5850,193 @@ korumayı **değerin kendisine** taşımadı: `ad.Approve("apprved")` bugün **d
 genel anemik-domain dönüşümü · handler dönüş tipi tekilleştirmesi. Dördü de **gerçek** ama
 dördü de *"çalışan bir şeyi güzelleştirmek"*; üçü zaten gerekçeli olarak Faz 13'e bırakıldı,
 dördüncüsü (`ApiResponse` ikiliği) **hata üretmiyor** (`IsAlreadyWrapped` kapıyor).
+
+---
+
+## ✅ FAZ 12.19 TAMAMLANDI — "denetimin bulduğu üç delik" *(16 Ağustos 2026)*
+
+> Backend **1251 → 1276** (+25) · mobil **865** (12.19 mobile dokunmadı) ·
+> görünmez sözleşme **77 → 80**. Üçü de additive: hiçbir DTO alanı silinmedi, hiçbir tablo
+> düşürülmedi, **hiçbir migration yazılmadı** (kolon değeri birebir aynı kaldı).
+> 🐛 Bozma turu: **15 kilit, 15 kırmızı** (biri ikinci denemede — aşağıda).
+
+### 12.19a — `/Dashboard/Seed` kapatıldı
+
+**Delik neydi (14 Ağu denetimi, bir numaralı bulgu).** Aksiyonun **üç** ayrı sorunu vardı ve
+tehlikeli olan **bileşimleriydi**: ortam kapısı hiç yazılmamıştı, `[HttpGet]` olduğu için
+`AutoValidateAntiforgeryToken` global filtresi onu **kapsamıyordu** (filtre yalnız
+POST/PUT/DELETE doğrular) ve butonu düz bir `<a href>` idi. Sonucu somut: bir yöneticinin
+ziyaret ettiği kötü niyetli sayfadaki tek bir `<img src="…/Dashboard/Seed">` etiketi, **onun
+oturumuyla** canlıda boş kalan her tabloya sahte içerik yazdırırdı — sahte ilan, uydurma
+telefon, **sahte vefat ilanı** — ve yönetici hiçbir şey tıklamamış olurdu.
+
+🟢 **Hafifletici (ölçüldü, abartmamak için):** `MockDataSeeder` tablo bazında idempotent,
+yani dolu bir tabloya dokunmaz. Gerçek risk canlıda **henüz boş** modüllerdi. Bu hafifletici
+artık bir varsayım değil, **ölçüm**: `MockDataSeederTests` iki koşuyu tek testte yapıp
+ikincisinin **0 satır** yazdığını iddia ediyor.
+
+🔴 **KARAR 1 — kapı controller'da DEĞİL, boru hattında.** Plan `if (!env.IsDevelopment())`
+diyordu; o `if` aynı sınıftan bir hatayı **bir kez daha** mümkün kılar — yarın yazılacak
+ikinci bir bakım aksiyonunda unutulabilir ve unutulduğunu hiçbir şey söylemez. Kapı
+`DevelopmentOnlyBehavior` + `IDevelopmentOnlyCommand` işaretleyicisine taşındı: kapsam artık
+**tipten türüyor** ve komut hangi host'tan (Api · Web · Hangfire) çağrılırsa çağrılsın
+korunuyor. ⚠️ **Sıra kuralın parçası**: `AuditBehavior` izi handler *döndükten sonra* yazar,
+kapı ondan sonra dursaydı reddedilen komut çoktan koşmuş olurdu → boru hattının **en başında**
+ve bu ayrıca testli.
+
+🔴 **KARAR 2 — kapının yönü "izin ver", "reddet" değil.** `IAppEnvironment` bilinçli olarak
+`IsProduction` **taşımıyor**: `!IsProduction()` yazan bir kapı, `Staging`/`Test` gibi bugün
+var olmayan bir ortam adı eklendiği gün **sessizce açılır**; `IsDevelopment()` ise sessizce
+*kapanır*. Sessizce kapanan bir kapı fark edilir, sessizce açılan fark edilmez. Testin
+`Staging`/`Test` satırları tam bu yüzden var.
+
+🔴 **KARAR 3 — Production'da 403 değil 404.** 403 *"burada bir şey var ama sana kapalı"* der
+ve yolun varlığını doğrular.
+
+➕ **Üçüncü delik plan dışıydı ve en sessiziydi: denetim izi hiç düşmüyordu.** Controller
+`AppDbContext`'i doğrudan alıp MediatR'ı atlıyordu — katman olarak yasaldı (§1:
+`Web → Infrastructure` meşru), yani **derleyici bunu asla söylemezdi**. Canlıda sahte içerik
+basabilen tek aksiyonun *"kim çalıştırdı?"* sorusunun cevabı hiçbir yerde yazmıyordu.
+Artık `SeedMockDataCommand` (`AuditModule = "system"`, `AuditAction = "seed"`);
+`PanelDisplay`'e Türkçe karşılıkları eklendi (**kırmızı** rozet, bilinçli: bu satırın izde
+görünmesi sahte veri yazılmış olması demektir).
+
+➕ **Plan dışı — mesaj artık YALAN SÖYLEMİYOR.** Aksiyon *her* koşuda "Örnek veriler
+başarıyla eklendi." diyordu; dolu bir veritabanında hiçbir satır yazmadan **aynı cümleyi**
+kuruyordu ve yönetici farkı göremiyordu. Artık ne yazdığını söylüyor
+(`5 satır eklendi (2 tablo): ads (5), announcements (3)` / *"Hiçbir tabloya dokunulmadı…"*).
+🔑 Sayım seeder'ın **içine** değil sarmalayıcıya kondu: 20 bloğa dağıtılan bir sayaç, 21. blok
+eklendiğinde **sessizce eksik** kalırdı. Önce/sonra satır sayısı farkı ise kapsamı **EF
+modelinden** türetir (tek `UNION ALL` sorgusu).
+
+🐛 **Panel testinin ilk koşusu ikinci bir gerçek tutarsızlık buldu:** Dashboard'ın boş durum
+metni *"Paneli Test Verileriyle Doldur butonuyla örnek veri ekleyebilirsiniz"* diyordu ve o
+buton **ekranda olmayabiliyordu**. 12.19a'da Production'da somutlaştı, ama tutarsızlık daha
+eskiydi: aynı cümle **11.15b'den beri moderatöre de** gösteriliyordu ve moderatör o butonu
+hiç görmüyordu. Kaynağı tek sahibe bağlandı (`Model.CanSeedMockData`).
+
+➕ **Plan dışı ek — panelde ORTAM ROZETİ.** Panel geri alınamaz ve şehir ölçekli işlerin
+yapıldığı yer (bütün şehre push — 12.15'te **terminal**; hukuki metin **yayınlamak** —
+12.16'da **değiştirilemez**), buna karşılık ekranda *"burası hangi kurulum?"* sorusuna cevap
+veren **hiçbir şey yoktu**: geliştirme paneli ile canlı panel piksel piksel aynıydı.
+🔴 Rozetin **yönü kuralın kendisi**: "CANLI" yazan bir rozet, unutulduğu ya da yanlış
+yapılandırıldığı anda **canlıyı güvenli gösterirdi**. Ters yönde en kötü ihtimal geliştirme
+panelinin süslenmemiş kalmasıdır — sessiz hasar üretmeyen tek yön bu. İddia iki yönlü.
+
+🔑 **Kapsam türetildi, elle liste yazılmadı** (planın 5. maddesi):
+`DevelopmentOnlyCommandTests` boru hattı kaydını **ve sırasını**, panel aksiyonlarının
+`[HttpPost]` + ortam kapısını, ve `MockDataSeeder`'a host'tan **doğrudan erişim kalmadığını**
+denetliyor — hepsi `IDevelopmentOnlyCommand`'i uygulayan **tiplerden** türetilerek.
+⚠️ Ayrıca `TheScan_ActuallyFindsThePanelActions`: yukarıdaki iki tarama **boş kümede de yeşil
+kalırdı**, o yüzden taramanın gerçekten bir şey bulduğu ayrıca iddia ediliyor.
+
+🐛 **Mevcut bir test kırıldı ve kırılması DOĞRUYDU:**
+`PanelModeratorPermissionTests.Moderator_CannotSeedMockData` GET → 302 bekliyordu, artık
+**405** geliyor (GET rol kapısına *hiç ulaşmıyor*). Yapılan şey beklentiyi gevşetmek değil,
+iddiayı **gerçek kapıya taşımak** oldu: rol kapısı ancak aksiyonun gerçek yöntemiyle
+denenebilir. Test şimdi ikisini birden söylüyor.
+
+⚠️ **Panel testi GERÇEK seeder'ı kullanmıyor, sahtesini kullanıyor** ve gerekçesi ölçülmüş
+bir risk: panel testlerinin hepsi **tek** Postgres konteynerini paylaşıyor
+(`PanelCollection`). Gerçek seeder orada koşsaydı 400+ testin altındaki veritabanına 20 tablo
+dolusu sahte kayıt basar ve "boş liste"/"kesin sayı" iddiası taşıyan bir testi **koşum
+sırasına göre** kırardı. Seeder'ın kendi davranışı `MockDataSeederTests`'te, **kendi**
+veritabanında ölçülüyor.
+
+### 12.19b — çürümüş yorum düzeltildi, sınıf kapatıldı
+
+`User.cs`'teki yorum *"anahtarsız JSON'un gerçekten `true` materyalize olduğu ölçüldü"*
+diyordu ve **var olmayan bir teste** atıf yapıyordu. İkisi de yanlıştı: gerçek ölçüm
+`NotificationPreferenceAxisTests.MissingJsonKey_MaterialisesAsFalse` ve iddiası **tam tersi**.
+🔑 Tehlikesi somut: `20260812213106_BackfillNewsNotificationPreference` migration'ının
+**bütün varlık sebebi** o ölçümün `false` çıkmasıdır; yorumu okuyan biri migration'ı
+"gereksiz" sayıp silseydi **o an** mevcut kullanıcıların hepsi haber bildiriminden sessizce
+düşerdi. Yorum gerçekle değiştirildi ve *neden* bu paragrafın orada durduğu da yazıldı.
+Ayrıca `CreateAdCommandHandler`'daki ölü `Ads/Validators` atfı silindi (o klasör artık yok).
+
+**Asıl iş `CommentReferenceTests` oldu** ve kapsamı planın istediğinden geniş — üç ayak:
+1. **Test atıfları** (`<c>BirşeyTests.Metot</c>`) — planın istediği.
+2. **Nitelikli `<see cref="Tip.Üye"/>`** — ⚠️ **ölçüldü ve sezgiye ters**: `cref` yalnız XML
+   belge üretimi açıkken çözülür, bu çözümde **hiçbir projede açık değil**, yani
+   `<see cref="OlmayanTip"/>` **uyarı bile üretmiyor**. *"Derleyici zaten bakıyor"* varsayımı
+   bu depoda **yanlış**.
+3. ➕ **Dosya yolu atıfları** (plan dışı ve bu projede birincisinden değerli): bir kuralın
+   "tek sahibi" çoğunlukla bir **dosya** olarak yazılıyor (`core/router/app_nav.dart` ·
+   `wwwroot/js/panel.js`) ve bu yolların çoğu **mobil tarafta**, yani C# derleyicisinin
+   göremeyeceği yerde. Ölçüt *"yol, depodaki bir dosyanın **sonekidir**"* — yorumlar kısmi
+   yol yazıyor, tam yol araması yanlış kırmızı üretirdi.
+
+🐛 **Test İLK KOŞUSUNDA ikinci bir gerçek çürük buldu:** `PanelAssetGuard.cs` →
+`PanelExternalOriginTests.EveryLocalAssetReference_Exists`; gerçek ad `…_ExistsOnDisk`.
+
+⚠️ **Bu kilit bilinçli olarak EKSİK ve bunu kendisi yazıyor** (madde 80, `Contract_Audit`'te
+tek 🟠): tarama *sarkan işaretçiyi* yakalar, **yanlış iddiayı yakalayamaz**. `User.cs` yorumu
+ikisini birden taşıyordu ve tehlikeli olan yarısı ikincisiydi. Adlandırma/belge dürüstlüğü
+madde 67'nin `SmokeCheck_…_VacuousOnAFreshDatabase` deseni.
+
+### 12.19c — durum değerleri sabite bağlandı (§5 kırılmadan)
+
+Dört ölü enum (`AdStatus` · `CampaignStatus` · `DeathStatus` · `EventStatus`) **silindi** —
+kendi dosyaları dışında **0** kullanım (ölçüldü). Yerine `Domain/Enums/ModerationStatuses.cs`:
+ortak çekirdek + dört modül sınıfı (`AdStatuses.Approved` gibi), `PushCampaignStatuses` (12.2b)
+ve `TransportVehicleTypes` (12.5) desenlerinin birebir kopyası.
+
+🔴 **`enum` DEĞİL `const string` ve bu bir tercih değil zorunluluk:** değer DB'de `varchar` ve
+**DTO'da metin olarak mobile çıkıyor** → tipini değiştirmek §5'i, yani mağazadaki eski
+sürümleri kırardı. Denetimin *"enum kullanılmalı"* önerisi doğru sorunu görmüş, **yanlış
+çözümü** yazmıştı.
+
+🔑 **Kapattığı delik:** 12.11 *kimin* yazdığını derleyiciye bağlamıştı (`init` → CS8852) ama
+*ne* yazıldığını bağlamamıştı — `Ad.Approve` içinde `_status = "apprved"` yazmak 12.19c'ye
+kadar **derleniyordu** ve hasarı tamamen sessiz olurdu: kayıt yazılır, panel "Bilinmeyen
+durum" rozeti çizer, mobil listede ilan **hiç görünmez** (§3), hiçbir hata oluşmaz.
+
+⚠️ **Yeniden adlandırma DEĞİL:** kolonda duran metinler birebir aynı, migration **yok**.
+
+**Kilit iki yandan da türetiliyor** (`ModerationSingleOwnerTests`'in yeni ayağı): denetlenecek
+varlıklar `ModeratedEntities()`'ten (dosya taraması), **yasak kelime dağarcığı** ise
+`Domain.Enums`'taki `*Statuses` sınıflarının sabitlerinden **yansımayla**. Ters yön de var
+(`EveryModeratedEntity_ActuallyUsesTheStatusConstants`) — silinen dört enum tam olarak
+"yazılmış, doğru ve hiç kullanılmayan" şeylerdi.
+
+📌 **Kapsam bilinçli olarak dar tutuldu:** duyuru (`active`/`scheduled`) ve haber durumları
+dışarıda (duyuruda moderasyon yok, haber durumu türetiliyor — §7 madde 58); handler/sorgu
+tarafındaki ~250 literal de **bu turda dokunulmadı**. Kapatılan şey *canlı hasar üretebilen*
+yer: geçişin kendisi.
+
+### 🐛 Bozma turu — 15 kilit, 15 kırmızı (biri ikinci denemede)
+
+İlk turda **14/15** kırmızıydı. **13 numaralı bozma yeşil kaldı ve haklıydı:** bozma
+`<see cref="DevelopmentOnlyBehavior{TRequest,TResponse}.OlmayanUye"/>` biçiminde **jenerik**
+bir atıftı ve testin iki ayrı deliği vardı — deseni (`(?<type>\w+)`) `{…}` bloğuna hiç
+uymuyordu, üstelik jenerik tiplerin `Type.Name`'i **arite soneki** taşıdığı için
+(``DevelopmentOnlyBehavior`2``) sözlükte de bulunamıyordu. Yani **jenerik atıflar hiç
+denetlenmiyordu**. İkisi de düzeltildi; hem jenerik hem düz kırık cref artık **kırmızı**.
+🔑 **Ders: kapsam doğru olabilir ama DESEN dar olabilir.** Faz A'nın *"kapsam dizinden mi,
+tipten mi, elden mi?"* sorusunun üçüncü biçimi bu — bütün dosyalar taranıyordu, taramanın
+**gözü** dardı.
+
+### ✅ Canlı doğrulama (panel + emülatör, uçtan uca)
+
+| Ne | Sonuç |
+|---|---|
+| Panelde ortam rozeti | ✅ **"Development"** çiziliyor |
+| Seed butonu | ✅ `<form method="post">` + `data-confirm` **formun üzerinde**; eski `<a href>` **yok** |
+| `GET /Dashboard/Seed` | ✅ **405** (Method Not Allowed) |
+| `POST /Dashboard/Seed` | ✅ 302 → *"Hiçbir tabloya dokunulmadı — örnek verinin gireceği tabloların hepsi zaten dolu."* (dev DB dolu; **mesaj artık doğruyu söylüyor**) |
+| Denetim izi | ✅ `audit_logs` → `system` / `seed`; panelde **"Sistem" / "Örnek veri bastı"** |
+| Android emülatörü (Pixel 9, API 37) | ✅ Uygulama açıldı, 6 uç 200 (`/v1/users/me/consents` dâhil — 12.17 zinciri ayakta) |
+
+### Bu fazın kalıcı dersleri
+
+1. 🔑 **Bir kapı, unutulabildiği yerde durmamalı.** Controller'daki `if` doğru davranışı
+   üretir ama **ikinci kez yazılmak zorundadır**; boru hattındaki kapı kapsamını tipten
+   türetir ve ikinci aksiyonu **yazan kişi farkında olmadan** korur.
+2. 🔑 **Kapının yönünü seçerken "hangi yanlış sessizdir?" diye sor.** `!IsProduction()`
+   sessizce **açılır**, `IsDevelopment()` sessizce **kapanır**.
+3. 🔑 **Bir mesajın doğru olması, doğru şeyi söylediği anlamına gelmez.** "Başarıyla eklendi"
+   teknik olarak yanlış değildi — hiçbir şey eklenmemiş olsa bile "başarılı"ydı.
+4. 🔑 **`<see cref>` bu depoda denetlenmiyor.** *"Derleyici zaten bakıyor"* varsayımı ölçüldü
+   ve yanlış çıktı.
+5. 🔑 **Kapsam ile desen ayrı şeylerdir.** Bütün dosyaları taramak, tarama deseninin dar
+   olmadığı anlamına gelmez (bozma turunun bulduğu delik).

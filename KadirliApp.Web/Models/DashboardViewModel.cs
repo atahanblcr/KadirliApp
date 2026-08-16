@@ -3,6 +3,23 @@ namespace KadirliApp.Web.Models;
 public class DashboardViewModel
 {
     /// <summary>
+    /// Faz 12.19a — "Paneli Test Verileriyle Doldur" butonu çizilsin mi?
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <b>Kararı görünüm vermez, controller verir</b> ve bu bilinçli: aynı karar
+    /// aksiyonun kapısında da veriliyor (<c>DashboardController.Seed</c> → 404). İki karar
+    /// iki ayrı yerde yazılsaydı (görünümde <c>@inject IWebHostEnvironment</c>, aksiyonda
+    /// <c>if</c>) ayrışabilirlerdi — ve ayrıştıkları yön tehlikeli olan yön: buton
+    /// çizilmezken adres açık kalır, yani "gizlenmiş ama var olan" bir yol doğar.
+    /// Mobilde <c>/gelistirici/ag</c> tam olarak böyleydi (11.16 bulgusu): menü girişi
+    /// gizliydi, rota kayıtlıydı, ekran yayında açılabiliyordu.
+    /// <para>
+    /// ⚠️ Bayrak <b>rol ve ortam kapısının BİRLEŞİMİ</b>: moderatör geliştirmede de görmez.
+    /// </para>
+    /// </remarks>
+    public bool CanSeedMockData { get; set; }
+
+    /// <summary>
     /// Faz 12.13 — haber senkronunun sağlığı (<c>_NewsSyncStatusCard</c>).
     /// </summary>
     /// <remarks>

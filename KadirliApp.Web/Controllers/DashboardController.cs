@@ -1,5 +1,5 @@
+using KadirliApp.Application.Features.Dashboard.Commands;
 using KadirliApp.Application.Features.Dashboard.Queries;
-using KadirliApp.Infrastructure.Persistence;
 using KadirliApp.Web.Models;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -17,12 +17,20 @@ namespace KadirliApp.Web.Controllers;
 public class DashboardController : Controller
 {
     private readonly ISender _sender;
-    private readonly AppDbContext _db; // yalnızca Seed için
 
-    public DashboardController(ISender sender, AppDbContext db)
+    /// <summary>
+    /// 🔴 Faz 12.19a — <c>AppDbContext</c> buradan DÜŞTÜ. Katman olarak yasaldı
+    /// (<c>Web → Infrastructure</c>, §1) ama MediatR'ı atlıyordu: sahte içerik basan tek
+    /// aksiyonun denetim izi hiç düşmüyordu. Ortam bilgisi ise <b>iki</b> yerde gerekiyor —
+    /// aksiyonun kapısında ve butonun çizilip çizilmeyeceğine karar veren
+    /// <see cref="Index"/>'te.
+    /// </summary>
+    private readonly IWebHostEnvironment _env;
+
+    public DashboardController(ISender sender, IWebHostEnvironment env)
     {
         _sender = sender;
-        _db = db;
+        _env = env;
     }
 
     // Faz 9.4: inline COUNT sorguları yerine Application query'leri — Admin API ile aynı
@@ -69,6 +77,11 @@ public class DashboardController : Controller
 
         var model = new DashboardViewModel
         {
+            // 🔴 Faz 12.19a — buton yalnız geliştirmede çizilir. Rol kapısı (admin) ile
+            // ortam kapısı BİRLİKTE değerlendirilir: ikisinden biri yetmez, çünkü aksiyonun
+            // kendisi de ikisini birden istiyor ve panelde "tıklayınca hata veren buton"
+            // bırakmıyoruz (§5).
+            CanSeedMockData = _env.IsDevelopment() && isAdmin,
             NewsSync = newsSync,
             LastPushCampaign = lastCampaign,
             TotalUsers = stats.TotalUsers,
@@ -104,17 +117,53 @@ public class DashboardController : Controller
     }
 
     /// <summary>
-    /// ⚠️ Örnek veri basar — moderatöre KAPALI. İzin matrisinde karşılığı olmayan,
-    /// veritabanına toplu yazan tek panel aksiyonu.
+    /// ⚠️ Örnek veri basar — <b>yalnız geliştirme ortamında</b>, yalnız admin'e.
+    /// İzin matrisinde karşılığı olmayan, veritabanına toplu yazan tek panel aksiyonu.
     /// </summary>
-    [HttpGet]
+    /// <remarks>
+    /// <para>
+    /// 🔴 <b>Faz 12.19a — bu aksiyon üçüncü dış analiz denetiminin bir numaralı bulgusuydu
+    /// ve üç ayrı deliği vardı:</b> ortam kapısı <b>hiç yazılmamıştı</b>, <c>[HttpGet]</c>
+    /// olduğu için <c>AutoValidateAntiforgeryToken</c> onu <b>kapsamıyordu</b> (global filtre
+    /// yalnız POST/PUT/DELETE doğrular) ve butonu düz bir <c>&lt;a href&gt;</c> idi.
+    /// </para>
+    /// <para>
+    /// 🔑 <b>Bileşik hasar GET olmasından geliyordu:</b> bir yöneticinin ziyaret ettiği kötü
+    /// niyetli sayfadaki tek bir <c>&lt;img src="…/Dashboard/Seed"&gt;</c>, <b>onun
+    /// oturumuyla</b> canlıda boş kalan her tabloya sahte içerik yazdırırdı — sahte ilanlar,
+    /// uydurma telefon numaraları, <b>sahte vefat ilanları</b>. Yönetici hiçbir şey tıklamamış
+    /// olurdu. (<c>MockDataSeeder</c> tablo bazında idempotent olduğu için <i>dolu</i> bir
+    /// tablo zarar görmezdi; risk yeni açılmış, henüz boş modüllerdi.)
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>404, 403 değil</b> — Production'da bu adres <i>var olmamalı</i>. 403, "burada
+    /// bir şey var ama sana kapalı" der ve yolun varlığını doğrular; 404 hiçbir şey söylemez.
+    /// </para>
+    /// <para>
+    /// 🔑 <b>Bu kapı İKİNCİ hattır, birincisi değil.</b> Asıl kapı boru hattındadır
+    /// (<c>DevelopmentOnlyBehavior</c> + <c>IDevelopmentOnlyCommand</c>) ve kapsamını
+    /// <b>tipten</b> türetir — buradaki kontrol yarın silinse bile komut yine reddedilir.
+    /// Buradaki kontrolün işi güvenlik değil <b>dürüstlük</b>: adres Production'da hiç
+    /// açılmasın, buton hiç çizilmesin.
+    /// </para>
+    /// </remarks>
+    [HttpPost]
     [Authorize(Roles = "admin,super_admin")]
     public async Task<IActionResult> Seed()
     {
+        if (!_env.IsDevelopment()) return NotFound();
+
         try
         {
-            await MockDataSeeder.SeedAsync(_db);
-            TempData["Success"] = "Örnek veriler başarıyla eklendi. (Zaten dolu olan tablolara dokunulmadı.)";
+            var result = await _sender.Send(new SeedMockDataCommand());
+
+            // 🔴 12.19a (plan dışı) — mesaj artık NE OLDUĞUNU söylüyor. Eskiden her koşuda
+            // "Örnek veriler başarıyla eklendi." yazıyordu; dolu bir veritabanında seeder
+            // hiçbir satır yazmadan aynı cümleyi kuruyordu ve yönetici farkı göremiyordu.
+            TempData["Success"] = result.TotalRows == 0
+                ? "Hiçbir tabloya dokunulmadı — örnek verinin gireceği tabloların hepsi zaten dolu."
+                : $"{result.TotalRows} satır eklendi ({result.Tables.Count} tablo): " +
+                  string.Join(", ", result.Tables.OrderByDescending(t => t.Value).Select(t => $"{t.Key} ({t.Value})"));
         }
         catch (Exception ex)
         {

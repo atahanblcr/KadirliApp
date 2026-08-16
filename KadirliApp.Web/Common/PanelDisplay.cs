@@ -13,7 +13,11 @@ namespace KadirliApp.Web.Common;
 /// yönetici <c>expired</c>, <c>archived</c>, <c>SuperAdmin</c> görüyordu
 /// (CLAUDE.md Değişmez Kural #6 ihlali: "Arayüz Türkçe").
 ///
-/// Mobilde bunun karşılığı <c>AdStatus</c> (11.10) — panelde eşi hiç yazılmamıştı.
+/// Mobilde bunun karşılığı istemcinin kendi durum sözlüğüdür (11.10) — panelde eşi hiç
+/// yazılmamıştı. ⚠️ Buradaki anahtarların ham değerleri
+/// <see cref="KadirliApp.Domain.Enums.ModerationStatuses"/> ailesinde yaşıyor (12.19c);
+/// bu satır 12.19c'ye kadar <c>AdStatus</c> adlı, **hiçbir yerde kullanılmayan ölü bir
+/// enum'a** atıf yapıyordu.
 /// Burada tek yerde toplanınca **yeni modül unutamaz**: bilinmeyen bir durum
 /// <see cref="Status"/>'a düştüğünde <c>PanelDisplayTests</c> kırmızıya döner.
 ///
@@ -138,7 +142,11 @@ public static class PanelDisplay
         //
         // Faz 12.13 — haber senkronu. Yalnız-admin ekran (menüde Module=null) ama
         // `TriggerNewsSyncCommand` `AuditModule = "news-sync"` yazıyor.
-        ["news-sync"] = "Haber Senkronu"
+        ["news-sync"] = "Haber Senkronu",
+        // Faz 12.19a — örnek veri basma. Ekranı YOK (iniş sayfasındaki bir buton) ama
+        // `SeedMockDataCommand` artık `AuditModule = "system"` yazıyor: 12.19a'ya kadar
+        // canlıda sahte içerik basabilen tek aksiyonun denetim izi HİÇ düşmüyordu.
+        ["system"] = "Sistem"
     };
 
     /// <summary>
@@ -309,6 +317,12 @@ public static class PanelDisplay
         ["update-schedule"] = new("Kalkış saatini güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
         ["create-departure-point"] = new("Kalkış noktası ekledi", "bg-indigo-100 text-indigo-800", "fa-plus"),
         ["update-departure-point"] = new("Kalkış noktası güncelledi", "bg-amber-100 text-amber-800", "fa-pen"),
+
+        // Sistem (Faz 12.19a). 🔴 Rozet KIRMIZI ve bu bilinçli: bu satırın denetim izinde
+        // görünmesi, veritabanına **sahte içerik** yazılmış olması demektir. Aksiyon artık
+        // yalnız geliştirmede koşabiliyor, ama iz tam da "koşulamaz sandığımız yerde
+        // koşulduğunu" göstermek için var — sakin bir gri rozet o soruyu gizlerdi.
+        ["seed"] = new("Örnek veri bastı", "bg-red-100 text-red-800", "fa-database"),
 
         // Hata kayıtları (Faz 12.1)
         ["resolve-error"] = new("Hatayı çözdü", "bg-green-100 text-green-800", "fa-circle-check"),

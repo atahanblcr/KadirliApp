@@ -1,5 +1,6 @@
 @using KadirliApp.Web.Common
 @inject IPanelMenuProvider MenuProvider
+@inject IWebHostEnvironment PanelEnvironment
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -79,6 +80,26 @@
                             </form>
                         }
                         <div class="flex items-center space-x-3">
+                            @*
+                                ➕ Faz 12.19a (plan dışı) — ORTAM ROZETİ.
+                                Panel, geri alınamaz ve şehir ölçekli işlerin yapıldığı yer:
+                                bütün şehre push atmak, hukuki metin YAYINLAMAK, vefat ilanı
+                                onaylamak. Buna karşılık 12.19a'ya kadar ekranda "burası hangi
+                                kurulum?" sorusunu cevaplayan HİÇBİR ŞEY yoktu — geliştirme
+                                paneli ile canlı panel piksel piksel aynı görünüyordu.
+                                🔑 Rozet YALNIZ Production DIŞINDA çizilir ve yön bilinçli:
+                                "CANLI" yazan bir rozet, unutulduğu ya da yanlış yapılandırıldığı
+                                anda canlıyı GÜVENLİ gösterirdi (rozet yok → "demek ki dev").
+                                Ters yönde ise en kötü ihtimalle geliştirme paneli süslenmemiş
+                                kalır — sessiz hasar üretmeyen tek yön bu.
+                            *@
+                            @if (!PanelEnvironment.IsProduction())
+                            {
+                                <span class="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-amber-800"
+                                      title="Bu panel canlı ortam DEĞİL — @PanelEnvironment.EnvironmentName">
+                                    <i class="fas fa-flask mr-1" aria-hidden="true"></i>@PanelEnvironment.EnvironmentName
+                                </span>
+                            }
                             @if (User.Identity?.IsAuthenticated == true)
                             {
                                 <span class="text-sm text-gray-500"><i class="fas fa-user-circle mr-1.5"></i>@User.Identity.Name</span>

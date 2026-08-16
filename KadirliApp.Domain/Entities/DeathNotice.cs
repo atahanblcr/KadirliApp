@@ -5,7 +5,7 @@ namespace KadirliApp.Domain.Entities;
 
 public class DeathNotice : BaseEntity, ISoftDeletable
 {
-    private string _status = "pending";
+    private string _status = DeathStatuses.Pending;
     private Guid? _approvedBy;
     private DateTime? _approvedAt;
     private string? _rejectedReason;
@@ -50,7 +50,7 @@ public class DeathNotice : BaseEntity, ISoftDeletable
     /// <summary>Vefat ilanını yayına alır (arşivlenmiş bir kaydı geri getirmenin de yolu budur).</summary>
     public void Approve(Guid adminId, DateTime now)
     {
-        _status = "approved";
+        _status = DeathStatuses.Approved;
         _approvedBy = adminId;
         _approvedAt = now;
 
@@ -72,7 +72,7 @@ public class DeathNotice : BaseEntity, ISoftDeletable
     /// </remarks>
     public void Reject(string? reason)
     {
-        _status = "rejected";
+        _status = DeathStatuses.Rejected;
         _rejectedReason = reason;
         _approvedBy = null;
         _approvedAt = null;
@@ -92,6 +92,6 @@ public class DeathNotice : BaseEntity, ISoftDeletable
     /// </remarks>
     public void Archive()
     {
-        _status = "archived";
+        _status = DeathStatuses.Archived;
     }
 }

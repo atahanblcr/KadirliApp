@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using Xunit;
@@ -392,6 +393,101 @@ public class ModerationSingleOwnerTests
             ModeratedModules().Count, string.Join(", ", ModeratedModules()),
             ModeratedEntities().Count, string.Join(", ", ModeratedEntities().Select(e => e.Name)));
     }
+
+    // ── 4) Faz 12.19c: geçişin YAZDIĞI DEĞER de tek sahipli ────────────────────
+
+    /// <summary>
+    /// 🔴 <b>12.11 <i>kimin</i> yazdığını derleyiciye bağladı; bu test <i>ne</i> yazıldığını
+    /// bağlar.</b>
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 14 Ağu 2026 denetiminin ölçümü: dört durum <c>enum</c>'u yazılmış ve <b>dördü de
+    /// ölüydü</b> (kendi dosyaları dışında <b>0</b> kullanım), buna karşılık üretim kodunda
+    /// 250'yi aşkın ham durum literali vardı. Somut sonucu: <c>Ad.Approve</c> içinde
+    /// <c>_status = "apprved"</c> yazmak 12.19c'ye kadar <b>derleniyordu</b> ve hasarı
+    /// tamamen sessizdi — kayıt yazılır, panel "Bilinmeyen durum" çizer, mobilde ilan
+    /// <b>hiç görünmez</b> (§3: public uç yalnız <c>approved</c> döner), hiçbir hata oluşmaz.
+    /// </para>
+    /// <para>
+    /// 🔑 <b>Kapsam iki yandan da türetilir:</b> denetlenecek <i>varlıklar</i>
+    /// <see cref="ModeratedEntities"/>'ten (dosya taraması), yasak <i>kelime dağarcığı</i>
+    /// ise <c>Domain.Enums</c>'taki <c>*Statuses</c> sınıflarının sabitlerinden
+    /// <b>yansımayla</b> gelir. Yarın sözlüğe eklenen beşinci bir durum değeri kendiliğinden
+    /// yasaklanır; kimsenin bu dosyaya bir satır yazması gerekmez.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Bu bir yeniden adlandırma denetimi DEĞİL:</b> kolonda duran metin birebir aynı
+    /// (<c>AdStatuses.Approved</c> zaten <c>"approved"</c>). Denetlenen tek şey literalin
+    /// <b>ikinci bir yerde</b> yazılmamış olması.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void NoModeratedEntity_WritesARawStatusLiteral()
+    {
+        var vocabulary = StatusVocabulary();
+
+        vocabulary.Should().NotBeEmpty(
+            "durum sözlüğü yansımayla bulunamadıysa bu test hiçbir şey denetlemiyor " +
+            "(*Statuses sınıfları taşınmış ya da yeniden adlandırılmış olabilir)");
+
+        var offenders = new List<string>();
+
+        foreach (var entity in ModeratedEntities())
+        {
+            var source = StripComments(File.ReadAllText(entity.FullName));
+
+            foreach (var status in vocabulary)
+            {
+                if (source.Contains($"\"{status}\"", StringComparison.Ordinal))
+                    offenders.Add($"{entity.Name} → \"{status}\"");
+            }
+        }
+
+        offenders.Should().BeEmpty(
+            "moderasyon durumunun DEĞERİ de tek sahiplidir (§7 madde 79): varlıklar ham " +
+            "literal değil `AdStatuses.Approved` gibi sabitleri yazmalı. Bir yazım hatası " +
+            "derlenir, kayıt bozulur ve HİÇBİR belirti vermez. Ham literal yazanlar: {0}",
+            string.Join(", ", offenders));
+    }
+
+    /// <summary>
+    /// Ters yön: sabitler gerçekten <b>kullanılıyor</b> mu? Yukarıdaki test, varlıklar
+    /// durumu hiç yazmaz hâle geldiğinde de yeşil kalırdı (boş küme). Bu iddia sabitlerin
+    /// ölü kod olmadığını gösterir — 12.19c'nin sildiği dört enum tam olarak öyleydi:
+    /// yazılmış, doğru, ve <b>hiçbir yerde kullanılmıyordu.</b>
+    /// </summary>
+    [Fact]
+    public void EveryModeratedEntity_ActuallyUsesTheStatusConstants()
+    {
+        var offenders = ModeratedEntities()
+            .Where(e => !Regex.IsMatch(StripComments(File.ReadAllText(e.FullName)), @"\b\w*Statuses\.\w+"))
+            .Select(e => e.Name)
+            .ToList();
+
+        offenders.Should().BeEmpty(
+            "moderasyon geçişi tanımlayan her varlık durum sabitlerini KULLANMALI — " +
+            "kullanmayan bir varlık ya durumu hiç yazmıyordur (o zaman geçiş metodu yalan " +
+            "söylüyor) ya da başka bir yoldan yazıyordur. Sabit kullanmayanlar: {0}",
+            string.Join(", ", offenders));
+    }
+
+    /// <summary>
+    /// Yasak kelime dağarcığı — <c>Domain.Enums</c>'taki <c>*Statuses</c> sınıflarının
+    /// <b>bütün</b> <c>const string</c> değerleri, <b>yansımayla</b>.
+    /// </summary>
+    private static IReadOnlyList<string> StatusVocabulary() =>
+        typeof(KadirliApp.Domain.Enums.ModerationStatuses).Assembly
+            .GetTypes()
+            .Where(t => t.IsAbstract && t.IsSealed                       // static class
+                        && t.Namespace == "KadirliApp.Domain.Enums"
+                        && t.Name.EndsWith("Statuses", StringComparison.Ordinal))
+            .SelectMany(t => t.GetFields(BindingFlags.Public | BindingFlags.Static))
+            .Where(f => f is { IsLiteral: true, IsInitOnly: false } && f.FieldType == typeof(string))
+            .Select(f => (string)f.GetRawConstantValue()!)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(v => v, StringComparer.Ordinal)
+            .ToList();
 
     /// <summary>
     /// Yorum satırları ve XML belgeleri taramadan düşürülür — bu projede bir kuralın

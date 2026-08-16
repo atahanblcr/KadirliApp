@@ -4,8 +4,9 @@
 > *kilidinin cinsine* göre etiketler. Soru "testi var mı?" değil (hepsinin var),
 > **"kilidi sahte mi?"**
 >
-> 📌 **Bugün 70 madde.** Denetim 67 madde üzerinde koşuldu (aşağıdaki tablo); **68–70**
-> denetimden sonra, Faz 12.7'de eklendi ve §9'da kaydı var.
+> 📌 **Bugün 80 madde.** Denetim 67 madde üzerinde koşuldu (aşağıdaki tablo); **68–70**
+> denetimden sonra Faz 12.7'de, **71–74** Faz 12.16'da, **75–77** Faz 12.17'de ve
+> **78–80** Faz 12.19'da eklendi — hepsinin kaydı bu dosyanın sonundaki bölümlerde.
 >
 > **Bu dosya kalıcıdır.** Sonraki oturumlar baştan tasnif etmez, buradan devam eder.
 >
@@ -370,4 +371,36 @@ Böyle bir kuralda saf test *gerekli ama yeterli değil*: kuralın sahibi deği�
 onu atlaması mümkün, o yüzden davranış ayağı da şart. 🔑 Kilit yazarken sorulacak soru:
 *bu kural bozulduğunda ortaya çıkan şey bir hata mı, yoksa sessizce geçersiz bir kayıt mı?*
 
-📌 **Risk dağılımı bugün: 🟢🟢 6 · 🟢 71 · 🟠 0 · 🔴 0** (77 madde).
+---
+
+## Faz 12.19 — denetimin bulduğu üç delik (madde 78–80)
+
+| # | Sözleşme | Kilit cinsi | Risk | Kilidi taşıyan dosya(lar) |
+|---|---|---|---|---|
+| 78 | **Yalnız geliştirmeye açık komut, ortam kapısını kendi içinde taşımaz** — kapı boru hattında ve **en başta**; panel aksiyonu `[HttpPost]` + Production'da 404 | **Saf birim + yansıma + davranış** (üç ayak) | 🟢 | `Unit/Application/Common/DevelopmentOnlyBehaviorTests.cs` (saf, **iki yönlü**: aynı komut yalnız ortam değişince geçiyor → reddin sebebi *gerçekten* ortam; ⚠️ `Staging`/`Test` satırları bilinçli — kapı `!IsProduction()` yazılsaydı o iki ortamda **sessizce açılırdı**) + `Integration/Architecture/DevelopmentOnlyCommandTests.cs` (**yansıma**: boru hattı kaydı **ve sırası**, panel aksiyonlarının POST + ortam kapısı, `MockDataSeeder`'a host'tan doğrudan erişim yok; kapsam `IDevelopmentOnlyCommand`'i uygulayan **tiplerden** türer) + `Integration/Panel/PanelSeedActionTests.cs` (davranış: GET **405** · token'sız POST 400 · moderatör denied · Production **404** · buton çizilmiyor · **denetim izi düşüyor**) |
+| 79 | **Moderasyon durumunun DEĞERİ de tek sahiplidir** (`AdStatuses.Approved`, ham `"approved"` değil) | **Yansıma + kaynak taraması** (kapsam **iki yandan da** türetilir) | 🟢 | `Integration/Architecture/ModerationSingleOwnerTests.cs` → `NoModeratedEntity_WritesARawStatusLiteral` (varlıklar `ModeratedEntities()`'ten, **yasak kelime dağarcığı `*Statuses` sınıflarının sabitlerinden yansımayla**) + `EveryModeratedEntity_ActuallyUsesTheStatusConstants` (ters yön: sabitler ölü kod olmasın — silinen dört enum tam olarak öyleydi) |
+| 80 | **Yorumdaki atıf (test adı · `Tip.Üye` · dosya yolu) gerçek bir şeye işaret eder** | **Doküman testi (dizinden türetilen kapsam)** | 🟠 | `Integration/Architecture/CommentReferenceTests.cs` — üç ayak: test adı · nitelikli `<see cref>` · **dosya yolu**. Kapsam `**/*.cs`'ten türer |
+
+### 🟠 80 neden 🟢 DEĞİL — ve bunu kendisi yazıyor
+
+Bu, denetimdeki **tek bilinçli 🟠**. Sebebi kapsam değil, **iddianın sınırı**: tarama
+*sarkan işaretçiyi* yakalar, **yanlış iddiayı yakalayamaz.** 12.19b'nin düzelttiği `User.cs`
+yorumu ikisini birden taşıyordu — atıf kırıktı **ve** cümle ölçümün tersini söylüyordu; ikinci
+yarısı bu projede daha tehlikeli olan yarıydı (bir migration'ın varlık sebebini yalanlıyordu).
+Madde 67'nin `SmokeCheck_…_VacuousOnAFreshDatabase` adlandırmasıyla aynı karar: kilidin eksik
+olduğu yer **kilidin kendi belgesinde yazılı**, ki kimse *"yorumlar denetleniyor"* sanmasın.
+
+### 🐛 Bozma turu — 15 kilit, 15 kırmızı (ikinci denemede)
+
+İlk turda **14/15** kırmızıydı; **13 numaralı bozma yeşil kaldı ve haklıydı.** Bozma
+`<see cref="DevelopmentOnlyBehavior{TRequest,TResponse}.OlmayanUye"/>` biçiminde **jenerik**
+bir atıftı; testin deseni (`(?<type>\w+)`) `{…}` bloğuna hiç uymuyordu ve jenerik tiplerin
+`Type.Name`'i **arite soneki** taşıdığı için (`DevelopmentOnlyBehavior\`2`) sözlükte de
+bulunamıyordu. İki ayrı delik, aynı yönde: jenerik atıflar **hiç denetlenmiyordu**.
+🔑 Bu, projenin *"kapsam dizinden mi, tipten mi, elden mi?"* sorusunun bir üçüncü biçimi —
+kapsam doğruydu (bütün dosyalar taranıyordu), **desen** dardı.
+
+---
+
+📌 **Risk dağılımı bugün: 🟢🟢 6 · 🟢 73 · 🟠 1 · 🔴 0** (80 madde).
+⚠️ Tek 🟠 (madde 80) bir eksiklik değil, **bilinçli ve belgelenmiş bir sınır** (yukarıda).

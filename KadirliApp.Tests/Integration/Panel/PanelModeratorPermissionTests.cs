@@ -494,12 +494,36 @@ public class PanelModeratorPermissionTests : IAsyncLifetime
     }
 
     /// <summary>⚠️ Örnek veri basan aksiyon moderatöre kapalı kalmalı.</summary>
+    /// <remarks>
+    /// 🐛 <b>Bu test Faz 12.19a'da kırmızıya döndü ve kırılması DOĞRUDUR:</b> aksiyon
+    /// <c>[HttpGet]</c>'ten <c>[HttpPost]</c>'a çevrildiği için GET artık rol kapısına
+    /// <i>hiç ulaşmıyor</i> — yönlendirme katmanı <c>405</c> ile kesiyor. Yapılan şey
+    /// beklentiyi gevşetmek değil, <b>iddiayı gerçek kapıya taşımak</b> oldu: rol kapısı
+    /// ancak aksiyonun gerçek yöntemiyle denenebilir.
+    /// <para>
+    /// 📌 Ortam kapısı ve CSRF ayağı burada <b>değil</b>, <c>PanelSeedActionTests</c>'te —
+    /// bu dosyanın konusu yalnız <b>rol</b>.
+    /// </para>
+    /// <para>
+    /// ⚠️ Token <c>/Account/ChangePassword</c>'den alınıyor: iniş sayfasında moderatöre
+    /// çizilen hiçbir form yok, yani token oradan alınamaz ve test rol kapısını değil
+    /// "token bulunamadı"yı ölçerdi.
+    /// </para>
+    /// </remarks>
     [Fact]
     public async Task Moderator_CannotSeedMockData()
     {
         var client = await ModeratorClientAsync();
 
-        var response = await client.GetAsync("/Dashboard/Seed");
+        // Önce: GET yolu artık HİÇ yok (12.19a — antiforgery'nin kapsamadığı yol kapandı).
+        var viaGet = await client.GetAsync("/Dashboard/Seed");
+        viaGet.StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed,
+            "seed aksiyonu GET ile çağrılamaz — GET, AutoValidateAntiforgeryToken'ın " +
+            "KAPSAMI DIŞINDADIR (§7 madde 78)");
+
+        // Asıl iddia: gerçek yöntemle de moderatöre kapalı.
+        var response = await client.PostFormAsync("/Dashboard/Seed", new Dictionary<string, string>(),
+            tokenFromPath: "/Account/ChangePassword");
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
         response.Headers.Location!.ToString().Should().Contain("/account/denied");

@@ -12,7 +12,7 @@ public class Ad : BaseEntity, ISoftDeletable
     /// </summary>
     public const int PublishDays = 30;
 
-    private string _status = "pending";
+    private string _status = AdStatuses.Pending;
     private Guid? _approvedBy;
     private DateTime? _approvedAt;
     private string? _rejectedReason;
@@ -83,7 +83,7 @@ public class Ad : BaseEntity, ISoftDeletable
         if (ExpiresAt <= now)
             ExpiresAt = now.AddDays(PublishDays);
 
-        _status = "approved";
+        _status = AdStatuses.Approved;
         _approvedBy = adminId;
         _approvedAt = now;
 
@@ -104,7 +104,7 @@ public class Ad : BaseEntity, ISoftDeletable
     /// </remarks>
     public void Reject(string? reason, DateTime now)
     {
-        _status = "rejected";
+        _status = AdStatuses.Rejected;
         _rejectedReason = reason;
         _rejectedAt = now;
         _approvedBy = null;
@@ -136,7 +136,7 @@ public class Ad : BaseEntity, ISoftDeletable
     /// </remarks>
     public void Resubmit()
     {
-        _status = "pending";
+        _status = AdStatuses.Pending;
         _approvedBy = null;
         _approvedAt = null;
         _rejectedReason = null;
@@ -176,7 +176,7 @@ public class Ad : BaseEntity, ISoftDeletable
         ExpiresAt = baseDate.AddDays(days);
         ExtensionCount++;
 
-        if (_status == "expired")
-            _status = "approved";
+        if (_status == AdStatuses.Expired)
+            _status = AdStatuses.Approved;
     }
 }

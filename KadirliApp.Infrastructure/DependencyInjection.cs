@@ -39,6 +39,15 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IPermissionService, PermissionService>();
 
+        // 🔴 Faz 12.19a — ortam bilgisinin Application'daki tek kaynağı. Kayıt burada çünkü
+        // AddInfrastructure iki host'ta da (Api · Web) çağrılıyor: host başına ayrı kayıt
+        // yazılsaydı biri unutulur ve o host'ta DevelopmentOnlyBehavior HİÇ çözülemezdi
+        // (yani kapı, en çok gerektiği yerde sessizce yok olurdu).
+        services.AddSingleton<IAppEnvironment, Common.HostAppEnvironment>();
+
+        // Faz 12.19a — örnek veri basma artık MediatR üzerinden geçiyor (denetim izi için).
+        services.AddScoped<IMockDataSeeder, MockDataSeederService>();
+
         AddSocialLogin(services, cfg);
 
         // Faz 12.16 — KVKK zorunluluk kapısı. ⚠️ Değer ÇÖZÜLME ANINDA okunuyor, DI kaydında

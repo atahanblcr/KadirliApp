@@ -14,14 +14,25 @@
 
 <div class="mb-4 flex justify-between items-center">
     <h2 class="text-2xl font-bold text-gray-800">Sistem Durumu</h2>
-    @* Faz 11.15b: Dashboard artık moderatöre de açık, ama örnek veri basma aksiyonu
-       yalnız admin'e. Buton herkese çizilseydi moderatör tıklar ve "Yetkiniz yok"
-       sayfasına düşerdi — panelde işlevsiz buton bırakmıyoruz. *@
-    @if (User.IsInRole("admin") || User.IsInRole("super_admin"))
+    @* Faz 11.15b: Dashboard moderatöre de açık, ama örnek veri basma aksiyonu yalnız
+       admin'e. Buton herkese çizilseydi moderatör tıklar ve "Yetkiniz yok" sayfasına
+       düşerdi — panelde işlevsiz buton bırakmıyoruz.
+
+       🔴 Faz 12.19a: koşula ORTAM da girdi ve bağlantı FORM oldu. Eski hâli
+       `<a href="/Dashboard/Seed">` idi; GET olduğu için antiforgery kapsamıyordu ve
+       yöneticinin oturumuyla bir <img> etiketinden bile tetiklenebiliyordu. Kararın tek
+       sahibi controller (Model.CanSeedMockData) — görünüm ikinci bir kural yazmaz.
+       ⚠️ `data-confirm` FORMUN üzerinde: panel.js dinleyicisi submit olayında formun
+       özniteliğine bakıyor, butona yazılırsa onay penceresi SESSİZCE hiç açılmaz
+       (12.16'da yapılan hata, PanelConfirmDialogTests bunu denetliyor). *@
+    @if (Model.CanSeedMockData)
     {
-        <a href="/Dashboard/Seed" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors">
-            <i class="fas fa-database mr-2"></i> Paneli Test Verileriyle Doldur
-        </a>
+        <form method="post" asp-controller="Dashboard" asp-action="Seed"
+              data-confirm="Veritabanındaki BOŞ tablolara örnek (sahte) veri yazılacak. Devam edilsin mi?">
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors">
+                <i class="fas fa-database mr-2"></i> Paneli Test Verileriyle Doldur
+            </button>
+        </form>
     }
 </div>
 
@@ -229,7 +240,19 @@
     <div class="p-6">
         @if (Model.RecentActivities.Count == 0)
         {
-            <p class="text-gray-500">Henüz aktivite bulunmuyor. "Paneli Test Verileriyle Doldur" butonuyla örnek veri ekleyebilirsiniz.</p>
+            @* 🐛 Faz 12.19a — bu satır PANEL TESTİNİN İLK KOŞUSUNDA yakalandı ve gerçek bir
+               tutarsızlıktı: boş durum metni, ekranda BULUNMAYAN bir butonu tarif ediyordu.
+               Butonun görünürlüğü 12.19a'da ortama bağlanınca sorun somutlaştı (Production'da
+               buton yok, metin hâlâ onu işaret ediyordu) — ama tutarsızlık ondan ÖNCE de
+               vardı: aynı cümle moderatöre de gösteriliyordu ve moderatör o butonu hiçbir
+               zaman görmüyordu (11.15b'den beri). Kaynağı tek: Model.CanSeedMockData. *@
+            <p class="text-gray-500">
+                Henüz aktivite bulunmuyor.
+                @if (Model.CanSeedMockData)
+                {
+                    <text>"Paneli Test Verileriyle Doldur" butonuyla örnek veri ekleyebilirsiniz.</text>
+                }
+            </p>
         }
         else
         {

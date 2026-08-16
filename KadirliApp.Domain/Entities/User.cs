@@ -88,16 +88,28 @@ public class NotificationPreferences
     ///         tam olarak korktuğu senaryo <b>tek anahtarla</b> ulaşılabilir durumdaydı.</item>
     /// </list>
     ///
-    /// ⚠️ <b>Varsayılan <c>true</c> ve bu ölçüye dayanıyor:</b> tercihler JSON kolonda
-    /// (<c>OwnsOne(...).ToJson()</c>) saklanıyor ve <b>mevcut satırlarda bu anahtar YOK</b>.
-    /// Alanın yokluğu, alan eklenmeden önceki davranışı vermeli (checklist §5): 12.15'te
-    /// haber bildirimi <see cref="Announcements"/> açık olan herkese gidiyordu, yani
-    /// "hiç seçim yapmamış kullanıcı alır". <c>false</c> olsaydı bugün bildirim alan
-    /// <b>bütün kullanıcılar</b> bir migration olmadan sessizce susardı.
-    /// 🔬 Anahtarsız JSON'un gerçekten <c>true</c> materyalize olduğu <b>ölçüldü</b>
-    /// (<c>NotificationPreferenceTests.MissingJsonKey_DefaultsToOptedIn</c>) — varsayılan
-    /// başlatıcının EF'in JSON materyalizasyonunda çalıştığı bir <i>varsayım</i> olarak
-    /// bırakılamazdı: yanılsaydık hasarın hiçbir belirtisi olmazdı.
+    /// ⚠️ <b>İSTENEN varsayılan <c>true</c>:</b> alanın yokluğu, alan eklenmeden önceki
+    /// davranışı vermeli (checklist §5). 12.15'te haber bildirimi <see cref="Announcements"/>
+    /// açık olan herkese gidiyordu, yani "hiç seçim yapmamış kullanıcı alır".
+    /// <c>false</c> olsaydı bugün bildirim alan <b>bütün kullanıcılar</b> sessizce susardı.
+    ///
+    /// 🔬 <b>ÖLÇÜM (12.15b) — ve ölçüm sezginin TERSİNİ söyledi:</b> aşağıdaki
+    /// <c>= true</c> satırı, <b>mevcut satırlar için hiçbir şey yapmıyor.</b> Tercihler JSON
+    /// kolonda saklanıyor (<c>OwnsOne(...).ToJson()</c>) ve <b>EF, JSON materyalizasyonunda
+    /// varsayılan başlatıcıyı ÇALIŞTIRMIYOR</b>: anahtarsız JSON <c>false</c> okunuyor.
+    /// Kilit <c>NotificationPreferenceAxisTests.MissingJsonKey_MaterialisesAsFalse</c>.
+    ///
+    /// 🔴 <b>Sonucu doğrudan bir migration'ın varlık sebebi:</b> istenen davranışı gerçekten
+    /// üreten şey bu satır değil, <c>20260812213106_BackfillNewsNotificationPreference</c>
+    /// geri doldurmasıdır. Migration "zaten <c>true</c> materyalize oluyormuş, gereksiz"
+    /// diye kaldırılırsa <b>o an</b> bütün mevcut kullanıcılar haber bildiriminden sessizce
+    /// düşer — ve hiçbir hata, hiçbir log satırı bunu söylemez.
+    ///
+    /// 📌 <b>Bu yorumun kendisi bir denetim bulgusudur (14 Ağu 2026, 12.19b'de düzeltildi):</b>
+    /// eski hâli tam tersini iddia ediyordu (<i>"anahtarsız JSON'un <c>true</c> materyalize
+    /// olduğu ölçüldü"</i>) ve <b>var olmayan bir teste</b> atıf yapıyordu. Sarkan atıfı
+    /// <c>CommentReferenceTests</c> artık yakalıyor; <b>yanlış iddiayı hiçbir test
+    /// yakalayamaz</b> — bu paragraf o yüzden burada.
     /// </remarks>
     public bool News { get; set; } = true;
 }

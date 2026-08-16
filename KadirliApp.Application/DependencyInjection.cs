@@ -13,6 +13,11 @@ public static class DependencyInjection
         services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
+            // 🔴 Faz 12.19a: ortam kapısı EN BAŞTA. Sıra bir tercih değil, kuralın kendisi —
+            // AuditBehavior izi handler DÖNDÜKTEN sonra yazar, yani kapı ondan sonra
+            // dursaydı reddedilen komut çoktan koşmuş olurdu. Kapsam tipten türer
+            // (IDevelopmentOnlyCommand), elle liste yok.
+            cfg.AddOpenBehavior(typeof(DevelopmentOnlyBehavior<,>));
             // Faz 9.4: sıra önemli — önce cache'e bakılır (hit'te handler hiç çalışmaz),
             // invalidation ise handler başarıyla bittikten sonra devreye girer.
             cfg.AddOpenBehavior(typeof(CachingBehavior<,>));
