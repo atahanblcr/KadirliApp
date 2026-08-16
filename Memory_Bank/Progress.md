@@ -6,7 +6,9 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 
 ## 🚦 AÇIK MADDELER PANOSU — *tek bakışta ne kaldı*
 
-> **Son doğrulama: 16 Ağustos 2026** (kutulara değil **koda/şemaya** bakılarak).
+> **Son doğrulama: 16 Ağustos 2026** (kutulara değil **koda/şemaya** bakılarak; aynı gün
+> ikinci kez — **denetim oturumu**: 210 sayfalık canlı panel taraması + 11 mutasyonluk
+> bozma turu, üç bulgu **12.20** olarak açıldı).
 > Bu pano **yalnız AÇIK maddeleri** listeler; bir madde kapandığında satırı **silinir**
 > (işaretlenmez). Gerekçe: bu dosya 5000+ satır ve durum bilgisi beş ayrı yere dağılmıştı —
 > 13 Ağu denetiminde **22 kutunun 21'i** bayat, iki başlık da yanlış çıktı. Büyüyen bir liste
@@ -21,6 +23,9 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 |---|---|---|
 | **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
 | 📌 **Hukuki metinlerin GERÇEK içeriği** | 12.16/12.17 notları | 🔴 **Kod işi değil, İNSAN işi** ve yayından önce zorunlu. Zincirin tamamı çalışıyor (12.17 canlı doğrulandı) ama bugün yayında olan metinler **test metnidir** — yerel veritabanında, benim yazdığım örnekler. Gerçek KVKK aydınlatma + açık rıza metnini **hukukçu** yazmalı; kod onu bekliyor, tahmin etmiyor (12.16 kararı: metin **seed edilmez**) |
+| **12.20a — `HomeController` iskele artığı** | `# 🔬 DENETİM OTURUMU` → B1 | 🟠 `/Home/Index` + `/Home/Privacy` **kimliksiz 200 dönüyor** ve İngilizce (kural #6 ihlali). Asıl bulgu testte: `PanelAuthenticationTests`'in muafiyeti **controller granülaritesinde** → `HomeController`'a yarın yazılacak aksiyon da sessizce anonim doğar. **6 adımlı reçete yazıldı** |
+| **12.20b — `lib/bootstrap` (7,2 MB, 0 referans)** | `# 🔬 DENETİM OTURUMU` → B2 | 🟡 `dotnet new mvc` kalıntısı; `lib/`'in %77'si, git'te takipli, anonim servis ediliyor. 🔑 Asıl iş silmek değil, **madde 51'in eksik ikinci yönünü** yazmak: *"diskteki her kütüphaneye referans var mı?"* |
+| **12.20c — doküman: mobil test dosyası 81 → 82** | `# 🔬 DENETİM OTURUMU` → B3 | ⚪ Tek satır (`ARCHITECTURE.md` §2). Bu sayı **bilinçli olarak kilitsiz**, elle güncelleniyor |
 
 ### B. Karar bekleyenler (kod değil, tercih)
 
@@ -6040,3 +6045,271 @@ tipten mi, elden mi?"* sorusunun üçüncü biçimi bu — bütün dosyalar tara
    ve yanlış çıktı.
 5. 🔑 **Kapsam ile desen ayrı şeylerdir.** Bütün dosyaları taramak, tarama deseninin dar
    olmadığı anlamına gelmez (bozma turunun bulduğu delik).
+
+---
+
+# 🔬 DENETİM OTURUMU — kod analizi · canlı buton testi · TEST KALİTESİ ölçümü *(16 Ağustos 2026)*
+
+> **Bu bir faz değil, bir ÖLÇÜM oturumudur.** Kod değişikliği yapılmadı; yapılması gerekenler
+> aşağıda **12.20** başlığı altında maddelendi. Oturumun sorusu üçtü:
+> *(1) kodda bulgu var mı, (2) panelde ölü buton var mı, (3) **~2100 testin ne kadarı doğru
+> yeri test ediyor?***
+>
+> Üçüncü soru bu oturumun asıl konusuydu ve cevabı ölçüldü — tahmin edilmedi.
+
+## 📊 Oturumun kurduğu ortam (üçü de canlı doğrulandı)
+
+| Parça | Durum |
+|---|---|
+| Postgres · Redis · Seq | ✅ `docker compose up -d` |
+| API | ✅ `http://localhost:5005` — açılışta haber senkronu koştu (1 okundu, 0 yeni) |
+| Panel | ✅ `http://localhost:5203` — **DEVELOPMENT** rozeti çiziliyor (12.19'un eki) |
+| iOS simülatörü (iPhone 17 Pro Max) | ✅ uygulama açıldı, giriş ekranı |
+| **Android emülatörü (Pixel 9, API 37)** | ✅ uygulama açıldı, `10.0.2.2:5005`'e bağlandı |
+
+**Yeşil taban:** `dotnet test` **1276/1276** · `flutter analyze` **0 sorun** ·
+`flutter test` **865/865**.
+
+---
+
+## 1️⃣ Panel canlı buton testi — **210 sayfa, SIFIR ölü buton**
+
+Panelin **bütün** sayfaları oturum çereziyle gezildi ve her sayfada dört şey arandı.
+Tarama iki turda koştu: **90 sayfa** (menüden BFS) + **120 sayfa** (Create/Edit/Details/
+Properties/Schedule/Versions ekranları — buton yoğunluğunun asıl yeri).
+
+| Aranan | Bulunan |
+|---|---|
+| Ölü link (`href="#"` · `href=""` · `javascript:`) | **0** |
+| Sahipsiz buton (`type=button`, forma bağlı değil, tanınan `data-*` yok) | **0** |
+| Satır içi `on*=` işleyicisi (§7 madde 51 ihlali) | **0** |
+| 4xx/5xx dönen sayfa | **0** |
+
+📌 **Yanlış alarm olarak elenen iki şey — ikisi de bilinçli tasarım:**
+
+1. **7 adet "boş form action"** → `_BulkToolbar.cshtml`'in **bilerek boş** `<form>`'u.
+   Butonlar ona `form="…"` + `formaction` ile bağlanıyor; sebep partial'ın kendi yorumunda
+   yazılı: tabloyu forma sarmak **iç içe form** üretirdi, tarayıcı içtekini sessizce atardı
+   ve satır butonları çalışmaz hâle gelirdi.
+2. **31 adet "onay penceresi olmayan yıkıcı aksiyon"** (`Reject` · `Ban`) → bunlar
+   `<details>` popover'ı içinde **gerekçe soran** formlar. Gerekçe yazmak, onay
+   penceresinden **daha güçlü** bir onaydır. Onay penceresi taşıyan 115 aksiyonun
+   **87'sinde `data-confirm` formun üzerinde**, 28'inde butonda — `panel.js` ikisini de
+   okuyor, yani 12.16'nın *"butona yazılmış `data-confirm` sessizce hiç açılmaz"* hatası
+   **tekrarlamamış**.
+
+🔑 **Sonuç: panelde ölü buton yok.** *"İşlevsiz buton kalmasın"* (Faz 6) bugün ayakta.
+
+---
+
+## 2️⃣ Test kalitesi — **BOZMA TURU: 11 değişmez bozuldu, 11'i de kırmızıya döndü**
+
+*"Testi var" ≠ "kilitli"* sorusunun tek dürüst cevabı ölçümdür. On bir görünmez sözleşme
+tek tek bozuldu ve **her bozmadan sonra suite'in TAMAMI** koşuldu (hedefli filtre değil —
+soru *"herhangi bir test yakalıyor mu?"*).
+
+### Backend (her biri 1276 testin tamamıyla ölçüldü)
+
+| # | Bozma | Madde | Sonuç |
+|---|---|---|---|
+| M1 | `SlugHelper`'dan Türkçe **`'İ'` eşlemesi** silindi | 21 | 🔴 **5 test** |
+| M2 | `PushDataKeys.RelatedType` → `"related_type"` (deep-link anahtarı) | 16 | 🔴 **1 test** |
+| M3 | `ErrorFingerprint`'ten **GUID maskeleme** kaldırıldı | 32 | 🔴 **2 test** |
+| M4 | `LoginIdentifierMasker` kimliği **HAM** döndürdü | 34 | 🔴 **8 test** |
+| M5 | `PushPreferenceTopics`: haber ekseni duyuruya çökertildi | 67 | 🔴 **3 test** |
+| M6 | `NewsVisibility`: kategori **dışlama** semantiği kaldırıldı | 59 | 🔴 **4 test** |
+| M7 | `EventDistrictResolver`: `IsLocal` türetimi `true`'ya sabitlendi | 44 | 🔴 **3 test** |
+
+### Mobil (her biri 865 testin tamamıyla ölçüldü)
+
+| # | Bozma | Madde | Sonuç |
+|---|---|---|---|
+| N1 | `ConsentSelection.initial` **ön işaretli** başlatıldı | 75 | 🔴 **10 test** |
+| N2 | `OperatingDays.fromCodes(null)` → "hiçbir gün" | 49 | 🔴 **1 test** |
+| N3 | Boş maske artık "her gün"e düşmüyor | 49 | 🔴 **3 test** |
+| N4 | Gün↔bit eşlemesi **bir gün kaydırıldı** (`1 << weekday % 7`) | 49 | 🔴 **12 test** |
+
+### Bu turun okunması
+
+- **11/11.** Rastgele seçilmiş değil, **en pahalı hasarı üreten** on bir değişmez seçildi
+  (KVKK rızasının geçerliliği · hesap ele geçirme · kişisel veri sızıntısı · deep-link'in
+  ölmesi · yanlış mahalleye bildirim · mağazadaki eski sürümlerin listesinin boşalması).
+  Hepsi gerçekten kilitli.
+- ⚠️ **En ince kilit M2** (tek test). Bu bir kusur **değil** — `PushNotificationsJobTests`
+  anahtar kümesini **düz metin** iddia ediyor (Faz 0/B1'in bilinçli kararı: sabiti yeniden
+  adlandırmak testi kurtarmaz). Ama kilidin **tek** ayağı olduğu bilinsin.
+- **En kalın kilit N4** (12 test) ve bu doğru: Dart'ın `weekday`'i maskeyle *tesadüfen*
+  hizalı olduğu için (§7 madde 49c) kaymayı yakalamak yedi günün **tek tek** denetlenmesini
+  gerektiriyor — test öyle yazılmış.
+
+### İddiasız test taraması
+
+118 test dosyasındaki **her** `[Fact]`/`[Theory]` gövdesi tarandı: **iddia içermeyen test
+YOK.** İlk turda 15 şüpheli çıktı, hepsi **ifade gövdeli** metotlardı
+(`=> X.Should().Be(…)`) — tarayıcının kusuru, testlerin değil.
+
+---
+
+## 3️⃣ Bulgular — üç madde (**hiçbiri canlı hasar üretmiyor, ikisi kalıntı**)
+
+### 🟠 B1 — `HomeController`: **kimliksiz erişilebilen, İngilizce, iskele artığı iki sayfa**
+
+**Ölçüm (canlı, çerezsiz istek):**
+
+```
+302  /              → giriş                 302  /Dashboard   → giriş
+302  /AdsAdmin      → giriş                 302  /StaffAdmin  → giriş
+200  /Home/Index    ← kimlik doğrulaması YOK
+200  /Home/Privacy  ← kimlik doğrulaması YOK
+200  /Home/Error    ← (bu DOĞRU, aşağıya bak)
+```
+
+**Ne olduğu.** `HomeController` panelin **tek** `[Authorize]` taşımayan controller'ı
+(statik olarak doğrulandı) ve `Program.cs`'te `FallbackPolicy` **yok** — yani öznitelik
+yoksa aksiyon anonimdir. Dört aksiyonu var:
+
+| Aksiyon | Gerekli mi? | Bugünkü içerik |
+|---|---|---|
+| `Error` | ✅ **EVET** — `app.UseExceptionHandler("/Home/Error")` yeniden çalıştırıyor | markalı hata sayfası |
+| `StatusCode` | ✅ **EVET** — `app.UseStatusCodePagesWithReExecute("/Home/StatusCode")` | 11.15c'de yazıldı, markalı |
+| `Index` | ❌ **HAYIR** | `dotnet new mvc` iskelesi: *"Welcome / Learn about building Web apps with ASP.NET Core"* |
+| `Privacy` | ❌ **HAYIR** | iskele: *"Use this page to detail your site's privacy policy."* |
+
+**Neden bir bulgu.** Üç ayrı kuralı birden deliyor ve üçü de **sessiz**:
+
+1. **Değişmez kural #6 ihlali** (*"Arayüz Türkçe"*). Panelde bugün İngilizce metin basan
+   **tek** yer burası.
+2. **`_Layout` ile çiziliyor** — yani anonim ziyaretçi panelin kabuğunu, varlık
+   adreslerini, ortam rozetini ve *"Şifremi Değiştir" / "Çıkış Yap"* bağlantılarını görüyor.
+   🟢 **Menü `<nav>` boş geliyor** (`PanelMenuProvider` role göre süzüyor), yani **modül
+   envanteri sızmıyor** — bulgunun ciddiyetini sınırlayan şey bu.
+3. 🔴 **`/Home/Privacy` bir GİZLİLİK METNİ adresidir** ve bugün orada
+   *"Use this page to detail your site's privacy policy"* yazıyor. Proje az önce
+   **12.16–12.17'de bütün bir KVKK bloğunu** kapattı; o bloğun açık kalan tek maddesi
+   *"hukuki metinlerin gerçek içeriği"*. Tahmin edilebilir bir adreste duran, İngilizce,
+   yer tutucu bir gizlilik politikası, o bloğun tam olarak savaştığı şeydir.
+
+**🔑 Asıl bulgu testte, kodda değil — ve projenin KENDİ tekrarlayan sınıfı.**
+`PanelAuthenticationTests` doğru kurulmuş bir **yapısal** testtir: kapsamı assembly'den
+türetir, elle controller listesi tutmaz. Ama bir muafiyet listesi var:
+
+```csharp
+private static readonly HashSet<string> AnonymousControllers = new(StringComparer.Ordinal)
+{
+    "AccountController", // giriş sayfasının kendisi
+    "HomeController"     // hata sayfası (/Home/Error) + gizlilik metni
+};
+```
+
+Muafiyet **CONTROLLER granülaritesinde**. Gerekçesi yalnız `Error`/`StatusCode`'u
+karşılıyor ama muafiyet **dört aksiyonu birden** kapsıyor. Yarın `HomeController`'a
+yazılacak beşinci bir aksiyon da **kendiliğinden anonim doğar ve hiçbir test kırılmaz.**
+Faz A'nın dersi (*"kapsam dizinden mi, tipten mi, elden mi?"*) burada **dördüncü** bir
+biçimde karşımıza çıkıyor: kapsam türetilmiş ama **muafiyet kaba**.
+
+> 📌 Denetim şunu da ölçtü: bütün test paketinde **yalnız 4 elle tutulan muafiyet noktası**
+> var (`AnonymousControllers` · `PanelModeratorPermissionTests`'in iki satır içi `Name !=`
+> muafiyeti · `deliberateFallbacks` · `LegalImmutabilityStructureTests.Exempt`). Üçü
+> gerekçeli ve dar. **Sorunlu olan tek tanesi bu.**
+
+#### 🔧 B1 — yapılacaklar (sırayla)
+
+1. **`HomeController.Index` ve `HomeController.Privacy` aksiyonlarını SİL**, `Views/Home/Index.cshtml` ve `Views/Home/Privacy.cshtml` dosyalarını da sil. İkisi de hiçbir yerden referans almıyor (`asp-action` · `Url.Action` · `PanelMenu.Items` üçünde de yok — ölçüldü) ve varsayılan rota `Dashboard/Index` olduğu için `/`'ı da beslemiyorlar.
+2. ⚠️ **`Index.cshtml`'i silmeden önce `PanelExternalOriginTests.cs`'in ~75. satırındaki yorumu düzelt.** O yorum `Home/Index.cshtml`'e **dosya yolu olarak** atıf yapıyor (regex'in neden yalnız `<link href>`'e baktığını anlatan 🐛 notu). Dosya silinince **§7 madde 80 devreye girer ve `CommentReferenceTests` KIRMIZIYA döner** — bu doğru davranıştır, ama fark edilmezse "alakasız test kırıldı" sanılır. Yorum, olayı dosya yolu vermeden anlatacak şekilde yeniden yazılmalı.
+3. **`HomeController` sınıfına `[Authorize(Roles = "admin,super_admin,moderator")]` ekle**, kalan iki aksiyona (`Error`, `StatusCode`) **`[AllowAnonymous]`** koy. Aksiyon özniteliği sınıf özniteliğini ezer; hata sayfaları anonim çalışmaya devam eder (`UseExceptionHandler`/`UseStatusCodePagesWithReExecute` boru hattı yeniden çalıştırdığı için bu **şart** — `[Authorize]` kalsaydı 500 alan kullanıcı giriş sayfasına atılırdı).
+4. **`AnonymousControllers` listesinden `"HomeController"` satırını KALDIR.** Adım 3'ten sonra sınıf `[Authorize]` taşıdığı için test onu kendiliğinden kapsar. 🔑 **Kazanç: muafiyet listesi 2'den 1'e iner ve kapsam elle tutulan bir addan `[Authorize]` özniteliğinin varlığına — yani TÜRETİLEN bir ölçüte — geçer.** Listede kalan tek ad `AccountController` olur ve o gerçekten baştan sona anonimdir (giriş sayfası).
+5. **Doğrulama:** `curl -s -o /dev/null -w "%{http_code}" http://localhost:5203/Home/Index` → **404** dönmeli; `/Home/Error` → **200** kalmalı.
+6. **Bozma turu (zorunlu):** adım 3–4'ten sonra `HomeController`'a `[AllowAnonymous]` taşıyan **sahte** bir beşinci aksiyon ekle ve `PanelAuthenticationTests`'in **kırmızıya döndüğünü gör**. Dönmüyorsa muafiyet hâlâ kaba demektir. *(Bu, testin bugün yakalayamadığı senaryonun ta kendisi.)*
+
+---
+
+### 🟡 B2 — `wwwroot/lib/bootstrap`: **7,2 MB, sıfır referans, herkese açık servis ediliyor**
+
+**Ölçüm:**
+
+```
+lib/ toplam ................. 9,3 MB
+  bootstrap ................. 7,2 MB   ← %77'si  · 45 dosya · git'te TAKİPLİ
+  fontawesome ............... 1,0 MB   (1 görünümde referans)
+  jquery .................... 512 KB   (2 görünümde)
+  inter ..................... 244 KB   (1 görünümde)
+  leaflet ................... 228 KB   (1 görünümde)
+  jquery-validation(+unobtr.) 192 KB   (1'er görünümde)
+
+bootstrap'e kaynak referansı: 0
+  (Views · *.cs · *.json · panel.css · panel.js · site.js — hepsi tarandı;
+   "bootstrap" kelimesi YALNIZ obj/ altındaki derleme çıktılarında geçiyor)
+
+curl http://localhost:5203/lib/bootstrap/dist/css/bootstrap.min.css       → 200, 162 720 bayt
+curl http://localhost:5203/lib/bootstrap/dist/js/bootstrap.bundle.min.js  → 200,  78 468 bayt
+```
+
+**Ne olduğu.** `dotnet new mvc` iskelesinin kalıntısı — B1 ile **aynı kökenden**. Panel
+12.9'da Tailwind'e geçti; Bootstrap o gün ölmüş ama **silinmemiş**. Bugün depoda duruyor,
+klonlayan herkes indiriyor ve statik dosya ara katmanı onu **anonim olarak servis ediyor**.
+
+**Neden bir bulgu (ve neden yalnız 🟡).** Canlı hasar üretmiyor: hiçbir sayfa yüklemiyor,
+yani vatandaşa/yöneticiye bir bayt bile gitmiyor. Üç gerçek maliyeti var:
+
+1. **Depo ağırlığı** — `lib/`'in %77'si, ve `lib/` **bilinçli olarak commit ediliyor**
+   (12.9 kararı: "klonlayan `npm` kurmadan paneli açabilmeli").
+2. **Yanlış harita** — `CLAUDE.md` ve `ARCHITECTURE.md` yerelleştirilen kütüphaneleri
+   **`leaflet · fontawesome · inter · jquery`** diye sayıyor. Bootstrap **listede yok ama
+   diskte var**: doküman ile gerçek ayrışmış durumda.
+3. 🔑 **Kilidin tek yönlü olduğunu gösteriyor.** `PanelAssetGuard` +
+   `PanelExternalOriginTests.EveryLocalAssetReference_ExistsOnDisk`
+   *"referans verilen her varlık diskte var mı?"* diye soruyor. **Tersi hiç sorulmuyor:**
+   *"diskteki her varlığa referans var mı?"* Bu yüzden ölü bir varlık sonsuza kadar
+   yaşayabilir ve **hiçbir test bunu söylemez.**
+
+#### 🔧 B2 — yapılacaklar
+
+1. **`KadirliApp.Web/wwwroot/lib/bootstrap/` dizinini sil** (`git rm -r`). Öncesinde son bir kez `grep -rn "bootstrap" KadirliApp.Web --exclude-dir=obj --exclude-dir=lib` koş — çıktı **boş** olmalı.
+2. **Varlık araç zincirini denetle:** `KadirliApp.Web/package.json` ve kopyalama betiği bootstrap'i **yeniden üretiyor mu**? Üretiyorsa oradan da çıkar; yoksa `npm run build` silineni geri getirir ve CI'ın sürüklenme kapısı bunu "eksik varlık" sanır.
+3. **`ARCHITECTURE.md` §2**'deki `wwwroot/lib/*` satırını gerçekle hizala (bugün dört kütüphane sayıyor, diskte **yedi** dizin var — `jquery-validation` ve `jquery-validation-unobtrusive` de listede yok, **onlar kullanılıyor** ama yazılmamış).
+4. ➕ **Asıl kalıcı düzeltme — kilidi ÇİFT YÖNLÜ yap:** `PanelExternalOriginTests`'e bir eş test ekle → *"`wwwroot/lib` altındaki her **üst düzey dizin**, en az bir görünümden referans almalı."* Kapsam **dizinden türer** (elle liste yok), yeni eklenen bir kütüphane kendiliğinden kapsanır ve ölen bir kütüphane **sessizce kalamaz**. 🔑 Bu, madde 51'in bugün eksik olan ikinci yönüdür ve B2'nin tekrarlamasını imkânsız kılar.
+
+---
+
+### ⚪ B3 — `ARCHITECTURE.md` mobil test dosyası sayısı bir eksik
+
+`ARCHITECTURE.md` §2 mobil `test/` satırı: **"865 test (81 dosya)"**.
+Ölçüm: test sayısı **865 — doğru**; dosya sayısı **82** (hepsinde en az bir `test(`/
+`testWidgets(` var, boş dosya yok). 12.17'de eklenen dosyalardan biri sayıya yansımamış.
+
+#### 🔧 B3 — yapılacak
+`81` → `82`. *(Tek satır. `ArchitectureDocTests` bu sayıyı denetlemiyor — denetleseydi
+zaten kırmızı olurdu; yani bu sayı **bilinçli olarak kilitsiz** ve elle güncelleniyor.)*
+
+---
+
+## 🎯 12.20 — "iskele kalıntıları + iki kilidin eksik yönü" *(planlandı, KOD YAZILMADI)*
+
+| Adım | İş | Etki |
+|---|---|---|
+| 12.20a | B1: iki iskele aksiyonu+görünümü sil · `[Authorize]`+`[AllowAnonymous]` · muafiyet listesini 1'e indir · `PanelExternalOriginTests` yorumunu düzelt | 🔴 kural #6 ihlali + anonim yüzey kapanır, **muafiyet türetilen bir ölçüte geçer** |
+| 12.20b | B2: `lib/bootstrap` sil · doküman hizala · **`lib/` için çift yönlü kilit** yaz | 🟡 7,2 MB gider, madde 51'in **ikinci yönü** kapanır |
+| 12.20c | B3: doküman sayısı düzelt | ⚪ tek satır |
+
+**Bozma turu şartı (her üçü için):** 12.20a'nın kilidi, sahte bir `[AllowAnonymous]`
+aksiyonuyla **kırmızıya dönmek zorunda**; 12.20b'nin kilidi, `lib/` altına referanssız
+sahte bir dizin açılınca **kırmızıya dönmek zorunda**. Dönmüyorlarsa kilit yanlış şeye
+bakıyordur.
+
+---
+
+## 🔑 Bu oturumun kalıcı dersleri
+
+1. **Bir yapısal testin kapsamı türetilmiş olabilir ama MUAFİYETİ kaba olabilir.**
+   `PanelAuthenticationTests` kapsamı assembly'den türetiyor — kitabına uygun. Deliği
+   açan şey kapsam değil, **controller granülaritesindeki iki satırlık muafiyet listesi**.
+   Faz A'nın sorusuna bir soru daha ekleniyor: *"kapsam nereden geliyor?"*ün yanına
+   ***"muafiyet hangi granülaritede?"***
+2. **Tek yönlü kilitler ölü kod biriktirir.** *"Referans verilen varlık diskte var mı?"*
+   sorusunun tersi sorulmadığı için 7,2 MB ölü kütüphane fark edilmeden yaşadı. Bir
+   *"X ⊆ Y"* kilidi yazarken **"Y ⊆ X gerekiyor mu?"** diye sor.
+3. **İskele kalıntıları aynı kökten gelir ve BİRLİKTE ölür.** B1 ve B2'nin ikisi de
+   `dotnet new mvc`'den; biri bulununca **diğeri de aranmalı**. (Aranan üçüncüsü —
+   `site.js` — kontrol edildi: yaşıyor ve kullanılıyor.)
+4. 🟢 **Bozma turu 11/11 kırmızı verdi.** Bu projede *"testi var"* ile *"kilitli"* arasındaki
+   fark **kapatılmış durumda** — ve bunu söyleyen şey kutu sayısı değil, **ölçüm**.

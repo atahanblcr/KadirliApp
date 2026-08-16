@@ -1,6 +1,41 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
-> Son güncelleme: 16 Ağustos 2026 — **FAZ 12.19 TAMAMLANDI: üçüncü dış analiz denetiminin
+> ## 🔬 SON OTURUM: DENETİM (16 Ağustos 2026, 12.19'dan sonra) — **KOD DEĞİŞİKLİĞİ YOK**
+>
+> Ortam uçtan uca ayağa kaldırıldı (Postgres/Redis/Seq · API `:5005` · panel `:5203` ·
+> **iOS simülatörü** · **Android Pixel 9 / API 37**) ve üç soru ölçüldü.
+>
+> **Yeşil taban:** `dotnet test` **1276/1276** · `flutter analyze` **0** · `flutter test` **865/865**.
+>
+> 1️⃣ **Panel canlı buton testi — 210 sayfa, SIFIR ölü buton.** Ölü link 0 · sahipsiz buton 0 ·
+> satır içi `on*=` 0 · 4xx/5xx 0. İki yanlış alarm elendi: `_BulkToolbar`'ın **bilerek boş**
+> formu ve `Reject`/`Ban`'ın **gerekçe soran** `<details>` popover'ı (onay penceresinden güçlü).
+> 12.16'nın *"`data-confirm` butona yazılırsa sessizce açılmaz"* hatası **tekrarlamamış**.
+>
+> 2️⃣ **Bozma turu — 11 değişmez bozuldu, 11'i de KIRMIZI.** Her bozmadan sonra suite'in
+> **tamamı** koşuldu. Backend 7 (madde 21 · 16 · 32 · 34 · 67 · 59 · 44), mobil 4 (madde 75 · 49×3).
+> En ince kilit **madde 16** (tek test — kusur değil, `PushDataKeys` düz metin iddia ediliyor);
+> en kalın **madde 49'un gün kayması** (12 test). **İddiasız test yok** (118 dosya tarandı).
+> 🟢 Yani bu projede *"testi var"* ile *"kilitli"* arasındaki fark **kapatılmış** — ölçüldü.
+>
+> 3️⃣ **Üç bulgu → `Progress.md` → `# 🔬 DENETİM OTURUMU` + panoda 12.20a/b/c.**
+> **B1 🟠** `HomeController`: `/Home/Index` + `/Home/Privacy` **kimliksiz 200** ve İngilizce
+> (kural #6'yı ihlal eden **tek** yer). 🔑 Asıl bulgu **testte**: `PanelAuthenticationTests`
+> kapsamı assembly'den türetiyor (doğru) ama muafiyeti **controller granülaritesinde** —
+> gerekçe yalnız `Error`/`StatusCode`'u karşılarken muafiyet dört aksiyonu birden örtüyor,
+> yani yarın eklenecek bir aksiyon **sessizce anonim doğar**. Faz A'nın sorusuna bir soru
+> daha eklendi: *"muafiyet hangi granülaritede?"*
+> **B2 🟡** `wwwroot/lib/bootstrap` — **7,2 MB, 0 referans**, git'te takipli, anonim servis
+> ediliyor. B1 ile **aynı kökten** (`dotnet new mvc`). 🔑 Asıl iş silmek değil: madde 51'in
+> kilidi **tek yönlü** (*"referans verilen varlık diskte var mı?"*), tersi hiç sorulmuyor.
+> **B3 ⚪** `ARCHITECTURE.md` mobil test dosyası **81 → 82**.
+>
+> ⚠️ **12.20'ye girerken:** `Views/Home/Index.cshtml` silinince
+> `PanelExternalOriginTests`'in ~75. satırındaki yorum **sarkan dosya yolu** olur ve
+> `CommentReferenceTests` (madde 80) **kırmızıya döner** — bu doğru davranıştır, önce yorum
+> düzeltilmeli.
+
+> Önceki güncelleme: 16 Ağustos 2026 — **FAZ 12.19 TAMAMLANDI: üçüncü dış analiz denetiminin
 > bulduğu üç delik kapatıldı.** Backend 1251 → **1276** (+25), mobil **865** (12.19 mobile
 > dokunmadı). Görünmez sözleşme **77 → 80**. Migration **yok**, DTO değişikliği **yok**.
 >
