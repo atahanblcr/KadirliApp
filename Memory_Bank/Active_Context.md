@@ -69,6 +69,23 @@
 > geliştirme veritabanını devraldı ve düştü. `name: kadirliapp-prod` eklendi. 🔴 Asıl tehlike
 > hata değil, **hatanın çıkmadığı hâl**: parolalar tutsaydı sessizce üstüne açılırdı.
 >
+> 🔴 **12.21d — İLK PUSH'TA CI KIRMIZI ÇIKTI ve biri BENİM DEĞİLDİ** (13:31 koşusu, 12.21
+> hiç yazılmamışken de kırmızıydı — ölçüldü). **En ciddi bulgu:** `.gitignore`'un
+> `[Rr]elease/` deseni (Visual Studio çıktısı için konmuş) **`mobile/test/release/`** ile de
+> eşleşiyordu → Faz 11.16'nın **yayın yapılandırması testleri (8 test)** depoya **hiç
+> girmemiş**, yalnız bu makinede yaşıyordu. Hasarın ikinci katmanı sessizdi: o testler tam da
+> *"hataları `flutter run` ile görünmeyen"* sınıfın bekçisi (AndroidManifest izinleri ·
+> Info.plist açıklamaları · dev rotalarının yayına sızmaması) — yani **klonlayan hiç kimsede
+> o koruma yoktu**. 🔑 *"Bayrakla kapalı yol = hiç test edilmemiş yol"* kuralının **sürüm
+> kontrolü** biçimi: dosya geliştiricide **var** olduğu için her şey yeşil görünür.
+> 🐛 İkinci hata benimdi: `release.yml` `github.repository`'yi ham kullanıyordu ve Docker
+> depo adları **küçük harf olmak zorunda** (`atahanblcr/KadirliApp` → `invalid tag`);
+> yerelde asla görünmez, çünkü `-t kadirliapp-api` yazarken adı biz seçiyoruz.
+> 🔬 Üçüncü olarak bir varsayım daha çürüdü: *"mobil testler CI'da hiç koşmuyor"* diyerek bir
+> iş eklendi, sonra ölçüldü — `mobile.yml` **zaten var ve yeşil**; yalnız `paths: mobile/**`
+> ile tetiklendiği için son iki commit'te koşmamıştı (*"koşmadı" ≠ "yok"*). İş geri alındı.
+> ✅ Üçü de yeşil; imajlar yayınlandı: `ghcr.io/atahanblcr/kadirliapp/{api,web}:45d01a4…`.
+>
 > ⏭️ **Sırada:** ⚡ **12.22 performans/ölçek** (*önce ÖLÇ*) · 12.8 sosyal giriş mobil
 > (🔴 Apple bekliyor) · 🔴 **SMS sağlayıcısı yayının tek gerçek blokajı** (kod + anlaşma).
 

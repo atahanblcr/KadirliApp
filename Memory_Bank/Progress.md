@@ -6712,6 +6712,61 @@ Doğrulandı: tam süit **0** yeni dosya bırakıyor.
 🧹 1124 yetim **silinmedi, karantinaya alındı** (geri alınabilir); `uploads/` **20 MB → 15 MB**,
 DB'nin işaret ettiği 95 dosyanın **hepsi yerinde**.
 
+## 🔴 12.21d — İLK KOŞUDA CI KIRMIZI ÇIKTI (ve biri BENİM DEĞİLDİ)
+
+İlk push'tan sonra iki iş akışı da düştü. Sebepleri ayrıydı ve **biri bu oturumdan önce
+de kırmızıydı** (13:31 koşusu, 12.21 hiç yazılmamışken — ölçüldü).
+
+### 🐛 (1) `.gitignore` BİR TEST DOSYASINI YUTUYORDU — *bu oturumun en ciddi bulgusu*
+
+```
+.gitignore:6   [Rr]elease/          ← Visual Studio derleme çıktısı için konmuş
+                ↑ mobile/test/release/ ile de EŞLEŞİYOR
+```
+
+`mobile/test/release/release_config_test.dart` — Faz 11.16'nın **yayın yapılandırması
+testleri** (AndroidManifest izinleri · Info.plist kullanım açıklamaları · dev rotalarının
+yayına sızmaması, **8 test**) — **hiçbir zaman commit edilmemiş**. Yalnız yazıldığı
+makinede yaşıyordu.
+
+Hasar iki katmanlı ve **ikincisi tamamen sessizdi**:
+
+1. **CI kırmızıydı**: `CodeReviewChecklistDocTests` var olmayan bir dosyaya atıf buluyordu.
+   (Bu yüzey doğru çalıştı — madde 80'in kilidi, dosyanın yokluğunu **CI'da** yakaladı.)
+2. 🔴 **Depoyu klonlayan hiç kimsede o korumalar YOKTU.** O testlerin var olma sebebi
+   `CODE_REVIEW_CHECKLIST` §11'in açılış cümlesidir: *"bu bölümün ortak özelliği, hataları
+   `flutter run` ile görünmez — her madde ilk kez **mağazadan inen** uygulamada ortaya
+   çıkar."* Yani **tam da en geç fark edilecek hata sınıfının tek bekçisi, tek bir diskte
+   duruyordu.**
+
+🔑 Ders: **bir `.gitignore` deseni, adı tesadüfen uyan bir KAYNAK klasörünü de yutabilir** —
+ve bunu hiçbir şey söylemez, çünkü dosya *geliştiricinin makinesinde vardır* ve orada her
+şey yeşildir. Bu, projenin *"bayrakla kapalı yol = hiç test edilmemiş yol"* sınıfının
+**sürüm kontrolü tarafındaki** biçimi.
+
+### 🐛 (2) `release.yml` — depo adı küçük harf olmak zorunda *(bu benim hatamdı)*
+
+```
+ERROR: invalid tag "ghcr.io/atahanblcr/KadirliApp/api:c0628c9…":
+       repository name must be lowercase
+```
+
+`github.repository` = `atahanblcr/KadirliApp` (büyük harfli). ⚠️ **Yerelde asla görünmez**:
+`docker build -t kadirliapp-api` yazarken adı biz seçiyoruz, büyük harf hiç doğmuyor.
+Ad artık koşuda küçük harfe çevriliyor.
+
+### 🔬 (3) Bir varsayım daha ölçümle çürüdü
+
+*"Mobil testler CI'da hiç koşmuyor"* diye `dotnet.yml`'e bir iş eklendi; sonra **ölçüldü**:
+`mobile.yml` **zaten var** ve yeşil (11.14'te yazılmış). Yalnız `paths: mobile/**` ile
+tetiklendiği için son iki commit'te koşmamıştı — *"koşmadı"* ile *"yok"* aynı şey değil.
+Yinelenen iş **geri alındı**.
+
+✅ **Üç iş akışı da yeşil** ve imajlar gerçekten yayınlandı:
+`ghcr.io/atahanblcr/kadirliapp/{api,web}:45d01a4…` (+ `:main`).
+
+---
+
 ## 🔑 Bu alt-fazın kalıcı dersleri
 
 1. **Bir ayarı REDDEDEN kapı yazarken, kabul edeceği bir değerin var olduğunu ölç.**
@@ -6724,7 +6779,10 @@ DB'nin işaret ettiği 95 dosyanın **hepsi yerinde**.
 4. **Testin dosya sistemine yazdığı yer de bir temizlik borcudur.** Veritabanı satırı
    atılabilir bir kapta, dosya ise gerçek klasörde biriktiğinde oran **%92'ye** çıkabiliyor
    ve bunu hiçbir şey söylemiyor.
-5. 🐛 **İki `compose` dosyası, proje adı verilmezse aynı volume'ü paylaşır.** Belirtisi bir
+5. 🔴 **Bir `.gitignore` deseni, adı tesadüfen uyan bir KAYNAK klasörünü yutabilir.**
+   `[Rr]elease/` sekiz testi depoya hiç sokmadı ve hasar *geliştiricinin makinesinde
+   görünmezdi* — orada dosya vardı. Sorulacak soru: *"bu desen yalnız ÇIKTI mı eşliyor?"*
+6. 🐛 **İki `compose` dosyası, proje adı verilmezse aynı volume'ü paylaşır.** Belirtisi bir
    hata *olabilir* (bizde oldu); olmasaydı üretim yığını geliştirme verisinin üstüne
    sessizce açılırdı.
 
