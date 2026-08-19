@@ -306,7 +306,35 @@ geçmiş kesintileri gösterdiği için bir **kontrat** kararıdır. 🔬 Haber 
 tam arşiv **~8,9 GB görsel** (dokümandaki ~1,6 GB değil — 12.14b metin arası görselleri de
 aynalıyor). 📌 Tüm arşiv **bilerek çekilmedi**; yerelde 78 → 180 haber, ayar 50'de kaldı.
 
-**1325 backend + 865 mobil test, 84 görünmez sözleşme.**
+**✅ 12.23 bitti — SHAREDPREFERENCES SERTLEŞTİRMESİ.** Kullanıcının *"kullanımımız başarılı
+mı, abim sorun yaşıyor"* sorusundan doğdu; önce denetim koşuldu, altı bulgudan **beşi
+kapatıldı**. 🔑 Envanterin en önemli bulgusu bir **yokluk** ve olumluydu: **jetonlar prefs'te
+değil** (`flutter_secure_storage`), yani sınıfın en tehlikeli hasarı bu projede hiç yok.
+🔴 **KARAR 1: tercih deposu AÇILIŞI ÖLDÜREMEZ** — `main()` çıplak bir `getInstance()`
+bekliyordu; patlarsa belirti **siyah ekran**, sebep **hiçbir yerde** (yakalayıcılar 20 satır
+sonra bağlanıyor). Artık `PreferencesBootstrap.open()` bellek içine düşüyor ve sebebi
+**sonradan** raporluyor (`FirebasePushMessaging.tryInitialize`ın aynası). Düşmenin güvenli
+olduğu **ölçüldü** (yedi anahtarın yokluğu tek tek sayıldı) ama **sessiz değil**: bellek içi
+yazma *başarılı görünür* → Ayarlar ekranı bunu **yazıyor**.
+🔴 **KARAR 2: Android yedeklemesi kapalı, İKİ YÖNDEN.** Manifest hiçbir şey demiyordu →
+Auto Backup **varsayılan AÇIK**: düz metin profil buluta gidiyor **ve**
+`EncryptedSharedPreferences` yedekten dönen cihazda **çözülemiyordu** (Flutter'da en sık
+bildirilen *"oturum bozuldu"* vakası — **suçlusu Android**). 🔴 `allowBackup="false"` **tek
+başına yetmiyor** (ölçüldü: Android belgesi API 31+'te *"cihazdan cihaza aktarımı
+kapatmaz"* diyor) → `dataExtractionRules` de yazıldı; tek satır **12.22'nin ölü trigram
+indeksiyle aynı hasarı** üretirdi (*koruma var görünürken yok*).
+➕ **S3** `_writeCachedUser` `Future`'ı yere düşürüyordu → açık `unawaited`. ➕ **S4**
+`AdDraftStore`'un yorumu **dört fazdır yanlıştı** (*"her değişiklikte"* diyor ama arka plan
+kancası **hiç yoktu** → saydığı senaryo tam olarak kapsanmayandı); kanca eklendi, yorum
+hizalandı. ➕ **S5** üç deponun birim testi **hiç yoktu** (28 test; anahtar artık
+`SavedNewsStore.prefsKey`'den okunuyor, ham string değil).
+🔬 **S6 `SharedPreferencesAsync` geçişi İNCELENDİ, YAPILMADI** — tetikleyici koşulu ve nasıl
+yapılacağı `Progress.md` panosunda (bölüm B). 🧪 Bozma turu **14/14 kırmızı**.
+🔑 **Ders: bir yorum SIKLIK iddia ediyorsa madde 80'in kapsamındadır ama
+`CommentReferenceTests` onu YAKALAYAMAZ** (sarkan işaretçi değil, yanlış iddia) — çağrı
+yerlerini **saymaktan** başka yolu yok.
+
+**1325 backend + 904 mobil test, 86 görünmez sözleşme.**
 
 **⏭️ Sırada:** 12.8 sosyal
 giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı bugün yazılabilir**) · **12.18 adayı**
@@ -361,6 +389,19 @@ eşzamanlı `Migrate()`'in belirtisi hata değil **bozuk şemadır**.
 ölç** (12.21b): iki kapı ayrı ayrı doğru olup birlikte geçilemez olabilir.
 ⚠️ **`wwwroot`'a dosya eklerken** en az bir yerden başvurulmalı — `wwwroot/lib` altındaki her
 **dizin** ve `wwwroot/{css,js}` altındaki her **dosya** artık iki yönlü kilitli (12.20b).
+⚠️ **Cihazda kalıcı bir şey saklarken üç soruyu sor** (§7 madde 85–86): kişisel veri/jeton
+`shared_preferences`'a **yazılmaz** (`flutter_secure_storage`) · listeye **tavan** koy ·
+🔴 **platform onu yedekliyor mu?** Android Auto Backup manifest sessizse **AÇIKTIR** ve
+`allowBackup="false"` **tek başına** API 31+'te cihazdan cihaza aktarımı kapatmaz —
+`dataExtractionRules` de şart, yoksa koruma **var görünür, yoktur**.
+⚠️ **`main()`'e açılışta beklenen yeni bir adım eklerken** (depo · yapılandırma · ısınma)
+adım **düşülebilir** olmalı: patlarsa belirti **siyah ekran** ve hata yakalayıcıları henüz
+bağlı olmadığı için **tek rapor bile düşmez**. Sessizce düşmek de yetmez — düşüşün hem
+**raporu** hem ekranda bir **cümlesi** olmalı, ve kilit **iki yönlü** yazılmalı (yoksa
+*"her zaman bozuk de"* diyen gerçekleme de yeşil kalır).
+⚠️ **Bir yorumda *"her değişiklikte / otomatik olarak"* gibi bir SIKLIK iddiası varsa çağrı
+yerlerini SAY** (§7 madde 80'in yakalayamadığı yüz): `AdDraftStore`'un yorumu dört faz
+boyunca kapsamadığı senaryoyu gerekçe olarak saydı.
 ⚠️ **Yeni bir `gin_trgm_ops` indeksi yazarken ifadeyi `lower(...)` yaz** (§7 madde 84):
 projedeki her arama `ToLower().Contains(...)` üretiyor ve ifade indeksinde ifade **birebir**
 eşleşmek zorunda — `title` ≠ `lower(title)`, indeks **sessizce** kullanılmaz. `A OR B` biçimli
@@ -441,7 +482,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Mobil istemci sunucuyla nasıl konuşuyor?" | `Memory_Bank/API_CONTRACT.md` |
 | "Bu karar neden böyle verilmiş?" | `Memory_Bank/Progress.md` (faz faz) · `Memory_Bank/Active_Context.md` (son durum) |
 | **"Ne kaldı, hangi faz açık?"** | **`Memory_Bank/Progress.md` → en üstteki 🚦 AÇIK MADDELER PANOSU** (yalnız açıklar; kapanan satır silinir) |
-| **"Bu görünmez sözleşme gerçekten kilitli mi, kilidi nerede?"** | **`Memory_Bank/Contract_Audit.md`** (84 madde × kilit cinsi/risk/dosya) |
+| **"Bu görünmez sözleşme gerçekten kilitli mi, kilidi nerede?"** | **`Memory_Bank/Contract_Audit.md`** (86 madde × kilit cinsi/risk/dosya) |
 | "Bu .NET kalıbı ne demek?" | `DOTNET_MASTERCLASS.md` |
 | "Mobil tasarım sistemi / UX kuralları?" | `Memory_Bank/MOBILE_UX_PLAN.md` |
 | "Uçların makine-okur şeması?" | `docs/openapi.json` |
@@ -449,7 +490,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 84 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 86 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
@@ -495,7 +536,13 @@ iskele adresleri **oturumlu** istemciyle 404 doğrulanır — anonim yanıt "sil
 **83** → `Unit/Application/Performance/` (`RequestHistogramTests` · `PerformanceBehaviorTests`) +
 `Integration/Panel/PanelPerformanceTests.cs`,
 **84** → `Integration/Architecture/TrigramIndexTests.cs` (**kapsam `pg_indexes`'ten türer**,
-migration taramasından değil).
+migration taramasından değil),
+**85–86 istemci tarafı** → `mobile/test/core/preferences/app_preferences_test.dart` (**iki
+yönlü**: bozulmada düşer *ve* sağlamda "bozuk" demez) +
+`mobile/test/features/settings/settings_screen_widget_test.dart` (dürüstlük ayağı) +
+`mobile/test/release/release_config_test.dart` (yedekleme kapısının **iki yönü**) +
+`mobile/test/features/{news/saved_news_store_test,ads/ad_draft_store_test,taxis/recent_taxi_calls_store_test}.dart`
+(madde **62**'nin 12.23'te yazılan davranış ayağı).
 
 ## Değişmez kurallar
 

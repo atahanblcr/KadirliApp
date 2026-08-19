@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_info.dart';
 import '../../../core/config/env.dart';
+import '../../../core/preferences/app_preferences.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -27,6 +28,7 @@ class SettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final palette = theme.palette;
     final user = ref.watch(currentUserProvider);
+    final preferencesDegraded = ref.watch(preferencesDegradedProvider);
 
     return AppScaffold(
       title: 'Ayarlar',
@@ -38,6 +40,21 @@ class SettingsScreen extends ConsumerWidget {
           AppSpacing.xxl,
         ),
         children: [
+          // 🔴 12.23: tercih deposu açılamadı → yazılanlar uygulama kapanınca
+          // kaybolacak. Söylenmeseydi kullanıcı bir haberi kaydeder, yer imi
+          // dolar, ertesi gün liste boş olurdu — ve hiçbir yerde sebebi yazmazdı.
+          if (preferencesDegraded) ...[
+            const InfoBanner(
+              tone: InfoBannerTone.warning,
+              icon: Icons.sync_problem_rounded,
+              title: 'Tercihleriniz kaydedilemiyor',
+              message:
+                  'Cihazın ayar deposu açılamadı. Tema, okuma boyutu ve '
+                  'kaydettiğiniz haberler bu oturumda tutulur ama uygulamayı '
+                  'kapatınca kaybolur. Uygulamayı yeniden başlatmayı deneyin.',
+            ),
+            AppSpacing.gapXl,
+          ],
           const SectionHeader(title: 'Hesap'),
           if (user == null)
             AppCard(

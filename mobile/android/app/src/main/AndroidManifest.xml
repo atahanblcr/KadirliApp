@@ -12,9 +12,18 @@
          (açılışta değil): boşluğa sorulan izin reddediliyor. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <!-- Faz 12.23 — YEDEKLEME KAPALI, iki yönden birden.
+         `allowBackup="false"` API 30 ve altını + API 31+'te bulut yedeklemesini
+         kapatır; `dataExtractionRules` ise API 31+'te CİHAZDAN CİHAZA AKTARIMI
+         kapatır (Android belgesi: bazı üreticilerde `allowBackup` D2D'yi
+         kapatMAZ). Yalnız biri yazılsaydı koruma yarım kalır ve bunu hiçbir şey
+         söylemezdi. Gerekçe + neyin feda edildiği: res/xml/data_extraction_rules.xml
+         ve `mobile/lib/core/preferences/app_preferences.dart`. -->
     <application
         android:label="Kadirli"
         android:name="${applicationName}"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

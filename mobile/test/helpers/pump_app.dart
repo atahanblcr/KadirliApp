@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kadirli_app/app.dart';
 import 'package:kadirli_app/core/network/network.dart';
-import 'package:kadirli_app/core/theme/theme_controller.dart';
+import 'package:kadirli_app/core/preferences/app_preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/network/fake_http_adapter.dart';
@@ -21,6 +21,7 @@ Future<ProviderContainer> pumpApp(
   Map<String, Object> prefs = const {},
   TokenStore? tokenStore,
   FakeHttpAdapter? adapter,
+  bool preferencesDegraded = false,
 }) async {
   SharedPreferences.setMockInitialValues(prefs);
   final preferences = await SharedPreferences.getInstance();
@@ -29,6 +30,7 @@ Future<ProviderContainer> pumpApp(
   final container = ProviderContainer(
     overrides: [
       sharedPreferencesProvider.overrideWithValue(preferences),
+      preferencesDegradedProvider.overrideWithValue(preferencesDegraded),
       tokenStoreProvider.overrideWithValue(store),
       if (adapter != null)
         dioProvider.overrideWith(

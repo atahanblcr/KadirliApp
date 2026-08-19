@@ -14,6 +14,7 @@ void main() {
     WidgetTester tester, {
     bool signedIn = true,
     Map<String, dynamic>? profile,
+    bool preferencesDegraded = false,
   }) async {
     final adapter = routedAdapter({
       ...homeStubs(),
@@ -38,6 +39,7 @@ void main() {
           ? InMemoryTokenStore(accessToken: 'A', refreshToken: 'R')
           : InMemoryTokenStore(),
       adapter: adapter,
+      preferencesDegraded: preferencesDegraded,
     );
 
     await tester.tap(find.byTooltip('Ayarlar'));
@@ -115,5 +117,29 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Yasal metinler'), findsOneWidget);
+  });
+
+  group('tercih deposu bozuk (Faz 12.23)', () {
+    testWidgets('depo açılamadıysa ekran BUNU SÖYLER', (tester) async {
+      await openSettings(tester, preferencesDegraded: true);
+
+      // 🔴 Sessiz kalınması hasarın kendisiydi: bellek içi depoda yazma
+      // BAŞARILI GÖRÜNÜR. Kullanıcı bir haberi kaydeder, yer imi dolar,
+      // ertesi gün liste boştur ve hiçbir ekran sebebini söylemez.
+      expect(find.text('Tercihleriniz kaydedilemiyor'), findsOneWidget);
+      expect(
+        find.textContaining('kapatınca kaybolur'),
+        findsOneWidget,
+        reason: 'Mesaj SONUCU söylemeli — "bir hata oluştu" hiçbir işe yaramaz.',
+      );
+    });
+
+    testWidgets('depo SAĞLAMKEN uyarı ÇIKMAZ (iki yönlü kilit)', (tester) async {
+      await openSettings(tester);
+
+      // Tek yön yazılsaydı, HER açılışta uyaran bir gerçekleme de yeşil
+      // kalırdı — ve uyarı görülmeye alışıldığı an anlamını yitirirdi.
+      expect(find.text('Tercihleriniz kaydedilemiyor'), findsNothing);
+    });
   });
 }

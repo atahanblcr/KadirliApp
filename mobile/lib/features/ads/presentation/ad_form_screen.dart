@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,7 +46,8 @@ class AdFormScreen extends ConsumerStatefulWidget {
   ConsumerState<AdFormScreen> createState() => _AdFormScreenState();
 }
 
-class _AdFormScreenState extends ConsumerState<AdFormScreen> {
+class _AdFormScreenState extends ConsumerState<AdFormScreen>
+    with WidgetsBindingObserver {
   static const maxImages = 10; // AdSubmissionRules.MaxImages
   static const maxTitle = 200;
   static const maxDescription = 5000;
@@ -91,6 +94,13 @@ class _AdFormScreenState extends ConsumerState<AdFormScreen> {
   @override
   void initState() {
     super.initState();
+    // 🔴 12.23: uygulama arka plana alındığında taslağı sakla. Öncesinde
+    // `_saveDraft()` yalnız kategori seçiminde, adım geçişlerinde ve geri
+    // tuşu diyaloğunda çağrılıyordu — yani bu sınıfın belgelenmiş gerekçesi
+    // (*"kullanıcı telefonu kilitlerse / bir aramaya cevap verirse"*) tam
+    // olarak KAPSANMAYAN senaryoydu: 3. adımda açıklama yazarken telefon
+    // kilitlenip süreç öldürülürse yazılanlar gidiyordu.
+    WidgetsBinding.instance.addObserver(this);
     if (widget.isEdit) _step = 1;
     for (final controller in [_title, _description, _price, _sellerName]) {
       controller.addListener(_markDirty);
@@ -98,8 +108,25 @@ class _AdFormScreenState extends ConsumerState<AdFormScreen> {
     _phone.addListener(_markDirty);
   }
 
+  /// Arka plana alınırken taslağı sakla — **en iyi çaba**.
+  ///
+  /// ⚠️ Yazma eşzamansızdır: sistem süreci hemen öldürürse tamamlanmayabilir.
+  /// Android/iOS pratikte `paused` ile öldürme arasında kısa bir pencere verir,
+  /// yani bu adım kaybı **azaltır, sıfırlamaz**. Sıfırlamanın tek yolu her tuş
+  /// vuruşunda yazmak olurdu ve o da her karakterde platform kanalına gitmek
+  /// demek — ölçülmemiş bir maliyet için ölçülmemiş bir kazanç.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      unawaited(_saveDraft());
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     for (final controller in [_title, _description, _price, _sellerName, _phone]) {
       controller.dispose();
     }

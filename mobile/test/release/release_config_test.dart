@@ -64,6 +64,69 @@ void main() {
     });
   });
 
+  group('Android — yedekleme/aktarma kapalı (Faz 12.23, §7 madde 86)', () {
+    // 🔴 Bu grubun tamamı TEK BİR HASARI kapatıyor ve kapının İKİ YÖNÜ var.
+    // Android Auto Backup varsayılan olarak AÇIKTIR (manifest bir şey
+    // demezse). Açık kaldığında iki şey buluta/yeni cihaza kopyalanıyordu:
+    //  (a) `auth.cachedUser` — düz metin profil (KVKK bloğuyla çelişir),
+    //  (b) `flutter_secure_storage`ın EncryptedSharedPreferences dosyası —
+    //      şifreleme anahtarı CİHAZA BAĞLI, yedekten dönen cihazda ÇÖZÜLEMEZ.
+    // (b) Flutter'da en sık bildirilen "oturum bozuldu / dış servis çalışmıyor"
+    // vakalarından biridir ve hatanın kaynağı Flutter değil, Android'dir.
+
+    test('allowBackup AÇIKÇA false (varsayılan AÇIK — sessizlik = yedekleme var)', () {
+      expect(
+        androidManifest.readAsStringSync(),
+        contains('android:allowBackup="false"'),
+        reason: 'Öznitelik yoksa Android varsayılanı `true`dur: profil önbelleği '
+            'düz metin buluta gider ve şifreli jeton deposu yedekten dönen '
+            'cihazda çözülemez.',
+      );
+    });
+
+    test('dataExtractionRules bağlı — allowBackup TEK BAŞINA D2D\'yi kapatmaz', () {
+      // Android belgesi birebir: API 31+ hedefleyen uygulamalarda BAZI
+      // üreticilerin cihazlarında `allowBackup="false"` bulut yedeklemesini
+      // kapatır ama CİHAZDAN CİHAZA aktarımı kapatmaz. Yalnız `allowBackup`
+      // yazılsaydı koruma yarım ölü olur ve *"yedekleme kapalı mı?"*
+      // sorusunun cevabı YANLIŞ BİR "evet" olurdu — 12.22'nin ölü trigram
+      // indeksiyle aynı hasar sınıfı.
+      expect(
+        androidManifest.readAsStringSync(),
+        contains('android:dataExtractionRules="@xml/data_extraction_rules"'),
+        reason: 'API 31+ cihazlarda cihazdan cihaza aktarım açık kalır.',
+      );
+    });
+
+    test('kural dosyası diskte VE iki bölümü de dışlıyor', () {
+      final rules = File('android/app/src/main/res/xml/data_extraction_rules.xml');
+      expect(
+        rules.existsSync(),
+        isTrue,
+        reason: 'Manifest var olmayan bir @xml kaynağına işaret ederse '
+            'derleme kırılır — ama bunu ancak Android derlemesi söyler.',
+      );
+
+      final source = rules.readAsStringSync();
+      for (final section in const ['cloud-backup', 'device-transfer']) {
+        expect(
+          source,
+          contains('<$section>'),
+          reason: '$section bölümü yoksa o yön varsayılanda kalır (= açık).',
+        );
+      }
+      // Bölüm içinde varsayılan "her şey dahil"dir: dışlanmayan alan sessizce
+      // aktarılır. `sharedpref` ikisinin de kapsamında olmak zorunda —
+      // yedi tercih anahtarı VE şifreli jeton deposu aynı alanda yaşıyor.
+      expect(
+        '<exclude domain="sharedpref" path="." />'.allMatches(source).length,
+        greaterThanOrEqualTo(2),
+        reason: 'sharedpref her iki bölümde de dışlanmalı; tek bölümde '
+            'dışlamak korumanın yarısını sessizce açık bırakır.',
+      );
+    });
+  });
+
   group('Geliştirici araçları yayına sızmıyor', () {
     test('dev rotaları KOŞULLU kayıtlı (Env.showDevTools)', () {
       // 🐛 Faz 11.16 bulgusu: rotalar koşulsuz kayıtlıydı. Menü girişleri

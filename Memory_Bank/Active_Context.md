@@ -1,6 +1,70 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
-> ## ✅ SON OTURUM: FAZ 12.22 TAMAMLANDI (19 Ağustos 2026) — *performans / ölçek*
+> ## ✅ SON OTURUM: FAZ 12.23 TAMAMLANDI (20 Ağustos 2026) — *SharedPreferences sertleştirmesi*
+>
+> **Yeşil taban:** `flutter analyze` **0** · `flutter test` **904/904** (865 → **+39**) ·
+> `dotnet test` **1325/1325**. **Backend'e tek satır dokunulmadı**, DTO değişikliği **yok**,
+> migration **yok**. Görünmez sözleşme **84 → 86**.
+>
+> **Nereden çıktı:** kullanıcının sorusu — *"`SharedPreferences` kullanımımız başarılı mı?
+> Abim sorun yaşıyor, Flutter'dan vazgeçmeyi düşünüyor."* Önce **denetim** koşuldu (kod
+> değişikliği yok), altı bulgu çıktı; beşi kapatıldı, altıncısı **tetikleyici koşuluyla**
+> panoya yazıldı.
+>
+> 🔑 **Envanterin en önemli bulgusu bir YOKLUKTU ve olumluydu: jetonlar prefs'te DEĞİL**
+> (`flutter_secure_storage`). Yedi anahtarın hepsi küçük yerel durum. Yani sınıfın en
+> tehlikeli hasarı bu projede hiç yaşanmıyor. 📌 **Abinin iddiasına cevap:**
+> `SharedPreferences` Flutter'ın icadı değil (Android'in kendi API'si / `NSUserDefaults`);
+> native'e geçmek bu sorunları çözmez, aynı API'leri doğrudan kullanmak olur. **Ama iddia
+> boş da değildi** — aşağıdaki KARAR 2, sahada en çok bildirilen *"oturum bozuldu"*
+> vakasının birebir kendisiydi ve **bizde de açıktı**.
+>
+> 🔴 **KARAR 1 — tercih deposu AÇILIŞI ÖLDÜREMEZ.** `main()` çıplak bir `getInstance()`
+> bekliyordu: patlarsa belirti **siyah ekran**, sebep **hiçbir yerde** (hata yakalayıcıları
+> 20 satır sonra bağlanıyor). Artık `PreferencesBootstrap.open()` → bellek içine düşer,
+> sebep **yakalayıcılar kurulduktan sonra** raporlanır. Kalıp yeni değil:
+> `FirebasePushMessaging.tryInitialize`ın aynası — ve prefs push'tan **önce** koşuyor.
+> 🔑 Düşmenin güvenli olduğu **ölçüldü**: yedi anahtarın yokluğu tek tek sayıldı, hiçbiri bir
+> şeyi *yanlış* yapmıyor, yalnız *unutuyor* (özellikle `auth.cachedUser` boşalsa da **oturum
+> düşmez** — jetonlar ayrı depoda). 🔴 **Ama sessiz olamaz:** bellek içi depoda yazma
+> **başarılı GÖRÜNÜR** ve kapanınca kaybolur → Ayarlar ekranı bunu **yazıyor**
+> (`preferencesDegradedProvider`). ⚠️ `setMockInitialValues` bu iş için **kullanılamaz**
+> (`@visibleForTesting` → `flutter analyze` kırmızı); yol `InMemorySharedPreferencesStore`.
+>
+> 🔴 **KARAR 2 — Android yedeklemesi kapalı, İKİ YÖNDEN.** Manifest hiçbir şey demiyordu →
+> Auto Backup **varsayılan AÇIK**: (a) `auth.cachedUser` **düz metin profil** buluta
+> gidiyordu (KVKK bloğuyla çelişki), (b) `EncryptedSharedPreferences` yedekten dönen cihazda
+> **çözülemez** (anahtar cihaza bağlı) → jeton okuması patlar. 🔴 **`allowBackup="false"`
+> TEK BAŞINA YETMİYOR ve bu ÖLÇÜLDÜ:** Android belgesi API 31+ için *"bazı üreticilerde
+> cihazdan cihaza aktarımı kapatmaz"* diyor → `dataExtractionRules` de yazıldı (iki bölüm de
+> dışlıyor). Tek satırlık düzeltme korumayı **var görünürken yok** bırakırdı — **12.22'nin
+> ölü trigram indeksiyle aynı hasar sınıfı**. ⚠️ Dışlama **dosya** seviyesinde: seçim
+> hep-ya-hiç; feda edilen (cihaz değiştirince kaydedilenlerin gitmesi) zaten **yazılı** bir
+> sınırdı (§7 madde 62) — karar sözleşmeyi bozmuyor, **teyit ediyor**.
+>
+> **Diğer üç:** `_writeCachedUser`/`_clearCachedUser` `Future`'ı yere düşürüyordu → açık
+> `unawaited` · **`AdDraftStore`'un yorumu dört fazdır yanlıştı** (*"her değişiklikte"* diyor
+> ama arka plan kancası **hiç yoktu** → yorumun saydığı senaryo tam olarak kapsanmayan
+> senaryoydu; kanca eklendi, yorum hizalandı) · **üç deponun birim testi hiç yoktu** (28 test).
+>
+> 🔬 **S6 — `SharedPreferencesAsync` geçişi İNCELENDİ, YAPILMADI.** Legacy'nin tek gerçek
+> zaafı isolate'ler arası tutarsızlık; arka plan isolate'i prefs'e **hiç dokunmuyor**
+> (ölçüldü, `reload()` de hiç çağrılmıyor) → bugün gerekmiyor. 🔴 **Tetikleyici koşul ve
+> nasıl yapılacağı** panoya yazıldı (`Progress.md` → 🚦 pano, bölüm B): resmî göç aracı var,
+> Android'de depolar **ayrı** ve göç **tek yönlü**, `SharedPreferencesWithCache` seçilmeli
+> (senkron okuma = *ilk kare doğru* tasarımı).
+>
+> 🧪 **Bozma turu: 14 kilit, 14 kırmızı.** İkisi bilinçli eklendi ve turun değerli yarısı
+> onlar — *"her zaman bozuk de"* ve *"yedekleme kapısının tek yönünü sil"*: ikisi de
+> **koruma var görünürken yok** sınıfını ölçüyor.
+>
+> 🔑 **Fazın dersi: bir yorum SIKLIK iddia ediyorsa (*"her değişiklikte"*), madde 80'in
+> kapsamındadır ama `CommentReferenceTests` onu YAKALAYAMAZ** — sarkan işaretçi değil,
+> **yanlış iddia**. Çağrı yerlerini saymaktan başka yolu yok.
+
+---
+
+> ## Önceki oturum — FAZ 12.22 (19 Ağustos 2026) — *performans / ölçek*
 >
 > **Yeşil taban:** `dotnet test` **1325/1325** (1290 → **+35**) · `flutter analyze` **0** ·
 > `flutter test` **865/865**. **Mobilde tek satır değişiklik yok**, DTO değişikliği **yok**.

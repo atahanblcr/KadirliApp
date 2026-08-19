@@ -429,7 +429,9 @@ sourceUrl · publishedAt · modifiedAt · readingMinutes · isFeatured · catego
   sunucunun döndürdüğü bir kategoriyi istemcinin gizlemesi "şüphede kalınca gizle" olurdu.
 - 📌 **"Kaydedilenler" tümüyle istemci tarafıdır** (uç yok, `SharedPreferences`): kaydın
   bir **anlık görüntüsü** saklanır, böylece kaynakta yayından kalkan haberde bile başlık ve
-  "Kaynakta oku" elde kalır (§7 madde 62).
+  "Kaynakta oku" elde kalır (§7 madde 62). ⚠️ **12.23'ten beri liste cihaz değiştirince de
+  gitmiyor** (Android yedeklemesi kapatıldı, §7 madde 86) — *"tek cihaza bağlıdır"* sınırı
+  artık yalnız yazılı değil, **uygulanıyor**. Sunucu tarafını etkilemez: uç yok.
 
 ### Hukuki metinler / KVKK rızası (Faz 12.16)
 

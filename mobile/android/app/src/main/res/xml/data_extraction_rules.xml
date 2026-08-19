@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Faz 12.23 — yedekleme/aktarma kapısının İKİNCİ YÖNÜ.
+
+  🔴 `android:allowBackup="false"` TEK BAŞINA YETMEZ. Android belgesi birebir
+  şunu söylüyor: Android 12 (API 31) ve üstünü hedefleyen uygulamalarda
+  "bazı üreticilerin cihazlarında `allowBackup="false"` bulut yedeklemesini
+  kapatır ama uygulamanın CİHAZDAN CİHAZA AKTARIMINI kapatmaz."
+  Yani yalnız `allowBackup` yazılsaydı koruma modern Android'lerin bir
+  kısmında **yarım ölü** olur ve *"yedekleme kapalı mı?"* sorusunun cevabı
+  yanlış bir "evet" olurdu — 12.22'nin ölü trigram indeksiyle aynı hasar
+  sınıfı (koruma VAR görünür, YOK'tur).
+
+  Neden hiçbir şey aktarılmıyor:
+   - `sharedpref` → `auth.cachedUser` düz metin bir profil (ad, mahalle, e-posta).
+     Kişisel verinin buluta/başka bir cihaza sessizce kopyalanması 12.16–12.17'de
+     kapatılan KVKK bloğuyla çelişirdi.
+   - `sharedpref` (aynı dosya kümesi) → `flutter_secure_storage`ın Android
+     gerçeklemesi `EncryptedSharedPreferences`tır ve şifreleme anahtarı
+     CİHAZA BAĞLIDIR. Yedekten dönen bir cihazda o dosya ÇÖZÜLEMEZ; okuma
+     anında patlar. Bu, Flutter'da en sık bildirilen "oturum bozuldu /
+     dış servis çalışmıyor" vakalarından biridir ve suçlusu Flutter değil,
+     Android Auto Backup'tır.
+   - Geriye kalan: görsel önbelleği (yeniden indirilebilir) ve tercihler
+     (tema · okuma boyutu · kaydedilen haberler). Kaydedilenlerin cihaza bağlı
+     olduğu zaten YAZILI bir sınırdır (`saved_news_store.dart`), yani bu karar
+     var olan sözleşmeyi bozmuyor, teyit ediyor.
+
+  📌 `<exclude>` listesi TÜM alanları saymak zorunda: bölüm içinde varsayılan
+  "her şey dahil"dir, dışlanmayan bir alan sessizce aktarılır.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
+    </device-transfer>
+</data-extraction-rules>

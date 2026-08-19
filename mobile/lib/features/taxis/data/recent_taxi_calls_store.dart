@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../core/theme/theme_controller.dart' show sharedPreferencesProvider;
+import '../../../core/preferences/app_preferences.dart' show sharedPreferencesProvider;
 import 'models/taxi_driver.dart';
 
 /// Kullanıcının **son aradığı taksiciler** (yerel, cihazda).

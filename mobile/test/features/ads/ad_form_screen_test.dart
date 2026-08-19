@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kadirli_app/core/network/network.dart';
 import 'package:kadirli_app/core/router/app_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/network/fake_http_adapter.dart';
 import '../../helpers/pump_app.dart';
@@ -495,6 +496,39 @@ void main() {
       expect(find.text('Eski taslak'), findsNothing);
       expect(find.text('İlanınız hangi kategoride?'), findsOneWidget);
     });
+
+    testWidgets(
+      'UYGULAMA ARKA PLANA ALINIRKEN taslak saklanır (12.23)',
+      (tester) async {
+        // 🔴 12.23'e kadar YOKTU ve bu, deponun kendi belgesinde sayılan
+        // gerekçeydi: *"kullanıcı telefonu kilitlerse / bir aramaya cevap
+        // verirse"*. `_saveDraft()` yalnız kategori seçiminde, adım
+        // geçişlerinde ve geri tuşu diyaloğunda çağrılıyordu — yani
+        // kapsanan tek senaryo GERİ TUŞUYDU. Kullanıcı 2. adımda yazarken
+        // telefonu kilitlenirse yazdığı gidiyordu.
+        await openForm(tester);
+        await tapText(tester, 'Spor');
+        await enterField(tester, 'Başlık', 'Arka planda kalan bisiklet');
+        await enterField(tester, 'Açıklama', 'Yazarken telefon kilitlendi.');
+
+        // Gerçek yaşam döngüsü sırası: resumed → inactive → hidden → paused.
+        // Doğrudan `paused`'a atlamak çatının geçiş doğrulamasını kırar.
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        await tester.pumpAndSettle();
+
+        // İddia depoya bakıyor, ekrana değil: ekran zaten dolu, sorulan şey
+        // *"süreç şimdi ölse yazdıkları geri gelir mi?"*
+        final prefs = await SharedPreferences.getInstance();
+        expect(
+          prefs.getString('ads.draft'),
+          contains('Arka planda kalan bisiklet'),
+          reason: 'Arka plana alınırken taslak yazılmadıysa, telefon '
+              'kilitlendiğinde kullanıcının yazdığı kaybolur.',
+        );
+      },
+    );
 
     testWidgets('bir haftadan eski taslak hiç teklif edilmez', (tester) async {
       await openForm(

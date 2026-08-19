@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/theme_controller.dart';
+import '../../../core/preferences/app_preferences.dart';
 import '../data/models/news_article.dart';
 import '../data/saved_news_store.dart';
 

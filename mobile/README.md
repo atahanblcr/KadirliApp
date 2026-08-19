@@ -211,6 +211,34 @@ Telefon + OTP. Ekranlar **yönlendirme yapmaz**: durumu değiştirir, `go_router
 - Telefon numarası her zaman `AppPhone.toE164(...)` ile gönderilir.
 - Dev modda (`Otp:DevMode=true`) sunucu kodu yanıtta döner → kod alanı otomatik dolar.
 
+## Yerel depolama (Faz 12.23)
+
+**İki depo var ve karıştırılmaz.**
+
+| Ne | Nerede | Neden |
+|---|---|---|
+| Oturum jetonları (`access` · `refresh`) | `flutter_secure_storage` → `core/network/token_store.dart` | Keychain / `EncryptedSharedPreferences`. **Asla `shared_preferences`'a yazılmaz.** |
+| Tercih + küçük yerel durum (7 anahtar) | `shared_preferences` → **tek sahip** `core/preferences/app_preferences.dart` | Senkron okunur (açılışta bir kez `await`) → tema/okuma boyutu **ilk kareden** doğru |
+
+Yedi anahtar: `settings.themeMode` · `news.textScale` · `auth.guestChoice` ·
+`auth.cachedUser` · `ads.draft` · `taxis.recentCalls` · `news.saved`.
+
+**Kurallar**
+
+- **Kişisel veri ya da sır `shared_preferences`'a yazılmaz** — `flutter_secure_storage`.
+- Yerel bir **liste** tutuyorsan: kaydın **anlık görüntüsünü** sakla (yalnız `id` değil),
+  **tavan** koy ve **bozuk tek satır listeyi düşürmesin** (§7 madde 62).
+- **Büyük alan saklama** (ör. haber gövdesi): `SharedPreferences` dosyanın **tamamını**
+  açılışta belleğe alır.
+- 🔴 **Depo açılamazsa uygulama YİNE AÇILIR** (`PreferencesBootstrap.open()` bellek içine
+  düşer) ve Ayarlar ekranı bunu **yazar**. `main()`'e açılışta beklenen yeni bir adım
+  eklerken aynı deseni uygula — düşemeyen bir adım **siyah ekran + sıfır rapor** demektir.
+- 🔴 **Android'de yedekleme KAPALI** (`allowBackup="false"` **ve** `dataExtractionRules`;
+  ikisi birden şart, §7 madde 86). Yani cihaz değiştiren kullanıcı tercihlerini kaybeder —
+  bilinçli. Yeni bir kalıcı dosya eklersen yedeklenip yedeklenmeyeceğini **düşün**.
+- Testte depo: `SharedPreferences.setMockInitialValues({...})` ya da `pumpApp(prefs: {...})`;
+  bozulma senaryosu için `pumpApp(preferencesDegraded: true)`.
+
 ## Kabuk ve Ana Sayfa (Faz 11.4)
 
 Alt sekme kabuğu `core/router/app_shell.dart` (`StatefulShellRoute.indexedStack`):

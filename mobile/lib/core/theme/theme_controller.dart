@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-/// `main()` içinde gerçek örnekle override edilir (bkz. `main.dart`).
-/// Senkron okunabilmesi için açılışta bir kez `await` edilir — tema seçimi
-/// ilk kareden itibaren doğru olur (yanıp sönme yok).
-final sharedPreferencesProvider = Provider<SharedPreferences>(
-  (ref) => throw UnimplementedError('sharedPreferencesProvider override edilmeli'),
-);
+import '../preferences/app_preferences.dart';
+
+// 📌 12.23: `sharedPreferencesProvider` buradan `core/preferences/app_preferences.dart`'a
+// taşındı. Bir altyapı provider'ının sahibi tema denetleyicisi olamazdı — dört ayrı
+// özellik ondan `show sharedPreferencesProvider` diye içe aktarıyordu ve 12.23 deponun
+// **bozulma durumunu** taşıyan ikinci bir provider ekledi; ikisinin de yeri orası.
 
 /// Kullanıcının tema tercihi: Açık / Koyu / Sistem (MOBILE_UX_PLAN §5 — Ayarlar).
 ///

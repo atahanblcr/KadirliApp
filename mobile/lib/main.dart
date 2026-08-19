@@ -4,12 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/observability/error_reporter.dart';
+import 'core/preferences/app_preferences.dart';
 import 'core/push/firebase_push_messaging.dart';
-import 'core/theme/theme_controller.dart';
 import 'features/notifications/application/push_controller.dart';
 
 Future<void> main() async {
@@ -25,7 +24,12 @@ Future<void> main() async {
   await initializeDateFormatting('tr_TR');
 
   // Tema tercihi ilk kareden itibaren doğru olsun diye açılışta okunur.
-  final prefs = await SharedPreferences.getInstance();
+  // 🔴 12.23: bu çağrı ARTIK AÇILIŞI ÖLDÜREMEZ. Depo açılamazsa bellek içi bir
+  // depoya düşülür ve sebebi aşağıda — yakalayıcılar kurulduktan SONRA —
+  // raporlanır. Öncesinde çıplak bir `getInstance()` vardı: hata verdiğinde
+  // uygulama siyah ekranda kalıyor ve hiçbir rapor düşmüyordu, çünkü
+  // `FlutterError.onError` bu satırdan 20 satır sonra bağlanıyor.
+  final preferences = await PreferencesBootstrap.open();
 
   // Push (11.13). ⚠️ Firebase yapılandırma dosyaları depoda tutulmuyor →
   // kurulamazsa `NoopPushMessaging` döner ve **uygulama normal açılır**
@@ -39,7 +43,8 @@ Future<void> main() async {
   // `ProviderScope` container'ını kendi içinde kurduğu için ona erişilemiyordu.
   final container = ProviderContainer(
     overrides: [
-      sharedPreferencesProvider.overrideWithValue(prefs),
+      sharedPreferencesProvider.overrideWithValue(preferences.preferences),
+      preferencesDegradedProvider.overrideWithValue(preferences.isDegraded),
       pushMessagingProvider.overrideWithValue(pushMessaging),
     ],
   );
@@ -59,6 +64,14 @@ Future<void> main() async {
     errorReporter.reportUncaught(error, stack);
     return true; // ele alındı sayılır — uygulama kapanmaz
   };
+
+  // Tercih deposu açılamadıysa sebebi ŞİMDİ raporlanabilir (yakalayıcılar kuruldu).
+  // Kullanıcı tarafı ayrı: Ayarlar ekranı durumu `preferencesDegradedProvider` ile
+  // yazıyor — bellek içi depoda yazma başarılı GÖRÜNÜR ve uygulama kapanınca kaybolur.
+  final preferencesError = preferences.error;
+  if (preferencesError != null) {
+    errorReporter.reportUncaught(preferencesError, preferences.stackTrace);
+  }
 
   runApp(
     UncontrolledProviderScope(

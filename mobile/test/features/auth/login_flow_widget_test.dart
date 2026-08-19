@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kadirli_app/core/network/network.dart';
-import 'package:kadirli_app/core/theme/theme_controller.dart';
+import 'package:kadirli_app/core/preferences/app_preferences.dart';
 
 import '../../core/network/fake_http_adapter.dart';
 import '../../helpers/pump_app.dart';

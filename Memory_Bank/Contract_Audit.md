@@ -4,9 +4,10 @@
 > *kilidinin cinsine* göre etiketler. Soru "testi var mı?" değil (hepsinin var),
 > **"kilidi sahte mi?"**
 >
-> 📌 **Bugün 84 madde.** Denetim 67 madde üzerinde koşuldu (aşağıdaki tablo); **68–70**
+> 📌 **Bugün 86 madde.** Denetim 67 madde üzerinde koşuldu (aşağıdaki tablo); **68–70**
 > denetimden sonra Faz 12.7'de, **71–74** Faz 12.16'da, **75–77** Faz 12.17'de,
-> **78–80** Faz 12.19'da, **81** Faz 12.20a'da ve **82** Faz 12.21b'de eklendi — hepsinin kaydı bu dosyanın
+> **78–80** Faz 12.19'da, **81** Faz 12.20a'da, **82** Faz 12.21b'de, **83–84** Faz 12.22'de
+> ve **85–86** Faz 12.23'te eklendi — hepsinin kaydı bu dosyanın
 > sonundaki bölümlerde.
 >
 > **Bu dosya kalıcıdır.** Sonraki oturumlar baştan tasnif etmez, buradan devam eder.
@@ -467,5 +468,36 @@ sorusunun bu fazdaki cevabı: **veritabanından.**
 
 ---
 
-📌 **Risk dağılımı bugün: 🟢🟢 7 · 🟢 76 · 🟠 1 · 🔴 0** (84 madde).
-⚠️ Tek 🟠 (madde 80) bir eksiklik değil, **bilinçli ve belgelenmiş bir sınır** (yukarıda).
+## Faz 12.23 — SharedPreferences sertleştirmesi (20 Ağustos 2026)
+
+| # | Sözleşme | Kilit cinsi | Kilidi taşıyan dosya(lar) | Risk |
+|---|---|---|---|---|
+| 85 | Tercih deposu **açılışı öldüremez**; düşüş **bellek içine**, sebep **rapora**, durum **ekrana** gider | **Saf (iki yönlü) + davranış** — istemci tarafı | `mobile/test/core/preferences/app_preferences_test.dart` (`open()` atmıyor · depo yazılabilir · sebep taşınıyor · **sağlamda hata alanları boş**) · `mobile/test/features/settings/settings_screen_widget_test.dart` (şerit çıkıyor **ve** sağlamken çıkmıyor) | 🟠 |
+| 86 | Android'de yedekleme/aktarma kapalı ve kapı **iki yönlü** (`allowBackup` **+** `dataExtractionRules`, iki bölüm de dışlıyor) | **Yapılandırma taraması** — istemci tarafı | `mobile/test/release/release_config_test.dart` (üç ayaklı: `allowBackup` · `dataExtractionRules` bağı · kural dosyası **diskte** ve `sharedpref` **iki bölümde birden** dışlanmış) | 🟠 |
+
+🔑 **85'in kilidi neden iki yönlü olmak zorundaydı:** yalnız *"bozulduğunda düşer"* yazılsaydı,
+`isDegraded`'ı **her zaman `true`** döndüren bir gerçekleme de yeşil kalırdı — ve bedeli
+görünmez değil, tam tersine **her kullanıcının her açılışta** gördüğü bir uyarı olurdu.
+Uyarının değeri **nadir** olmasından geliyor. (Bozma turunda ölçüldü: mutasyon kırmızıya döndü.)
+
+🔑 **86'nın asıl bulgusu bir "yarım kilit" tehlikesiydi.** `allowBackup="false"` yazmak
+*"yedeklemeyi kapattım"* hissi verir; Android belgesi ise API 31+ için *"bazı üreticilerin
+cihazlarında cihazdan cihaza aktarımı kapatmaz"* diyor. Yani tek satırlık düzeltme koruma
+**var görünürken yok** bırakırdı — 12.22'nin ölü trigram indeksiyle **aynı hasar sınıfı**
+(*"indeks var mı?"* → yanlış bir "var"). Test bu yüzden `dataExtractionRules` bağını ve
+`sharedpref`'in **iki bölümde birden** dışlandığını ayrı ayrı iddia ediyor.
+
+⚠️ **İkisi de 🟠 ve sebebi bilinen:** *istemci tarafı* kilitler ayrı bir koşucudadır
+(`flutter test`), `dotnet test` onları görmez — 49–50, 61–62, 75–76 ile aynı sınıf. 86 ayrıca
+bir **yapılandırma taraması**dır: manifest'in *yazdığını* denetler, Android'in o yazıyla
+gerçekte ne yaptığını değil. Gerçek doğrulama ancak bir cihazda yedek alıp geri yüklemekle
+olur ve bu ortamda yapılamadı — **kilit bunu kendisi yazıyor** (madde 67/80'in dürüstlük deseni).
+
+---
+
+---
+
+📌 **Risk dağılımı bugün: 🟢🟢 7 · 🟢 76 · 🟠 3 · 🔴 0** (86 madde).
+⚠️ Üç 🟠'nın hiçbiri eksiklik değil, **bilinçli ve belgelenmiş sınırlar**: madde 80
+(yanlış iddiayı yakalayamaz), madde 85–86 (istemci tarafı koşucu; 86 ayrıca yapılandırmanın
+*yazısını* denetler, Android'in davranışını değil).

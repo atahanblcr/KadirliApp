@@ -6,8 +6,8 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 
 ## 🚦 AÇIK MADDELER PANOSU — *tek bakışta ne kaldı*
 
-> **Son doğrulama: 19 Ağustos 2026** (12.22 kapandı; ölçüme dayalı iki yeni KARAR maddesi B'ye eklendi)
-> *(önceki: 16 Ağustos 2026)* (kutulara değil **koda/şemaya** bakılarak; aynı gün
+> **Son doğrulama: 20 Ağustos 2026** (12.23 kapandı; `SharedPreferencesAsync` geçişi **tetikleyici koşuluyla** B'ye eklendi)
+> *(önceki: 19 Ağustos 2026 — 12.22)* (kutulara değil **koda/şemaya** bakılarak; aynı gün
 > ikinci kez — **denetim oturumu**: 210 sayfalık canlı panel taraması + 11 mutasyonluk
 > bozma turu, üç bulgu **12.20** olarak açıldı).
 > Bu pano **yalnız AÇIK maddeleri** listeler; bir madde kapandığında satırı **silinir**
@@ -35,6 +35,7 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | 🆕 **`/v1/power-outages` tarih penceresi** | `Memory_Bank/Performance_Baseline.md` §3 | 🔬 **12.22'de ÖLÇÜLDÜ:** uç sayfalamıyor (§7 madde 1) ve **gövde doğrusal büyüyor** — 10.000 satırda **3,7 MB**, 20.000'de **7,5 MB**. 🔑 Sunucu tarafı sorun DEĞİL (20k'da 31 ms), sorun **vatandaşın mobil bağlantısına inen hacim** → cache bunu çözmez, **tarih penceresi** çözer. 🔴 Ama bu bir **KONTRAT** kararı: mobil listede **geçmiş kesintileri de gösteriyor** (*"Sona erdi"*, `power_outage_tile.dart`), yani pencere mağazadaki eski sürümlerde **görünen** bir davranış değişikliğidir. Ölçüm hazır, karar ürün tarafında |
 | **Haber gövde override'ı** | Haberler bloğu | İkinci sürümde **eklemeli** alan olarak (tam override değil) |
 | **Haber arşiv derinliği (bugün 50, yerel DB'de 180)** | Haberler bloğu · `Memory_Bank/Performance_Baseline.md` §3 | 🔬 **12.22'de ÖLÇÜLDÜ ve tahmin DÜZELDİ:** 102 haberlik gerçek koşu = **3 liste isteği + 178 görsel + 32,5 MB**. Tamamı (27.284) → ~273 istek ✅ ama **~8,9 GB görsel**, ~1,6 GB değil. Fark bir tahmin hatası değil: **12.14b metin arası görselleri de aynalamaya başladı** (~5,5×). **Kod değişikliği gerekmiyor, karar gerekiyor** |
+| 🆕 **`SharedPreferencesAsync` geçişi — YAPILMADI, TETİKLEYİCİSİ YAZILI** | `# ✅ 12.23 TESLİM` → *"S6"* | 🔬 12.23'te **incelendi ve bilinçle ertelendi**. Bugün kullanılan `SharedPreferences.getInstance()` paketin **legacy** API'sidir; yenisi `SharedPreferencesAsync` / `SharedPreferencesWithCache` (Android'de DataStore). **Neden bugün gerekmiyor:** legacy'nin bilinen tek gerçek zaafı, bellek içi anlık görüntüsünün **başka bir isolate'in yazdığını görmemesi**; bu projede arka plan isolate'i (`firebaseMessagingBackgroundHandler`) prefs'e **hiç dokunmuyor** (yalnız `debugPrint`) ve `reload()` kod tabanında **hiç çağrılmıyor** (ölçüldü). 🔴 **TETİKLEYİCİ KOŞUL — bu yazıldığı gün geçiş ZORUNLU olur:** arka plan isolate'inde prefs'e **yazma** ihtiyacı doğduğu an (ör. *"arka planda gelen bildirimi okundu işaretle"*, *"son senkron zamanını yaz"*). O gün geçilmezse hasar sessizdir: ikinci isolate yazar, ana isolate **hiç görmez**, hatta üstüne yazar; hata yok, log yok. **Nasıl yapılmalı:** (1) `shared_preferences`ın **resmî göç aracı** var — `lib/util/legacy_to_async_migration_util.dart` (2.5.5'te mevcut, doğrulandı) — elle kopyalama yazma; (2) Android'de legacy XML ile DataStore **ayrı depolardır**, göç **tek yönlüdür** ve yarım kalırsa kullanıcının kaydedilenleri/misafir tercihi **kaybolur** → backend'deki idempotent geri doldurma migration'larıyla **aynı ciddiyet**; (3) `SharedPreferencesWithCache` seçilmeli, düz `SharedPreferencesAsync` değil: `themeModeProvider` · `newsTextScaleProvider` · `SavedNewsController.build()` **senkron** okumaya dayanıyor ve *"ilk kare doğru"* tasarımı (§7 madde 85) buna bağlı; (4) tek sahip zaten var (`core/preferences/app_preferences.dart`), değişecek yer **orası ve altı çağrı yeri**. ⚠️ iOS'ta legacy'nin `flutter.` öneki + `cfprefsd` önbelleği bu projede **zaten bir kez ısırdı** (`Progress.md` 11.4 notu: plist'e enjeksiyon tutmadı) |
 | **Progress.md arşivleme** | *"Progress.md'nin şekli"* | Faz 12 kapanınca 11+12 → `Progress_Archive.md` |
 
 ### C. Deploy / yayın fazı (mobil geliştirmeyi bloklamaz, **yayından önce zorunlu**)
@@ -7019,3 +7020,165 @@ ayrışırsa hangi işin nerede koşacağı **belirsizdir**. Bugün ikisi de ayn
 okuduğu için sorun yok; 12.21 onları **ayrı konteynerlere** aldığı için bu artık ayrışabilir.
 📌 Bu bir bulgu değil bir **risk**; kapatılması ayrı bir karar (panelde Hangfire sunucusunu
 kapatmak ya da kuyrukları ayırmak).
+
+---
+
+# ✅ 12.23 TESLİM — *SharedPreferences sertleştirmesi* (20 Ağustos 2026)
+
+**Nereden çıktı:** kullanıcının sorusundan — *"projede `SharedPreferences` kullanımı var mı,
+başarılı mı, abim sorun yaşadığını söylüyor, Flutter'dan vazgeçmeyi düşünüyor."* Önce
+**denetim** koşuldu (kod değişikliği yok), altı bulgu çıktı; sonra beşi kapatıldı, altıncısı
+**tetikleyici koşuluyla** açık maddeler panosuna yazıldı.
+
+**Yeşil taban:** `flutter analyze` **0** · `flutter test` **904/904** (865 → **+39**) ·
+`dotnet test` **1325/1325**. Backend'e **tek satır** dokunulmadı, DTO değişikliği **yok**,
+migration **yok**. Görünmez sözleşme **84 → 86**.
+
+## 🔬 Önce ölçüm: envanter
+
+`shared_preferences` **7 anahtar / 6 dosya**: `settings.themeMode` · `news.textScale` ·
+`auth.guestChoice` · `auth.cachedUser` · `ads.draft` · `taxis.recentCalls` · `news.saved`.
+
+🔑 **En önemli bulgu bir yokluktu ve olumluydu: oturum jetonları burada DEĞİL.**
+`token_store.dart` aramaya takılıyor ama sebebi `encryptedSharedPreferences: true` satırı —
+jetonlar `flutter_secure_storage`ta (Keychain / EncryptedSharedPreferences). Yani
+*"SharedPreferences sorunları"*nın en tehlikeli sınıfı (kimlik bilgisini düz metin XML'de
+tutmak) bu projede **hiç yaşanmıyor**. Sunucu verisi önbelleği de prefs'te değil.
+
+📌 **Abinin iddiasına dürüst cevap:** `SharedPreferences` Flutter'ın icadı değil — Android'in
+kendi API'si, iOS'ta `NSUserDefaults`; eklenti ince bir köprü. Native'e geçmek bu sorunları
+**çözmez**, aynı iki API doğrudan kullanılır (üstelik Google native Android'de de
+`SharedPreferences`'ı DataStore lehine geride bırakıyor — geçiş **iki kez** yapılırdı).
+Ama iddia boş da değildi: aşağıdaki **S2**, sahada en çok bildirilen *"oturum bozuldu / dış
+servis çalışmıyor"* vakasının birebir kendisi ve **bizde de açıktı**.
+
+## 🔴 KARAR 1 (S1) — tercih deposu açılışı öldüremez
+
+`main()` çıplak bir `await SharedPreferences.getInstance()` bekliyordu. Patlarsa belirti
+**siyah ekran**, sebep **hiçbir yerde**: `FlutterError.onError` ve
+`PlatformDispatcher.onError` o satırdan **20 satır sonra** bağlanıyor.
+
+🔑 **Karar yeni bir kalıp değil, var olanın ikinci uygulaması:**
+`FirebasePushMessaging.tryInitialize()` zaten *"uygulama hiçbir durumda push yüzünden
+açılamaz hâle gelmez"* diyor — ve prefs push'tan **önce** koşuyor.
+
+🔑 **Bellek içine düşmek güvenli ve bu ÖLÇÜLDÜ, varsayılmadı** — yedi anahtarın yokluğu tek
+tek sayıldı: tema/okuma boyutu varsayılana döner · `auth.guestChoice` okunamayınca kullanıcı
+**Giriş ekranını görür** (misafire *sessizce* düşmez) · `auth.cachedUser` boşalır ama
+**oturum düşmez**, çünkü jetonlar ayrı depoda ve `bootstrap()` yine `hasSession()`'a bakıyor.
+Hiçbiri bir şeyi *yanlış* yapmıyor, yalnız *unutuyor*.
+
+🔴 **Ama sessiz olamaz — ve asıl tasarım kararı bu.** Bellek içi depoda yazma **başarılı
+GÖRÜNÜR**: kullanıcı haberi kaydeder, yer imi dolar, ertesi gün liste boştur. Durum
+`preferencesDegradedProvider` ile taşınıyor ve **Ayarlar ekranı bunu yazıyor**
+(12.21b'nin dersi: *blokaj doğruydu, eksik olan dürüstlüktü*).
+
+⚠️ **İki kapalı yol ölçüldü:** `SharedPreferences.setMockInitialValues` paket tarafından
+`@visibleForTesting` işaretli → üretimde `flutter analyze` kırmızı. `SharedPreferences`
+somut sınıf, `implements` edilemez. Kullanılan yol: `InMemorySharedPreferencesStore`
+(**public**, `PlatformInterface` belirteçli). ⚠️ İkinci `getInstance()` çalışıyor çünkü
+paket ilk hatada `_completer`'ı `null`'a çekiyor — **yeniden deneme paketin tasarımı**,
+bizim şansımız değil (kaynağı okundu).
+
+➕ **Plan dışı:** `sharedPreferencesProvider` `core/theme/theme_controller.dart`'tan
+`core/preferences/app_preferences.dart`'a **taşındı**. Bir altyapı provider'ının sahibi tema
+denetleyicisi olamazdı (dört özellik ondan `show` ile içe aktarıyordu) ve 12.23 yanına ikinci
+bir provider koyuyordu. Altı çağrı yeri güncellendi, davranış aynı.
+
+## 🔴 KARAR 2 (S2) — Android'de yedekleme kapalı, **iki yönden**
+
+`AndroidManifest.xml`'de `allowBackup` / `dataExtractionRules` / `fullBackupContent`
+**hiçbiri yoktu** → Android varsayılanı **AÇIK**. Buluta ve yeni cihaza giden iki şey:
+- `auth.cachedUser` — **düz metin profil** (ad · mahalle · e-posta). 12.16–12.17'de bütün
+  bir KVKK bloğu kapatılmışken kişisel verinin sessizce Google Drive'a gitmesi.
+- `flutter_secure_storage`ın **`EncryptedSharedPreferences`** dosyası — şifreleme anahtarı
+  **cihaza bağlı**, yedekten dönen cihazda **çözülemez**, okuma anında patlar.
+  🔑 **Bu, Flutter'da en sık bildirilen *"oturum bozuldu"* vakası ve suçlusu Android.**
+
+🔴 **`allowBackup="false"` TEK BAŞINA YETMEZ — ölçüldü, tahmin edilmedi.** Android belgesi
+birebir: API 31+ hedefleyen uygulamalarda *"bazı üreticilerin cihazlarında `allowBackup`
+bulut yedeklemesini kapatır ama **cihazdan cihaza aktarımı kapatmaz**"*. Yalnız o yazılsaydı
+koruma modern Android'lerin bir kısmında **yarım ölü** olur ve *"yedekleme kapalı mı?"*
+sorusunun cevabı **yanlış bir 'evet'** olurdu — **12.22'nin ölü trigram indeksiyle aynı
+hasar sınıfı** (*"indeks var mı?"* → yanlış bir "var"). Bu yüzden **ikisi birden** yazıldı.
+
+⚠️ **Dışlama anahtar seviyesinde YAPILAMAZ** (araştırıldı): kural dosyası *dosya* seviyesinde
+çalışır, yedi tercih anahtarı ve şifreli jeton deposu **aynı `sharedpref` alanında** yaşıyor
+→ seçim hep-ya-hiç. **Feda edilen:** cihaz değiştiren kullanıcı tema · okuma boyutu ·
+kaydedilenlerini kaybeder. Kabul edildi, çünkü *"kaydedilenler tek cihaza bağlıdır"* zaten
+**yazılı** bir sınır (§7 madde 62) — karar var olan sözleşmeyi **bozmuyor, teyit ediyor**.
+
+## Diğer üç bulgu
+
+**S3 — `_writeCachedUser` / `_clearCachedUser` `Future`'ı yere düşürüyordu.** `void`
+dönüyorlardı: yazma başarısız olsa kimse bilmez, üstelik yakalanmamış hata
+`PlatformDispatcher.onError`'a **bağlamsız** düşer. `Future<void>` yapıldı; çağrı yerlerinde
+`await` ya da **açık** `unawaited(...)` (projede zaten var olan deyim). Beklememek doğruydu —
+`applyProfile` iyimser güncelleme yapan **senkron** bir metot — ama beklememeyi *yazmak*
+gerekiyordu.
+
+**S4 — `AdDraftStore`'un yorumu dört fazdır yanlıştı.** *"Taslak her değişiklikte saklanır"*
+diyor ve gerekçe olarak *"kullanıcı telefonu kilitlerse / bir aramaya cevap verirse"*
+senaryosunu sayıyordu. Ölçüm: `_saveDraft()`'in **dört** çağrı yeri var (kategori seçimi ·
+iki adım geçişi · geri tuşu diyaloğu) ve `WidgetsBindingObserver` kod tabanında **hiç
+yoktu** → **yorumun saydığı senaryo, tam olarak kapsanmayan senaryoydu.** Kapsanan tek şey
+geri tuşuydu. `didChangeAppLifecycleState(paused/hidden)` eklendi **ve yorum gerçeğe
+hizalandı**. ⚠️ Yazma eşzamansız: bu **en iyi çabadır, garanti değil** — ve kod bunu yazıyor.
+
+**S5 — üç deponun birim testi hiç yoktu.** `SavedNewsStore` · `AdDraftStore` ·
+`RecentTaxiCallsStore`: `test/`'te **sıfır** referans. Yani §7 madde 62'nin dört yüzü
+(tavan · gövde düşürme · bozuk satır toleransı · anlık görüntü) **ölçülmüyordu**; tek dolaylı
+kapsam `news_screen_test.dart`'ın prefs'e **ham string** ile beslediği iki senaryoydu — ve o
+ham string (`'news.saved'`) anahtar değişseydi **yeşil kalırdı**. 28 test yazıldı, anahtar
+artık `SavedNewsStore.prefsKey`'den okunuyor.
+
+## 🔬 S6 — İNCELENDİ, YAPILMADI (tetikleyici koşuluyla panoya yazıldı)
+
+`SharedPreferencesAsync` geçişi. Ayrıntı ve **nasıl yapılacağı** açık maddeler panosunda
+(bölüm B). Özeti: legacy API'nin tek gerçek zaafı **isolate'ler arası tutarsızlık**, bu
+projede arka plan isolate'i prefs'e **hiç dokunmuyor** (ölçüldü) → bugün gerekmiyor.
+🔴 Tetikleyici: *arka plan isolate'inde prefs'e yazma ihtiyacı doğduğu gün.*
+
+## Teslim edilen dosyalar
+
+**Yeni:** `mobile/lib/core/preferences/app_preferences.dart` ·
+`mobile/android/app/src/main/res/xml/data_extraction_rules.xml` ·
+`mobile/test/core/preferences/app_preferences_test.dart` ·
+`mobile/test/features/news/saved_news_store_test.dart` ·
+`mobile/test/features/ads/ad_draft_store_test.dart` ·
+`mobile/test/features/taxis/recent_taxi_calls_store_test.dart`
+**Değişen:** `main.dart` · `theme_controller.dart` · `auth_controller.dart` ·
+`ad_form_screen.dart` · `ad_draft_store.dart` (yorum) · `settings_screen.dart` ·
+`AndroidManifest.xml` · `pubspec.yaml` + altı import + üç test yardımcısı.
+
+## 🧪 Bozma turu — **14 kilit, 14 kırmızı**
+
+| # | Mutasyon | Sonuç |
+|---|---|---|
+| 1 | S1 fallback kaldırıldı (siyah ekran geri geldi) | 🔴 |
+| 2 | `isDegraded` **her zaman** `true` | 🔴 |
+| 3 | Ayarlar'daki bozulma şeridi kaldırıldı | 🔴 |
+| 4 | `allowBackup="false"` silindi | 🔴 |
+| 5 | `dataExtractionRules` bağı silindi (D2D açık kalır) | 🔴 |
+| 6 | `<device-transfer>` bölümü silindi (yarım koruma) | 🔴 |
+| 7 | Arka plan taslak kancası kaldırıldı | 🔴 |
+| 8 | `news.saved` tavanı kaldırıldı | 🔴 |
+| 9 | Bozuk satır toleransı kaldırıldı | 🔴 |
+| 10 | Gövde depoya yazılıyor | 🔴 |
+| 11 | Taksicinin **telefonu** depoya sızıyor | 🔴 |
+| 12 | Taksi tavanı (3) kaldırıldı | 🔴 |
+| 13 | Taslak 7 gün sınırı kaldırıldı | 🔴 |
+| 14 | "Anlamlı taslak" kuralı kaldırıldı | 🔴 |
+
+🔑 **2 ve 6 bilinçli olarak eklendi ve turun değerli yarısı onlar.** İkisi de *"koruma var
+görünürken yok"* sınıfını ölçüyor: 2 olmadan her açılışta uyaran bir gerçekleme yeşil
+kalırdı (uyarının değeri **nadir** olmasından geliyor), 6 olmadan tek yönlü bir yedekleme
+kapısı *"kapattık"* sanılırdı.
+
+## 🔑 Fazın dersi
+
+**Bir yorum SIKLIK iddia ediyorsa (*"her değişiklikte"*, *"otomatik olarak"*), o iddia madde
+80'in kapsamındadır ama `CommentReferenceTests` onu YAKALAYAMAZ** — sarkan bir işaretçi değil,
+**yanlış bir iddia**. Madde 80 kendi sınırını zaten yazıyordu; 12.23 o sınırın **canlı
+örneğini** buldu: dört fazdır duran bir yorum, kapsamadığı senaryoyu gerekçe olarak
+sayıyordu. Çağrı yerlerini **saymaktan** başka yolu yok.

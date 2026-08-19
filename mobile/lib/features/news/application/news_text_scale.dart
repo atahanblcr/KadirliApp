@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/theme_controller.dart';
+import '../../../core/preferences/app_preferences.dart';
 
 /// Haber okuma boyutu (plan dışı ek, 12.14).
 ///

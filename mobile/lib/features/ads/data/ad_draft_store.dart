@@ -4,16 +4,25 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../core/theme/theme_controller.dart' show sharedPreferencesProvider;
+import '../../../core/preferences/app_preferences.dart' show sharedPreferencesProvider;
 
 /// İlan verme formunun **taslağı**.
 ///
 /// ⭐ Plan dışı (11.9): ilan verme, uygulamanın en uzun formu — kategori,
 /// başlık, açıklama, fiyat, kategoriye özel alanlar. Kullanıcı telefonu
 /// kilitlerse / bir aramaya cevap verirse / yanlışlıkla geri tuşuna basarsa
-/// yazdıklarının kaybolması en sinir bozucu davranış olurdu. Taslak her
-/// değişiklikte yerelde saklanır ve form yeniden açıldığında **sorularak**
-/// geri yüklenir.
+/// yazdıklarının kaybolması en sinir bozucu davranış olurdu. Taslak yerelde
+/// saklanır ve form yeniden açıldığında **sorularak** geri yüklenir.
+///
+/// **Ne zaman yazılıyor** (12.23'te düzeltildi — bu liste ÖNCEDEN yanlıştı,
+/// yorum *"her değişiklikte"* diyordu): kategori seçiminde · adım
+/// geçişlerinde · geri tuşu diyaloğunda *"Taslağı sakla"* denince · ve
+/// **uygulama arka plana alınırken** (`didChangeAppLifecycleState`,
+/// `ad_form_screen.dart`). Sonuncusu 12.23'e kadar **yoktu**, yani yukarıda
+/// sayılan iki senaryonun (*telefon kilitlendi* / *arama geldi*) hiçbiri
+/// gerçekte kapsanmıyordu — kapsanan tek şey geri tuşuydu.
+/// ⚠️ Her tuş vuruşunda **yazılmıyor**: her karakterde platform kanalına
+/// gitmenin bedeli ölçülmedi, kazancı da (arka plan kancası varken) küçük.
 ///
 /// **Görseller taslağa YAZILMAZ**: `image_picker` yolları geçici önbellekte
 /// duruyor (uygulama kapanınca silinebilir) ve olmayan bir dosyayı "seçili"

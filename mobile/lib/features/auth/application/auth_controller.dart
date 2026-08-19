@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -5,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/network/network.dart';
-import '../../../core/theme/theme_controller.dart' show sharedPreferencesProvider;
+import '../../../core/preferences/app_preferences.dart' show sharedPreferencesProvider;
 import '../../legal/data/legal_repository.dart' show ConsentDecision;
 import '../../notifications/data/fcm_token_service.dart';
 import '../data/auth_repository.dart';
@@ -86,7 +87,7 @@ class AuthController extends Notifier<AuthState> {
   /// giriş ekranı yanıp sönmesi olmaz), ardından sunucudan tazeler.
   Future<void> bootstrap() async {
     if (!await _tokens.hasSession()) {
-      _clearCachedUser();
+      unawaited(_clearCachedUser());
       state = const AuthState.anonymous();
       return;
     }
@@ -96,7 +97,7 @@ class AuthController extends Notifier<AuthState> {
 
     try {
       final user = await _repository.fetchCurrentUser();
-      _writeCachedUser(user);
+      await _writeCachedUser(user);
       state = AuthState.authenticated(user);
     } on ApiException catch (error) {
       // Çevrimdışı: token'lara dokunulmaz (11.2 kararı). Önbellek varsa oturum
@@ -187,7 +188,7 @@ class AuthController extends Notifier<AuthState> {
   Future<void> completeAccountDeletion() async {
     await _prefs.remove(_guestPrefsKey);
     await _tokens.clear();
-    _clearCachedUser();
+    unawaited(_clearCachedUser());
     state = const AuthState.anonymous();
   }
 
@@ -198,7 +199,7 @@ class AuthController extends Notifier<AuthState> {
   /// kullanılır (istek başarısız olursa çağıran eski kullanıcıyı geri yazar).
   void applyProfile(CurrentUser user) {
     if (state is! AuthAuthenticated) return;
-    _writeCachedUser(user);
+    unawaited(_writeCachedUser(user));
     state = AuthState.authenticated(user);
   }
 
@@ -207,7 +208,7 @@ class AuthController extends Notifier<AuthState> {
     if (state is! AuthAuthenticated) return;
     try {
       final user = await _repository.fetchCurrentUser();
-      _writeCachedUser(user);
+      await _writeCachedUser(user);
       state = AuthState.authenticated(user);
     } on ApiException catch (error) {
       debugPrint('Profil tazelenemedi: ${error.code}');
@@ -226,7 +227,7 @@ class AuthController extends Notifier<AuthState> {
     await ref.read(fcmTokenServiceProvider).registerAfterLogin();
 
     final user = await _repository.fetchCurrentUser();
-    _writeCachedUser(user);
+    await _writeCachedUser(user);
     ref.read(authNoticeProvider.notifier).clear();
     state = AuthState.authenticated(user);
   }
@@ -243,13 +244,13 @@ class AuthController extends Notifier<AuthState> {
       await _prefs.remove(_guestPrefsKey);
     }
     await _tokens.clear();
-    _clearCachedUser();
+    await _clearCachedUser();
     state = const AuthState.anonymous();
   }
 
   void _onSessionExpired() {
     // Token'ları AuthInterceptor zaten sildi; burada durum + önbellek temizlenir.
-    _clearCachedUser();
+    unawaited(_clearCachedUser());
     ref.read(authNoticeProvider.notifier).set(
       'Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.',
     );
@@ -266,16 +267,19 @@ class AuthController extends Notifier<AuthState> {
     } catch (error) {
       // Model değiştiyse (11.5 alan ekleyecek) bayat önbellek atılır.
       debugPrint('Profil önbelleği okunamadı, atılıyor: $error');
-      _clearCachedUser();
+      unawaited(_clearCachedUser());
       return null;
     }
   }
 
-  void _writeCachedUser(CurrentUser user) {
-    _prefs.setString(_cachedUserPrefsKey, jsonEncode(user.toJson()));
-  }
+  /// ⚠️ 12.23: `Future` **açıkça** `unawaited` ile yutulur, sessizce değil.
+  /// Öncesinde bu iki metot `void` dönüyor ve `Future`'ı yere düşürüyordu; yazma
+  /// başarısız olduğunda kimse bilmiyor, üstelik yakalanmamış hata
+  /// `PlatformDispatcher.onError`'a **bağlamsız** bir kayıt olarak düşüyordu.
+  /// Beklememek doğru (çağıranların biri — `applyProfile` — iyimser güncelleme
+  /// yapan **senkron** bir metot), ama beklememeyi *yazmak* gerekiyordu.
+  Future<void> _writeCachedUser(CurrentUser user) =>
+      _prefs.setString(_cachedUserPrefsKey, jsonEncode(user.toJson()));
 
-  void _clearCachedUser() {
-    _prefs.remove(_cachedUserPrefsKey);
-  }
+  Future<void> _clearCachedUser() => _prefs.remove(_cachedUserPrefsKey);
 }
