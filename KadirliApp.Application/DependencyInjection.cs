@@ -18,6 +18,11 @@ public static class DependencyInjection
             // dursaydı reddedilen komut çoktan koşmuş olurdu. Kapsam tipten türer
             // (IDevelopmentOnlyCommand), elle liste yok.
             cfg.AddOpenBehavior(typeof(DevelopmentOnlyBehavior<,>));
+            // 🔑 Faz 12.22a: ölçüm İKİNCİ sırada — yani CachingBehavior'ı SARAR. Ölçülen
+            // şey "handler ne kadar sürdü" değil "çağıran ne kadar bekledi"; cache HIT'te
+            // handler hiç koşmaz ama bekleyen yine bekler. Halka cache'in içine konsaydı
+            // sıcak uçların p95'i sistematik olarak İYİ görünürdü (PerformanceBehavior).
+            cfg.AddOpenBehavior(typeof(PerformanceBehavior<,>));
             // Faz 9.4: sıra önemli — önce cache'e bakılır (hit'te handler hiç çalışmaz),
             // invalidation ise handler başarıyla bittikten sonra devreye girer.
             cfg.AddOpenBehavior(typeof(CachingBehavior<,>));

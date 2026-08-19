@@ -4,7 +4,7 @@
 > *kilidinin cinsine* göre etiketler. Soru "testi var mı?" değil (hepsinin var),
 > **"kilidi sahte mi?"**
 >
-> 📌 **Bugün 82 madde.** Denetim 67 madde üzerinde koşuldu (aşağıdaki tablo); **68–70**
+> 📌 **Bugün 84 madde.** Denetim 67 madde üzerinde koşuldu (aşağıdaki tablo); **68–70**
 > denetimden sonra Faz 12.7'de, **71–74** Faz 12.16'da, **75–77** Faz 12.17'de,
 > **78–80** Faz 12.19'da, **81** Faz 12.20a'da ve **82** Faz 12.21b'de eklendi — hepsinin kaydı bu dosyanın
 > sonundaki bölümlerde.
@@ -441,7 +441,31 @@ doğru davranır). Bugün anahtar tek bir `const`'ta ve iki host da aynı sını
 ayrı bir sabit yazılması **derleyiciyle** engellenmiyor. Bu sınır **bilinçli olarak
 yazılıyor** (madde 80'in dürüstlük deseni).
 
+## Faz 12.22 — performans ölçümü (19 Ağustos 2026)
+
+| # | Sözleşme | Kilit cinsi | Kilidi taşıyan dosya(lar) | Risk |
+|---|---|---|---|---|
+| 83 | İstek ölçümü **`CachingBehavior`'ı sarar** (ortam kapısından hemen sonra); gecikme **sabit kovalı histogram**'da tutulur, yüzdelik gerçeğin **üstünü** söyler ve **gerçek tepeyle tavanlanır** | **Saf + davranış + boru hattı yansıması** | `Unit/Application/Performance/RequestHistogramTests.cs` (yaklaşıklığın **yönü** · birleştirme = toplama · serileştirme **iki yönlü**) · `Unit/Application/Performance/PerformanceBehaviorTests.cs` (`Measurement_WrapsTheCache_NotTheOtherWayAround` · `Measurement_RunsAfterTheEnvironmentGuard`) · `Integration/Panel/PanelPerformanceTests.cs` (ekran **kendi ölçümünü** gösteriyor) | 🟢 |
+| 84 | Her `gin_trgm_ops` indeksi **`lower(...)` ifadesi** üzerinde olmak zorunda | **Davranış — kapsam VERİTABANINDAN türer** (`pg_indexes`) | `Integration/Architecture/TrigramIndexTests.cs` (**üç ayaklı**: ölü indeks yok · hiç indeks yoksa kırmızı · **premis** hâlâ geçerli mi) · `Migrations/20260819081443_FixDeadTrigramIndexes.cs` | 🟢 |
+
+🔑 **83'ün kilidi neden üç ayaklı:** çekirdek **saf** (kova matematiği), yeri **yansımayla**
+(boru hattı sırası), sonucu **davranışla** (ekran gerçekten dolu mu) tutuluyor. Yalnız saf
+test yazılsaydı halka boru hattından düşünce hiçbir şey kırılmazdı; yalnız sıra testi
+yazılsaydı yanlış bir yüzdelik sessizce doğru sırada hesaplanırdı.
+
+🔑 **84'ün asıl değeri kapsamın nereden geldiğinde:** kilit `pg_indexes`'e sorar,
+migration'ları **taramaz**. Elle SQL'le, ikinci bir migration'la ya da bir seed betiğiyle
+eklenen ölü bir indeks de yakalanır — Faz A'nın *"kapsam dizinden mi, tipten mi, elden mi?"*
+sorusunun bu fazdaki cevabı: **veritabanından.**
+
+⚠️ **84 bilinçli olarak DAR ve bunu kendisi yazıyor:** *var olan ama ölü* indeksi yakalar,
+**eksik indeksi yakalamaz** (14 arama sorgusunda hâlâ trigram indeksi yok). Ölü indeks bir
+**hatadır** (bedeli ödeniyor, karşılığı alınmıyor); eksik indeks bir **karardır** ve karar
+ölçümle verilir (`Memory_Bank/Performance_Baseline.md`).
+
 ---
 
-📌 **Risk dağılımı bugün: 🟢🟢 7 · 🟢 74 · 🟠 1 · 🔴 0** (82 madde).
+---
+
+📌 **Risk dağılımı bugün: 🟢🟢 7 · 🟢 76 · 🟠 1 · 🔴 0** (84 madde).
 ⚠️ Tek 🟠 (madde 80) bir eksiklik değil, **bilinçli ve belgelenmiş bir sınır** (yukarıda).

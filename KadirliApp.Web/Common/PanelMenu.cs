@@ -99,7 +99,13 @@ public static class PanelMenu
         // Faz 12.16 — rıza defteri. Module NULL, gerekçe `LoginAttemptsAdmin`'inkiyle birebir:
         // satırlar IP adresi ve tarayıcı imzası taşıyor. Ayrıca defter yalnız okunur —
         // düzeltilebilen bir kanıt kanıt değildir.
-        new("ConsentLedgerAdmin", "fa-file-signature",  "Rıza Defteri",         null)
+        new("ConsentLedgerAdmin", "fa-file-signature",  "Rıza Defteri",         null),
+        // Faz 12.22a — performans panosu. Module NULL, gerekçe iki katmanlı: (a) ekran
+        // sunucunun iç yapısını (handler adlarını) döküyor — moderatöre dağıtılabilir bir
+        // bilgi değil; (b) "Sıfırla" aksiyonu geri alınamaz ve aksiyon adı hiçbir moderasyon
+        // önekiyle eşleşmediği için matriste olsaydı SESSİZCE `update` iznine düşerdi
+        // (görünmez sözleşme #19'un 6. tekrarı — bu tuzağı bilerek hiç kurmuyoruz).
+        new("PerformanceAdmin",   "fa-gauge-high",      "Performans",           null)
     };
 
     /// <summary>
@@ -116,7 +122,7 @@ public static class PanelMenu
         new HashSet<string>(StringComparer.Ordinal)
         {
             "StaffAdmin", "AuditLogsAdmin", "TrashAdmin", "ErrorLogsAdmin", "LoginAttemptsAdmin",
-            "PushCampaignsAdmin", "NewsSyncAdmin", "ConsentLedgerAdmin"
+            "PushCampaignsAdmin", "NewsSyncAdmin", "ConsentLedgerAdmin", "PerformanceAdmin"
         };
 
     /// <summary>

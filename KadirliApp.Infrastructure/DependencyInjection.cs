@@ -1,5 +1,6 @@
 using KadirliApp.Infrastructure.Persistence;
 using KadirliApp.Application.Common.Interfaces;
+using KadirliApp.Application.Common.Performance;
 using KadirliApp.Infrastructure.Identity;
 using KadirliApp.Infrastructure.Persistence.Repositories;
 using KadirliApp.Infrastructure.Files;
@@ -139,6 +140,16 @@ public static class DependencyInjection
 
         // Faz 9.4: distributed cache (CachingBehavior/CacheInvalidationBehavior bunu kullanır)
         services.AddSingleton<ICacheService, Caching.RedisCacheService>();
+
+        // 🔑 Faz 12.22a — istek ölçümü. TEK singleton, İKİ arayüz: yazma ucu (sıcak yol) ve
+        // okuma ucu (panel) aynı süreç içi sayaçlara bakmak ZORUNDA. İki ayrı kayıt
+        // yazılsaydı panel kendi sürecinin ölçümünü hiç göremezdi ve bunu hiçbir şey
+        // söylemezdi — tablo yalnız "biraz eksik" görünürdü.
+        services.AddSingleton<Observability.RedisRequestMetrics>();
+        services.AddSingleton<IRequestMetricsRecorder>(sp => sp.GetRequiredService<Observability.RedisRequestMetrics>());
+        services.AddSingleton<IRequestMetricsReader>(sp => sp.GetRequiredService<Observability.RedisRequestMetrics>());
+        services.AddHostedService<Observability.RequestMetricsFlushService>();
+        services.Configure<PerformanceSettings>(cfg.GetSection(PerformanceSettings.SectionName));
 
         // Faz 12.2 — giriş denemesi kaydı. Scoped: istek başına AppDbContext ve
         // IHttpContextAccessor ile çalışır (IP'yi YALNIZ bu sınıf okur).

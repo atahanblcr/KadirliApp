@@ -146,7 +146,10 @@ public static class PanelDisplay
         // Faz 12.19a — örnek veri basma. Ekranı YOK (iniş sayfasındaki bir buton) ama
         // `SeedMockDataCommand` artık `AuditModule = "system"` yazıyor: 12.19a'ya kadar
         // canlıda sahte içerik basabilen tek aksiyonun denetim izi HİÇ düşmüyordu.
-        ["system"] = "Sistem"
+        ["system"] = "Sistem",
+        // Faz 12.22a — performans panosu. Yalnız-admin ekran (menüde Module=null) ama
+        // `ResetRequestMetricsCommand` `AuditModule = "performance"` yazıyor.
+        [Application.Features.Performance.PerformanceAudit.Module] = "Performans"
     };
 
     /// <summary>
@@ -338,6 +341,14 @@ public static class PanelDisplay
         ["unarchive"] = new("Yayına aldı", "bg-green-100 text-green-800", "fa-box-open"),
         ["feature"] = new("Öne çıkardı", "bg-amber-100 text-amber-800", "fa-star"),
         ["sync"] = new("Senkron başlattı", "bg-indigo-100 text-indigo-800", "fa-rotate"),
+
+        // Faz 12.22a — performans sayaçlarının sıfırlanması. 🔴 Kırmızı ton bilinçli:
+        // eylem GERİ ALINAMAZ ve bir taban çizgisini yok eder. "dün p95 şuydu" diyen
+        // birine "kim sıfırladı?" sorusunun cevabı bu satırdır.
+        // 🐛 Bu satır UNUTULDU ve `PanelAuditLogTests.AuditAction_HasTurkishLabel_ForEveryActionInSource`
+        //    ilk koşusunda yakaladı: denetim izi "Bilinmeyen işlem (reset)" basıyordu
+        //    (Değişmez Kural #6). Kapsamını KAYNAKTAN türeten bir testin değeri tam olarak bu.
+        ["reset"] = new("Ölçüm sayaçlarını sıfırladı", "bg-red-100 text-red-800", "fa-eraser"),
 
         // Faz 12.15. ⚠️ "send-push"tan ayrı bir satır: o, gidilecek kaydı olmayan tek
         // seferlik gönderim; bu, bir habere bağlı ve **geri alınamaz** olan gönderim.

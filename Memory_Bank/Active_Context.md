@@ -1,5 +1,86 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> ## ✅ SON OTURUM: FAZ 12.22 TAMAMLANDI (19 Ağustos 2026) — *performans / ölçek*
+>
+> **Yeşil taban:** `dotnet test` **1325/1325** (1290 → **+35**) · `flutter analyze` **0** ·
+> `flutter test` **865/865**. **Mobilde tek satır değişiklik yok**, DTO değişikliği **yok**.
+> Migration **1** (yalnız indeks — şema ve snapshot değişmedi). Görünmez sözleşme **82 → 84**.
+>
+> ## 🔑 Fazın başarı ölçütü bir hız değil bir CÜMLEYDİ. Cümle artık var:
+> ## > *En sıcak altı public ucun **p95'i 14–19 ms**, hata oranı **%0,00** — 50 eşzamanlı kullanıcı, 2 dakika.*
+> Bütün sayılar + ölçüm koşulları + **ölçümün nasıl yalan söyleyebileceği**:
+> **`Memory_Bank/Performance_Baseline.md`** (yeni dosya).
+>
+> 🔑 **TESLİM EDİLEN — 12.22a:** `PerformanceBehavior<,>` (kapsam **tipten türer**) ·
+> `RequestHistogram` (saf, sabit kovalı, **birleştirilebilir**) · `RedisRequestMetrics` +
+> 15 sn'lik flush (mutlak, **fail-open**) · panelde **Performans** ekranı (yalnız-admin,
+> sıfırlama denetim izli) · `perf/baseline.js` (k6) + `perf/README.md`.
+> **12.22b:** iki **ölü** trigram indeksi düzeltildi · sıcak uçlar **ölçülmüş gerekçeyle**
+> cache'siz bırakıldı · iki kontrat kararı panoya taşındı. **12.22c:** 4 bozma, 4 kırmızı.
+>
+> 🔴 **KARAR 1 — ölçüm halkası `CachingBehavior`'ı SARAR.** Sıra bir stil tercihi değil,
+> **sayının doğruluğu**: ölçülen şey *"handler ne kadar sürdü"* değil **"çağıran ne kadar
+> bekledi"**. Cache HIT'te handler hiç koşmaz ama bekleyen yine bekler — halka cache'in
+> içine konsaydı sıcak uçların p95'i **sistematik olarak iyi** görünür ve bunu hiçbir şey
+> söylemezdi. (§7 madde 83; sıranın birinci halkası hâlâ ortam kapısı — iki test bunu
+> birlikte kilitliyor.)
+>
+> 🔴 **KARAR 2 — ham örnek değil, SABİT KOVALI HİSTOGRAM.** Sebep tek: **API ve panel ayrı
+> süreçlerdir**, kovalar toplanarak birleşir. Süreç içi bir ölçüm panelde *doğru görünen
+> yanlış* bir p95 basardı — ve yanlış sayı basan bir ölçüm ekranı, ölçüm olmamasından
+> **kötüdür**. Bedeli bilinçli: yüzdelikler **yaklaşıktır ve gerçeğin ÜSTÜNÜ söyler**;
+> yaklaşıklığın *yönü* sözleşmenin parçası (altını söyleyen bir ölçer yavaşlığı **gizler**).
+>
+> 🐛 **İKİ TRİGRAM İNDEKSİ ÖLÜYDÜ — Haziran 2026'dan beri.** `ix_ads_title_trgm` ve
+> `ix_places_name_trgm` **ham kolon** üzerineydi, oysa projedeki **her** arama
+> `ToLower().Contains(...)` yazıyor → `lower(kolon) LIKE`. İfade indeksinde ifade **birebir**
+> eşleşmek zorunda. 🔬 20.005 satırda: `Seq Scan` **29,2 ms** → `BitmapOr` **0,75 ms (39×)**.
+> 🔑 Hasarın ikinci katmanı daha sinsi: indeks **vardı**, yani *"indeks var mı?"* sorusunun
+> cevabı **yanlış bir 'var'**dı. 🔑 Ve **tek indeks yetmezdi**: `title OR description` için
+> Postgres `BitmapOr`'u ancak **her iki tarafta** indeks varsa kurar — yalnız başlığı
+> düzeltseydik hiçbir şey değişmez, *"düzelttik"* deyip geçerdik. §7 madde **84**,
+> `TrigramIndexTests` (kapsam **`pg_indexes`'ten türer**, migration taramasından değil).
+>
+> 🐛 **Yük testi ilk koşusunda uygulamayı değil HIZ LİMİTİNİ ölçtü** (300/60 sn, tek IP) ve
+> 429 hızlı döndüğü için tablo **çok iyi** göründü: **p95 = 1,7 ms**. Ölçümün yalan
+> söylemesinin en sinsi biçimi *iyi* bir sayıdır. Betik artık bunu kırmızıya düşürüyor.
+> 🐛 **Betiğim 2 dk koştu, 5,4 milyon yineleme "tamamladı", tablo BOŞ çıktı ve koşu BAŞARILI
+> göründü** (k6 metrikleri yalnız init bağlamında kabul ediyor). Ölçüm altyapısının **kendi
+> sessiz hatası** — bu fazın konusunun başına geldi.
+> 🐛 **Panel, API'nin ölçümlerini SESSİZCE düşürüyordu** (canlı doğrulama): iki süreç farklı
+> kova sürümündeyken `TryParse` 9 kaydı reddetti. Reddetmek **doğruydu**, **sessizce**
+> yapmak yanlıştı → sayılıyor, `Degraded` işaretleniyor, sebep loglanıyor, ekran yazıyor.
+> 🐛 **`AuditAction "reset"` Türkçe etiketi unutuldu** → denetim izi *"Bilinmeyen işlem"*
+> basıyordu. Yakalayan benim testim değil, **projenin kendi koruması** oldu
+> (`PanelAuditLogTests`, kapsamını **kaynaktan türetiyor**).
+>
+> 🔬 **`/v1/power-outages` ÖLÇÜLDÜ, KARAR VERİLMEDİ — ve verilmemesi doğru.** Gövde doğrusal
+> büyüyor: 10.000 satır → **3,7 MB**, 20.000 → **7,5 MB**. 🔑 **Planın beklentisi düzeldi:**
+> darboğaz sorgu değil (20k'da sunucu **31 ms**), **gövde** → cache bunu **çözemez**, tarih
+> penceresi çözer. Ama mobil listede **geçmiş kesintileri de gösteriyor** (*"Sona erdi"*),
+> yani pencere eski sürümlerde **görünen** bir davranış değişikliğidir → **kontrat kararı**,
+> panoya taşındı. 📌 `start_time` indeksi de **eklenmedi ve bu da ölçüldü** (tam sıralı
+> okumada seq scan + quicksort zaten en iyi plan).
+>
+> 🔬 **Haber senkronunun maliyeti ölçüldü ve dokümandaki tahmin DÜZELDİ:** 102 haber =
+> 3 liste isteği + 178 görsel + **32,5 MB**. Tam arşiv (27.284) → ~273 istek ✅ ama
+> **~8,9 GB görsel**, dokümandaki ~1,6 GB **değil**. Fark bir tahmin hatası değil: 12.14b
+> metin arası görselleri de aynalamaya başladı (~5,5×).
+> 📌 **Tüm arşiv BİLEREK ÇEKİLMEDİ** (kullanıcı talimatı); yerelde 78 → **180** haber,
+> ayar `News:Backfill:MaxPosts` **50'de bırakıldı**.
+>
+> ⚠️ **Yan gözlem (kapsam dışı, ama yazılmalı):** API ve panel **iki ayrı Hangfire sunucusu**
+> çalıştırıyor, **aynı kuyruk** üzerinde. Bu oturumda somut belirti üretti: panelden
+> tetiklenen arşiv koşusu **panel sürecinde** koştu ve orada ayar farklıydı → iş **hiçbir şey
+> yapmadan** "tamamlandı" dedi. Hata yok, log temiz, sonuç yanlış. 12.21 süreçleri ayrı
+> konteynerlere aldığı için yapılandırma artık **ayrışabilir**.
+>
+> ⏭️ **Sırada:** 12.8 sosyal giriş mobil (🔴 Apple bekliyor, **Google ayağı yazılabilir**) ·
+> 12.18 adayı kategori bazlı bildirim aboneliği · 🔴 **SMS sağlayıcısı yayının tek gerçek
+> blokajı** · 🆕 iki yeni **kontrat kararı** (kesinti tarih penceresi · arşiv derinliği).
+
+---
+
 > ## ✅ SON OTURUM: FAZ 12.21 TAMAMLANDI (16 Ağustos 2026) — *yayın hattı*
 >
 > **Yeşil taban:** `dotnet test` **1290/1290** (1284 → **+6**) · `flutter analyze` **0** ·

@@ -6,7 +6,8 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 
 ## 🚦 AÇIK MADDELER PANOSU — *tek bakışta ne kaldı*
 
-> **Son doğrulama: 16 Ağustos 2026** (kutulara değil **koda/şemaya** bakılarak; aynı gün
+> **Son doğrulama: 19 Ağustos 2026** (12.22 kapandı; ölçüme dayalı iki yeni KARAR maddesi B'ye eklendi)
+> *(önceki: 16 Ağustos 2026)* (kutulara değil **koda/şemaya** bakılarak; aynı gün
 > ikinci kez — **denetim oturumu**: 210 sayfalık canlı panel taraması + 11 mutasyonluk
 > bozma turu, üç bulgu **12.20** olarak açıldı).
 > Bu pano **yalnız AÇIK maddeleri** listeler; bir madde kapandığında satırı **silinir**
@@ -24,7 +25,6 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
 | 🔴 **SMS SAĞLAYICISI — yayının TEK GERÇEK BLOKAJI** | `# ✅ 12.21 TESLİM` | 12.21'de **ölçüldü**: API `Production`'da **hiçbir `Sms:Provider` değeriyle açılmıyor** — `Dev` readiness kapısına takılıyor (haklı: SMS gitmezse kimse giremez), başka bir ad ise DI'da *"Bilinmeyen SMS sağlayıcısı"* veriyor, çünkü **gerçeklenmiş başka sağlayıcı yok**. 🔑 Blokaj **doğru**; 12.21'de kapatılan şey *sessizliğiydi* (kapının mesajı artık ne yapılacağını söylüyor, `SmsProviderAgreementTests` uyumu kilitliyor). Gereken: bir `ISmsService` gerçeklemesi (NetGSM vb.) + sağlayıcı anlaşması → `Infrastructure/Notifications/` + `SmsProviders` + `DependencyInjection.SmsImplementations`. 📌 **Panel bu blokajın dışında** — `Production`'da bugün de açılıyor (canlı doğrulandı) |
 | 📌 **Hukuki metinlerin GERÇEK içeriği** | 12.16/12.17 notları | 🔴 **Kod işi değil, İNSAN işi** ve yayından önce zorunlu. Zincirin tamamı çalışıyor (12.17 canlı doğrulandı) ama bugün yayında olan metinler **test metnidir** — yerel veritabanında, benim yazdığım örnekler. Gerçek KVKK aydınlatma + açık rıza metnini **hukukçu** yazmalı; kod onu bekliyor, tahmin etmiyor (12.16 kararı: metin **seed edilmez**) |
-| **⚡ 12.22 — Performans / ölçek** | `# ⚡ 12.22` | 🟢 **APPLE GEREKTİRMİYOR.** 🔑 *Önce ÖLÇ, sonra optimize et* — yapı sağlam (94 indeks · GIN · sayfalama tavanı · sorgu yolunda **0** N+1) ama **hiç ölçülmemiş**: yük testi yok, p95 verisi yok. Başarı ölçütü bir hız değil bir **cümle**: *"en sıcak beş ucun p95'i şudur."* Bugün o cümle yok |
 
 ### B. Karar bekleyenler (kod değil, tercih)
 
@@ -32,8 +32,9 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 |---|---|---|
 | **12.18 adayı — kategori bazlı bildirim aboneliği** | *"açık kalan / ertelenen maddeler"* | *(12.16 adayıydı, KVKK öne alındığı için kaydı.)* Ön koşul: 12.15'in **elle gönderimi canlıda doğrulanmalı**. ⚠️ İkinci bir dispatcher yazılmaz |
 | 🆕 **Herkese açık gizlilik metni ADRESİ** | 12.20a notu · `# ✅ 12.21 TESLİM` | 12.20a `/Home/Privacy`'yi sildi (İngilizce, iskeleden kalma bir yer tutucuydu) ve panelde artık **hiç** gizlilik metni adresi yok. 🔴 **Play Console ve App Store Connect yayın için herkese açık bir URL İSTİYOR** ve bugün metin yalnız mobil uygulamanın içinde okunabiliyor. Altyapı **hazır**: `legal_documents` + yayında sürüm + anonim `GET /v1/legal/documents/{type}` (12.16). Eksik olan tek şey **karar**: metin nerede sunulacak (panelde anonim bir sayfa mı, ayrı bir statik site mi)? ⚠️ Panelde anonim sayfa açmak 12.20a'nın **az önce kapattığı** yüzeyi yeniden açmak demek — bilinçli verilmeli. 📌 Ön koşulu zaten açık: metnin **gerçek içeriği** (bir alt satır) |
+| 🆕 **`/v1/power-outages` tarih penceresi** | `Memory_Bank/Performance_Baseline.md` §3 | 🔬 **12.22'de ÖLÇÜLDÜ:** uç sayfalamıyor (§7 madde 1) ve **gövde doğrusal büyüyor** — 10.000 satırda **3,7 MB**, 20.000'de **7,5 MB**. 🔑 Sunucu tarafı sorun DEĞİL (20k'da 31 ms), sorun **vatandaşın mobil bağlantısına inen hacim** → cache bunu çözmez, **tarih penceresi** çözer. 🔴 Ama bu bir **KONTRAT** kararı: mobil listede **geçmiş kesintileri de gösteriyor** (*"Sona erdi"*, `power_outage_tile.dart`), yani pencere mağazadaki eski sürümlerde **görünen** bir davranış değişikliğidir. Ölçüm hazır, karar ürün tarafında |
 | **Haber gövde override'ı** | Haberler bloğu | İkinci sürümde **eklemeli** alan olarak (tam override değil) |
-| **Haber arşiv derinliği (bugün 50)** | Haberler bloğu | Tamamı ~273 istek + ~1.6 GB görsel. **Kod değişikliği gerekmiyor, karar gerekiyor** |
+| **Haber arşiv derinliği (bugün 50, yerel DB'de 180)** | Haberler bloğu · `Memory_Bank/Performance_Baseline.md` §3 | 🔬 **12.22'de ÖLÇÜLDÜ ve tahmin DÜZELDİ:** 102 haberlik gerçek koşu = **3 liste isteği + 178 görsel + 32,5 MB**. Tamamı (27.284) → ~273 istek ✅ ama **~8,9 GB görsel**, ~1,6 GB değil. Fark bir tahmin hatası değil: **12.14b metin arası görselleri de aynalamaya başladı** (~5,5×). **Kod değişikliği gerekmiyor, karar gerekiyor** |
 | **Progress.md arşivleme** | *"Progress.md'nin şekli"* | Faz 12 kapanınca 11+12 → `Progress_Archive.md` |
 
 ### C. Deploy / yayın fazı (mobil geliştirmeyi bloklamaz, **yayından önce zorunlu**)
@@ -6786,7 +6787,7 @@ Yinelenen iş **geri alındı**.
    hata *olabilir* (bizde oldu); olmasaydı üretim yığını geliştirme verisinin üstüne
    sessizce açılırdı.
 
-# ⚡ 12.22 — PERFORMANS / ÖLÇEK *(16 Ağustos 2026'da planlandı, KOD YAZILMADI)*
+# ⚡ 12.22 — PERFORMANS / ÖLÇEK *(16 Ağustos 2026'da planlandı — ✅ **19 Ağustos 2026'da TAMAMLANDI**, teslim raporu en altta)*
 
 > 🔑 **Bu başlığın birinci kuralı: ÖNCE ÖLÇ, SONRA OPTİMİZE ET.** Proje bugün 80 görünmez
 > sözleşmenin her birini *ölçerek* kilitlemiş durumda — ama **performans hakkında tek bir
@@ -6860,3 +6861,161 @@ iki kez reddetti (anemik domain · `IQueryable` sızıntısı — ikisi de *öl�
 
 🔑 **12.22'nin başarı ölçütü bir hız değil, bir CÜMLEDİR:** oturum sonunda
 *"en sıcak beş ucun p95'i şudur"* diye **yazılı bir sayı** olmalı. Bugün o cümle yok.
+
+
+---
+
+# ✅ 12.22 TESLİM — PERFORMANS / ÖLÇEK *(19 Ağustos 2026)*
+
+> ## 🔑 Fazın başarı ölçütü bir hız değil bir CÜMLEYDİ. Cümle artık var:
+> ## > *En sıcak altı public ucun **p95'i 14–19 ms**, hata oranı **%0,00** — 50 eşzamanlı kullanıcı, 2 dakika, uç başına 100.643 istek.*
+>
+> Sayıların tamamı, ölçüm koşulları ve **ölçümün nasıl yalan söyleyebileceği**:
+> **`Memory_Bank/Performance_Baseline.md`**.
+
+**Yeşil taban:** `dotnet test` **1325/1325** (1290 → **+35**) · `flutter analyze` **0** ·
+`flutter test` **865/865**. **Mobilde tek satır değişiklik yok**, **DTO değişikliği yok**.
+Migration **1** (yalnız indeks — şema değişmedi, snapshot değişmedi).
+Görünmez sözleşme **82 → 84**.
+
+## Teslim edilenler
+
+**12.22a — ölçüm altyapısı (optimizasyon YOK).**
+`PerformanceBehavior<,>` (MediatR halkası — kapsam **tipten türer**, yarınki her handler
+kendiliğinden ölçülür) · `RequestHistogram` (saf, sabit kovalı, **birleştirilebilir**) ·
+`RedisRequestMetrics` + `RequestMetricsFlushService` (15 sn'de bir, **mutlak**, fail-open) ·
+panelde **Performans** ekranı (yalnız-admin) · `perf/baseline.js` (k6) + `perf/README.md` ·
+`Memory_Bank/Performance_Baseline.md`.
+
+**12.22b — yalnız ölçümün gösterdiği.**
+🟢 İki **ölü** trigram indeksi düzeltildi (`FixDeadTrigramIndexes`) ·
+🟢 sıcak uçlar **cache'siz bırakıldı** (ölçülmüş gerekçeyle) ·
+🟡 kesinti tarih penceresi ve arşiv derinliği **kontrat kararı olarak panoya** taşındı.
+
+**12.22c — bozma turu: 4 bozma, 4 kırmızı** (biri kendi hatamı buldu, aşağıda).
+
+## 🔴 Kararlar
+
+**1 — Ölçüm halkası `CachingBehavior`'ı SARAR (boru hattında ortam kapısından hemen sonra).**
+Sıra bir stil tercihi değil, **sayının doğruluğu**: ölçülen şey *"handler ne kadar sürdü"*
+değil **"çağıran ne kadar bekledi"**. Cache HIT'te handler hiç koşmaz ama bekleyen yine
+bekler — halka cache'in *içine* konsaydı sıcak uçların p95'i **sistematik olarak iyi**
+görünür ve bunu hiçbir şey söylemezdi. §7 madde **83**.
+
+**2 — Gecikme ham örnek değil, SABİT KOVALI HİSTOGRAM olarak saklanır.**
+Üç gereksinim aynı anda karşılanmak zorundaydı: sınırlı bellek · **birleştirilebilirlik** ·
+ucuzluk. Birleştirilebilirlik pazarlık konusu değildi çünkü **API ve panel ayrı
+süreçlerdir**: süreç içi bir ölçüm, panelde *doğru görünen yanlış* bir p95 basardı — ve
+yanlış sayı basan bir ölçüm ekranı, ölçüm olmamasından **kötüdür** (ilkinde kimse bilmez,
+ikincisinde herkes yanlış bilir). Bedeli bilinçli: yüzdelikler **yaklaşıktır ve gerçeğin
+ÜSTÜNÜ söyler**. Yaklaşıklığın *yönü* sözleşmenin parçası — altını söyleyen bir ölçer
+yavaşlığı **gizler**.
+
+**3 — Sıcak liste uçları CACHE'SİZ KALIYOR.** p95 **19 ms**, yavaş handler **0**.
+Plan zaten *"kabul edilebilirse öyle kalsın"* diyordu. Cache eklemek §7 madde 22'yi
+(grup adı + invalidate eden komut) **ölçülmemiş bir kazanç için** borçlanmak olurdu;
+bedeli gerçek (panelde güncellenen veri mobilde sessizce eski kalır), kazancı ölçülmemiş.
+
+**4 — `/v1/power-outages`: ölçüldü, KARAR VERİLMEDİ ve verilmemesi doğru.**
+Sayfalamayan uç doğrusal büyüyor: 10.000 satır → **3,7 MB**, 20.000 → **7,5 MB** gövde.
+🔑 **Planın beklentisi düzeldi:** darboğaz sorgu değil (20k'da sunucu **31 ms**, `EXPLAIN`
+10 ms), **gövde**. Bu yüzden çözüm **cache olamaz** — cache sunucu zamanını düşürür,
+gövdeyi düşürmez. Tek çözüm **tarih penceresi**, o da bir **kontrat** kararıdır:
+ölçüldü ki mobil listede **geçmiş kesintileri de gösteriyor** (*"Sona erdi"*), yani pencere
+mağazadaki eski sürümlerde **görünen** bir davranış değişikliği olur. Karar panoya taşındı.
+📌 `start_time` indeksi de **eklenmedi ve bu da ölçüldü**: tam sıralı okumada paralel
+`Seq Scan` + `quicksort` zaten en iyi plan — eklenseydi §7 madde 84'ün cezalandırdığı şey
+olurdu (yer kaplayan, güncellenen, kullanılmayan indeks).
+
+## 🐛 Bulunan gerçek hatalar
+
+**A — İKİ TRİGRAM İNDEKSİ ÖLÜYDÜ ve Haziran 2026'dan beri öyleydi.**
+`ix_ads_title_trgm` ve `ix_places_name_trgm` **ham kolon** üzerineydi
+(`GIN (title gin_trgm_ops)`), oysa projedeki **her** arama `x.Kolon.ToLower().Contains(...)`
+yazıyor → Postgres'e `lower(kolon) LIKE '%…%'` gidiyor. İfade indeksinde ifade **birebir**
+eşleşmek zorundadır: `title` ≠ `lower(title)` → indeks **sessizce** kullanılmaz.
+🔬 20.005 satırda ölçüldü: `Seq Scan`, *Rows Removed by Filter: 19.994*, **29,2 ms** →
+düzeltmeden sonra `BitmapOr`, **0,75 ms (39×)**.
+🔑 **Hasarın ikinci katmanı daha sinsi:** indeks **vardı**. *"Arama yavaş, indeks var mı?"*
+sorusunun cevabı **yanlış bir 'var'**dı.
+🔑 **Ve tek indeks yetmezdi:** sorgu `title OR description` biçiminde; Postgres `BitmapOr`
+kurabilmek için **her iki tarafta** indeks ister. Yalnız başlığı düzeltseydik plan yine tam
+tarama seçerdi ve *"düzelttik"* deyip geçerdik. Bu da ölçümle görüldü.
+✅ `FixDeadTrigramIndexes` + §7 madde **84** + `TrigramIndexTests` (kapsam **`pg_indexes`'ten
+türer**, migration taramasından değil).
+
+**B — Yük testi ilk koşusunda UYGULAMAYI DEĞİL, HIZ LİMİTİNİ ölçtü.**
+API'de IP başına global limit var (300/60 sn); yük üreticisi **tek IP**'dir → limit ilk
+saniyede doldu, iki dakika boyunca **429** döndü. 🔴 **Ve 429 hızlı döndüğü için tablo ÇOK
+İYİ göründü: p95 = 1,7 ms.** Ölçümün yalan söylemesinin en sinsi biçimi — *iyi* bir sayı.
+✅ `perf/baseline.js` artık `rate_limited` metriğiyle koşuyu **kırmızıya** düşürüyor ve
+çıktıya çözümü yazıyor.
+
+**C — Ölçüm betiğim iki dakika koştu, 5,4 milyon yineleme "tamamladı", tablo BOŞ çıktı ve
+koşu BAŞARILI göründü.** k6 metrikleri yalnız *init* bağlamında kabul ediyor; tembel
+kurulan trend her yinelemede istisna attı. 🔑 **Ölçüm altyapısının kendi sessiz hatası** —
+bu fazın kendi konusunun başına geldi. ✅ `checks: ['rate>0.99']` + *"satır yoksa bu bir
+taban çizgisi DEĞİLDİR"* kapısı eklendi.
+
+**D — Panel, API'nin ölçümlerini SESSİZCE düşürüyordu (canlı doğrulamada bulundu).**
+İki süreç farklı kova sürümleriyle koşarken `TryParse` karşı tarafın **9 kaydını** reddetti.
+Reddetmek **doğru** karardı (bayat sayıları yanlış kovalara dağıtmak veriyi kaybetmekten
+kötüdür); yanlış olan **sessizce** yapmaktı — tablo eksilir ama "eksik" olduğunu söylemez.
+✅ Reddedilen kayıt sayılıyor, `Degraded` işaretleniyor, sebep loglanıyor ve ekran yazıyor.
+
+**E — Ekran 40 satırda kesiyordu ve BUNU SÖYLEMİYORDU** (kendi testim yakaladı, aşağıda).
+✅ *"@N handler'dan @M tanesi gösteriliyor"* satırı eklendi.
+
+**F — `AuditAction "reset"` için Türkçe etiket UNUTULDU.**
+Denetim izi *"Bilinmeyen işlem (reset)"* basıyordu (Değişmez Kural #6).
+🔑 **Yakalayan şey benim testim değil, projenin kendi koruması oldu:**
+`PanelAuditLogTests.AuditAction_HasTurkishLabel_ForEveryActionInSource` kapsamını
+**kaynaktan türetiyor**. §7 madde 19 ailesinin bir kardeşi — ve kapsamı türeten bir testin
+değeri tam olarak bu.
+
+## 🧪 Bozma turu — 4 bozma, 4 kırmızı
+
+| Bozma | Beklenen | Ölçülen |
+|---|---|---|
+| `Pagination.MaxLimit` 50 → 5000 | p95 belirgin bozulmalı | `?limit=5000` · p50 **3,4 → 40,2 ms** (11,8×), gövde **17 KB → 1,66 MB** (97×) |
+| Üç haber GIN indeksi düşürüldü | fark görünmeli | 30.180 satırda `BitmapOr` **6,8 ms** → `Seq Scan` **46,2 ms** (6,8×) |
+| `ix_ads_title_trgm` ölü hâline döndürüldü | `TrigramIndexTests` kırmızı | kırmızı (ilk denemede) |
+| k6 trend'i init bağlamı dışında | koşu kırmızı olmalı | **ilk yazımda yeşil görünüyordu** → `checks` eşiği eklendi |
+
+🔑 İlk ikisi birlikte bir şey söylüyor: **senaryo gerçekten zorluyor.** Bozulmasaydı ölçüm
+yalancı olurdu ve bir sonraki oturum ona güvenip yanlış karar verirdi.
+
+🐛 **Kendi testim de bir kez kırmızıya düştü ve haklıydı:**
+`TheScreen_ShowsRealMeasurements` tek başına **yeşil**, tam süitte **kırmızı** koştu —
+panel testleri tek uygulamayı paylaşıyor, süit boyunca yüzlerce handler ölçülüyor ve tablo
+40 satırda kesiyor. 🔑 **Ders: paylaşılan durum üzerine kurulan bir iddia, o durumu ÖNCE
+kendisi kurmalı.** (Ve kesme davranışı ekrandan da eksikti — bulgu **E**.)
+
+## 📌 Plan dışı yapılanlar (kullanıcı sözleşmesi: serbest ama raporla)
+
+1. **Panelde Performans ekranı** — plan yalnız *"taban çizgisini bir tabloya yaz"* diyordu.
+   Yazılı tablo **bir gün sonra bayattır**; ekran **her zaman** bakar. Ayrıca süreçler arası
+   birleştirme, ekran olmadan hiç gerekmezdi.
+2. **`RequestMetricsSnapshot.Degraded` + kaynak listesi** — boş bir tablonun *"hiç istek
+   gelmedi"* mi *"ölçüm çalışmıyor"* mu olduğunu ayırt etmek için.
+3. **Sayaç sıfırlama** (denetim izli) — taban çizgisi ölçümünün ön koşulu.
+4. **Kova çözünürlüğü ölçümle ayarlandı** — 15 ve 75 ms eklendi (k6 19 ms derken panel
+   ≤25 ms diyordu; %30 fazla).
+5. **`perf/README.md`** — *"iki ölçüm neden var"* tablosu (k6 dışarıdan, panel içeriden).
+6. **~102 haber çekildi** (78 → 180). ⚠️ **Tüm arşiv (273 istek) BİLEREK ÇEKİLMEDİ** —
+   kullanıcının açık talimatı. Ayar `News:Backfill:MaxPosts` **50'de bırakıldı** (arşiv
+   derinliği hâlâ açık bir üründ kararı); geçici olarak 180'e çıkarılıp geri alındı.
+   📌 Yerel veritabanında 180 haber kalması zararsız: mutabakat penceresinin **tabanı**
+   (`floor`) daha eski kayıtları koruyor (ölçüldü).
+
+## 🔬 Yan gözlem (12.22'nin kapsamı dışında ama yazılmalı)
+
+**API ve panel İKİ AYRI Hangfire sunucusu çalıştırıyor, aynı kuyruk üzerinde.**
+`AddInfrastructure` ikisinde de `AddHangfireServer()` çağırıyor. Bu oturumda somut bir
+belirti üretti: panelden tetiklenen arşiv koşusu **panel sürecinde** koştu ve o süreçte
+`News:Backfill:MaxPosts` farklıydı → iş **hiçbir şey yapmadan** "tamamlandı" dedi.
+🔑 Hasarın biçimi tanıdık: **hata yok, log temiz, sonuç yanlış.** İki sürecin yapılandırması
+ayrışırsa hangi işin nerede koşacağı **belirsizdir**. Bugün ikisi de aynı `appsettings`'i
+okuduğu için sorun yok; 12.21 onları **ayrı konteynerlere** aldığı için bu artık ayrışabilir.
+📌 Bu bir bulgu değil bir **risk**; kapatılması ayrı bir karar (panelde Hangfire sunucusunu
+kapatmak ya da kuyrukları ayırmak).

@@ -278,9 +278,37 @@ kilitliyor. 🐛 Bunu hiçbir test söylemiyordu çünkü test de aynı hatayı 
 🐛 `aspnet:8.0`'da **`curl` yok** → HEALTHCHECK hiç koşmaz, konteyner boşuna "unhealthy".
 🧪 Bozma turu **5/5 kırmızı** (biri ikinci denemede: `SetEnvironmentVariable` süreç geneli).
 
-**1290 backend + 865 mobil test, 82 görünmez sözleşme.**
+**✅ 12.22 bitti — PERFORMANS / ÖLÇEK.** Fazın başarı ölçütü bir hız değil bir **cümleydi**
+ve cümle artık var: **en sıcak altı public ucun p95'i 14–19 ms, hata oranı %0,00**
+(50 eşzamanlı kullanıcı, 2 dk). Sayılar + ölçüm koşulları + *ölçümün nasıl yalan
+söyleyebileceği*: **`Memory_Bank/Performance_Baseline.md`**. Teslim: `PerformanceBehavior<,>`
+(kapsam **tipten türer**) · `RequestHistogram` (saf, sabit kovalı, **birleştirilebilir**) ·
+Redis'te süreçler arası toplama · panelde **Performans** ekranı · `perf/baseline.js` (k6).
+🔴 **KARAR: ölçüm halkası `CachingBehavior`'ı SARAR** — ölçülen şey *"handler ne kadar
+sürdü"* değil **"çağıran ne kadar bekledi"**; içine konsaydı sıcak uçların p95'i
+**sistematik olarak iyi** görünürdü. 🔴 **KARAR: histogram, ham örnek değil** — API ve panel
+**ayrı süreçlerdir** ve kovalar toplanarak birleşir; bedeli yüzdeliklerin **yaklaşık** olması
+ve **gerçeğin üstünü** söylemesi (yönü sözleşmenin parçası: altını söyleyen bir ölçer
+yavaşlığı *gizler*). 🔴 **Sıcak uçlar ölçülmüş gerekçeyle CACHE'SİZ bırakıldı.**
+🐛 **İki trigram indeksi Haziran 2026'dan beri ÖLÜYDÜ** (`ix_ads_title_trgm` ·
+`ix_places_name_trgm`): ham kolon üzerineydiler, oysa her arama `lower(kolon) LIKE` üretiyor
+→ 20.005 satırda `Seq Scan` **29,2 ms** → `BitmapOr` **0,75 ms (39×)**. Hasarın ikinci
+katmanı daha sinsi: indeks **vardı**, yani *"indeks var mı?"* sorusunun cevabı **yanlış bir
+'var'**dı. ⚠️ Tek indeks yetmezdi — `A OR B` için `BitmapOr` **her iki tarafta** indeks ister.
+🐛 **Yük testi ilk koşusunda uygulamayı değil HIZ LİMİTİNİ ölçtü** (300/60 sn, tek IP) ve
+429 hızlı döndüğü için tablo **çok iyi** göründü (p95 1,7 ms) — ölçümün yalan söylemesinin
+en sinsi biçimi *iyi* bir sayıdır. 🐛 Betiğin kendisi de 2 dk koşup **boş tablo** üretti ve
+**başarılı** göründü (k6 metrikleri yalnız init bağlamında). 🐛 Panel, API'nin ölçümlerini
+sürüm farkı yüzünden **sessizce** düşürüyordu → artık sayıyor ve **söylüyor**.
+🔬 `/v1/power-outages` **ölçüldü, karar VERİLMEDİ**: gövde doğrusal büyüyor (20k satır →
+**7,5 MB**) ama sunucu 31 ms → çözüm cache **olamaz**, tarih penceresi olur; o da mobil
+geçmiş kesintileri gösterdiği için bir **kontrat** kararıdır. 🔬 Haber senkronu ölçüldü:
+tam arşiv **~8,9 GB görsel** (dokümandaki ~1,6 GB değil — 12.14b metin arası görselleri de
+aynalıyor). 📌 Tüm arşiv **bilerek çekilmedi**; yerelde 78 → 180 haber, ayar 50'de kaldı.
 
-**⏭️ Sırada:** ⚡ **12.22 performans/ölçek** (*önce ÖLÇ*) · 12.8 sosyal
+**1325 backend + 865 mobil test, 84 görünmez sözleşme.**
+
+**⏭️ Sırada:** 12.8 sosyal
 giriş mobil (🔴 Apple aboneliği bekliyor, **Google ayağı bugün yazılabilir**) · **12.18 adayı**
 kategori bazlı bildirim aboneliği (⚠️ ikinci bir dispatcher **yazılmaz**, var olan tek sahip
 genişletilir).
@@ -333,6 +361,15 @@ eşzamanlı `Migrate()`'in belirtisi hata değil **bozuk şemadır**.
 ölç** (12.21b): iki kapı ayrı ayrı doğru olup birlikte geçilemez olabilir.
 ⚠️ **`wwwroot`'a dosya eklerken** en az bir yerden başvurulmalı — `wwwroot/lib` altındaki her
 **dizin** ve `wwwroot/{css,js}` altındaki her **dosya** artık iki yönlü kilitli (12.20b).
+⚠️ **Yeni bir `gin_trgm_ops` indeksi yazarken ifadeyi `lower(...)` yaz** (§7 madde 84):
+projedeki her arama `ToLower().Contains(...)` üretiyor ve ifade indeksinde ifade **birebir**
+eşleşmek zorunda — `title` ≠ `lower(title)`, indeks **sessizce** kullanılmaz. `A OR B` biçimli
+bir aramada **her iki kolona da** indeks gerekir, yoksa `BitmapOr` kurulamaz ve tek indeks
+hiçbir işe yaramaz. `TrigramIndexTests` kapsamı **`pg_indexes`'ten türetir**.
+⚠️ **Yük ölçerken API'yi hız limiti kaldırılmış başlat**
+(`RateLimiting__Global__PermitLimit=…`): yük üreticisi tek IP'dir, limit ilk saniyede dolar
+ve **429 hızlı döndüğü için tablo ÇOK İYİ görünür**. `perf/baseline.js` bunu kırmızıya
+düşürür ama sebebi bilmek gerekir.
 ⚠️ Moderasyon durumu yazarken ham literal (`"approved"`) **kullanma**, `AdStatuses.Approved`
 gibi sabitleri kullan (§7 madde 79) — `ModerationSingleOwnerTests` yasak kelime dağarcığını
 `*Statuses` sınıflarından **yansımayla** türetiyor.
@@ -404,7 +441,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Mobil istemci sunucuyla nasıl konuşuyor?" | `Memory_Bank/API_CONTRACT.md` |
 | "Bu karar neden böyle verilmiş?" | `Memory_Bank/Progress.md` (faz faz) · `Memory_Bank/Active_Context.md` (son durum) |
 | **"Ne kaldı, hangi faz açık?"** | **`Memory_Bank/Progress.md` → en üstteki 🚦 AÇIK MADDELER PANOSU** (yalnız açıklar; kapanan satır silinir) |
-| **"Bu görünmez sözleşme gerçekten kilitli mi, kilidi nerede?"** | **`Memory_Bank/Contract_Audit.md`** (82 madde × kilit cinsi/risk/dosya) |
+| **"Bu görünmez sözleşme gerçekten kilitli mi, kilidi nerede?"** | **`Memory_Bank/Contract_Audit.md`** (84 madde × kilit cinsi/risk/dosya) |
 | "Bu .NET kalıbı ne demek?" | `DOTNET_MASTERCLASS.md` |
 | "Mobil tasarım sistemi / UX kuralları?" | `Memory_Bank/MOBILE_UX_PLAN.md` |
 | "Uçların makine-okur şeması?" | `docs/openapi.json` |
@@ -412,7 +449,7 @@ yenileyin ve **PNG farkını gözle inceleyin** — ayrıntı `mobile/README.md`
 | "Kod review istiyorum, nelere dikkat edilmeli?" | `CODE_REVIEW_CHECKLIST.md` |
 
 ⚠️ **`ARCHITECTURE.md` §7 "Görünmez sözleşmeler"i okumadan backend'e dokunma.** Orada
-listelenen 82 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
+listelenen 84 bağımlılık bozulduğunda kimse hata almaz — mobil sadece sessizce yanlış
 davranır. Hepsi testle kilitli: 1–22 `InvisibleContractsTests.cs`, 23–26 `PanelBusinessRuleTests.cs`,
 27 `PanelPowerOutageFilterTests.cs`, 28 `PanelTrashTests.cs`,
 29 `PanelBulkActionTests.cs`, 30 `PanelSortingTests.cs`,
@@ -454,7 +491,11 @@ ile — gerçeği paylaşılan panel veritabanına yazardı) +
 **81** → `Integration/Panel/PanelAuthenticationTests.cs` (**üç ayaklı**: `FallbackPolicy`'nin
 varlığı **çalışan uygulamanın servislerinden** okunur · muafiyet **aksiyon** granülaritesinde ·
 iskele adresleri **oturumlu** istemciyle 404 doğrulanır — anonim yanıt "silindi" ile
-"korumalı"yı ayırt edemez, ikisi de 302'dir).
+"korumalı"yı ayırt edemez, ikisi de 302'dir).,
+**83** → `Unit/Application/Performance/` (`RequestHistogramTests` · `PerformanceBehaviorTests`) +
+`Integration/Panel/PanelPerformanceTests.cs`,
+**84** → `Integration/Architecture/TrigramIndexTests.cs` (**kapsam `pg_indexes`'ten türer**,
+migration taramasından değil).
 
 ## Değişmez kurallar
 

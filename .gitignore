@@ -77,3 +77,8 @@ mobile/android/key.properties
 .env
 .env.*
 !.env.prod.example
+
+# Faz 12.22 — k6 koşusunun HAM çıktısı. Her koşuda üzerine yazılır, yani commit edilirse
+# depoda sürekli gürültü üretir ve (daha kötüsü) hangi koşuya ait olduğu belirsiz kalır.
+# Taban çizgisinin KÜRATE edilmiş ve tarihli hâli `Memory_Bank/Performance_Baseline.md`'de.
+perf/last-run.json

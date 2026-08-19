@@ -1,0 +1,215 @@
+@using KadirliApp.Application.Common.Performance
+@model List<KadirliApp.Application.Common.Performance.HandlerMetrics>
+@{
+    ViewData["Title"] = "Performans";
+
+    var snapshot = (RequestMetricsSnapshot)ViewBag.Snapshot;
+    string? kind = ViewBag.Kind;
+    bool slowOnly = ViewBag.SlowOnly ?? false;
+    int totalHandlers = ViewBag.TotalHandlers ?? 0;
+    var hasFilter = !string.IsNullOrWhiteSpace(kind) || slowOnly;
+
+    var totalCalls = snapshot.Handlers.Sum(h => h.Count);
+    var totalSlow = snapshot.Handlers.Sum(h => h.SlowCount);
+    var totalFailures = snapshot.Handlers.Sum(h => h.Failures);
+
+    // "En yavaş" = p95'i en yüksek olan; liste zaten p95'e göre sıralı geliyor (sunucuda).
+    var slowest = snapshot.Handlers.FirstOrDefault();
+}
+
+<div class="mb-6">
+    <h2 class="text-2xl font-semibold text-gray-800">Performans</h2>
+    <p class="mt-1 text-sm text-gray-500">
+        Her komut ve sorgunun <strong>ne kadar sürdüğü</strong>. Bir uç yavaşladığında kimse
+        hata almaz — uç 200 döner, liste dolu gelir, log temizdir; yalnız vatandaş bekler.
+        Bu ekran o sessizliği kırar.
+    </p>
+</div>
+
+@* 🔴 Boş tablo iki AYRI şey demek olabilir: "hiç istek gelmedi" ya da "ölçüm çalışmıyor".
+   Degraded bayrağı olmasaydı ekran ikisini ayırt edemez ve sessizce güven verirdi. *@
+@if (snapshot.Degraded)
+{
+    <div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <i class="fas fa-triangle-exclamation mr-1"></i>
+        <strong>Ölçüm eksik.</strong> Aşağıdaki tablo <strong>bütün süreçleri
+        kapsamıyor</strong> — gördüğünüz p95 sistemin tamamını temsil etmiyor.
+        İki sebebi olabilir: Redis okunamadı, ya da bir sürecin kayıtları
+        <strong>tanınmayan biçimde</strong> olduğu için yok sayıldı (süreçler farklı
+        sürümlerle koşuyorsa olur — biri dağıtıldı, diğeri henüz değil).
+        Sebep API/panel günlüğüne yazıldı.
+    </div>
+}
+
+<div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="text-xs font-medium uppercase text-gray-500">Ölçülen çağrı</div>
+        <div class="mt-1 text-2xl font-semibold text-gray-900">@totalCalls.ToString("N0")</div>
+        <div class="mt-1 text-xs text-gray-500">@totalHandlers farklı handler</div>
+    </div>
+    <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="text-xs font-medium uppercase text-gray-500">En yavaş (p95)</div>
+        @if (slowest is not null)
+        {
+            <div class="mt-1 text-2xl font-semibold text-gray-900">@slowest.P95Ms.ToString("N0") ms</div>
+            <div class="mt-1 truncate text-xs text-gray-500" title="@slowest.Handler">@slowest.Handler</div>
+        }
+        else
+        {
+            <div class="mt-1 text-2xl font-semibold text-gray-400">—</div>
+            <div class="mt-1 text-xs text-gray-500">henüz ölçüm yok</div>
+        }
+    </div>
+    <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="text-xs font-medium uppercase text-gray-500">Yavaş çağrı</div>
+        <div class="mt-1 text-2xl font-semibold @(totalSlow > 0 ? "text-amber-600" : "text-gray-900")">@totalSlow.ToString("N0")</div>
+        <div class="mt-1 text-xs text-gray-500">eşik: @snapshot.ThresholdMs ms</div>
+    </div>
+    <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="text-xs font-medium uppercase text-gray-500">İstisnayla biten</div>
+        <div class="mt-1 text-2xl font-semibold @(totalFailures > 0 ? "text-red-600" : "text-gray-900")">@totalFailures.ToString("N0")</div>
+        <div class="mt-1 text-xs text-gray-500">ayrıntı: Hata Kayıtları</div>
+    </div>
+</div>
+
+<div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h3 class="text-sm font-semibold text-gray-800">Ölçümün kaynağı</h3>
+            <p class="mt-1 text-xs text-gray-500">
+                @if (snapshot.Sources.Any())
+                {
+                    <span>Şu süreçlerin sayaçları birleştirildi: <strong>@string.Join(", ", snapshot.Sources)</strong>.</span>
+                }
+                else
+                {
+                    <span>Henüz hiçbir süreç ölçüm bildirmedi.</span>
+                }
+                Süreçler ölçümlerini 15 saniyede bir bildirir; yeniden başlatılan bir süreç
+                kendi sayaçlarını sıfırdan başlatır.
+            </p>
+        </div>
+
+        @* 🔑 Sıfırlama TABAN ÇİZGİSİ İÇİN var: açılıştan beri biriken sayaçlar migration'ı
+           ve ilk isteklerdeki JIT ısınmasını da p95'e karıştırır. Geri alınamaz → onay. *@
+        <form asp-action="DeleteMeasurements" method="post" class="inline"
+              data-confirm="Bütün ölçüm sayaçları silinecek ve taban çizgisi sıfırdan başlayacak. Bu işlem geri alınamaz. Devam edilsin mi?">
+            <button type="submit"
+                    class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-eraser mr-1"></i> Sayaçları sıfırla
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <form asp-action="Index" method="get" class="grid grid-cols-1 gap-3 border-b border-gray-200 p-4 sm:grid-cols-3">
+        <div>
+            <label for="kind" class="mb-1 block text-xs font-medium text-gray-600">Tür</label>
+            <select id="kind" name="kind" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tümü</option>
+                @foreach (var key in new[] { RequestKind.Query, RequestKind.Command, RequestKind.Other })
+                {
+                    <option value="@key" selected="@(key == kind)">@key</option>
+                }
+            </select>
+        </div>
+        <div class="flex items-end">
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="slowOnly" value="true" checked="@slowOnly"
+                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                Yalnız eşiği aşanlar
+            </label>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 sm:col-span-3">
+            <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                <i class="fas fa-filter mr-2"></i> Filtrele
+            </button>
+            @if (hasFilter)
+            {
+                <a asp-action="Index" class="text-sm font-medium text-gray-600 hover:text-gray-900">
+                    <i class="fas fa-times mr-1"></i> Filtreleri temizle
+                </a>
+            }
+        </div>
+    </form>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-500">
+            <thead class="border-b bg-gray-50 text-xs uppercase text-gray-700">
+                <tr>
+                    <th scope="col" class="px-4 py-3 font-medium">Handler</th>
+                    <th scope="col" class="px-4 py-3 font-medium">Tür</th>
+                    <th scope="col" class="px-4 py-3 text-right font-medium">Çağrı</th>
+                    <th scope="col" class="px-4 py-3 text-right font-medium">Ort.</th>
+                    <th scope="col" class="px-4 py-3 text-right font-medium">p50</th>
+                    <th scope="col" class="px-4 py-3 text-right font-medium">p95</th>
+                    <th scope="col" class="px-4 py-3 text-right font-medium">p99</th>
+                    <th scope="col" class="px-4 py-3 text-right font-medium">En yüksek</th>
+                    <th scope="col" class="px-4 py-3 text-right font-medium">Yavaş</th>
+                    <th scope="col" class="px-4 py-3 text-right font-medium">Hata</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Any())
+                {
+                    foreach (var row in Model)
+                    {
+                        <tr class="border-b bg-white align-top transition-colors hover:bg-gray-50">
+                            <td class="px-4 py-3 font-medium text-gray-900">@row.Handler</td>
+                            <td class="whitespace-nowrap px-4 py-3">@row.Kind</td>
+                            <td class="whitespace-nowrap px-4 py-3 text-right">@row.Count.ToString("N0")</td>
+                            <td class="whitespace-nowrap px-4 py-3 text-right">@row.AverageMs.ToString("N1") ms</td>
+                            <td class="whitespace-nowrap px-4 py-3 text-right">@row.P50Ms.ToString("N0") ms</td>
+                            <td class="whitespace-nowrap px-4 py-3 text-right font-semibold @(row.P95Ms >= snapshot.ThresholdMs ? "text-amber-600" : "text-gray-900")">
+                                @row.P95Ms.ToString("N0") ms
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-3 text-right">@row.P99Ms.ToString("N0") ms</td>
+                            <td class="whitespace-nowrap px-4 py-3 text-right">@row.MaxMs.ToString("N0") ms</td>
+                            <td class="whitespace-nowrap px-4 py-3 text-right @(row.SlowCount > 0 ? "text-amber-600" : "")">@row.SlowCount.ToString("N0")</td>
+                            <td class="whitespace-nowrap px-4 py-3 text-right @(row.Failures > 0 ? "text-red-600" : "")">@row.Failures.ToString("N0")</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="10" class="px-4 py-10 text-center text-gray-500">
+                            @if (hasFilter)
+                            {
+                                <span>Bu süzgeçle eşleşen ölçüm yok.</span>
+                            }
+                            else if (snapshot.Degraded)
+                            {
+                                <span>Ölçüm okunamadı (yukarıdaki uyarıya bakın).</span>
+                            }
+                            else
+                            {
+                                <span>Henüz ölçüm yok. Uygulamaya birkaç istek geldiğinde tablo dolar.</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="border-t border-gray-200 px-4 py-3 text-xs text-gray-500">
+        @* 🐛 Bu satır bir TEST HATASINDAN doğdu ve altında gerçek bir eksik vardı: tablo
+           en fazla 40 satır çiziyor ama bunu SÖYLEMİYORDU. Tam süitte yüzlerce handler
+           ölçülünce aranan satır 40'ın altına düşüyor ve ekran "yok" gibi görünüyordu —
+           yöneticiye de aynısı olurdu: aradığı handler'ı bulamayıp "ölçülmemiş" sanardı. *@
+        @if (totalHandlers > Model.Count)
+        {
+            <span class="mr-1 font-medium text-gray-700">
+                @totalHandlers handler'dan @Model.Count tanesi gösteriliyor
+                (p95'i en yüksek olanlar).
+            </span>
+        }
+        Yüzdelikler <strong>yaklaşıktır</strong>: ölçüm ham süre saklamaz, sabit sınırlı
+        kovalardan oluşan bir histogram tutar — bir yüzdelik her zaman içine düştüğü kovanın
+        <strong>üst sınırını</strong> söyler, yani gerçeğin üstünü (asla altını değil).
+        Bu ödün bilinçli: sınırsız bellek yerine sabit bellek, ve süreçler arası
+        <strong>birleştirilebilirlik</strong>.
+    </div>
+</div>
