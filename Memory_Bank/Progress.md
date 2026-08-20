@@ -6,7 +6,11 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 
 ## 🚦 AÇIK MADDELER PANOSU — *tek bakışta ne kaldı*
 
-> **Son doğrulama: 20 Ağustos 2026** (12.23 kapandı; `SharedPreferencesAsync` geçişi **tetikleyici koşuluyla** B'ye eklendi)
+> **Son doğrulama: 20 Ağustos 2026** — *aynı gün ikinci kez: **bağımsız denetim oturumu**.*
+> Proje uçtan uca ayağa kaldırıldı (API · panel · **Android emülatöründe çalışan uygulama**),
+> `dotnet test` **1325/1325** · `flutter analyze` temiz · `flutter test` **904/904** yeşil koştu,
+> **ve ondan sonra** bulgu arandı: **6 bulgu, biri KRİTİK ve yayın blokajı** → **12.24 açıldı**.
+> *(önceki: 12.23 kapandı; `SharedPreferencesAsync` geçişi **tetikleyici koşuluyla** B'ye eklendi)*
 > *(önceki: 19 Ağustos 2026 — 12.22)* (kutulara değil **koda/şemaya** bakılarak; aynı gün
 > ikinci kez — **denetim oturumu**: 210 sayfalık canlı panel taraması + 11 mutasyonluk
 > bozma turu, üç bulgu **12.20** olarak açıldı).
@@ -22,6 +26,11 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 
 | Madde | Nerede | Durum / blokaj |
 |---|---|---|
+| 🔴 **12.24a — DOSYA YÜKLEMENİN TEK SAHİBİ** | `# 🚧 12.24` | 🔴 **YAYIN BLOKAJI — SMS'ten ÖNCE gelir.** Panelden yüklenen dosyanın adı **hiç temizlenmiyor** ve hedef yolun `uploads/` altında kaldığı **doğrulanmıyor**: `moderator` (en düşük panel rolü) yükleme dizininin **dışına** yazabiliyor, konteynerde de yayın ağacı **uygulama kullanıcısının** (`--chown=app:app`) → panelin kendi betiği ezilebilir → `super_admin` yükselmesi. Ayrıca görsel **olmayan** dosya yüklenip **`text/html` + 200** ile servis ediliyor (depolanmış XSS) ve **boyut tavanı yok**. **Uçtan uca ölçüldü.** ⚠️ CSP **durdurmaz** (kendi origin'imiz + nonce'lu `<script src>`). 🔑 Kök neden: temizlik **çağıranda** (`FilesController`), **tek sahipte değil** (`LocalFileStorageService`) — panel **ikinci çağıran** ve korumayı tekrarlamıyor (8 controller · 15 çağrı). 🔒 Ayrıntı `Progress.md`'de **bilinçli olarak tarifsiz** — depo herkese açık |
+| 🔴 **12.24b — Rıza defteri okunamıyor** | `# 🚧 12.24` | 🔴 **KVKK bulgusu.** Hesap silinince rıza satırı DB'de **kalıyor** (12.16'nın bilinçli kararı) ama defter onu **göstermiyor** ve *"Henüz hiç rıza kaydı yok"* yazıyor — yani ekran **yanlış bilgi veriyor**. Kontrollü deneyle ölçüldü (3 satır → 0). Mekanizma: `User`'da sorgu süzgeci var, `UserConsent`'te yok; `Include(c => c.User!)` iç birleşim üretiyor. EF bunu açılışta **15 kez** uyarıyor, uyarılar **hiç tasnif edilmemiş**. 🐛 Mevcut test **yeşil** çünkü **saklanmayı** ölçüyor, **okunabilmeyi** değil |
+| 🟠 **12.24c — Push kuyruğunun tavanı** | `# 🚧 12.24` | Gönderim **500/dk** sert tavanlı (koşu başına tek parti, döngü yok) → 20.000 alıcıda son telefon **40 dk** sonra çalıyor. 🔴 Sıra **global FIFO**, öncelik yok → **elektrik kesintisi** bildirimi rutin duyurunun **arkasına** düşüyor. Panoda kuyruk derinliği **görünmüyor**. *(Yazma tarafı ölçüldü ve bugün sorun değil: 20.012 alıcı → 1,37 sn.)* |
+| 🟠 **12.24d — Dağıtım sertleştirmesi** | `# 🚧 12.24` | **DataProtection anahtarları kalıcı değil** (hiç yapılandırılmamış — ölçüldü) → `release.yml` etiketi commit SHA olduğu için **her dağıtım yeni konteyner** → **her dağıtımda tüm panel oturumları düşer**, antiforgery kırılır; replika 2 olduğu gün belirti **rastgeleye** döner · **API'de hiç güvenlik başlığı yok** (oysa kullanıcı yüklemelerini servis eden origin **odur**) · yığında **yedekleme yok** ve **TLS/ters vekil yok** (yığın vekili **varsayıyor** ama **sağlamıyor**) |
+| 🟡 **12.24e — Kalıntılar** | `# 🚧 12.24` | API kökü `Hello KadirliApp .NET 8 API!` (**kimliksiz 200 + İngilizce**; 12.20 bunu panelde kapattı, kilit **yalnız Web projesini** tarıyor) · **1.199 satır ölü üreteç** (`gen_cqrs_phase4.py` · `generate_domain.py`, **0 referans**; 12.20b'nin kilidi **`wwwroot`** ile sınırlı) · 13 derleme uyarısı (`CS0114` gerçek tuzak; `CS8604` **incelendi, hata değil**) · panel doğrulama mesajı **İngilizce** |
 | **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
 | 🔴 **SMS SAĞLAYICISI — yayının TEK GERÇEK BLOKAJI** | `# ✅ 12.21 TESLİM` | 12.21'de **ölçüldü**: API `Production`'da **hiçbir `Sms:Provider` değeriyle açılmıyor** — `Dev` readiness kapısına takılıyor (haklı: SMS gitmezse kimse giremez), başka bir ad ise DI'da *"Bilinmeyen SMS sağlayıcısı"* veriyor, çünkü **gerçeklenmiş başka sağlayıcı yok**. 🔑 Blokaj **doğru**; 12.21'de kapatılan şey *sessizliğiydi* (kapının mesajı artık ne yapılacağını söylüyor, `SmsProviderAgreementTests` uyumu kilitliyor). Gereken: bir `ISmsService` gerçeklemesi (NetGSM vb.) + sağlayıcı anlaşması → `Infrastructure/Notifications/` + `SmsProviders` + `DependencyInjection.SmsImplementations`. 📌 **Panel bu blokajın dışında** — `Production`'da bugün de açılıyor (canlı doğrulandı) |
 | 📌 **Hukuki metinlerin GERÇEK içeriği** | 12.16/12.17 notları | 🔴 **Kod işi değil, İNSAN işi** ve yayından önce zorunlu. Zincirin tamamı çalışıyor (12.17 canlı doğrulandı) ama bugün yayında olan metinler **test metnidir** — yerel veritabanında, benim yazdığım örnekler. Gerçek KVKK aydınlatma + açık rıza metnini **hukukçu** yazmalı; kod onu bekliyor, tahmin etmiyor (12.16 kararı: metin **seed edilmez**) |
@@ -45,8 +54,11 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | 🍎 **Apple ekosistemi** | 11.16 notları | Abonelik · sertifikalar · TestFlight · App Store Connect · **APNs `.p8`** · mağaza görselleri. **12.8'in tek blokajı** |
 | 🤖 **Play** | 11.16 notları | Yayın anahtarı (`keytool`) + Play Console → internal test |
 | **Dağıtım HEDEFİ (sunucu/alan adı)** | `# ✅ 12.21 TESLİM` | 🟢 **Hat kuruldu** (Dockerfile'lar · `.dockerignore` · `compose.prod` · `release.yml` → `ghcr.io`, etiket = commit SHA). ⚠️ Eksik olan **kod değil karar**: imajlar nereye gidecek? 12.21 bunu bilinçli olarak kapsam dışı bıraktı ve iş akışının adı da bunu söylüyor (*Release*, *Deploy* değil) |
-| **`uploads/` kalıcı volume** | `10.14/(3)` | Bugün risk **yok** (API compose'da değil). API konteynerleştiği gün doğar |
-| **Seq production kimlik doğrulaması** | `docker-compose.yml` | Yerelde bilinçli olarak kapalı; production'da `SEQ_FIRSTRUN_ADMINPASSWORD` + API key |
+| 🆕 🔴 **VERİTABANI YEDEĞİ — YOK** | `# 🚧 12.24` → *12.24d* | 20 Ağu denetiminde ölçüldü: `docker-compose.prod.yml`'de **hiçbir yedekleme yok** (`pg_dump` yok, volume yedeği yok). 🔴 Bu listedeki **tek geri alınamaz** madde: sistem vatandaş verisi **ve KVKK rıza kanıtı** tutuyor |
+| 🆕 🟠 **TLS / ters vekil — yığında YOK** | `# 🚧 12.24` → *12.24d* | Yığın 8080/8081'i **düz HTTP** açıyor. ⚠️ Ters vekili **varsayıyor** (`ForwardedHeaders__KnownNetworks` isteniyor) ama **sağlamıyor** — jeton ve panel çerezi vekil eklenene kadar açıkta |
+| 🆕 🟠 **DataProtection anahtarları** | `# 🚧 12.24` → *12.24d* | Hiç yapılandırılmamış → her dağıtımda **bütün panel oturumları düşer**, antiforgery kırılır (ayrıntı 12.24d) |
+| ~~`uploads/` kalıcı volume~~ | — | ✅ **12.21'de kapandı** — `compose.prod`'da API ve panel **aynı** `uploads` volume'ünü paylaşıyor (20 Ağu denetiminde doğrulandı) |
+| ~~Seq production kimlik doğrulaması~~ | — | ✅ **12.21'de kapandı** — `compose.prod`'da `SEQ_FIRSTRUN_NOAUTHENTICATION` **bilinçli olarak yok** + `SEQ_API_KEY` isteniyor (20 Ağu denetiminde doğrulandı) |
 
 ### D. Bilinçli olarak ertelenmiş (ölçüldü — "yapılmadı" değil, **"gerekmediği ölçüldü"**)
 
@@ -7182,3 +7194,230 @@ kapısı *"kapattık"* sanılırdı.
 **yanlış bir iddia**. Madde 80 kendi sınırını zaten yazıyordu; 12.23 o sınırın **canlı
 örneğini** buldu: dört fazdır duran bir yorum, kapsamadığı senaryoyu gerekçe olarak
 sayıyordu. Çağrı yerlerini **saymaktan** başka yolu yok.
+
+---
+
+# 🚧 12.24 — ÜRETİM SERTLEŞTİRMESİ *(20 Ağustos 2026'da AÇILDI — bağımsız denetim)*
+
+> **Nasıl doğdu:** kullanıcı *"dışarıdan gelen analizlerin bulgu bulmasından yoruldum"* dedi ve
+> **ölçümle** bir denetim istedi. Proje ayağa kaldırıldı (API `:5005` · panel `:5203` · Postgres/
+> Redis/Seq · **Android emülatörü, uygulama gerçekten çalışır hâlde**), `dotnet test` **1325/1325**,
+> `flutter analyze` **temiz**, `flutter test` **904/904** yeşil koştu — ve **ondan sonra** bulgular
+> arandı. Bu sıra bilinçli: *yeşil bir takım "hata yok" demek değildir, "testlerin baktığı yerde
+> hata yok" demektir.*
+>
+> 🔑 **Fazın tek cümlesi:** bulunan altı bulgunun **beşi**, projenin kendi sözlüğündeki tek bir
+> kalıbın tekrarı — **kilidin KAPSAMI, hatanın SINIFINDAN dar.** 12.9 · 12.11 · 12.19 · 12.20
+> hep bunu yazdı; 12.24 aynı cümlenin **beş yeni örneğini** buldu.
+
+## 📋 Bulgular — hepsi ÖLÇÜLDÜ, hiçbiri tahmin değil
+
+| # | Bulgu | Şiddet | Kanıtın cinsi |
+|---|---|---|---|
+| **B1** | Panelden dosya yükleme: **yol aşımı + keyfi dosya türü + boyut sınırı yok** | 🔴 **KRİTİK** | **Uçtan uca çalıştırıldı** (dosya proje köküne yazıldı; konteynerde `panel.js` ezildi) |
+| **B2** | **Rıza defteri**, hesabı silinmiş kullanıcının rızasını **göstermiyor** — ekran *"Henüz hiç rıza kaydı yok"* diyor | 🔴 **YÜKSEK** | Kontrollü deney (canlı panel + DB, öncesi/sonrası) |
+| **B3** | Push kuyruğu **500/dk** tavanlı ve **tek partili**; 20.000 alıcıda son telefon **40 dakika** sonra çalıyor, üstelik sıra **global FIFO** | 🟠 **ORTA-YÜKSEK** | Koddan kesin aritmetik + 20.012 alıcılık gerçek gönderim |
+| **B4** | **DataProtection anahtarları kalıcı değil** → her dağıtımda bütün panel oturumları düşer, antiforgery kırılır | 🟠 **ORTA** | Kaynak taraması (hiç yapılandırılmamış) + konteynerde ölçüm |
+| **B5** | **API'de hiç güvenlik başlığı yok** (`nosniff`/`frame`/`referrer`) — oysa kullanıcı yüklemelerini **o origin** servis ediyor | 🟠 **ORTA** | Canlı yanıt başlıkları |
+| **B6** | Üretim yığınında **yedekleme yok**, **TLS/ters vekil yok**, dağıtım adımı yok | 🟠 **ORTA** | `docker-compose.prod.yml` + `release.yml` taraması |
+
+➕ Küçükler: API kökü `Hello KadirliApp .NET 8 API!` (**kimliksiz 200 + İngilizce**, 12.20'nin
+panelde kapattığı sınıfın API'de açık kalan yüzü) · **1.199 satırlık iki ölü üreteç betiği**
+(`gen_cqrs_phase4.py` · `generate_domain.py`, **0 referans**) · 13 derleme uyarısı ·
+panel form doğrulama mesajı **İngilizce** (*"The Priority field is required."*, Değişmez Kural #6).
+
+---
+
+### 12.24a — 🔴 **DOSYA YÜKLEMENİN TEK SAHİBİ** *(B1 — yayın blokajı)*
+
+> 🔒 **BU BÖLÜM BİLİNÇLİ OLARAK TARİFSİZ YAZILDI.** Depo **herkese açık** (`github.com/
+> atahanblcr/KadirliApp`, `visibility: PUBLIC` — 20 Ağu'da doğrulandı) ve `Memory_Bank/*.md`
+> her oturumda push ediliyor. Açık **kapanana kadar** buraya çalışan bir istismar adımı
+> yazılmaz: aşağısı düzeltmeyi ve testi yazmaya **yeter**, kopyalayıp kullanmaya **yetmez**.
+> Tam yeniden üretim adımları denetim oturumunun kendisindedir. *(11.18'de bu depoya gerçek
+> bir sızıntı yaşandı — o dersin ikinci yüzü budur.)*
+
+**Ölçülen zincir (uçtan uca çalıştırıldı, 20 Ağu 2026):**
+
+1. `moderator` — panelin **en düşük** rolü — görsel alanı olan **herhangi** bir modül formuna
+   erişir (8 controller · **15 çağrı yeri**).
+2. `UploadHelper.UploadAsync` `IFormFile.FileName` ve `ContentType`'ı **ham** geçirir —
+   ne temizlik, ne tür denetimi, ne boyut tavanı.
+3. `LocalFileStorageService.UploadFileAsync` → `Path.Combine(dir, $"{Guid}_{fileName}")`.
+   İstemcinin verdiği ad **hiçbir yerde** `Path.GetFileName`'den geçmiyor, hedef yolun
+   `uploads/` **altında kaldığı doğrulanmıyor**. ⚠️ GUID öneki bazı girdilerde traversal'ı
+   **tesadüfen** engelliyor — ve tesadüfi koruma, 12.11'in dersine göre koruma **değildir**.
+4. **Sonuç ölçüldü:** dosya `uploads/` **dışına** yazıldı ve akış **başarılı göründü** (HTTP 302,
+   hiçbir hata, hiçbir log).
+5. **Konteynerde de ölçüldü:** `COPY --from=build --chown=app:app /app/publish .` yüzünden
+   **yayınlanan `/app` ağacının tamamı uygulama kullanıcısınındır** → panelin **kendi statik
+   varlıkları yazılabilir**.
+
+**Hasar:** panelin kendi betiği **her yöneticiye** servis edilir → `moderator` → `super_admin`
+yükselmesi. Yayın çıktısındaki bir derleme birimi ezilirse bir sonraki yeniden başlatmada
+**kod çalıştırma**. ⚠️ **CSP bunu durdurmaz** (12.9): dosya **kendi origin'imizden** ve
+layout'un **nonce'lu** `<script src>`'i ile geliyor — CSP açısından **meşru** bir betiktir.
+
+**Ayrıca aynı yolda, ayrı bir bulgu:** görsel **olmayan** bir dosya (`.html`) panelden yüklendi
+ve API origin'inden **`Content-Type: text/html` + 200** ile servis edildi → **depolanmış XSS**.
+Boyut tavanı da yok (API'de 10 MB var, panelde **hiç**).
+
+🔴 **KARAR — temizlik ÇAĞIRANDA DEĞİL, TEK SAHİPTE.** Bugünkü koruma (`Path.GetFileName` +
+magic-byte) `FilesController`'da, yani **bir** çağıranda yaşıyor; panel **ikinci** çağıran ve
+korumayı tekrarlamıyor. Düzeltme `FilesController`'ı kopyalamak **değil**, kapıyı
+`LocalFileStorageService`'e (diske yazmanın tek sahibi) indirmektir:
+- dosya adı **her koşulda** `Path.GetFileName` + beyaz listeli karakter kümesinden geçer,
+- uzantı **beyanla değil tespitle** yazılır (magic-byte doğrulaması `IFileStorageService`'in
+  sözleşmesine girer),
+- hedef yol yazmadan önce `Path.GetFullPath(...).StartsWith(uploadRoot)` ile **doğrulanır**
+  (GUID öneki bugün traversal'ı *tesadüfen* kısmen engelliyor — 12.11'in *"koruma tesadüfen
+  çalışıyordu"* dersinin birebir tekrarı),
+- boyut tavanı **tek yerde**.
+
+🔒 **Kilit — üç ayaklı ve kapsam TÜRETİLİR:**
+- **saf:** ad temizleyicinin kendisi (traversal · uzantı · boş ad · unicode).
+- **davranış:** `PanelUploadSecurityTests` — panelin **gerçek** formuna traversal adlı ve
+  görsel-olmayan dosya POST edilir; **iki yönlü** (kötü dosya reddedilir **ve** iyi görsel kabul
+  edilir — yoksa *"hiçbir şeyi kabul etme"* gerçeklemesi de yeşil kalır).
+- **yapısal:** `IFormFile`'ı `UploadFileCommand`'e geçiren **her** çağrı yeri **yansımayla**
+  bulunur; listesi elle tutulmaz. ⚠️ Kapsamı elle tutmak, bu fazın bulduğu hatanın **sebebi**.
+
+⚠️ Ek sertleştirme (ucuz, ayrı gerekçe): `/uploads` statik servisi `Content-Disposition:
+attachment` + `X-Content-Type-Options: nosniff` ile sunulmalı — traversal kapansa bile
+*"yüklenen şey çalıştırılamaz"* ikinci bir hattır.
+
+---
+
+### 12.24b — 🔴 **RIZA DEFTERİ: KAYIT DURUYOR AMA OKUNAMIYOR** *(B2)*
+
+**Kontrollü deney:** rıza satırı olan kullanıcı `deleted_at` ile işaretlendi (hesap silmenin
+**gerçek** davranışı — `DeleteMyAccountCommand` soft delete yapar) → defter **3 satırdan 0'a**
+düştü ve ekran *"Henüz hiç rıza kaydı yok"* yazdı. Satırlar DB'de **duruyor** (ölçüldü).
+
+**Mekanizma:** `User`'da genel sorgu süzgeci var (`DeletedAt == null`), `UserConsent`'te **yok**;
+`GetConsentLedgerQuery` `Include(c => c.User!)` + `c.User!.Username` ile **zorunlu** gezinti
+kuruyor → EF iç birleşim üretiyor → satır **eleniyor**. Uygulama açılışında EF bunu **15 kez**
+uyarıyor (`required end of a relationship`); uyarılar bugüne kadar **tasnif edilmemiş**.
+
+🔴 **Bu bir performans değil, KVKK bulgusudur.** 12.16 bilinçle *"hesap silinince rıza KALIR —
+kimlik kişisel veri, rıza **kanıt**"* dedi. Kanıt **saklanıyor** ama onu okuyabilen **tek ekran**
+göstermiyor. Ve mesaj *"1 kayıt gizlendi"* değil, **"hiç kayıt yok"** — yani ekran **yanlış
+bilgi veriyor**.
+
+🐛 **Mevcut test YEŞİL ve bu fazın en öğretici yeri.**
+`DeletingTheAccount_KeepsTheConsentRecord_ButAnonymisesTheUser` satırı **doğrudan** `UserConsent`
+üzerinden sorguluyor (gezinti yok → süzgeç devreye girmiyor), yani **saklanmayı** ölçüyor,
+**okunabilmeyi** değil. Sözleşme *"kanıt kaybolmaz"* diyor; test *"satır tabloda duruyor"*
+diyor. İkisi **aynı şey değil** — 12.13'ün *"test ham SQL'e bakıyordu, bizim sorgumuza değil"*
+bulgusunun ve madde 70'in *"iki bağımsız sebep koruyorsa hangisini tuttuğunu ölç"* dersinin
+birebir tekrarı.
+
+🔬 **Kod tabanı bu tuzağı ZATEN BİLİYOR:** `GetMyFavoritesQuery` aynı mekanizmayı **yorumunda
+açıklıyor** ve `f.Ad.DeletedAt == null`'ı **bilinçle** yazıyor. Yani bilgi vardı, **genellenmedi**.
+
+🔒 **Kilit:** (1) defter sorgusu `IgnoreQueryFilters()` ile silinmiş kullanıcıyı da getirir ve
+satırı *"silinmiş kullanıcı"* olarak **çizer** (rıza kanıttır, kimlik zaten anonimleştirilmiştir —
+10.8); (2) `LegalConsentTests`'e **okunabilirlik** ayağı eklenir: hesap silindikten sonra defter
+o satırı **hâlâ döndürür**; (3) 15 EF uyarısının **tamamı tasnif edilir** — her biri için
+*"eleme doğru mu, yoksa sessiz kayıp mı?"* kararı **yazılır** ve karar bir teste bağlanır.
+⚠️ Uyarıyı susturmak **çözüm değil**: 15'ten biri canlı hataydı, hangilerinin daha olduğu
+**ölçülmeden bilinemez**.
+
+---
+
+### 12.24c — 🟠 **PUSH KUYRUĞUNUN TAVANI** *(B3)*
+
+**Ölçüm:** 20.012 alıcılı gerçek bir duyuru oluşturuldu → istek **1,37 sn**, **20.029 bildirim
+satırı** tek `SaveChanges`'te yazıldı. *(Yazma tarafı bugün sorun değil — bu ölçüldü ve
+raporlanıyor, çünkü fazın kuralı "önce ölç".)*
+
+**Asıl tavan gönderimde:** `SendPushNotificationsJob` koşu başına **tam 500** satır işliyor
+(döngü **yok**), `Cron.Minutely` → **500 push/dakika** sert tavan.
+
+| Alıcı | Kuyruğun boşalması |
+|---|---|
+| 5.000 | 10 dakika |
+| 20.000 | **40 dakika** |
+| 50.000 | 100 dakika |
+
+🔴 **En sivri yüzü sıra:** `OrderBy(n => n.CreatedAt)` — **global FIFO**, öncelik kolonu yok.
+Yani rutin bir duyuru 20.000 satır yazdıktan **sonra** girilen **elektrik kesintisi** bildirimi
+kuyruğun **arkasına** düşer. 12.3 kesinti bildirimini bilinçle *"bir duyurudur"* yaptı; o karar
+bu kuyrukla birleşince **acil olan en yavaş gidiyor** ve bunu gösteren **hiçbir belirti yok**
+(pano *"Kuyrukta"* der, *"40 dakika"* demez).
+
+🔬 **Karar ÖNCE ölçülecek, sonra verilecek** (12.22'nin kuralı): parti boyutu mu artacak, koşu
+sıklığı mı, yoksa iş kuyruğu **boşalana kadar** mı dönecek? Üçünün de **FCM kotası** ve
+**Postgres yazma** tarafında bedeli var. 🔴 Ne yapılırsa yapılsın **öncelik ekseni** ayrı bir
+karardır ve tek başına yazılabilir: kesinti/acil bildirimleri **ayrı bir partide** gitmeli.
+➕ Panoda **kuyruk derinliği ve tahmini bitiş** gösterilmeli — bugün 40 dakikayı **kimse
+göremiyor**.
+
+---
+
+### 12.24d — 🟠 **DAĞITIM SERTLEŞTİRMESİ** *(B4 · B5 · B6)*
+
+**B4 — DataProtection.** `AddDataProtection` / `PersistKeysTo…` / `SetApplicationName`
+kod tabanında ve `appsettings`'te **hiç yok** (ölçüldü). Konteynerde `/home/app/.aspnet/
+DataProtection-Keys` **yazılabilir** (ölçüldü), yani anahtarlar konteynerin **yazılabilir
+katmanına** düşüyor: `docker restart`'ı atlatır, **yeni imajla dağıtımı atlatmaz** — ve
+`release.yml` etiketi **commit SHA** olduğu için her dağıtım **yeni konteynerdir**.
+Sonuç: **her dağıtımda bütün panel yöneticileri düşer** ve açık formların antiforgery
+jetonu geçersizleşir. Replika **2** olduğu gün belirti **rastgeleye** döner (*"form bazen
+gönderilmiyor"*) ve sebebi hiçbir logda yazmaz.
+🔴 Anahtarlar **paylaşılan bir volume'e** (ya da Postgres'e) alınmalı + `SetApplicationName`
+sabitlenmeli; ve kapı `ProductionReadinessGuard`'a **onuncu engelleyici** olarak yazılmalı —
+bu projenin *"sessiz olan blokajı yazılır"* deseni.
+
+**B5 — API güvenlik başlıkları.** Panel 12.9'da nonce'lu CSP aldı; **API'de hiçbir başlık yok**
+(canlı ölçüldü: ne `nosniff`, ne `X-Frame-Options`, ne `Referrer-Policy`). ⚠️ Asimetri ters
+yönde: **kullanıcı yüklemelerini servis eden origin API'dir**, panel değil.
+
+**B6 — yığının eksik parçaları.** `docker-compose.prod.yml`'de **yedekleme yok** (`pg_dump`
+yok, volume yedeği yok) ve **TLS/ters vekil yok** (8080/8081 düz HTTP). ⚠️ Yığın ters vekili
+**varsayıyor** (`ForwardedHeaders__KnownNetworks` isteniyor) ama **sağlamıyor**.
+🔴 Vatandaş verisi + **KVKK rıza kanıtı** tutan bir sistemde yedeksizlik, bu listedeki
+*tek geri alınamaz* maddedir.
+
+---
+
+### 12.24e — 🟡 **KALINTILAR VE HİJYEN**
+
+- **API kök adresi** `Hello KadirliApp .NET 8 API!` — kimliksiz **200**, İngilizce, `dotnet new`
+  iskelesinden. 12.20 bunu **panelde** kapattı; kilit (`TheScaffoldingPages_AreGone`) **yalnız
+  Web projesini** tarıyor. 🔑 *Aynı ders, ikinci proje.* Kilit **iki projeyi birden** kapsamalı.
+- **1.199 satır ölü üreteç** (`gen_cqrs_phase4.py` 817 · `generate_domain.py` 382) — **0
+  referans** (ölçüldü), git'te izleniyor. 12.20b *"diskteki her varlığa başvuran var mı?"*
+  kilidini yazdı ama kapsamı **`wwwroot`** — depo kökü dışarıda kaldı.
+- **13 derleme uyarısı.** İçlerinde gerçek bir tuzak var: `CS0114` —
+  `HomeController.StatusCode(int)` taban sınıfın `StatusCode`'unu **gizliyor**; bugün zararsız,
+  ama o sınıfta yazılacak bir `return StatusCode(404);` sessizce **bir View döndürür**.
+  🔬 Buna karşılık `CS8604` (NewsSyncService) **incelendi ve gerçek bir hata DEĞİL** —
+  `title`/`url` iki kez `?? string.Empty`'den geçiyor; uyarı `Limit()`'in dönüş tipinden
+  doğuyor. *(Her uyarı hata değildir; ayrımı ölçmek gerekir.)*
+- Panel doğrulama mesajı **İngilizce** (*"The Priority field is required."*) — Değişmez Kural #6.
+
+---
+
+### 12.24f — 🧪 **DOĞRULAMA (bozma turu)**
+
+Her kilit yazıldıktan sonra **kasten bozulacak** ve **kırmızıya döndüğü görülecek**. Bu fazda
+özellikle ölçülmesi gerekenler (çünkü hepsi *"yanlış sebepten yeşil"* olmaya açık):
+
+1. Ad temizleyici kaldırılınca `PanelUploadSecurityTests` **kırmızı** olmalı — ve **iyi görsel
+   ayağı** da yeşil kalmalı (yoksa *"hiçbir dosyayı kabul etme"* de geçerdi).
+2. Defter sorgusundan `IgnoreQueryFilters()` çıkarılınca **kırmızı** olmalı; ayrıca iddia
+   **defterin döndürdüğüne** bakmalı, `UserConsent` tablosuna değil — bugünkü testin hatası
+   tam olarak buydu.
+3. DataProtection yapılandırması silinince **readiness kapısı** kırmızı olmalı.
+4. Yapısal tarama, **yeni** bir `IFormFile` çağrı yeri eklendiğinde onu **kendiliğinden**
+   kapsamalı (kapsam elle tutulursa bu faz boşa gitmiştir).
+
+## 🔑 Fazın (şimdiden görülen) dersi
+
+**Bir kilit yazarken sorulacak soru *"doğru şeye mi bakıyor?"* değil, *"KAPSAMI hatanın
+sınıfıyla aynı genişlikte mi?"*** — 12.24'ün altı bulgusundan beşi, doğru yazılmış bir korumanın
+**ikinci çağıranı**, **ikinci projesi** ya da **ikinci dizini** kapsamamasından doğdu.
+Ve ikinci ders daha sivri: **bir testin yeşil olması, ölçtüğü şeyin sözleşmenin kendisi olduğu
+anlamına gelmez.** B2'de sözleşme *"kanıt kaybolmaz"*, test *"satır tabloda duruyor"* diyordu;
+ikisinin arasındaki boşlukta **canlı bir hata** yaşıyordu.

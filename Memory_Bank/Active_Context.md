@@ -1,5 +1,70 @@
 # Active Context (Sistem Durumu ve Teknik Kararlar)
 
+> ## 🚧 SON OTURUM: BAĞIMSIZ DENETİM (20 Ağustos 2026) — *6 bulgu, biri KRİTİK* → **12.24 AÇILDI**
+>
+> **Yeşil taban ÖNCE ölçüldü, bulgular SONRA arandı:** proje uçtan uca ayağa kaldırıldı
+> (Postgres/Redis/Seq · API `:5005` · panel `:5203` · **Android emülatöründe çalışan uygulama**),
+> `dotnet test` **1325/1325** · `flutter analyze` **0** · `flutter test` **904/904**.
+> **Bu sıra fazın tezidir:** *yeşil bir takım "hata yok" demez, "testlerin baktığı yerde hata
+> yok" der.* Kod değişikliği **yapılmadı** — çıktı bir **plan**: `Progress.md` → `# 🚧 12.24`.
+>
+> 🔴 **B1 — YAYIN BLOKAJI, SMS'ten önce gelir.** Panelden dosya yüklerken istemcinin verdiği ad
+> **hiç temizlenmiyor** ve hedef yolun `uploads/` altında kaldığı **doğrulanmıyor**. `moderator`
+> (en düşük panel rolü) yükleme dizininin **dışına** yazabiliyor; konteynerde yayın ağacı
+> `--chown=app:app` olduğu için panelin **kendi betiği** ezilebilir → `super_admin` yükselmesi.
+> Görsel olmayan dosya da yüklenip **`text/html` + 200** ile servis ediliyor (depolanmış XSS),
+> boyut tavanı **yok**. **Uçtan uca çalıştırılarak ölçüldü.** ⚠️ **CSP durdurmaz** — dosya kendi
+> origin'imizden ve nonce'lu `<script src>` ile geliyor, yani CSP açısından **meşru**.
+> 🔑 Kök neden bir *sınıf* değil bir *sahiplik* hatası: temizlik **çağıranda**
+> (`FilesController`) yaşıyor, **diske yazmanın tek sahibinde** (`LocalFileStorageService`)
+> değil — panel **ikinci çağıran** ve korumayı tekrarlamıyor (8 controller · 15 çağrı).
+> 🔒 Ayrıntısı `Progress.md`'ye **bilinçli olarak tarifsiz** yazıldı: depo **herkese açık** ve
+> `Memory_Bank/*.md` her oturum push ediliyor (11.18 sızıntısının ikinci yüzü).
+>
+> 🔴 **B2 — rıza defteri KVKK kanıtını gösteremiyor.** Hesap silinince rıza satırı DB'de
+> **kalıyor** (12.16'nın bilinçli kararı) ama defter onu **göstermiyor** ve ekran
+> *"Henüz hiç rıza kaydı yok"* yazıyor — yani **yanlış bilgi veriyor**. Kontrollü deneyle
+> ölçüldü (3 satır → 0, satırlar DB'de duruyor). Mekanizma: `User`'da soft-delete sorgu
+> süzgeci var, `UserConsent`'te yok; `Include(c => c.User!)` **zorunlu** gezinti kuruyor →
+> iç birleşim → satır eleniyor. EF bunu açılışta **15 kez** uyarıyor; uyarılar bugüne kadar
+> **hiç tasnif edilmemiş**.
+> 🐛 **Mevcut test YEŞİL ve fazın en öğretici yeri burası:**
+> `DeletingTheAccount_KeepsTheConsentRecord…` doğrudan `UserConsent`'i sorguluyor (gezinti yok
+> → süzgeç devreye girmiyor), yani **saklanmayı** ölçüyor, **okunabilmeyi** değil. Sözleşme
+> *"kanıt kaybolmaz"* diyor, test *"satır tabloda duruyor"* diyor — ve **aradaki boşlukta canlı
+> bir hata yaşıyordu.**
+> 🔬 Kod tabanı bu tuzağı **zaten biliyor**: `GetMyFavoritesQuery` aynı mekanizmayı yorumunda
+> açıklıyor ve `f.Ad.DeletedAt == null`'ı bilinçle yazıyor. Bilgi vardı, **genellenmedi**.
+>
+> 🟠 **B3 — push kuyruğunun tavanı.** `SendPushNotificationsJob` koşu başına **tam 500** satır
+> işliyor (döngü yok) + `Cron.Minutely` = **500 push/dk sert tavan** → 20.000 alıcıda son
+> telefon **40 dakika** sonra çalıyor. 🔴 Sıra **global FIFO**, öncelik kolonu yok → **elektrik
+> kesintisi** bildirimi rutin bir duyurunun **arkasına** düşüyor (12.3 kesintiyi bilinçle
+> *"bir duyurudur"* yapmıştı; o karar bu kuyrukla birleşince **acil olan en yavaş gidiyor**).
+> Panoda kuyruk derinliği **görünmüyor** — *"Kuyrukta"* der, *"40 dakika"* demez.
+> 📌 **Yazma tarafı ölçüldü ve bugün sorun DEĞİL:** 20.012 alıcılık gerçek gönderim **1,37 sn**.
+>
+> 🟠 **B4/B5/B6 — dağıtım.** **DataProtection anahtarları hiç yapılandırılmamış** (ölçüldü) →
+> `release.yml` etiketi commit SHA olduğu için **her dağıtım yeni konteyner** → **her dağıtımda
+> bütün panel oturumları düşer** ve antiforgery kırılır; replika 2 olduğu gün belirti
+> **rastgeleye** döner (*"form bazen gönderilmiyor"*) ve sebebi hiçbir logda yazmaz ·
+> **API'de hiç güvenlik başlığı yok** — oysa kullanıcı yüklemelerini servis eden origin
+> **odur** (panel 12.9'da CSP aldı, API atlandı) · yığında **yedekleme YOK** ve **TLS/ters
+> vekil YOK** (yığın vekili **varsayıyor** ama **sağlamıyor**).
+>
+> ✅ **Denetimin doğruladığı OLUMLU şeyler (bunlar da ölçüm):** Değişmez Kural 3 dört modülde
+> **canlı** tutuyor (onaysız kayıt public uçtan çıkmıyor) · `ProductionReadinessGuard` dokuz
+> engelleyiciyi **gerçekten** zorluyor (Hangfire panosu dahil — belge *"olmalı"* demiyor, kapı
+> **kapatıyor**) · hız sınırlayıcı `ForwardedHeaders`'tan **sonra** kurulu (sıra doğru) ·
+> Seq üretimde kimlik doğrulamalı ve `uploads` volume'ü paylaşımlı (**12.21'de kapanmış**,
+> panodan silindi) · panel **20.012 kullanıcıda** hızlı (Dashboard 40 ms) · mobilde **0 TODO,
+> 0 `print()`** · `CS8604` uyarısı **incelendi ve gerçek hata DEĞİL**.
+>
+> 🔑 **Fazın dersi:** altı bulgunun **beşi** tek bir cümlenin tekrarı — **kilidin KAPSAMI,
+> hatanın SINIFINDAN dar.** 12.9 · 12.11 · 12.19 · 12.20 hep bunu yazdı. İkinci ders daha
+> sivri: **bir testin yeşil olması, ölçtüğü şeyin sözleşmenin kendisi olduğu anlamına gelmez.**
+
+
 > ## ✅ SON OTURUM: FAZ 12.23 TAMAMLANDI (20 Ağustos 2026) — *SharedPreferences sertleştirmesi*
 >
 > **Yeşil taban:** `flutter analyze` **0** · `flutter test` **904/904** (865 → **+39**) ·
