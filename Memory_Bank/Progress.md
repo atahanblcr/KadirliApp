@@ -31,6 +31,7 @@ Bu dosya, projenin başından itibaren atılan adımları detaylı olarak barın
 | 🟠 **12.24c — Push kuyruğunun tavanı** | `# 🚧 12.24` | Gönderim **500/dk** sert tavanlı (koşu başına tek parti, döngü yok) → 20.000 alıcıda son telefon **40 dk** sonra çalıyor. 🔴 Sıra **global FIFO**, öncelik yok → **elektrik kesintisi** bildirimi rutin duyurunun **arkasına** düşüyor. Panoda kuyruk derinliği **görünmüyor**. *(Yazma tarafı ölçüldü ve bugün sorun değil: 20.012 alıcı → 1,37 sn.)* |
 | 🟠 **12.24d — Dağıtım sertleştirmesi** | `# 🚧 12.24` | **DataProtection anahtarları kalıcı değil** (hiç yapılandırılmamış — ölçüldü) → `release.yml` etiketi commit SHA olduğu için **her dağıtım yeni konteyner** → **her dağıtımda tüm panel oturumları düşer**, antiforgery kırılır; replika 2 olduğu gün belirti **rastgeleye** döner · **API'de hiç güvenlik başlığı yok** (oysa kullanıcı yüklemelerini servis eden origin **odur**) · yığında **yedekleme yok** ve **TLS/ters vekil yok** (yığın vekili **varsayıyor** ama **sağlamıyor**) |
 | 🟡 **12.24e — Kalıntılar** | `# 🚧 12.24` | API kökü `Hello KadirliApp .NET 8 API!` (**kimliksiz 200 + İngilizce**; 12.20 bunu panelde kapattı, kilit **yalnız Web projesini** tarıyor) · **1.199 satır ölü üreteç** (`gen_cqrs_phase4.py` · `generate_domain.py`, **0 referans**; 12.20b'nin kilidi **`wwwroot`** ile sınırlı) · 13 derleme uyarısı (`CS0114` gerçek tuzak; `CS8604` **incelendi, hata değil**) · panel doğrulama mesajı **İngilizce** |
+| 🟡 **12.25 — CİHAZ SAATİNE GÜVEN** | `# 🚧 12.25` | 🔬 **31 Ağu 2026'da canlıda görüldü, kök nedeni ÖLÇÜLDÜ: kod DOĞRU, emülatörün saati 10 gün geriydi** (emülatör `2026-08-21`, host `2026-08-31`) → 22 Ağustos tarihli etkinlik kartı **"Yarın"** rozeti taşıyordu. Rapor edilen olay **çevreseldir**; açık kalan şey onun **sınıfı**: cihaz saati bu uygulamada **doğrulanmayan bir girdi** ve yanlış olduğunda projenin imza hasar sınıfını üretiyor — *hata yok, log yok, yalnız kendinden emin yanlış bir cümle*. Kapsam ölçüldü: **33 `DateTime.now()` çağrı yeri**, kullanıcıya görünen göreli zaman **6 modülde**. 🔑 Kaldıraç **zaten boruda ve kullanılmıyor**: `meta.timestamp` her yanıtta geliyor ve `ApiMeta`'ya ayrıştırılıyor, ama **okuyan tek satır yok** (ölçüldü). 🔴 **Karar verilmedi** (eşik ne? sessizce düzelt mi, kullanıcıya söyle mi?) — ⚠️ çevrimdışı mod (12.14 kaydedilenler) sunucuya hiç değmeden çalışmak **zorunda** |
 | **12.8 — Sosyal giriş: mobil** | `### 12.8` | 🔴 **Apple Developer aboneliği onaylanmadı** (13 Ağu itibarıyla bekleniyor). 🟢 **Google ayağı bugün yazılabilir** — backend hazır ve kapalı-sağlayıcı dalı **test edilmiş** |
 | 🔴 **SMS SAĞLAYICISI — yayının TEK GERÇEK BLOKAJI** | `# ✅ 12.21 TESLİM` | 12.21'de **ölçüldü**: API `Production`'da **hiçbir `Sms:Provider` değeriyle açılmıyor** — `Dev` readiness kapısına takılıyor (haklı: SMS gitmezse kimse giremez), başka bir ad ise DI'da *"Bilinmeyen SMS sağlayıcısı"* veriyor, çünkü **gerçeklenmiş başka sağlayıcı yok**. 🔑 Blokaj **doğru**; 12.21'de kapatılan şey *sessizliğiydi* (kapının mesajı artık ne yapılacağını söylüyor, `SmsProviderAgreementTests` uyumu kilitliyor). Gereken: bir `ISmsService` gerçeklemesi (NetGSM vb.) + sağlayıcı anlaşması → `Infrastructure/Notifications/` + `SmsProviders` + `DependencyInjection.SmsImplementations`. 📌 **Panel bu blokajın dışında** — `Production`'da bugün de açılıyor (canlı doğrulandı) |
 | 📌 **Hukuki metinlerin GERÇEK içeriği** | 12.16/12.17 notları | 🔴 **Kod işi değil, İNSAN işi** ve yayından önce zorunlu. Zincirin tamamı çalışıyor (12.17 canlı doğrulandı) ama bugün yayında olan metinler **test metnidir** — yerel veritabanında, benim yazdığım örnekler. Gerçek KVKK aydınlatma + açık rıza metnini **hukukçu** yazmalı; kod onu bekliyor, tahmin etmiyor (12.16 kararı: metin **seed edilmez**) |
@@ -7421,3 +7422,115 @@ sınıfıyla aynı genişlikte mi?"*** — 12.24'ün altı bulgusundan beşi, do
 Ve ikinci ders daha sivri: **bir testin yeşil olması, ölçtüğü şeyin sözleşmenin kendisi olduğu
 anlamına gelmez.** B2'de sözleşme *"kanıt kaybolmaz"*, test *"satır tabloda duruyor"* diyordu;
 ikisinin arasındaki boşlukta **canlı bir hata** yaşıyordu.
+
+---
+
+# 🚧 12.25 — CİHAZ SAATİNE GÜVEN *(31 Ağustos 2026'da AÇILDI — canlı gözlem; **düzeltme YAPILMADI**)*
+
+> **Nasıl doğdu:** proje uçtan uca ayağa kaldırıldıktan sonra (API `:5005` · panel `:5203` ·
+> Postgres/Redis/Seq · Android emülatöründe çalışan uygulama) kullanıcı şunu bildirdi:
+> *"bugün 31 Ağustos, ama Etkinlikler'de tarihi 22 Ağustos olan bir etkinlik **"Yarın"** diye
+> gösteriliyor."*
+>
+> 📌 **Bu bölüm bir TESLİM değil, bir AÇILIŞTIR.** Kullanıcının talimatı açıktı: *"şu an
+> herhangi bir geliştirme yapmayacağız"*. Aşağısı **yalnız ölçümdür**; tek satır kod
+> değişmedi.
+
+## 🔬 Önce yeniden üretim, sonra kök neden
+
+Ekran görüntüsüyle **birebir yeniden üretildi**: "Yaklaşan" sekmesinde iki kart var —
+`22 Ağu · Adana Portakal Çiçeği Karnavalı` kartında **"Yarın"** rozeti, `31 Ağu · Osmaniye
+Kitap Fuarı` kartında **hiç rozet yok**. İkinci kartın rozetsizliği ilk bakışta ikinci bir
+hata gibi duruyor; **değil** — kök nedenin ikinci kanıtı.
+
+**Ölçüm (31 Ağu 2026, `adb shell date` ↔ `date`):**
+
+| Nerede | Tarih |
+|---|---|
+| Emülatör (`emulator-5554`, tz `Europe/Istanbul`) | **`Fri Aug 21 02:06 +03 2026`** |
+| Host (macOS) | `2026-08-31 12:32 +03` |
+
+**Emülatörün saati host'tan 10 gün geride.** Buradan sonrası aritmetik:
+
+- `Event.daysFromToday` → 22 Ağu − 21 Ağu = **1** → `countdownLabel` → **"Yarın"**. ✅ Doğru.
+- 31 Ağu − 21 Ağu = **10** → `countdownLabel`'ın aralığı `0 … 7` olduğu için **`null`** →
+  rozet hiç çizilmez. ✅ Bu da doğru.
+- Liste sorgusu da cihaz saatinden doğuyor (`events_providers.dart:152`,
+  `AppDate.isoDay(DateTime.now())`) → sunucuya `startDate=2026-08-21` gitti, sunucu da
+  **doğru** cevap verdi. Sunucunun kendi saatiyle (`startDate=2026-08-31`) aynı sorgu
+  **tek** etkinlik döndürüyor — ölçüldü.
+
+## 🔑 Hüküm: **kod doğru, çevre yanlıştı** — ama kapanan şey OLAY, sınıf değil
+
+Rapor edilen belirti **çevreseldir** (AVD anlık görüntüsünden dönen emülatör saatini
+yeniden eşitlemez). `Event`, `AppDate` ve `events_providers` bu senaryoda **hatasız**
+davrandı; düzeltilecek bir satır yok ve bu bölüm bilerek *"düzeltme yok"* diye açıldı.
+
+🔴 **Açık kalan şey belirtinin sınıfı:** **cihaz saati bu uygulamada doğrulanmayan bir
+girdidir.** Yanlış olduğunda ürettiği hasar, bu projenin `ARCHITECTURE.md` §7 boyunca
+kovaladığı sınıfın aynısı: **hata yok, log yok, boş ekran yok — yalnız kendinden emin ve
+yanlış bir cümle.** Vatandaşın telefonunun saati kaymışsa (SIM'siz ilk açılış, elle
+ayarlanmış saat, pili bitip sıfırlanmış cihaz) uygulama ona *"Yarın"* der ve etkinlik
+**dokuz gün önce** bitmiştir.
+
+**Kapsam ölçüldü** (`mobile/lib`, üretilen dosyalar hariç): **33 `DateTime.now()` çağrı
+yeri**. Kullanıcıya görünen göreli zaman üreten modüller:
+
+| Modül | Ne kayar |
+|---|---|
+| Etkinlikler | `countdownLabel` ("Bugün/Yarın/N gün sonra") **+ Yaklaşan/Geçmiş sorgu penceresi** |
+| Vefat | `dayLabel` + cenaze geri sayımı |
+| Elektrik kesintisi | `active`/`upcoming`/`past` ayrımı + kalan süre |
+| Ulaşım | "sıradaki sefer" **ve haftanın günü** (12.6'nın gün rozeti) |
+| Kampanya | kalan gün |
+| İlanlarım · OTP | ilan bitişi · yeniden gönderim sayacı |
+
+⚠️ Ulaşım modülünün yorumu (`departure_times.dart:39`) bu sınıfın **komşusunu** zaten
+yazıyor — *"cihaz başka bir saat diliminde olabilir"* — ve çözümü de var (`AppDate`
+sabit +03). Yani proje **saat dilimi** kaymasını düşünmüş, **saatin kendisinin yanlış
+olmasını** düşünmemiş.
+
+## 🔬 Kaldıraç zaten boruda — ve bugün hiç okunmuyor
+
+Ölçüldü: sunucu **her yanıtta** `meta.timestamp` gönderiyor
+(`{"timestamp":"2026-08-31T09:33:32Z", …}`, `/v1/events` üzerinde doğrulandı) ve istemci
+bunu **zaten ayrıştırıyor** — `envelope_interceptor.dart:56` → `ApiMeta.timestamp`,
+`api_client.dart:151`'de erişilebilir hâlde. **Okuyan tek satır yok** (`meta.timestamp`
+için 0 çağrı yeri, ölçüldü).
+
+Yani "cihaz saati doğru mu?" sorusunun cevabı **her istekte elimize geliyor** ve yere
+düşüyor. Bu, düzeltmenin yeni bir uç ya da yeni bir kontrat alanı **gerektirmediği**
+anlamına gelir (§5 açısından bedava).
+
+## 🔴 KARAR VERİLMEDİ — açık sorular (kod değil, tercih)
+
+1. **Eşik ne?** Birkaç saniyelik fark normaldir (ağ gecikmesi + saat kayması). Sapma kaç
+   dakikadan sonra "cihaz saati yanlış" sayılır?
+2. **Sessizce düzelt mi, söyle mi?** Sunucu saatini çıpa alıp etiketleri sessizce
+   düzeltmek, uygulamanın **telefonun kendi kilit ekranıyla çelişmesi** demektir. 12.23'ün
+   S1 kararı (*"düşmek serbest, sessizce düşmek yasak"*) buraya da uygulanırsa cevap
+   **"düzelt ve söyle"** olur — ama bu bir ürün kararıdır.
+3. 🔴 **Çevrimdışı mod pazarlık konusu değil.** 12.14'ün "Kaydedilenler"i ve önbellekli
+   listeler sunucuya **hiç değmeden** çalışmak zorunda; çözüm *"her etiketi sunucuda
+   üret"* **olamaz**. En fazla **son görülen sunucu saati** saklanabilir — ve o da
+   §7 madde 85–86'nın kapsamına girer (nereye yazılıyor, tavanı var mı, yedekleniyor mu?).
+4. **Kilit nasıl yazılır?** Bu fazın kendi dersi gereği kilit **iki yönlü** olmalı: kayık
+   saatte uyarmalı **ve** doğru saatte *"saatiniz yanlış"* dememeli — yoksa *"hiç uyarma"*
+   diyen bir gerçekleme de yeşil kalır (12.19/12.23'te iki kez yaşandı).
+
+## 📌 Bu oturumda YAPILMAYANLAR (bilinçli)
+
+- Hiçbir kaynak dosyası değişmedi — `mobile/lib` ve backend'e **dokunulmadı**.
+- Emülatörün saati **düzeltilmedi**: kullanıcının ortamıdır ve belirti şu an **canlı
+  olarak yeniden üretilebilir** durumda duruyor; düzeltirsem kanıt kaybolur.
+  *(Pratik geçici çözüm: AVD'yi soğuk başlatmak — `flutter emulators --launch Pixel_9`
+  öncesi anlık görüntüyü silmek — ya da emülatörde otomatik saati yeniden açmak.)*
+- Test yazılmadı, kilit yazılmadı, kontrat değişmedi.
+
+## 🔑 Bu maddenin (şimdiden görülen) dersi
+
+**Bir hata raporunun "bizde değilmiş" çıkması, kapanmasını gerektirmez.** Belirti
+çevreseldi; ama onu üreten koşul — *cihazın saati yanlış* — üretimde de vardır ve
+uygulamanın buna karşı **hiçbir savunması yok**. 12.24'ün cümlesi burada da geçerli:
+kilidin kapsamı hatanın sınıfından dar; bu sefer kilit **hiç yok** ve eksikliği ancak
+saati kaymış bir cihazda görünüyor.
